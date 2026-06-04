@@ -1,0 +1,41 @@
+# Build output
+bin/
+obj/
+TestResults/
+coverage/
+*.trx
+
+# .NET user files
+*.user
+*.suo
+*.rsuser
+.vs/
+.vscode/
+
+# Frontend dependencies and output
+node_modules/
+dist/
+build/
+.vite/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+appsettings.*.Local.json
+
+# Docker/local runtime data
+.docker-data/
+local-data/
+uploads/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!.terraform.lock.hcl
+
+# OS files
+Thumbs.db
+.DS_Store
