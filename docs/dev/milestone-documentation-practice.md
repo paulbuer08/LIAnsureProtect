@@ -42,6 +42,33 @@ The learning notes should capture:
 - what should be remembered for future milestones
 - what should intentionally not be implemented yet
 
+## Milestone Naming Convention
+
+Use the same milestone title format everywhere:
+
+```text
+Milestone N - Title Case Name
+```
+
+Examples:
+
+```text
+Milestone 1 - Repository And Documentation Foundation
+Milestone 2 - Backend Foundation
+Milestone 3 - Name To Be Approved
+```
+
+Apply this format consistently in:
+
+- `README.md`
+- `CHANGELOG.md`
+- `docs/project-status.md`
+- milestone learning notes
+- architecture decision records when they mention a milestone
+- new milestone session/context window handoff prompts
+
+Do not mix formats such as `milestone 3`, `M3`, `Phase 3`, or `Milestone 3: Name` unless the project intentionally changes the naming convention and documents that decision.
+
 ## Why This Matters
 
 The project is intended to be a learning and portfolio-quality system.

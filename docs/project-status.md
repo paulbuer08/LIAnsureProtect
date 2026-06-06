@@ -22,6 +22,7 @@ Use this file at the start of a new conversation or coding session before making
 - Keep beginner readability and production-style architecture balanced.
 - Update project docs and `CHANGELOG.md` after meaningful changes.
 - Add or update a detailed milestone learning notes document for every milestone.
+- Use consistent milestone titles in the format `Milestone N - Title Case Name`.
 - Use the project files as the source of continuity between conversations.
 
 ## Continuity Files To Maintain
@@ -326,6 +327,8 @@ Milestone 2 verification:
 ## Next Planned Milestone
 
 Milestone 3 should be planned in the next session before implementation starts.
+
+Use the milestone title format `Milestone 3 - Title Case Name` once the Milestone 3 scope is approved.
 
 Candidate Milestone 3 directions:
 
