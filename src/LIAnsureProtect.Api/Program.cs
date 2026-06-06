@@ -1,10 +1,6 @@
-// --------------------------------------------------------------------------------
-// Program.cs
-//   - Main entry point for the LIAnsureProtect API.
-// --------------------------------------------------------------------------------
-// 
 using LIAnsureProtect.Application;
 using LIAnsureProtect.Infrastructure;
+
 
 var applicationName = typeof(Program).Assembly.GetName().Name ?? "LIAnsureProtect.Api";
 var builder = WebApplication.CreateBuilder(args);

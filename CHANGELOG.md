@@ -25,3 +25,5 @@ The format follows simple milestone-based entries.
 - Architecture-boundary unit test coverage for current Clean Architecture project references.
 - Integration test coverage proving Application and Infrastructure dependency registration can be composed.
 - Milestone 3 learning notes covering dependency-registration setup, architecture guards, TDD, and deferred business scope.
+- Planned Milestone 4 - Application Use Case Foundation direction for practical CQRS, MediatR, FluentValidation, optional Moq test doubles, later domain events/outbox, and event sourcing as a future option only.
+- Architecture decision record for Application use case patterns.

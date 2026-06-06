@@ -131,3 +131,56 @@ Use `AddInfrastructure()` for external-service implementations such as EF Core, 
 Keep API and Worker startup focused on host-level concerns and call layer registration methods for shared setup.
 
 When the first business slice begins, add real unit tests for actual Domain or Application behavior instead of adding placeholder tests.
+
+## Planned Application Use Case Foundation
+
+After Milestone 3, the approved direction is to introduce practical CQRS, MediatR, and FluentValidation in Milestone 4 - Application Use Case Foundation.
+
+Do not add these packages as empty ceremony. Add them when the first real Application business slice demonstrates the pattern with tests.
+
+Recommended responsibilities:
+
+- CQRS separates write use cases from read use cases in Application code.
+- MediatR dispatches commands and queries to the correct handler.
+- FluentValidation validates command/query request models before handlers run.
+- Moq may be used in unit tests when a handler depends on an interface that should be replaced with a test double.
+
+Simple workflow:
+
+```text
+API Controller or Worker
+  -> MediatR
+  -> validation pipeline behavior
+  -> command/query handler
+  -> Domain rules
+  -> Application interface
+  -> Infrastructure implementation later
+```
+
+Recommended folder shape once the first business slice exists:
+
+```text
+src/LIAnsureProtect.Application/
+  Common/
+    Behaviors/
+      ValidationBehavior.cs
+    Exceptions/
+      ValidationException.cs
+
+  Submissions/
+    Commands/
+      CreateSubmission/
+        CreateSubmissionCommand.cs
+        CreateSubmissionCommandHandler.cs
+        CreateSubmissionCommandValidator.cs
+    Queries/
+      GetSubmissionDetails/
+        GetSubmissionDetailsQuery.cs
+        GetSubmissionDetailsQueryHandler.cs
+```
+
+Important limit:
+
+- Practical CQRS now does not mean separate read/write databases.
+- Domain events and a transactional outbox can come later.
+- Event sourcing is not part of the initial plan. Consider it later only for selected workflows if replayable history clearly justifies the complexity.

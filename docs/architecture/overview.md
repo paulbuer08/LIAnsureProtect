@@ -50,6 +50,68 @@ Current architecture guard tests read the project files and verify the intended 
 - Api references Application and Infrastructure.
 - Worker references Application and Infrastructure.
 
+## Application Use Case Pattern
+
+Milestone 4 - Application Use Case Foundation is planned to introduce practical CQRS with MediatR and FluentValidation.
+
+Use practical CQRS inside the modular monolith:
+
+- Commands model Application requests that change state.
+- Queries model Application requests that read state.
+- Command and query handlers live in the Application layer.
+- PostgreSQL remains the single system of record; do not split read and write databases at this stage.
+
+Use MediatR as the in-process dispatcher:
+
+```text
+API Controller or Worker
+  -> MediatR
+  -> pipeline behaviors
+  -> command/query handler
+```
+
+Use FluentValidation for request validation before handlers run. Validation should check request shape and input rules. Domain objects should still protect business invariants.
+
+Use Moq in unit tests only when a handler depends on an interface that should be replaced with a test double. Do not add Moq unless a test needs it.
+
+Recommended Application folder shape once the first business slice exists:
+
+```text
+src/LIAnsureProtect.Application/
+  Common/
+    Behaviors/
+      ValidationBehavior.cs
+    Exceptions/
+      ValidationException.cs
+
+  Submissions/
+    Commands/
+      CreateSubmission/
+        CreateSubmissionCommand.cs
+        CreateSubmissionCommandHandler.cs
+        CreateSubmissionCommandValidator.cs
+    Queries/
+      GetSubmissionDetails/
+        GetSubmissionDetailsQuery.cs
+        GetSubmissionDetailsQueryHandler.cs
+```
+
+Recommended request flow:
+
+```text
+API/Worker
+  -> MediatR
+    -> pipeline behaviors
+      -> FluentValidation
+      -> command/query handler
+        -> Domain rules
+        -> Application interfaces
+          -> Infrastructure implementations
+            -> PostgreSQL/storage/cache/messaging later
+```
+
+Domain events and a transactional outbox are planned later for reliable asynchronous workflows. Event sourcing is not part of the initial architecture. It may be considered later only for selected workflows if replayable history provides enough value to justify the added complexity.
+
 ## API Foundation
 
 The first API baseline uses ASP.NET Core Web API with controllers.

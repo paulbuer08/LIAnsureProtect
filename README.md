@@ -8,6 +8,7 @@ The first product scope is a Cyber MVP. The system will support customer and bro
 
 - Backend: ASP.NET Core Web API with C# and .NET 10
 - Architecture: practical Clean Architecture
+- Application patterns: practical CQRS with MediatR and FluentValidation planned for Milestone 4
 - Database: PostgreSQL with Entity Framework Core
 - Frontend: React 19, TypeScript, Vite
 - Local platform: Docker Compose
@@ -24,6 +25,8 @@ Before implementation, document the design. After implementation, update docs an
 
 Milestone 3 is dependency registration and architecture guards. The backend now has shared Application and Infrastructure dependency-registration extension methods, API and Worker startup use those shared methods, and tests protect the current project-reference boundaries.
 
+Milestone 4 is planned as `Milestone 4 - Application Use Case Foundation`. It should introduce practical CQRS, MediatR, and FluentValidation with the first real Application business slice instead of adding those packages as empty ceremony.
+
 ## Documentation
 
 - [Project Status](docs/project-status.md)
@@ -34,4 +37,5 @@ Milestone 3 is dependency registration and architecture guards. The backend now 
 - [Milestone Documentation Practice](docs/dev/milestone-documentation-practice.md)
 - [Milestone 2 Backend Foundation Learnings](docs/dev/milestone-2-backend-foundation-learnings.md)
 - [Milestone 3 Dependency Registration And Architecture Guards Learnings](docs/dev/milestone-3-dependency-registration-and-architecture-guards-learnings.md)
+- [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)
 - [AWS Environments](docs/dev/aws-environments.md)

@@ -2,6 +2,7 @@ using System.Xml.Linq;
 
 namespace LIAnsureProtect.UnitTests.Architecture;
 
+
 public sealed class ProjectReferenceBoundaryTests
 {
     private static readonly string RepositoryRoot = FindRepositoryRoot();
@@ -41,10 +42,11 @@ public sealed class ProjectReferenceBoundaryTests
         Assert.Equal(expectedReferencedProjects.Order().ToArray(), actualReferencedProjects);
     }
 
+
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-
         while (directory is not null)
         {
             if (File.Exists(Path.Combine(directory.FullName, "LIAnsureProtect.slnx")))

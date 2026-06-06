@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace LIAnsureProtect.IntegrationTests;
 
+
 public sealed class DependencyRegistrationTests
 {
     [Fact]

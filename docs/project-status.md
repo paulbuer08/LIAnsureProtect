@@ -127,6 +127,15 @@ Important planned interfaces:
 - `INotificationInboxRepository`: DynamoDB-backed notification inbox.
 - `IAiReviewService`: advisory AI summaries and Q&A only.
 
+Approved Application use case direction:
+
+- Use practical CQRS in the Application layer starting in Milestone 4 - Application Use Case Foundation.
+- Use MediatR to dispatch commands and queries to their handlers.
+- Use FluentValidation to validate command/query request models before handlers execute.
+- Use Moq in unit tests only when handlers depend on interfaces that need test doubles.
+- Add domain events and a transactional outbox in a later milestone for reliable asynchronous workflows.
+- Do not use event sourcing as the default persistence model. Consider event sourcing later only for selected workflows if replayable history has clear value.
+
 Public API route prefix:
 
 ```text
@@ -326,7 +335,7 @@ Milestone 2 verification:
 
 ## Next Planned Milestone
 
-Milestone 3 - Dependency Registration And Architecture Guards is the approved current milestone.
+Milestone 3 - Dependency Registration And Architecture Guards is complete.
 
 Intent:
 
@@ -361,6 +370,32 @@ Milestone 3 verification:
 - Command-line `dotnet build LIAnsureProtect.slnx --no-restore` passed with 0 warnings and 0 errors.
 - Command-line `dotnet test LIAnsureProtect.slnx --no-build` passed; UnitTests passed 5 tests and IntegrationTests passed 3 tests.
 - `git diff --check` passed with only normal CRLF warnings on Windows.
+
+Next candidate milestone:
+
+### Milestone 4 - Application Use Case Foundation
+
+Planned intent:
+
+- Introduce practical CQRS in the Application layer.
+- Add MediatR to dispatch commands and queries.
+- Add FluentValidation to validate command/query request models before handlers run.
+- Add a validation pipeline behavior.
+- Add the first small Application business slice only after agreeing on the exact scope.
+- Use Moq only if the first handler tests need test doubles for Application interfaces.
+
+Planned design limits:
+
+- Keep PostgreSQL as one system of record.
+- Do not split read and write databases.
+- Do not add event sourcing.
+- Do not add authentication, database schema, React frontend, or cloud infrastructure unless a later milestone explicitly approves that scope.
+
+Recommended first business-slice candidates:
+
+- submission intake foundation
+- insured company profile foundation
+- small underwriting review workflow
 
 ## Open Local Setup Items
 
