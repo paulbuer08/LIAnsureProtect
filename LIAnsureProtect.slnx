@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LIAnsureProtect.Api/LIAnsureProtect.Api.csproj" Id="040247e8-d186-4307-b21c-adc87d0b9074" />
+    <Project Path="src/LIAnsureProtect.Application/LIAnsureProtect.Application.csproj" Id="11ed9844-7106-4efd-8847-de3aafee0a39" />
+    <Project Path="src/LIAnsureProtect.Domain/LIAnsureProtect.Domain.csproj" Id="3cee058a-9a28-44d3-a905-b456868b1b26" />
+    <Project Path="src/LIAnsureProtect.Infrastructure/LIAnsureProtect.Infrastructure.csproj" Id="f1287d83-4c26-4620-b835-5e092ffcb8b0" />
+    <Project Path="src/LIAnsureProtect.Worker/LIAnsureProtect.Worker.csproj" Id="a4f3914f-ec14-45cc-837b-63fb5394d214" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LIAnsureProtect.IntegrationTests/LIAnsureProtect.IntegrationTests.csproj" Id="e3de299f-6eab-48f2-82c1-9378c9fcad71" />
+    <Project Path="tests/LIAnsureProtect.UnitTests/LIAnsureProtect.UnitTests.csproj" Id="708bc2cf-8339-4ac6-9c25-05554e6c4760" />
+  </Folder>
+</Solution>

@@ -40,6 +40,29 @@ Workers
 - Api: HTTP endpoints, authentication, authorization, middleware, Swagger/OpenAPI, and health checks.
 - Workers: background processors and queue consumers.
 
+## API Foundation
+
+The first API baseline uses ASP.NET Core Web API with controllers.
+
+Current foundation:
+
+- OpenAPI document generation for discoverable API contracts.
+- ProblemDetails for consistent API error responses.
+- Health checks for basic operational status.
+- HTTPS redirection for local and production security posture.
+- `/api/v1/health` as the first versioned operational endpoint.
+- A simple root endpoint that reports the running application name dynamically from the assembly.
+
+Planned API direction:
+
+- Keep public business endpoints under `/api/v1/...` from the beginning.
+- Add formal API versioning when the first real business endpoints are introduced or before a breaking API change.
+- Generate separate OpenAPI documents later when needed for API versions, public/internal audiences, or frontend/backend API groupings.
+- Keep OpenAPI exposed only in development until authentication and role-based access are available.
+- Protect API documentation later with authorization, such as Admin or Developer access, before exposing it outside local development.
+- Prefer controller-based APIs for business resources, while allowing small `MapGet` endpoints for infrastructure/status endpoints.
+- Treat OpenAPI document caching as a later optimization, and avoid public caching for protected/internal API metadata.
+
 ## Deployment Tracks
 
 The project supports two production deployment tracks over time:
@@ -57,3 +80,16 @@ ECS Fargate is the stronger first production path for Docker, autoscaling, ALB, 
 - Private document storage.
 - Audit logs for sensitive actions.
 - Separate dev, staging, and production environments.
+
+## Production Middleware Direction
+
+Milestone 2 intentionally keeps middleware small. Add production middleware when its supporting feature exists:
+
+- Authentication and authorization policies when user identity is introduced.
+- CORS when the React frontend runs from a separate origin.
+- Forwarded headers when the API runs behind CloudFront, ALB, API Gateway, or another reverse proxy.
+- HSTS when HTTPS hosting is finalized outside local development.
+- Rate limiting for public API protection.
+- Response compression and safe output caching for suitable non-sensitive responses.
+- Request correlation, tracing, and enriched structured logging for production observability.
+- Readiness and dependency health checks when PostgreSQL, Redis, queues, storage, and external integrations are added.

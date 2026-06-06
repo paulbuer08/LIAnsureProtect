@@ -1,0 +1,6 @@
+@LIAnsureProtect.Api_HostAddress = http://localhost:5223
+
+GET {{LIAnsureProtect.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

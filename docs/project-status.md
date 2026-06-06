@@ -7,10 +7,10 @@ Use this file at the start of a new conversation or coding session before making
 ## Current Workspace
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
-- Current branch: `codex/milestone-1-docs-foundation`
-- Git state: initial repository, no commits yet
-- Current milestone: Milestone 1 - repository and documentation foundation
-- Application code status: no backend or frontend application code has been created yet
+- Current branch: `codex/milestone-2-backend-foundation`
+- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 backend foundation is complete on the current branch.
+- Current milestone: Milestone 2 - Backend Foundation
+- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; frontend application code has not been created yet.
 
 ## User Collaboration Rules
 
@@ -21,6 +21,7 @@ Use this file at the start of a new conversation or coding session before making
 - Prefer small, understandable code snippets and explain what each part does.
 - Keep beginner readability and production-style architecture balanced.
 - Update project docs and `CHANGELOG.md` after meaningful changes.
+- Add or update a detailed milestone learning notes document for every milestone.
 - Use the project files as the source of continuity between conversations.
 
 ## Continuity Files To Maintain
@@ -35,11 +36,13 @@ Always update these files when the milestone changes the relevant content:
 
 Add business, security, operations, or deployment docs when a milestone introduces those areas.
 
+Every milestone should also have a learning notes document when meaningful design questions, production tradeoffs, setup lessons, or debugging lessons occur. These notes are mandatory for this project because they preserve the reasoning that led to the final setup.
+
 ## Completed Work
 
 ### Milestone 1 - Repository And Documentation Foundation
 
-Status: in progress, files created but not committed yet.
+Status: completed and committed locally as `3d16e8c docs: add project foundation`.
 
 Created:
 
@@ -274,11 +277,13 @@ Document uploaded
   -> RAG answer with citations
 ```
 
-## Next Planned Milestone
+## Milestone 2 Completion
 
-Milestone 2 - Backend Foundation.
+### Milestone 2 - Backend Foundation
 
-Planned intent:
+Status: complete.
+
+Intent:
 
 - Create the ASP.NET Core solution and project structure.
 - Add Clean Architecture project references.
@@ -286,7 +291,47 @@ Planned intent:
 - Add test projects.
 - Keep business features out of this milestone unless needed for a smoke test.
 
-Before starting Milestone 2, review and approve the exact project/folder structure.
+Created:
+
+- `LIAnsureProtect.slnx` exists.
+- Production projects are under `src`: Domain, Application, Infrastructure, Api, and Worker.
+- Test projects are under `tests`: UnitTests and IntegrationTests.
+- Project references follow the Clean Architecture dependency direction.
+- Weather template demo files and empty class library templates were removed.
+- API startup includes OpenAPI, ProblemDetails, health checks, HTTPS redirection, authorization middleware, a simple root status endpoint, and `/api/v1/health`.
+- IntegrationTests contains real root status and health endpoint tests using `WebApplicationFactory`.
+- UnitTests currently contains no tests because no Domain or Application behavior exists yet.
+
+Milestone 2 decisions to remember:
+
+- Keep business API routes under `/api/v1/...` from the beginning.
+- Use formal API versioning later before real breaking API changes or when multiple live API versions are needed.
+- Keep OpenAPI development-only for now.
+- Later, generate separate OpenAPI documents when needed for versions, public/internal audiences, or frontend/backend groupings.
+- Later, protect OpenAPI documentation with role-based authorization before exposing it outside local development.
+- Do not add authentication, CORS, database schema, frontend code, or cloud infrastructure in Milestone 2 unless explicitly approved.
+- Use built-in ASP.NET Core logging first; for AWS ECS/Fargate, prefer console logs shipped to CloudWatch before adding Serilog or CloudWatch-specific logging packages.
+- Keep test-host settings local to integration tests unless the value changes by environment.
+- Prefer explicit public route expectations in integration tests so tests protect the API contract.
+
+Milestone 2 verification:
+
+- Visual Studio build and tests passed on the local machine.
+- Command-line `dotnet build LIAnsureProtect.slnx --no-restore` passed.
+- Command-line `dotnet test LIAnsureProtect.slnx --no-build` passed; IntegrationTests passed with root status and health endpoint coverage, and UnitTests built but has no tests yet by design.
+- `git diff --check` passed with only normal CRLF warnings.
+
+## Next Planned Milestone
+
+Milestone 3 should be planned in the next session before implementation starts.
+
+Candidate Milestone 3 directions:
+
+- Add shared Application and Infrastructure dependency-registration extension methods.
+- Add a first small architecture-boundary test if it adds real value.
+- Start the first Domain/Application business slice only after agreeing on scope.
+
+Do not start authentication, database schema, React frontend, or cloud infrastructure until the relevant milestone is explicitly approved.
 
 ## Open Local Setup Items
 
@@ -299,4 +344,3 @@ Known from earlier environment checks:
 - Terraform is not currently available from this environment.
 
 These are not blockers for backend foundation, but Node/npm is required before the React frontend milestone, and AWS CLI/Terraform are required before deployment milestones.
-

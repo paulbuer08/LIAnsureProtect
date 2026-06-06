@@ -22,7 +22,7 @@ Before implementation, document the design. After implementation, update docs an
 
 ## Current Status
 
-Milestone 1 is the repository and documentation foundation. Application code has not been created yet.
+Milestone 2 is the backend foundation. The solution, backend project structure, API host, Worker placeholder, and root/health endpoint integration tests are in place.
 
 ## Documentation
 
@@ -31,4 +31,6 @@ Milestone 1 is the repository and documentation foundation. Application code has
 - [Cyber Specialty Insurance Overview](docs/business/cyber-specialty-insurance-overview.md)
 - [User Roles](docs/business/user-roles.md)
 - [Local Development](docs/dev/local-development.md)
+- [Milestone Documentation Practice](docs/dev/milestone-documentation-practice.md)
+- [Milestone 2 Backend Foundation Learnings](docs/dev/milestone-2-backend-foundation-learnings.md)
 - [AWS Environments](docs/dev/aws-environments.md)
