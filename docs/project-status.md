@@ -38,6 +38,8 @@ Add business, security, operations, or deployment docs when a milestone introduc
 
 Every milestone should also have a learning notes document when meaningful design questions, production tradeoffs, setup lessons, or debugging lessons occur. These notes are mandatory for this project because they preserve the reasoning that led to the final setup.
 
+At the end of each milestone session, create the next milestone session/context window with a concise handoff prompt after the milestone is verified and committed.
+
 ## Completed Work
 
 ### Milestone 1 - Repository And Documentation Foundation

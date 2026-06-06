@@ -77,3 +77,17 @@ Before committing a milestone:
 6. Add or update the milestone learning notes.
 7. Confirm the next milestone boundary is clear.
 8. Commit only after the code and docs agree.
+9. Create the next milestone session or context window with a clear handoff prompt.
+
+The handoff prompt should include:
+
+- workspace path
+- current branch
+- latest commit id
+- required files to read first
+- current milestone status
+- next candidate milestone directions
+- collaboration rules
+- explicit reminder not to implement until the user approves the next milestone scope
+
+This keeps each milestone session self-contained. The new session should be able to continue from project files and the handoff prompt without requiring the user to repaste the previous conversation.
