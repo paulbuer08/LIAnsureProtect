@@ -19,3 +19,9 @@ The format follows simple milestone-based entries.
 - xUnit v3 test package baseline.
 - Milestone 2 backend foundation learning notes covering project structure, API middleware, OpenAPI, logging, health checks, and integration testing decisions.
 - Milestone documentation practice requiring learning notes for each future milestone.
+- Milestone 3 - Dependency Registration And Architecture Guards.
+- Shared `AddApplication()` and `AddInfrastructure()` dependency-registration extension methods.
+- API and Worker startup wiring through the shared Application and Infrastructure registration methods.
+- Architecture-boundary unit test coverage for current Clean Architecture project references.
+- Integration test coverage proving Application and Infrastructure dependency registration can be composed.
+- Milestone 3 learning notes covering dependency-registration setup, architecture guards, TDD, and deferred business scope.

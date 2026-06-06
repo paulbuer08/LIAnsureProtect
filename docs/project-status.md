@@ -8,9 +8,9 @@ Use this file at the start of a new conversation or coding session before making
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
 - Current branch: `codex/milestone-2-backend-foundation`
-- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 backend foundation is complete on the current branch.
-- Current milestone: Milestone 2 - Backend Foundation
-- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; frontend application code has not been created yet.
+- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `feat: add dependency registration and architecture guards`.
+- Current milestone: Milestone 3 - Dependency Registration And Architecture Guards
+- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; frontend application code has not been created yet.
 
 ## User Collaboration Rules
 
@@ -326,17 +326,41 @@ Milestone 2 verification:
 
 ## Next Planned Milestone
 
-Milestone 3 should be planned in the next session before implementation starts.
+Milestone 3 - Dependency Registration And Architecture Guards is the approved current milestone.
 
-Use the milestone title format `Milestone 3 - Title Case Name` once the Milestone 3 scope is approved.
-
-Candidate Milestone 3 directions:
+Intent:
 
 - Add shared Application and Infrastructure dependency-registration extension methods.
-- Add a first small architecture-boundary test if it adds real value.
-- Start the first Domain/Application business slice only after agreeing on scope.
+- Wire API and Worker startup through the shared registration methods.
+- Add a first small architecture-boundary test because it now adds real value.
+- Do not start the first Domain/Application business slice yet.
+
+Created:
+
+- `src/LIAnsureProtect.Application/DependencyInjection.cs`
+- `src/LIAnsureProtect.Infrastructure/DependencyInjection.cs`
+- API startup calls `AddApplication()` and `AddInfrastructure()`.
+- Worker startup calls `AddApplication()` and `AddInfrastructure()`.
+- `tests/LIAnsureProtect.IntegrationTests/DependencyRegistrationTests.cs`
+- `tests/LIAnsureProtect.UnitTests/Architecture/ProjectReferenceBoundaryTests.cs`
+- `docs/dev/milestone-3-dependency-registration-and-architecture-guards-learnings.md`
+
+Milestone 3 decisions to remember:
+
+- `AddApplication()` and `AddInfrastructure()` are intentionally small now. They are stable setup doors for future services, not a reason to invent fake services.
+- API and Worker should call shared layer registration methods so future hosts compose the same Application and Infrastructure setup.
+- The first architecture-boundary test checks project references directly from `.csproj` files. This protects the current Clean Architecture direction without adding a heavier architecture-testing package.
+- UnitTests now contains architecture guard tests even though pure Domain/Application business unit tests still do not exist yet.
+- Keep the first business slice for a later approved milestone.
 
 Do not start authentication, database schema, React frontend, or cloud infrastructure until the relevant milestone is explicitly approved.
+
+Milestone 3 verification:
+
+- Command-line `dotnet test LIAnsureProtect.slnx` passed after restoring packages.
+- Command-line `dotnet build LIAnsureProtect.slnx --no-restore` passed with 0 warnings and 0 errors.
+- Command-line `dotnet test LIAnsureProtect.slnx --no-build` passed; UnitTests passed 5 tests and IntegrationTests passed 3 tests.
+- `git diff --check` passed with only normal CRLF warnings on Windows.
 
 ## Open Local Setup Items
 

@@ -22,7 +22,7 @@ Before implementation, document the design. After implementation, update docs an
 
 ## Current Status
 
-Milestone 2 is the backend foundation. The solution, backend project structure, API host, Worker placeholder, and root/health endpoint integration tests are in place.
+Milestone 3 is dependency registration and architecture guards. The backend now has shared Application and Infrastructure dependency-registration extension methods, API and Worker startup use those shared methods, and tests protect the current project-reference boundaries.
 
 ## Documentation
 
@@ -33,4 +33,5 @@ Milestone 2 is the backend foundation. The solution, backend project structure, 
 - [Local Development](docs/dev/local-development.md)
 - [Milestone Documentation Practice](docs/dev/milestone-documentation-practice.md)
 - [Milestone 2 Backend Foundation Learnings](docs/dev/milestone-2-backend-foundation-learnings.md)
+- [Milestone 3 Dependency Registration And Architecture Guards Learnings](docs/dev/milestone-3-dependency-registration-and-architecture-guards-learnings.md)
 - [AWS Environments](docs/dev/aws-environments.md)

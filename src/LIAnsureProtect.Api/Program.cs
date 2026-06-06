@@ -3,11 +3,16 @@
 //   - Main entry point for the LIAnsureProtect API.
 // --------------------------------------------------------------------------------
 // 
+using LIAnsureProtect.Application;
+using LIAnsureProtect.Infrastructure;
+
 var applicationName = typeof(Program).Assembly.GetName().Name ?? "LIAnsureProtect.Api";
 var builder = WebApplication.CreateBuilder(args);
 
 
 // 1) Add services to the container.
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure();
 builder.Services.AddControllers();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

@@ -40,6 +40,16 @@ Workers
 - Api: HTTP endpoints, authentication, authorization, middleware, Swagger/OpenAPI, and health checks.
 - Workers: background processors and queue consumers.
 
+Application and Infrastructure each expose a dependency-registration extension method. API and Worker startup call those methods so future use cases, repositories, storage services, caches, and messaging adapters can be registered inside their owning layer instead of being scattered through each host.
+
+Current architecture guard tests read the project files and verify the intended project-reference direction:
+
+- Domain references no production project.
+- Application references Domain.
+- Infrastructure references Application and Domain.
+- Api references Application and Infrastructure.
+- Worker references Application and Infrastructure.
+
 ## API Foundation
 
 The first API baseline uses ASP.NET Core Web API with controllers.
