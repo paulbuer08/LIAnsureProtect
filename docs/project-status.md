@@ -8,9 +8,9 @@ Use this file at the start of a new conversation or coding session before making
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
 - Current branch: `codex/milestone-2-backend-foundation`
-- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `feat: add dependency registration and architecture guards`.
-- Current milestone: Milestone 3 - Dependency Registration And Architecture Guards
-- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; frontend application code has not been created yet.
+- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`.
+- Current milestone: Milestone 4 - Application Use Case Foundation
+- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 now contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, a temporary in-memory Infrastructure repository, and Moq-backed handler tests; frontend application code has not been created yet.
 
 ## User Collaboration Rules
 
@@ -333,7 +333,7 @@ Milestone 2 verification:
 - Command-line `dotnet test LIAnsureProtect.slnx --no-build` passed; IntegrationTests passed with root status and health endpoint coverage, and UnitTests built but has no tests yet by design.
 - `git diff --check` passed with only normal CRLF warnings.
 
-## Next Planned Milestone
+## Recent Completed Work
 
 Milestone 3 - Dependency Registration And Architecture Guards is complete.
 
@@ -371,31 +371,80 @@ Milestone 3 verification:
 - Command-line `dotnet test LIAnsureProtect.slnx --no-build` passed; UnitTests passed 5 tests and IntegrationTests passed 3 tests.
 - `git diff --check` passed with only normal CRLF warnings on Windows.
 
-Next candidate milestone:
+## Current Milestone
 
 ### Milestone 4 - Application Use Case Foundation
 
-Planned intent:
+Status: complete and ready to commit.
+
+Intent:
 
 - Introduce practical CQRS in the Application layer.
 - Add MediatR to dispatch commands and queries.
 - Add FluentValidation to validate command/query request models before handlers run.
 - Add a validation pipeline behavior.
-- Add the first small Application business slice only after agreeing on the exact scope.
-- Use Moq only if the first handler tests need test doubles for Application interfaces.
+- Add the first small Application business slice: submission intake foundation.
+- Add `ISubmissionRepository` as the Application-layer persistence promise for submissions.
+- Use Moq for the create-submission handler test because the handler depends on `ISubmissionRepository`.
 
-Planned design limits:
+Created:
+
+- `src/LIAnsureProtect.Domain/Submissions/Submission.cs`
+- `src/LIAnsureProtect.Domain/Submissions/SubmissionStatus.cs`
+- `src/LIAnsureProtect.Application/Common/Behaviors/ValidationBehavior.cs`
+- `src/LIAnsureProtect.Application/Common/Exceptions/ValidationException.cs`
+- `src/LIAnsureProtect.Application/Submissions/ISubmissionRepository.cs`
+- `src/LIAnsureProtect.Application/Submissions/Commands/CreateSubmission/CreateSubmissionCommand.cs`
+- `src/LIAnsureProtect.Application/Submissions/Commands/CreateSubmission/CreateSubmissionCommandHandler.cs`
+- `src/LIAnsureProtect.Application/Submissions/Commands/CreateSubmission/CreateSubmissionCommandValidator.cs`
+- `src/LIAnsureProtect.Application/Submissions/Commands/CreateSubmission/CreateSubmissionResult.cs`
+- `src/LIAnsureProtect.Api/Controllers/SubmissionsController.cs`
+- `src/LIAnsureProtect.Infrastructure/Submissions/InMemorySubmissionRepository.cs`
+- `tests/LIAnsureProtect.UnitTests/Submissions/SubmissionTests.cs`
+- `tests/LIAnsureProtect.UnitTests/Submissions/CreateSubmission/CreateSubmissionCommandHandlerTests.cs`
+- `tests/LIAnsureProtect.UnitTests/Submissions/CreateSubmission/CreateSubmissionCommandValidatorTests.cs`
+- `tests/LIAnsureProtect.IntegrationTests/SubmissionEndpointTests.cs`
+- `docs/dev/milestone-4-application-use-case-foundation-learnings.md`
+
+Milestone 4 decisions to remember:
+
+- `Submission` uses a private constructor and `CreateDraft(...)` factory method so creation goes through one controlled business door.
+- `Submission.Status` has a private setter. Other code can read status, but status changes must go through domain methods such as `Submit()` and `Withdraw()`.
+- Use `Withdrawn` for an application that the applicant or broker stops before it becomes a policy. Avoid `Cancelled` here because cancellation often describes ending an active policy.
+- `ISubmissionRepository` belongs in Application because handlers need a persistence promise without knowing database details.
+- `InMemorySubmissionRepository` is a temporary Infrastructure implementation so the API and Worker can compose before PostgreSQL exists. It is not the future production system of record.
+- Moq is appropriate in the handler unit test because the handler depends on an interface.
+- Do not add Unit of Work until the persistence milestone introduces EF Core/PostgreSQL and real transaction/save behavior.
+
+Design limits:
 
 - Keep PostgreSQL as one system of record.
 - Do not split read and write databases.
 - Do not add event sourcing.
 - Do not add authentication, database schema, React frontend, or cloud infrastructure unless a later milestone explicitly approves that scope.
 
-Recommended first business-slice candidates:
+Current request flow:
 
-- submission intake foundation
-- insured company profile foundation
-- small underwriting review workflow
+```text
+POST /api/v1/submissions
+  -> SubmissionsController
+  -> CreateSubmissionCommand
+  -> ValidationBehavior
+  -> CreateSubmissionCommandHandler
+  -> Submission.CreateDraft(...)
+  -> ISubmissionRepository.AddAsync(...)
+  -> InMemorySubmissionRepository for now
+```
+
+Milestone 4 verification:
+
+- Command-line `dotnet build LIAnsureProtect.slnx --no-restore` passed with 0 warnings and 0 errors.
+- Command-line `dotnet test LIAnsureProtect.slnx --no-build` passed; UnitTests passed 14 tests and IntegrationTests passed 5 tests.
+- `git diff --check` passed with only normal CRLF warnings on Windows.
+
+Likely next milestone after closeout:
+
+- Milestone 5 - Persistence Foundation with EF Core, PostgreSQL connection setup, submission mapping, PostgreSQL-backed `SubmissionRepository`, and Unit of Work.
 
 ## Open Local Setup Items
 

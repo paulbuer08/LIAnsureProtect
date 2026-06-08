@@ -27,3 +27,14 @@ The format follows simple milestone-based entries.
 - Milestone 3 learning notes covering dependency-registration setup, architecture guards, TDD, and deferred business scope.
 - Planned Milestone 4 - Application Use Case Foundation direction for practical CQRS, MediatR, FluentValidation, optional Moq test doubles, later domain events/outbox, and event sourcing as a future option only.
 - Architecture decision record for Application use case patterns.
+- Milestone 4 - Application Use Case Foundation implementation with the first submission intake slice.
+- `Submission` domain model with draft, submitted, and withdrawn statuses.
+- Application-layer `ISubmissionRepository` interface for submission persistence needs.
+- MediatR command/result/handler for creating draft submissions.
+- FluentValidation validator and MediatR validation pipeline behavior for command/query validation before handlers run.
+- Temporary in-memory Infrastructure submission repository so hosts can compose before PostgreSQL is introduced.
+- Moq-based handler unit test coverage for repository interaction.
+- Unit test coverage for submission domain behavior and create-submission validation.
+- `POST /api/v1/submissions` endpoint that dispatches `CreateSubmissionCommand` through MediatR.
+- Integration test coverage for successful submission creation and validation failure responses.
+- Milestone 4 learning notes covering practical CQRS, Moq placement, temporary in-memory persistence, and Unit of Work deferral.

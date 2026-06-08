@@ -25,7 +25,9 @@ Before implementation, document the design. After implementation, update docs an
 
 Milestone 3 is dependency registration and architecture guards. The backend now has shared Application and Infrastructure dependency-registration extension methods, API and Worker startup use those shared methods, and tests protect the current project-reference boundaries.
 
-Milestone 4 is planned as `Milestone 4 - Application Use Case Foundation`. It should introduce practical CQRS, MediatR, and FluentValidation with the first real Application business slice instead of adding those packages as empty ceremony.
+Milestone 4 is complete as `Milestone 4 - Application Use Case Foundation`. It introduced practical CQRS, MediatR, FluentValidation, a validation pipeline behavior, and the first submission intake slice exposed through `POST /api/v1/submissions`.
+
+The first slice uses an `ISubmissionRepository` interface in the Application layer and a temporary in-memory Infrastructure implementation so the API can still start before PostgreSQL is introduced. Unit of Work is intentionally deferred until the persistence milestone because it belongs with EF Core transactions and database `SaveChanges` behavior.
 
 ## Documentation
 
@@ -37,5 +39,6 @@ Milestone 4 is planned as `Milestone 4 - Application Use Case Foundation`. It sh
 - [Milestone Documentation Practice](docs/dev/milestone-documentation-practice.md)
 - [Milestone 2 Backend Foundation Learnings](docs/dev/milestone-2-backend-foundation-learnings.md)
 - [Milestone 3 Dependency Registration And Architecture Guards Learnings](docs/dev/milestone-3-dependency-registration-and-architecture-guards-learnings.md)
+- [Milestone 4 Application Use Case Foundation Learnings](docs/dev/milestone-4-application-use-case-foundation-learnings.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)
 - [AWS Environments](docs/dev/aws-environments.md)

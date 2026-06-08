@@ -28,7 +28,9 @@ Use FluentValidation to validate command and query request models before handler
 
 Use MediatR pipeline behaviors for cross-cutting Application concerns when needed, beginning with validation. Later pipeline behaviors may cover logging, authorization checks, transactions, audit metadata, or domain event dispatching when those features exist.
 
-Use Moq in unit tests only when a handler depends on an interface that should be replaced with a test double. Do not add Moq as default ceremony when a test can use real simple code.
+Use Moq in unit tests when a handler depends on an interface that should be replaced with a test double. Milestone 4 uses Moq for the `CreateSubmissionCommandHandler` test because the handler depends on `ISubmissionRepository`.
+
+Introduce Unit of Work later with persistence, not in the first Application pattern milestone. Unit of Work should coordinate EF Core `DbContext` changes and database transactions when PostgreSQL is introduced.
 
 Do not use event sourcing as the default persistence model.
 
@@ -57,6 +59,8 @@ The project gains a clear path for future cross-cutting behavior without scatter
 
 The tradeoff is added structure and package dependencies. To avoid empty ceremony, MediatR and FluentValidation should be introduced with the first real Application business slice, not as unused packages.
 
+The first repository implementation may be temporary and in-memory only so the host can compose before database work begins. That temporary implementation is not the real system of record and should be replaced by PostgreSQL-backed Infrastructure in the persistence milestone.
+
 ## Not Chosen
 
 Full event sourcing is not chosen now.
@@ -66,3 +70,5 @@ Separate read and write databases are not chosen now.
 Microservices are not chosen now.
 
 Direct controller-to-service calls without a consistent use-case pattern are not preferred for the long-term Application layer.
+
+Unit of Work in Milestone 4 is not chosen because there is no EF Core `DbContext`, database transaction, or persistence boundary to coordinate yet.

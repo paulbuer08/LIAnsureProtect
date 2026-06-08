@@ -74,6 +74,43 @@ Use FluentValidation for request validation before handlers run. Validation shou
 
 Use Moq in unit tests only when a handler depends on an interface that should be replaced with a test double. Do not add Moq unless a test needs it.
 
+The first Milestone 4 submission slice uses this flow:
+
+```text
+POST /api/v1/submissions
+  -> SubmissionsController
+  -> CreateSubmissionCommand
+  -> validation pipeline behavior
+  -> CreateSubmissionCommandHandler
+  -> Submission.CreateDraft(...)
+  -> ISubmissionRepository.AddAsync(...)
+```
+
+`ISubmissionRepository` lives in Application because the use case needs a storage promise, not a database detail. Infrastructure currently fulfills that promise with a temporary in-memory repository so the API and Worker can still compose before PostgreSQL exists.
+
+Simple analogy:
+
+```text
+Application:
+  "I need a filing tray for submissions."
+
+Infrastructure today:
+  "Here is a temporary desk tray."
+
+Infrastructure later:
+  "Here is the real PostgreSQL filing cabinet."
+```
+
+Unit of Work is intentionally deferred until the persistence milestone. It belongs with EF Core `DbContext`, database transactions, and `SaveChangesAsync`, not with the first database-free Application pattern.
+
+The first public business endpoint is:
+
+```text
+POST /api/v1/submissions
+```
+
+The controller is intentionally thin. It translates HTTP JSON into an Application command and translates Application validation failures into `400 Bad Request` validation problem details.
+
 Recommended Application folder shape once the first business slice exists:
 
 ```text
