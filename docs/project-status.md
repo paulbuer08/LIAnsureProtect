@@ -8,8 +8,8 @@ Use this file at the start of a new conversation or coding session before making
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
 - Current branch: `codex/milestone-2-backend-foundation`
-- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`.
-- Current milestone: Milestone 5 - Persistence Foundation
+- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`.
+- Current milestone: Milestone 5 - Persistence Foundation is complete; next milestone scope is pending confirmation.
 - Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; frontend application code has not been created yet.
 
 ## User Collaboration Rules
@@ -446,7 +446,7 @@ Milestone 4 verification:
 
 ### Milestone 5 - Persistence Foundation
 
-Status: implemented locally and verified; commit still pending.
+Status: complete and committed locally as `2fbdf7f feat: add persistence foundation`.
 
 Intent:
 
@@ -565,7 +565,9 @@ Milestone 5 verification:
 
 Likely next milestone after closeout:
 
-- To be approved after Milestone 5 closeout. Candidate directions include authentication/authorization foundation, expanding the next submission workflow slice, or introducing the next containerized dependency when the matching feature exists.
+- Recommended: Milestone 6 - Authentication Foundation.
+- Candidate alternatives include expanding the next submission workflow slice or introducing document storage foundation.
+- Do not start Milestone 6 implementation until the scope is confirmed in the next session.
 
 ## Open Local Setup Items
 
