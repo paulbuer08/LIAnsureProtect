@@ -232,3 +232,9 @@ Keep Infrastructure implementations outside Application.
 Use the temporary in-memory repository only until real persistence exists.
 
 Add Unit of Work when EF Core/PostgreSQL persistence is introduced.
+
+## Milestone 5 Follow-Up
+
+Milestone 5 - Persistence Foundation replaced the temporary in-memory repository with EF Core/PostgreSQL persistence and added Unit of Work.
+
+The Milestone 4 guidance about the in-memory repository should now be read as historical context, not the current runtime persistence path.

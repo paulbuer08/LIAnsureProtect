@@ -1,10 +1,12 @@
+using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Domain.Submissions;
 using MediatR;
 
 namespace LIAnsureProtect.Application.Submissions.Commands.CreateSubmission;
 
 public sealed class CreateSubmissionCommandHandler(
-    ISubmissionRepository submissionRepository)
+    ISubmissionRepository submissionRepository,
+    IUnitOfWork unitOfWork)
     : IRequestHandler<CreateSubmissionCommand, CreateSubmissionResult>
 {
     public async Task<CreateSubmissionResult> Handle(
@@ -18,6 +20,7 @@ public sealed class CreateSubmissionCommandHandler(
             DateTime.UtcNow);
 
         await submissionRepository.AddAsync(submission, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new CreateSubmissionResult(
             submission.Id,

@@ -38,3 +38,33 @@ The format follows simple milestone-based entries.
 - `POST /api/v1/submissions` endpoint that dispatches `CreateSubmissionCommand` through MediatR.
 - Integration test coverage for successful submission creation and validation failure responses.
 - Milestone 4 learning notes covering practical CQRS, Moq placement, temporary in-memory persistence, and Unit of Work deferral.
+- Milestone 5 - Persistence Foundation.
+- PostgreSQL EF Core provider setup in Infrastructure.
+- API startup project design-time EF Core package reference so repo-local `dotnet-ef` can run migrations with the API as startup project.
+- EF Core tooling and test/runtime package alignment on `10.0.9`.
+- `SubmissionDbContext` and explicit `Submission` persistence mapping.
+- EF Core-backed submission repository replacing the temporary in-memory repository.
+- Application-layer `IUnitOfWork` and Infrastructure EF Core Unit of Work implementation.
+- Create-submission handler save flow that stages through the repository and commits through Unit of Work.
+- Development connection string configuration for API and Worker hosts.
+- Docker Compose dependency stack using PostgreSQL with pgvector support.
+- Repo-local `dotnet-ef` tool manifest.
+- Central NuGet package version management through `Directory.Packages.props`.
+- EF Core migration for the `submissions` table and `vector` extension.
+- PowerShell scripts to start dependencies, apply migrations, run the API, and stop dependencies.
+- Non-blocking `setup-dev.ps1` script for local setup and validation without starting the API.
+- One-command `run-local-ci.ps1` script for setup, migrations, PostgreSQL-backed tests, Docker Compose config validation, API smoke tests, artifact creation, and cleanup.
+- `.trx` test result output under `TestResults/` when tests run through setup or verification scripts.
+- Timestamped local CI result folders and zip artifacts under `TestResults/` for easier CI artifact publishing and local traceability.
+- Verification cleanup option for removing or keeping the PostgreSQL container and local database volume after a run.
+- Migration script log cleanup that suppresses misleading EF Core fresh-database command logs while preserving failure behavior through the `dotnet ef` exit code.
+- Setup guard that fails early with clear recovery steps when committed EF Core migration files are missing, including restoring the repo-local `dotnet-ef` tool first.
+- Missing-migration recovery output is printed as normal copyable console text before the script throws a short failure.
+- Fresh local setup defaults that stop/remove the involved Compose stack, remove the local PostgreSQL volume, pull PostgreSQL/pgvector only when missing, apply committed migrations, and make tests/API startup opt-in.
+- CI/CD flow documentation covering local setup mapping, migration order, deployment flow, and messaging direction.
+- Step-by-step run guide with diagrams, smoke tests, and troubleshooting for the current API plus PostgreSQL/pgvector runtime.
+- Dependency management guide covering centralized NuGet packages, repo-local .NET tools, Docker Compose service dependencies, and the PostgreSQL EF Core provider.
+- Integration test coverage proving generated migrations create the pgvector extension and submissions table.
+- Opt-in PostgreSQL-backed integration test coverage proving the real PostgreSQL/pgvector database has the `vector` extension and persists submissions through EF Core/Npgsql.
+- Integration test database override using SQLite in-memory for fast endpoint tests while local development uses PostgreSQL through Docker Compose.
+- Milestone 5 learning notes covering EF Core persistence, Unit of Work placement, test database strategy, and intentionally deferred scope.

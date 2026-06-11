@@ -5,6 +5,7 @@ LIAnsureProtect is designed as a modular, production-style cyber specialty insur
 The core idea is simple:
 
 - PostgreSQL is the system of record, like the official filing cabinet.
+- pgvector extends PostgreSQL later for AI/RAG embeddings so vector search stays in the same PostgreSQL system of record.
 - Redis is the fast cache, like a sticky note for data we can rebuild.
 - DynamoDB is used later for notification read models, like a fast mailbox for each user.
 - S3 is used later for private document storage.
@@ -19,7 +20,7 @@ React Frontend
   v
 ASP.NET Core Web API
   |
-  |-- PostgreSQL: system of record
+  |-- PostgreSQL + pgvector: system of record and later vector search
   |-- Redis: cache
   |-- Local/S3 storage: documents
   |-- Outbox: domain events
@@ -52,7 +53,7 @@ Current architecture guard tests read the project files and verify the intended 
 
 ## Application Use Case Pattern
 
-Milestone 4 - Application Use Case Foundation is planned to introduce practical CQRS with MediatR and FluentValidation.
+Milestone 4 - Application Use Case Foundation introduced practical CQRS with MediatR and FluentValidation.
 
 Use practical CQRS inside the modular monolith:
 
@@ -84,9 +85,10 @@ POST /api/v1/submissions
   -> CreateSubmissionCommandHandler
   -> Submission.CreateDraft(...)
   -> ISubmissionRepository.AddAsync(...)
+  -> IUnitOfWork.SaveChangesAsync(...)
 ```
 
-`ISubmissionRepository` lives in Application because the use case needs a storage promise, not a database detail. Infrastructure currently fulfills that promise with a temporary in-memory repository so the API and Worker can still compose before PostgreSQL exists.
+`ISubmissionRepository` lives in Application because the use case needs a storage promise, not a database detail. `IUnitOfWork` also lives in Application because the use case needs a commit promise without knowing that EF Core performs the actual database save.
 
 Simple analogy:
 
@@ -95,13 +97,33 @@ Application:
   "I need a filing tray for submissions."
 
 Infrastructure today:
-  "Here is a temporary desk tray."
-
-Infrastructure later:
   "Here is the real PostgreSQL filing cabinet."
 ```
 
-Unit of Work is intentionally deferred until the persistence milestone. It belongs with EF Core `DbContext`, database transactions, and `SaveChangesAsync`, not with the first database-free Application pattern.
+Milestone 5 - Persistence Foundation replaced the temporary in-memory repository with EF Core and PostgreSQL persistence in Infrastructure. The current persistence flow is:
+
+```text
+CreateSubmissionCommandHandler
+  -> ISubmissionRepository.AddAsync(...)
+  -> EfCoreSubmissionRepository
+  -> SubmissionDbContext.Submissions.AddAsync(...)
+  -> IUnitOfWork.SaveChangesAsync(...)
+  -> EfCoreUnitOfWork
+  -> SubmissionDbContext.SaveChangesAsync(...)
+  -> PostgreSQL
+```
+
+Local development runs PostgreSQL as a Docker Compose dependency using a pgvector-enabled image. The first persistence migration creates the `vector` extension now so the database is ready for later AI/RAG vector tables without changing the system-of-record decision.
+
+Simple analogy:
+
+```text
+Repository:
+  "Put this submission into the filing tray."
+
+Unit of Work:
+  "Commit everything in the tray to the filing cabinet."
+```
 
 The first public business endpoint is:
 
@@ -148,6 +170,40 @@ API/Worker
 ```
 
 Domain events and a transactional outbox are planned later for reliable asynchronous workflows. Event sourcing is not part of the initial architecture. It may be considered later only for selected workflows if replayable history provides enough value to justify the added complexity.
+
+## Dependency Runtime Direction
+
+Local development should avoid manually installed service dependencies.
+
+Use Docker Compose for application dependencies:
+
+- PostgreSQL with pgvector now.
+- Redis later when caching is introduced.
+- DynamoDB Local later when notification inbox/read-model work starts.
+- LocalStack later when AWS integration workflows need local emulation.
+- MailHog or smtp4dev later when email workflows exist.
+
+The app can still run from the local .NET SDK during early development. The important boundary is that external services the app depends on should be containerized and reproducible.
+
+## Messaging Direction
+
+Kafka is not part of the default architecture.
+
+The planned AWS-native messaging path is:
+
+```text
+Domain event
+  -> transactional outbox
+  -> SNS topic
+  -> SQS queue
+  -> Worker
+```
+
+Use SNS when one published event should fan out to one or more subscribers. Use SQS when work needs durable queueing and retry by workers.
+
+Use EventBridge later if the project needs rule-based event routing across AWS services, SaaS integrations, or multiple bounded contexts.
+
+Use Amazon MSK only if a future requirement specifically needs Apache Kafka compatibility, Kafka ecosystem tooling, very high-volume stream processing, or replayable stream consumers.
 
 ## API Foundation
 

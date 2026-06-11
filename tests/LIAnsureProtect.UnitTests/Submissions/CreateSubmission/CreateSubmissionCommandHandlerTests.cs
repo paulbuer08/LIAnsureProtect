@@ -1,3 +1,4 @@
+using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Application.Submissions.Commands.CreateSubmission;
 using LIAnsureProtect.Domain.Submissions;
@@ -13,6 +14,7 @@ public sealed class CreateSubmissionCommandHandlerTests
         Submission? savedSubmission = null;
 
         var repository = new Mock<ISubmissionRepository>();
+        var unitOfWork = new Mock<IUnitOfWork>();
         repository
             .Setup(repo => repo.AddAsync(
                 It.IsAny<Submission>(),
@@ -22,8 +24,11 @@ public sealed class CreateSubmissionCommandHandlerTests
                 savedSubmission = submission;
             })
             .Returns(Task.CompletedTask);
+        unitOfWork
+            .Setup(work => work.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
 
-        var handler = new CreateSubmissionCommandHandler(repository.Object);
+        var handler = new CreateSubmissionCommandHandler(repository.Object, unitOfWork.Object);
         var command = new CreateSubmissionCommand(
             "Jane Applicant",
             "jane@example.com",
@@ -44,6 +49,9 @@ public sealed class CreateSubmissionCommandHandlerTests
             repo => repo.AddAsync(
                 It.IsAny<Submission>(),
                 It.IsAny<CancellationToken>()),
+            Times.Once);
+        unitOfWork.Verify(
+            work => work.SaveChangesAsync(It.IsAny<CancellationToken>()),
             Times.Once);
     }
 }

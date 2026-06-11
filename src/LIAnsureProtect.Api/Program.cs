@@ -7,8 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 
 // 1) Add services to the container.
+var databaseConnectionString = builder.Configuration.GetConnectionString("LIAnsureProtect");
+
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure();
+builder.Services.AddInfrastructure(databaseConnectionString);
 builder.Services.AddControllers();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

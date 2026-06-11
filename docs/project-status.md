@@ -8,9 +8,9 @@ Use this file at the start of a new conversation or coding session before making
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
 - Current branch: `codex/milestone-2-backend-foundation`
-- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`.
-- Current milestone: Milestone 4 - Application Use Case Foundation
-- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 now contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, a temporary in-memory Infrastructure repository, and Moq-backed handler tests; frontend application code has not been created yet.
+- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`.
+- Current milestone: Milestone 5 - Persistence Foundation
+- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; frontend application code has not been created yet.
 
 ## User Collaboration Rules
 
@@ -159,6 +159,8 @@ Do not add Redux initially. Redux Toolkit can be added later only if client-side
 ## Data And Storage Direction
 
 PostgreSQL is the system of record. It is the official filing cabinet for relational business data.
+
+pgvector is expected to extend PostgreSQL later for AI/RAG embeddings. Do not introduce a separate vector database by default.
 
 Redis is for cacheable data only. It is a sticky note for things that can be rebuilt, not the official record.
 
@@ -371,11 +373,9 @@ Milestone 3 verification:
 - Command-line `dotnet test LIAnsureProtect.slnx --no-build` passed; UnitTests passed 5 tests and IntegrationTests passed 3 tests.
 - `git diff --check` passed with only normal CRLF warnings on Windows.
 
-## Current Milestone
-
 ### Milestone 4 - Application Use Case Foundation
 
-Status: complete and ready to commit.
+Status: complete and committed locally as `fe8c27d feat: add application use case foundation`.
 
 Intent:
 
@@ -423,6 +423,117 @@ Design limits:
 - Do not add event sourcing.
 - Do not add authentication, database schema, React frontend, or cloud infrastructure unless a later milestone explicitly approves that scope.
 
+Milestone 4 request flow before Milestone 5 persistence work:
+
+```text
+POST /api/v1/submissions
+  -> SubmissionsController
+  -> CreateSubmissionCommand
+  -> ValidationBehavior
+  -> CreateSubmissionCommandHandler
+  -> Submission.CreateDraft(...)
+  -> ISubmissionRepository.AddAsync(...)
+  -> InMemorySubmissionRepository
+```
+
+Milestone 4 verification:
+
+- Command-line `dotnet build LIAnsureProtect.slnx --no-restore` passed with 0 warnings and 0 errors.
+- Command-line `dotnet test LIAnsureProtect.slnx --no-build` passed; UnitTests passed 14 tests and IntegrationTests passed 5 tests.
+- `git diff --check` passed with only normal CRLF warnings on Windows.
+
+## Current Milestone
+
+### Milestone 5 - Persistence Foundation
+
+Status: implemented locally and verified; commit still pending.
+
+Intent:
+
+- Replace the temporary in-memory submission repository with EF Core/PostgreSQL persistence.
+- Add a real Infrastructure `DbContext` for submission persistence.
+- Add explicit `Submission` mapping so database shape is intentional.
+- Add `IUnitOfWork` in Application and EF Core Unit of Work in Infrastructure.
+- Update `CreateSubmissionCommandHandler` so the handler stages the submission through the repository and commits through Unit of Work.
+- Add Docker Compose for local PostgreSQL with pgvector support.
+- Add the first EF Core migration and repo scripts for dependency startup, migration application, and one-command API startup.
+- Keep PostgreSQL as the single system of record.
+
+Created:
+
+- `src/LIAnsureProtect.Application/Common/Persistence/IUnitOfWork.cs`
+- `src/LIAnsureProtect.Infrastructure/Persistence/SubmissionDbContext.cs`
+- `src/LIAnsureProtect.Infrastructure/Persistence/Configurations/SubmissionConfiguration.cs`
+- `src/LIAnsureProtect.Infrastructure/Persistence/EfCoreUnitOfWork.cs`
+- `src/LIAnsureProtect.Infrastructure/Persistence/Migrations/20260611012509_CreateSubmissionPersistence.cs`
+- `src/LIAnsureProtect.Infrastructure/Persistence/Migrations/20260611012509_CreateSubmissionPersistence.Designer.cs`
+- `src/LIAnsureProtect.Infrastructure/Persistence/Migrations/SubmissionDbContextModelSnapshot.cs`
+- `src/LIAnsureProtect.Infrastructure/Submissions/EfCoreSubmissionRepository.cs`
+- `Directory.Packages.props`
+- `.config/dotnet-tools.json`
+- `.env.example`
+- `docker-compose.yml`
+- `scripts/common.ps1`
+- `scripts/start-dependencies.ps1`
+- `scripts/update-database.ps1`
+- `scripts/setup-dev.ps1`
+- `scripts/dev-up.ps1`
+- `scripts/stop-dependencies.ps1`
+- `scripts/run-local-ci.ps1`
+- `docs/dev/run-the-app.md`
+- `docs/dev/dependency-management.md`
+- `docs/dev/milestone-5-persistence-foundation-learnings.md`
+
+Updated:
+
+- `src/LIAnsureProtect.Infrastructure/DependencyInjection.cs`
+- `src/LIAnsureProtect.Api/LIAnsureProtect.Api.csproj`
+- `src/LIAnsureProtect.Api/Program.cs`
+- `src/LIAnsureProtect.Worker/Program.cs`
+- `src/LIAnsureProtect.Api/appsettings.Development.json`
+- `src/LIAnsureProtect.Worker/appsettings.Development.json`
+- `src/LIAnsureProtect.Application/Submissions/Commands/CreateSubmission/CreateSubmissionCommandHandler.cs`
+- `tests/LIAnsureProtect.UnitTests/Submissions/CreateSubmission/CreateSubmissionCommandHandlerTests.cs`
+- `tests/LIAnsureProtect.IntegrationTests/DependencyRegistrationTests.cs`
+- `tests/LIAnsureProtect.IntegrationTests/SubmissionEndpointTests.cs`
+- `tests/LIAnsureProtect.IntegrationTests/PostgreSqlPersistenceTests.cs`
+
+Removed:
+
+- `src/LIAnsureProtect.Infrastructure/Submissions/InMemorySubmissionRepository.cs`
+
+Milestone 5 decisions to remember:
+
+- The repository stages changes in EF Core; Unit of Work commits them with `SaveChangesAsync`.
+- `IUnitOfWork` belongs in Application because handlers need a commit promise without depending on EF Core.
+- EF Core types and PostgreSQL provider setup belong in Infrastructure.
+- API and Worker hosts pass the `LIAnsureProtect` connection string into Infrastructure.
+- The API startup project references `Microsoft.EntityFrameworkCore.Design` as a private design-time package so `dotnet ef database update --startup-project src\LIAnsureProtect.Api\LIAnsureProtect.Api.csproj` can run.
+- Repo-local `dotnet-ef`, EF Core design/runtime packages, and SQLite integration-test provider are aligned on `10.0.9` to avoid tool/runtime mismatch warnings and assembly version conflicts.
+- NuGet package versions are centralized in `Directory.Packages.props`; project files list package references without repeating versions.
+- Repo-local .NET tools are centralized in `.config/dotnet-tools.json`.
+- Local service dependencies should run through Docker Compose instead of manual service installs.
+- The PostgreSQL container uses a pgvector-enabled image because AI/RAG later expects embeddings in PostgreSQL.
+- The PostgreSQL/pgvector image can be overridden with `LIANSUREPROTECT_POSTGRES_IMAGE`; the committed default is `pgvector/pgvector:0.8.2-pg16-trixie`.
+- The first migration creates the `submissions` table and enables the PostgreSQL `vector` extension.
+- Endpoint integration tests replace PostgreSQL with SQLite in-memory for fast pipeline tests; migration tests verify PostgreSQL migration SQL creates the `vector` extension and `submissions` table.
+- The opt-in PostgreSQL-backed integration test verifies the real PostgreSQL/pgvector database has the `vector` extension and persists a `Submission` through EF Core/Npgsql.
+- `setup-dev.ps1 -RunTests:$true` enables PostgreSQL-backed tests by setting `LIANSUREPROTECT_RUN_POSTGRES_TESTS=true` and the local test connection string for the duration of the test run.
+- `setup-dev.ps1 -RunTests:$true` writes `.trx` test result files under `TestResults/`.
+- `run-local-ci.ps1` is the one-command local CI script. It runs fresh setup, PostgreSQL-backed tests, Docker Compose config validation, optional API smoke tests, artifact creation, and cleanup.
+- `run-local-ci.ps1` writes each run to `TestResults/local-ci-yyyyMMdd-HHmmss/` and creates `TestResults/local-ci-yyyyMMdd-HHmmss.zip` by default.
+- `run-local-ci.ps1` removes the source result folder after the zip artifact is successfully created. If zipping fails, the source folder remains for inspection.
+- `run-local-ci.ps1` removes the PostgreSQL container and local database volume by default; pass `-PostgreSqlAfterRun LeaveRunning` to keep PostgreSQL running after verification.
+- `setup-dev.ps1` is the non-blocking setup script. By default it stops/removes the involved Compose stack, removes the local PostgreSQL volume, pulls the PostgreSQL/pgvector image when missing, starts dependencies, restores packages, builds, applies committed migrations, and exits. Tests and API startup are opt-in flags.
+- `setup-dev.ps1` checks that committed EF Core migration files exist before resetting the local database. Missing migrations fail early with copyable normal console output for the recovery steps: `dotnet tool restore` first, then `dotnet ef migrations add ...`.
+- `dev-up.ps1` is the local run wrapper around `setup-dev.ps1 -RunApi:$true`, so it blocks while the API runs.
+- `docs/dev/run-the-app.md` is the current step-by-step guide for running the API, PostgreSQL/pgvector dependency, migrations, tests, smoke checks, and troubleshooting.
+- Scripts use checked command execution so failed `docker` and `dotnet` commands stop the script and return a failed setup result.
+- `update-database.ps1` suppresses EF Core database command logs by default during `dotnet ef database update` to avoid the misleading fresh-database `__EFMigrationsHistory` query failure log; real migration failures still fail through the `dotnet ef` exit code. Use `-SuppressEfCommandLogs:$false` for raw EF command logging.
+- Redis should wait until a caching milestone introduces `ICacheService`.
+- Kafka should not be added by default. Use transactional outbox with SNS/SQS for planned AWS-native async workflows; consider EventBridge for routing or Amazon MSK only if Kafka-specific requirements appear.
+- Do not add authentication, React frontend, cloud infrastructure, domain events/outbox, or event sourcing in this milestone.
+
 Current request flow:
 
 ```text
@@ -433,18 +544,28 @@ POST /api/v1/submissions
   -> CreateSubmissionCommandHandler
   -> Submission.CreateDraft(...)
   -> ISubmissionRepository.AddAsync(...)
-  -> InMemorySubmissionRepository for now
+  -> EfCoreSubmissionRepository
+  -> SubmissionDbContext.Submissions.AddAsync(...)
+  -> IUnitOfWork.SaveChangesAsync(...)
+  -> EfCoreUnitOfWork
+  -> SubmissionDbContext.SaveChangesAsync(...)
 ```
 
-Milestone 4 verification:
+Milestone 5 verification:
 
-- Command-line `dotnet build LIAnsureProtect.slnx --no-restore` passed with 0 warnings and 0 errors.
-- Command-line `dotnet test LIAnsureProtect.slnx --no-build` passed; UnitTests passed 14 tests and IntegrationTests passed 5 tests.
+- Current command-line `dotnet build LIAnsureProtect.slnx --no-restore` passed with 0 warnings and 0 errors after adding the API startup project EF Core design-time package.
+- Current command-line `dotnet test LIAnsureProtect.slnx --no-build --verbosity minimal` passed; UnitTests passed 14 tests and IntegrationTests passed 7 tests with 1 PostgreSQL-backed test skipped by default.
+- Full `.\scripts\setup-dev.ps1 -RunTests:$true` passed from an elevated Docker-capable shell; it pulled/started PostgreSQL/pgvector, restored packages, built the solution, restored `dotnet-ef`, applied the committed migration, and ran all tests with UnitTests passing 14 tests and IntegrationTests passing 8 tests with 0 skipped.
+- Missing migration guard was verified by temporarily renaming the migrations folder; `setup-dev.ps1` failed before Docker work and printed the expected recovery steps, including `dotnet tool restore`, then the folder was restored.
+- Full `.\scripts\run-local-ci.ps1` passed after the missing migration recovery message was updated; it applied the committed migration without the misleading fresh-database `Failed executing DbCommand` log, ran all tests, smoke-tested the API, created `TestResults\local-ci-20260611-093012.zip`, removed the source result folder after zip creation, and cleaned up the PostgreSQL container plus volume.
+- `dotnet ef --version` reports `10.0.9` after updating the repo-local tool manifest.
+- `docker compose config` rendered a valid Compose configuration; Docker also reported the known local `C:\Users\Poy\.docker\config.json` access warning.
+- PowerShell parsing passed for `scripts/common.ps1`, `scripts/start-dependencies.ps1`, `scripts/update-database.ps1`, `scripts/setup-dev.ps1`, `scripts/dev-up.ps1`, `scripts/stop-dependencies.ps1`, and `scripts/run-local-ci.ps1`.
 - `git diff --check` passed with only normal CRLF warnings on Windows.
 
 Likely next milestone after closeout:
 
-- Milestone 5 - Persistence Foundation with EF Core, PostgreSQL connection setup, submission mapping, PostgreSQL-backed `SubmissionRepository`, and Unit of Work.
+- To be approved after Milestone 5 closeout. Candidate directions include authentication/authorization foundation, expanding the next submission workflow slice, or introducing the next containerized dependency when the matching feature exists.
 
 ## Open Local Setup Items
 

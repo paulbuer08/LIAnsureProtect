@@ -61,6 +61,8 @@ The tradeoff is added structure and package dependencies. To avoid empty ceremon
 
 The first repository implementation may be temporary and in-memory only so the host can compose before database work begins. That temporary implementation is not the real system of record and should be replaced by PostgreSQL-backed Infrastructure in the persistence milestone.
 
+Milestone 5 - Persistence Foundation follows this decision by replacing the temporary in-memory repository with EF Core/PostgreSQL persistence and introducing Unit of Work alongside the EF Core `DbContext` save boundary. It also adds Docker Compose PostgreSQL with pgvector support and the first EF Core migration, keeping PostgreSQL as both the relational system of record and the expected future home for AI/RAG embeddings.
+
 ## Not Chosen
 
 Full event sourcing is not chosen now.
