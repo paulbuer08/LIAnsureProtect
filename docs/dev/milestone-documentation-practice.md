@@ -69,6 +69,36 @@ Apply this format consistently in:
 
 Do not mix formats such as `milestone 3`, `M3`, `Phase 3`, or `Milestone 3: Name` unless the project intentionally changes the naming convention and documents that decision.
 
+## Milestone Branch Convention
+
+Start each new milestone on its own Git branch.
+
+Branch names should use the milestone number and title in slug form:
+
+```text
+codex/milestone-N-title-case-name-as-kebab-case
+```
+
+Examples:
+
+```text
+codex/milestone-6-authentication-foundation
+codex/milestone-7-identity-provider-integration
+```
+
+Create the new milestone branch from the latest committed closeout state of the previous milestone. That means the new branch includes all code, docs, tests, scripts, and project-status updates from the milestone that just finished.
+
+Simple rule:
+
+```text
+Previous milestone closeout commit
+  -> create next milestone branch
+  -> update docs/project-status.md with the new branch and pending scope
+  -> begin planning the new milestone
+```
+
+Do not continue new milestone implementation on an older milestone branch. If a milestone starts on the wrong branch, create the correct milestone branch from the latest closeout commit before doing more work.
+
 ## Why This Matters
 
 The project is intended to be a learning and portfolio-quality system.
@@ -96,6 +126,7 @@ This keeps the project honest and makes later decisions easier to defend.
 
 Before committing a milestone:
 
+0. Confirm the current branch matches the milestone number and title.
 1. Build the solution.
 2. Run the relevant tests.
 3. Run whitespace/diff checks when available.
@@ -110,6 +141,7 @@ The handoff prompt should include:
 
 - workspace path
 - current branch
+- latest previous milestone closeout commit
 - latest commit id
 - required files to read first
 - current milestone status

@@ -7,9 +7,9 @@ Use this file at the start of a new conversation or coding session before making
 ## Current Workspace
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
-- Current branch: `codex/milestone-2-backend-foundation`
+- Current branch: `codex/milestone-7-identity-provider-integration`
 - Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`.
-- Current milestone: Milestone 6 - Authentication Foundation is complete; next milestone scope is pending confirmation.
+- Current milestone: Milestone 7 - Identity Provider Integration is pending scope confirmation.
 - Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; frontend application code has not been created yet.
 
 ## User Collaboration Rules
@@ -40,6 +40,8 @@ Add business, security, operations, or deployment docs when a milestone introduc
 Every milestone should also have a learning notes document when meaningful design questions, production tradeoffs, setup lessons, or debugging lessons occur. These notes are mandatory for this project because they preserve the reasoning that led to the final setup.
 
 At the end of each milestone session, create the next milestone session/context window with a concise handoff prompt after the milestone is verified and committed.
+
+At the start of each milestone, create or switch to a milestone-specific branch named from the milestone number and title. Create that branch from the latest committed closeout state of the previous milestone so the new work includes all prior code, docs, tests, scripts, and project-status updates.
 
 ## Completed Work
 
@@ -563,7 +565,7 @@ Milestone 5 verification:
 - PowerShell parsing passed for `scripts/common.ps1`, `scripts/start-dependencies.ps1`, `scripts/update-database.ps1`, `scripts/setup-dev.ps1`, `scripts/dev-up.ps1`, `scripts/stop-dependencies.ps1`, and `scripts/run-local-ci.ps1`.
 - `git diff --check` passed with only normal CRLF warnings on Windows.
 
-## Current Milestone
+## Recent Completed Work
 
 ### Milestone 6 - Authentication Foundation
 
@@ -655,11 +657,33 @@ Milestone 6 verification so far:
 - `git diff --check` passed with only normal Windows line-ending warnings.
 - Full `.\scripts\run-local-ci.ps1` passed from a Docker-capable shell after the authentication smoke-test update; it built the solution with 0 warnings/errors, applied the committed migration, ran UnitTests with 14 passed, ran IntegrationTests with 13 passed and 0 skipped including the PostgreSQL-backed test, validated Docker Compose config, smoke-tested the API, verified anonymous submission creation returns `401 Unauthorized`, created `TestResults\local-ci-20260613-094642.zip`, and cleaned up the PostgreSQL container plus volume.
 
-Likely next milestone after closeout:
+## Current Milestone
 
-- Recommended: Milestone 7 - Identity Provider Integration, if the next goal is to connect the JWT foundation to a real Auth0 tenant and document the local developer login/token workflow.
-- Candidate alternatives include expanding the next submission workflow slice or introducing document storage foundation.
-- Do not start Milestone 7 implementation until the scope is confirmed in the next session.
+### Milestone 7 - Identity Provider Integration
+
+Status: pending scope confirmation.
+
+Branch:
+
+```text
+codex/milestone-7-identity-provider-integration
+```
+
+Starting point:
+
+```text
+811c893 docs: close authentication foundation milestone
+```
+
+Recommended scope to discuss:
+
+- Connect the JWT bearer foundation to a real Auth0 tenant.
+- Document the local developer login/token workflow.
+- Decide how roles are represented in Auth0 tokens.
+- Confirm whether the first authenticated smoke test should use a manual token, Auth0 CLI/dashboard flow, or a scripted developer helper.
+- Keep implementation narrow and provider-neutral at the API boundary where practical.
+
+Do not start implementation until the exact Milestone 7 scope is confirmed.
 
 ## Open Local Setup Items
 
