@@ -8,9 +8,9 @@ Use this file at the start of a new conversation or coding session before making
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
 - Current branch: `codex/milestone-2-backend-foundation`
-- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`.
-- Current milestone: Milestone 5 - Persistence Foundation is complete; next milestone scope is pending confirmation.
-- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; frontend application code has not been created yet.
+- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`.
+- Current milestone: Milestone 6 - Authentication Foundation is complete; next milestone scope is pending confirmation.
+- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; frontend application code has not been created yet.
 
 ## User Collaboration Rules
 
@@ -442,7 +442,7 @@ Milestone 4 verification:
 - Command-line `dotnet test LIAnsureProtect.slnx --no-build` passed; UnitTests passed 14 tests and IntegrationTests passed 5 tests.
 - `git diff --check` passed with only normal CRLF warnings on Windows.
 
-## Current Milestone
+## Recent Completed Work
 
 ### Milestone 5 - Persistence Foundation
 
@@ -563,11 +563,103 @@ Milestone 5 verification:
 - PowerShell parsing passed for `scripts/common.ps1`, `scripts/start-dependencies.ps1`, `scripts/update-database.ps1`, `scripts/setup-dev.ps1`, `scripts/dev-up.ps1`, `scripts/stop-dependencies.ps1`, and `scripts/run-local-ci.ps1`.
 - `git diff --check` passed with only normal CRLF warnings on Windows.
 
+## Current Milestone
+
+### Milestone 6 - Authentication Foundation
+
+Status: complete.
+
+Intent:
+
+- Add the first authentication and authorization foundation before expanding deeper user workflows.
+- Use standards-based JWT bearer authentication for protected API endpoints.
+- Keep the API provider-neutral so Auth0, Amazon Cognito, Microsoft Entra External ID, or another OpenID Connect/OAuth provider can issue tokens later.
+- Add Application-owned role and policy names instead of scattering security strings through controllers.
+- Add `ICurrentUser` so Application use cases can later ask who is making a request without depending on ASP.NET Core HTTP details.
+- Protect the first business endpoint, `POST /api/v1/submissions`, while keeping root and health endpoints anonymous.
+- Add integration-test authentication that can prove `401`, `403`, `400`, and `201` behavior without real external tokens.
+- Keep implementation narrow. Do not add frontend login, account management, cloud identity automation, payment flows, domain events/outbox, or event sourcing.
+
+Created:
+
+- `src/LIAnsureProtect.Application/Common/Security/ApplicationRoles.cs`
+- `src/LIAnsureProtect.Application/Common/Security/ApplicationPolicies.cs`
+- `src/LIAnsureProtect.Application/Common/Security/ICurrentUser.cs`
+- `src/LIAnsureProtect.Api/Security/AuthorizationPolicies.cs`
+- `src/LIAnsureProtect.Api/Security/HttpContextCurrentUser.cs`
+- `tests/LIAnsureProtect.IntegrationTests/Security/TestAuthHandler.cs`
+- `docs/dev/milestone-6-authentication-foundation-learnings.md`
+
+Updated:
+
+- `Directory.Packages.props`
+- `src/LIAnsureProtect.Api/LIAnsureProtect.Api.csproj`
+- `src/LIAnsureProtect.Api/Program.cs`
+- `src/LIAnsureProtect.Api/appsettings.json`
+- `src/LIAnsureProtect.Api/appsettings.Development.json`
+- `src/LIAnsureProtect.Api/Controllers/SubmissionsController.cs`
+- `tests/LIAnsureProtect.IntegrationTests/SubmissionEndpointTests.cs`
+- `scripts/run-local-ci.ps1`
+- `docs/dev/run-the-app.md`
+- `docs/dev/local-development.md`
+- `docs/dev/dependency-management.md`
+- `docs/business/user-roles.md`
+- `docs/architecture/overview.md`
+- `README.md`
+- `CHANGELOG.md`
+- `docs/project-status.md`
+
+Milestone 6 decisions to remember:
+
+- Use OIDC/OAuth-compatible JWT access tokens for API authentication instead of custom token logic.
+- Recommended external provider direction is Auth0 by Okta first, but the API should stay provider-neutral by validating standard JWT claims.
+- `Authentication:Authority`, `Authentication:Audience`, and `Authentication:RoleClaimType` are configuration values, not application secrets. Production should supply them through deployment configuration such as environment variables, Parameter Store, or Secrets Manager.
+- Startup should fail if `Authentication:Authority` or `Authentication:Audience` is missing, or if the authority is not an HTTPS URL.
+- `ICurrentUser` belongs in Application; `HttpContextCurrentUser` belongs in Api.
+- Use `GetRoles()` instead of a `Roles` property because gathering role claims performs work.
+- Use policies for endpoint permissions because policies age better than hard-coded role checks scattered through controllers.
+- `Submissions.Create` currently allows `Customer`, `Broker`, and `Admin`.
+- `Underwriter` is intentionally blocked from creating submissions; underwriting review should be a separate workflow.
+- Protected endpoint response metadata should use gate order: `401`, `403`, validation/input errors, then success.
+- Do not add `401` or `403` to `ApplicationValidationException`; those are security gate outcomes, not validation outcomes.
+- Test authentication belongs only in the integration test project and uses explicit `X-Test-*` headers.
+- `Task.FromResult(...)` is acceptable in the test authentication handler because the handler performs synchronous header/claim work behind an async framework method.
+- Local CI now expects anonymous submission creation to return `401 Unauthorized`; authenticated smoke testing can wait for real dev-token or identity-provider setup.
+
+Current protected submission request flow:
+
+```text
+POST /api/v1/submissions
+  -> JWT authentication
+  -> Submissions.Create authorization policy
+  -> SubmissionsController
+  -> CreateSubmissionCommand
+  -> ValidationBehavior
+  -> CreateSubmissionCommandHandler
+  -> Submission.CreateDraft(...)
+  -> ISubmissionRepository.AddAsync(...)
+  -> EfCoreSubmissionRepository
+  -> SubmissionDbContext.Submissions.AddAsync(...)
+  -> IUnitOfWork.SaveChangesAsync(...)
+  -> EfCoreUnitOfWork
+  -> SubmissionDbContext.SaveChangesAsync(...)
+```
+
+Milestone 6 verification so far:
+
+- `dotnet build LIAnsureProtect.slnx --no-restore` passed after the JWT/authentication setup.
+- `dotnet test LIAnsureProtect.slnx --no-build --filter SubmissionEndpointTests` passed with the protected endpoint tests, including anonymous, forbidden, validation, success, and authorized-role cases.
+- `dotnet test LIAnsureProtect.slnx --no-build --filter HealthEndpointTests` passed, confirming root and health endpoints remain anonymous.
+- `dotnet test LIAnsureProtect.slnx --no-build` passed with UnitTests passing 14 tests and IntegrationTests passing 12 tests with 1 PostgreSQL-backed test skipped by default.
+- PowerShell parsing for `scripts/run-local-ci.ps1` passed after the anonymous `401` smoke-test update.
+- `git diff --check` passed with only normal Windows line-ending warnings.
+- Full `.\scripts\run-local-ci.ps1` passed from a Docker-capable shell after the authentication smoke-test update; it built the solution with 0 warnings/errors, applied the committed migration, ran UnitTests with 14 passed, ran IntegrationTests with 13 passed and 0 skipped including the PostgreSQL-backed test, validated Docker Compose config, smoke-tested the API, verified anonymous submission creation returns `401 Unauthorized`, created `TestResults\local-ci-20260613-094642.zip`, and cleaned up the PostgreSQL container plus volume.
+
 Likely next milestone after closeout:
 
-- Recommended: Milestone 6 - Authentication Foundation.
+- Recommended: Milestone 7 - Identity Provider Integration, if the next goal is to connect the JWT foundation to a real Auth0 tenant and document the local developer login/token workflow.
 - Candidate alternatives include expanding the next submission workflow slice or introducing document storage foundation.
-- Do not start Milestone 6 implementation until the scope is confirmed in the next session.
+- Do not start Milestone 7 implementation until the scope is confirmed in the next session.
 
 ## Open Local Setup Items
 

@@ -95,27 +95,35 @@ try {
             companyName = "Verification Company"
         } | ConvertTo-Json
 
-        $submissionResponse = Invoke-RestMethod `
-            -Method Post `
-            -Uri "http://localhost:5223/api/v1/submissions" `
-            -ContentType "application/json" `
-            -Body $body `
-            -TimeoutSec 10
+        $submissionStatusCode = $null
+
+        try {
+            Invoke-RestMethod `
+                -Method Post `
+                -Uri "http://localhost:5223/api/v1/submissions" `
+                -ContentType "application/json" `
+                -Body $body `
+                -TimeoutSec 10 | Out-Null
+        }
+        catch {
+            $submissionStatusCode = [int] $_.Exception.Response.StatusCode
+        }
 
         if ($rootResponse.status -ne "Running") {
             throw "Root endpoint smoke test failed. Expected status Running."
         }
 
-        if ($submissionResponse.status -ne "Draft") {
-            throw "Submission smoke test failed. Expected status Draft."
+        if ($submissionStatusCode -ne 401) {
+            throw "Submission smoke test failed. Expected anonymous request to return 401 Unauthorized."
         }
-
-        [Guid]::Parse($submissionResponse.submissionId) | Out-Null
 
         @{
             root = $rootResponse
             health = $healthResponse
-            submission = $submissionResponse
+            anonymousSubmission = @{
+                expectedStatusCode = 401
+                actualStatusCode = $submissionStatusCode
+            }
         } | ConvertTo-Json -Depth 5 | Set-Content -Path $smokeResultPath
     }
 

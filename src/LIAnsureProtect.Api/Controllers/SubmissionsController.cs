@@ -1,17 +1,23 @@
 using LIAnsureProtect.Application.Submissions.Commands.CreateSubmission;
-using MediatR;
+using LIAnsureProtect.Application.Common.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MediatR;
 using ApplicationValidationException = LIAnsureProtect.Application.Common.Exceptions.ValidationException;
 
 namespace LIAnsureProtect.Api.Controllers;
+
 
 [ApiController]
 [Route("api/v1/[controller]")]
 public sealed class SubmissionsController(ISender sender) : ControllerBase
 {
     [HttpPost]
-    [ProducesResponseType<CreateSubmissionResult>(StatusCodes.Status201Created)]
+    [Authorize(Policy = ApplicationPolicies.CreateSubmission)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<CreateSubmissionResult>(StatusCodes.Status201Created)]
     public async Task<ActionResult<CreateSubmissionResult>> Create(
         CreateSubmissionRequest request,
         CancellationToken cancellationToken)
@@ -41,7 +47,10 @@ public sealed class SubmissionsController(ISender sender) : ControllerBase
             return BadRequest(problemDetails);
         }
     }
+
 }
+
+
 
 public sealed record CreateSubmissionRequest(
     string ApplicantName,

@@ -76,6 +76,22 @@ Npgsql.EntityFrameworkCore.PostgreSQL
 
 That package lets EF Core talk to PostgreSQL. PostgreSQL itself still runs in a Docker container.
 
+## Authentication Library
+
+The API uses:
+
+```text
+Microsoft.AspNetCore.Authentication.JwtBearer
+```
+
+That package lets ASP.NET Core validate JWT access tokens sent with:
+
+```http
+Authorization: Bearer eyJ...
+```
+
+Keep its version in `Directory.Packages.props` with the other Microsoft package versions. The API project should reference the package without repeating the version.
+
 ## Test Database Rule
 
 Normal integration tests keep using SQLite in-memory for fast HTTP pipeline checks.

@@ -29,6 +29,8 @@ Milestone 4 is complete as `Milestone 4 - Application Use Case Foundation`. It i
 
 Milestone 5 is implemented locally as `Milestone 5 - Persistence Foundation`. It replaces the temporary in-memory submission repository with EF Core persistence, adds a PostgreSQL-backed Infrastructure repository, introduces Unit of Work as the Application commit boundary, and adds Docker Compose plus EF Core migrations for a containerized PostgreSQL/pgvector dependency.
 
+Milestone 6 is complete as `Milestone 6 - Authentication Foundation`. It adds JWT bearer authentication, policy-based authorization, a current-user abstraction, and protects `POST /api/v1/submissions` behind the `Submissions.Create` policy for `Customer`, `Broker`, and `Admin` roles.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -66,5 +68,6 @@ To include tests in the setup run:
 - [Milestone 3 Dependency Registration And Architecture Guards Learnings](docs/dev/milestone-3-dependency-registration-and-architecture-guards-learnings.md)
 - [Milestone 4 Application Use Case Foundation Learnings](docs/dev/milestone-4-application-use-case-foundation-learnings.md)
 - [Milestone 5 Persistence Foundation Learnings](docs/dev/milestone-5-persistence-foundation-learnings.md)
+- [Milestone 6 Authentication Foundation Learnings](docs/dev/milestone-6-authentication-foundation-learnings.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)
 - [AWS Environments](docs/dev/aws-environments.md)

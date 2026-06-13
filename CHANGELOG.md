@@ -68,3 +68,15 @@ The format follows simple milestone-based entries.
 - Opt-in PostgreSQL-backed integration test coverage proving the real PostgreSQL/pgvector database has the `vector` extension and persists submissions through EF Core/Npgsql.
 - Integration test database override using SQLite in-memory for fast endpoint tests while local development uses PostgreSQL through Docker Compose.
 - Milestone 5 learning notes covering EF Core persistence, Unit of Work placement, test database strategy, and intentionally deferred scope.
+- Milestone 6 - Authentication Foundation.
+- JWT bearer authentication setup for the API with issuer, audience, lifetime, signing-key, and role-claim validation.
+- Startup validation for required authentication configuration.
+- Application security constants for roles and policies.
+- Application-layer `ICurrentUser` abstraction and API-layer `HttpContextCurrentUser` implementation.
+- Policy-based authorization for `Submissions.Create` and `System.Admin`.
+- Protected `POST /api/v1/submissions` behind the `Submissions.Create` policy.
+- Protected endpoint response metadata convention using security gate order: `401`, `403`, validation errors, then success.
+- Test-only authentication handler for integration tests using explicit `X-Test-*` headers.
+- Submission endpoint authorization tests covering anonymous, forbidden, validation, successful, and allowed-role cases.
+- Local CI smoke test update proving anonymous submission creation returns `401 Unauthorized`.
+- Milestone 6 learning notes covering JWT/OIDC direction, current-user abstraction, roles versus policies, test auth, and intentionally deferred identity work.

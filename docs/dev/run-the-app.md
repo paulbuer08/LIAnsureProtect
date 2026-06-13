@@ -1,18 +1,21 @@
 # Run The App
 
-This guide explains how to run everything that exists in LIAnsureProtect up to `Milestone 5 - Persistence Foundation`.
+This guide explains how to run everything that exists in LIAnsureProtect up to `Milestone 6 - Authentication Foundation`.
 
 At this point, the runnable app is:
 
 - ASP.NET Core API
 - PostgreSQL with pgvector through Docker Compose
 - EF Core migrations for the submissions table
+- JWT bearer authentication and policy-based authorization foundation
 - Unit and integration tests
 
 Not included yet:
 
 - React frontend
-- Authentication and authorization
+- Real external identity provider tenant setup
+- React login flow
+- User registration and account management
 - Redis cache
 - AWS services
 - Background Worker jobs
@@ -103,7 +106,7 @@ From the repository root:
 .\scripts\run-local-ci.ps1
 ```
 
-This is the main one-time verification command. It runs the fresh setup path, applies migrations, runs all tests including the PostgreSQL-backed test, validates Docker Compose config, starts the API briefly, smoke-tests the root endpoint, health endpoint, and submission endpoint, then stops the API.
+This is the main one-time verification command. It runs the fresh setup path, applies migrations, runs all tests including the PostgreSQL-backed test, validates Docker Compose config, starts the API briefly, smoke-tests the root endpoint, health endpoint, and anonymous submission security gate, then stops the API.
 
 By default, it also removes the PostgreSQL container and local database volume after verification. That makes the script behave like CI: run the checks, keep the results, and remove disposable test infrastructure.
 
@@ -133,7 +136,7 @@ Current `run-local-ci.ps1` flags:
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `-RunSmokeTests` | `$true` | Starts the API briefly and checks root, health, and create-submission endpoints. |
+| `-RunSmokeTests` | `$true` | Starts the API briefly and checks root, health, and anonymous create-submission security behavior. |
 | `-ApiStartupTimeoutSeconds` | `60` | How long to wait for the API to become healthy during smoke tests. |
 | `-PostgreSqlAfterRun` | `Cleanup` | Use `Cleanup` to remove the PostgreSQL container and volume after verification, or `LeaveRunning` to keep it for local development. |
 | `-CreateZipArtifact` | `$true` | Creates a zip file from the timestamped result folder. |
@@ -289,6 +292,7 @@ Current tests include:
 - Validation tests
 - Dependency registration tests
 - Submission endpoint tests
+- Authentication and authorization integration tests for protected submission creation
 - Migration SQL tests for pgvector and the submissions table
 - Opt-in PostgreSQL persistence test for pgvector and real EF Core/Npgsql persistence
 
@@ -350,7 +354,7 @@ Expected response:
 Healthy
 ```
 
-Create a draft submission:
+Check that anonymous submission creation is blocked:
 
 ```powershell
 $body = @{
@@ -366,22 +370,31 @@ Invoke-RestMethod `
     -Body $body
 ```
 
-Expected shape:
+Expected response:
 
-```json
-{
-  "submissionId": "generated-guid",
-  "status": "Draft"
-}
+```text
+401
+```
+
+`POST /api/v1/submissions` is now a protected business endpoint. Anonymous callers are stopped at the authentication gate before validation or business logic runs.
+
+Authenticated submission creation requires a valid JWT access token with a role allowed by the `Submissions.Create` policy. The current allowed roles are:
+
+```text
+Customer
+Broker
+Admin
 ```
 
 ## Request Workflow
 
-This is what happens when the API receives `POST /api/v1/submissions`:
+This is what happens when an authenticated and authorized caller sends `POST /api/v1/submissions`:
 
 ```mermaid
 sequenceDiagram
     participant Client
+    participant Authn as JWT authentication
+    participant Authz as Authorization policy
     participant Controller as SubmissionsController
     participant MediatR
     participant Validation as ValidationBehavior
@@ -393,6 +406,10 @@ sequenceDiagram
     participant Pg as PostgreSQL
 
     Client->>Controller: POST /api/v1/submissions
+    Controller->>Authn: Validate JWT access token
+    Authn->>Authz: Confirm authenticated user
+    Authz->>Authz: Require Submissions.Create policy
+    Authz->>Controller: Allow Customer, Broker, or Admin
     Controller->>MediatR: Send CreateSubmissionCommand
     MediatR->>Validation: Validate command
     Validation->>Handler: Continue when valid
@@ -405,7 +422,7 @@ sequenceDiagram
     Controller-->>Client: 201 Created
 ```
 
-The important idea is that the repository stages the change and Unit of Work commits it. This keeps the Application layer from depending directly on EF Core.
+The important security idea is that protected business endpoints stop unauthenticated or unauthorized callers before the Application use case runs. The important persistence idea is that the repository stages the change and Unit of Work commits it. This keeps the Application layer from depending directly on EF Core.
 
 ## Stop The App
 
@@ -575,7 +592,9 @@ Do not add these to the local run path yet unless a future milestone approves th
 - Kafka
 - LocalStack
 - React frontend
-- Authentication
+- External identity provider tenant setup
+- React login flow
+- User registration and account management
 - Domain events or outbox
 - Event sourcing
 

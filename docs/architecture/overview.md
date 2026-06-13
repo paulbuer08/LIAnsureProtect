@@ -131,7 +131,17 @@ The first public business endpoint is:
 POST /api/v1/submissions
 ```
 
-The controller is intentionally thin. It translates HTTP JSON into an Application command and translates Application validation failures into `400 Bad Request` validation problem details.
+Milestone 6 - Authentication Foundation protects this endpoint with the `Submissions.Create` policy. Anonymous callers receive `401 Unauthorized`, and authenticated callers without an allowed role receive `403 Forbidden`.
+
+Allowed roles for creating submissions:
+
+```text
+Customer
+Broker
+Admin
+```
+
+The controller is intentionally thin. It translates HTTP JSON into an Application command and translates Application validation failures into `400 Bad Request` validation problem details. Authentication and authorization run before the Application use case begins.
 
 Recommended Application folder shape once the first business slice exists:
 
@@ -217,13 +227,39 @@ Current foundation:
 - HTTPS redirection for local and production security posture.
 - `/api/v1/health` as the first versioned operational endpoint.
 - A simple root endpoint that reports the running application name dynamically from the assembly.
+- JWT bearer authentication foundation for protected business endpoints.
+- Policy-based authorization using Application-owned role and policy names.
+- `ICurrentUser` abstraction so Application code can later ask who is making a request without depending on ASP.NET Core HTTP details.
+
+The authentication foundation uses this shape:
+
+```text
+External identity provider
+  -> signed JWT access token
+  -> ASP.NET Core JwtBearer validation
+  -> authorization policy
+  -> controller
+  -> Application use case
+```
+
+Simple analogy:
+
+```text
+Authentication:
+  Read the caller's badge.
+
+Authorization:
+  Check whether the badge opens this room.
+```
+
+The API validates the configured token issuer, audience, lifetime, signing key, and role claim type. If the required authentication configuration is missing or the authority is not an HTTPS URL, the API fails startup instead of running with unclear security.
 
 Planned API direction:
 
 - Keep public business endpoints under `/api/v1/...` from the beginning.
 - Add formal API versioning when the first real business endpoints are introduced or before a breaking API change.
 - Generate separate OpenAPI documents later when needed for API versions, public/internal audiences, or frontend/backend API groupings.
-- Keep OpenAPI exposed only in development until authentication and role-based access are available.
+- Keep OpenAPI exposed only in development until a later milestone explicitly protects API documentation with role-based access.
 - Protect API documentation later with authorization, such as Admin or Developer access, before exposing it outside local development.
 - Prefer controller-based APIs for business resources, while allowing small `MapGet` endpoints for infrastructure/status endpoints.
 - Treat OpenAPI document caching as a later optimization, and avoid public caching for protected/internal API metadata.
@@ -240,6 +276,7 @@ ECS Fargate is the stronger first production path for Docker, autoscaling, ALB, 
 ## Security Defaults
 
 - HTTPS everywhere outside local development.
+- JWT bearer authentication for protected API endpoints.
 - Role and policy-based authorization.
 - Secrets stored outside source control.
 - Private document storage.
@@ -250,7 +287,7 @@ ECS Fargate is the stronger first production path for Docker, autoscaling, ALB, 
 
 Milestone 2 intentionally keeps middleware small. Add production middleware when its supporting feature exists:
 
-- Authentication and authorization policies when user identity is introduced.
+- External identity provider tenant integration and login flows when user-facing authentication is introduced.
 - CORS when the React frontend runs from a separate origin.
 - Forwarded headers when the API runs behind CloudFront, ALB, API Gateway, or another reverse proxy.
 - HSTS when HTTPS hosting is finalized outside local development.

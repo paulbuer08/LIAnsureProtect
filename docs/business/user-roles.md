@@ -26,7 +26,11 @@ Authorization answers: what is this user allowed to do?
 
 ## Implementation Direction
 
-Use ASP.NET Core Identity for user accounts.
+Use standards-based OpenID Connect/OAuth with JWT access tokens for API authentication.
+
+The API should validate tokens from an external identity provider such as Auth0, Amazon Cognito, Microsoft Entra External ID, or another compatible provider. Keep provider-specific details at the API edge so Application code depends on roles, policies, and the `ICurrentUser` abstraction instead of a specific vendor.
+
+Do not build custom password or token logic in the API.
 
 Use roles for broad categories and policies for business-specific ownership rules.
 
@@ -36,3 +40,10 @@ Example:
 Role check: Is this user an Underwriter?
 Policy check: Is this underwriter assigned to this submission?
 ```
+
+Current protected endpoint policy:
+
+| Policy | Allowed roles | Purpose |
+| --- | --- | --- |
+| `Submissions.Create` | Customer, Broker, Admin | Allows creating draft submissions. |
+| `System.Admin` | Admin | Reserved for system administration endpoints. |

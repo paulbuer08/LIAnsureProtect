@@ -77,9 +77,35 @@ The first health endpoint is:
 /api/v1/health
 ```
 
-OpenAPI is currently intended for development use. Production access rules will be added later with authentication and role-based authorization.
+OpenAPI is currently intended for development use. Production access rules for OpenAPI will be added later with role-based authorization.
 
 Detailed setup reasoning and milestone learnings are captured in [Milestone 2 Backend Foundation Learnings](milestone-2-backend-foundation-learnings.md).
+
+## Local Authentication Foundation
+
+Milestone 6 - Authentication Foundation adds JWT bearer authentication and policy-based authorization to the API.
+
+Development authentication settings live under:
+
+```text
+Authentication:Authority
+Authentication:Audience
+Authentication:RoleClaimType
+```
+
+`appsettings.json` records the safe configuration shape. `appsettings.Development.json` can hold local development values. Production should provide real values through deployment configuration such as environment variables, AWS Systems Manager Parameter Store, or AWS Secrets Manager.
+
+`POST /api/v1/submissions` is now protected by the `Submissions.Create` policy. Anonymous callers should receive `401 Unauthorized`. Authenticated callers without an allowed role should receive `403 Forbidden`.
+
+Allowed roles for creating submissions:
+
+```text
+Customer
+Broker
+Admin
+```
+
+Root and health endpoints remain anonymous so local smoke checks can still confirm the API process is running.
 
 ## Local PostgreSQL And Migrations
 

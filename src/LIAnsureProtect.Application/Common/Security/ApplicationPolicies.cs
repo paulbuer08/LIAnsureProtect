@@ -1,0 +1,7 @@
+namespace LIAnsureProtect.Application.Common.Security;
+
+public static class ApplicationPolicies
+{
+    public const string CreateSubmission = "Submissions.Create";
+    public const string AdminAccess = "System.Admin";
+}
