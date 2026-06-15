@@ -31,7 +31,7 @@ Milestone 5 is implemented locally as `Milestone 5 - Persistence Foundation`. It
 
 Milestone 6 is complete as `Milestone 6 - Authentication Foundation`. It adds JWT bearer authentication, policy-based authorization, a current-user abstraction, and protects `POST /api/v1/submissions` behind the `Submissions.Create` policy for `Customer`, `Broker`, and `Admin` roles.
 
-Milestone 7 is in progress as `Milestone 7 - Identity Provider Integration`. It connects the provider-neutral JWT foundation to Auth0 for the first external identity provider, starts with manual token testing, and records later security-hardening goals such as permission strings, ownership policies, JWE evaluation, sender-constrained tokens, step-up MFA, and refresh-token/session security.
+Milestone 7 is complete as `Milestone 7 - Identity Provider Integration`. It connects the provider-neutral JWT foundation to Auth0 for the first external identity provider, starts with manual token testing, stores the tenant-specific Auth0 authority through ASP.NET Core User Secrets, and records later security-hardening goals such as permission strings, ownership policies, JWE evaluation, sender-constrained tokens, step-up MFA, and refresh-token/session security.
 
 ## Local Run
 

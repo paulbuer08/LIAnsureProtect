@@ -91,3 +91,4 @@ The format follows simple milestone-based entries.
 - Manual Auth0 `Underwriter` token smoke test proving `POST /api/v1/submissions` returns `403 Forbidden` for authenticated but unauthorized roles.
 - Runbook section for repeatable manual Auth0 access-token smoke testing with local PowerShell commands and expected `201`, `401`, and `403` outcomes.
 - Milestone 7 learning notes covering Auth0 setup, RBAC decisions, access-token hardening options, and intentionally deferred security scope.
+- Milestone 7 closeout recorded after final local CI passed with Auth0 User Secrets cleanup and complete documentation updates.

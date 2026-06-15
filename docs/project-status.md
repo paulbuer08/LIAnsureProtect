@@ -8,8 +8,8 @@ Use this file at the start of a new conversation or coding session before making
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
 - Current branch: `codex/milestone-7-identity-provider-integration`
-- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`.
-- Current milestone: Milestone 7 - Identity Provider Integration is in progress with manual Auth0 access-token smoke testing.
+- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`; Milestone 7 closeout committed locally as `fcac659 feat: integrate Auth0 identity provider setup`.
+- Current milestone: Milestone 7 - Identity Provider Integration is complete. Next milestone is pending user approval and should start on a new branch.
 - Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; frontend application code has not been created yet.
 
 ## User Collaboration Rules
@@ -661,7 +661,7 @@ Milestone 6 verification so far:
 
 ### Milestone 7 - Identity Provider Integration
 
-Status: in progress.
+Status: complete.
 
 Branch:
 
@@ -707,6 +707,18 @@ Current Milestone 7 boundary:
 
 - Do not add React login UI, user registration screens, database user profile tables, refresh-token handling, admin user-management UI, ownership checks, or AWS deployment in Milestone 7 unless explicitly approved later.
 - Do not add JWE, DPoP, mTLS, transactional authorization with MFA, or refresh-token/offline-access support in Milestone 7. These are future security-hardening milestones after the basic Auth0 JWT flow is verified.
+
+Closeout:
+
+```text
+fcac659 feat: integrate Auth0 identity provider setup
+```
+
+Verification:
+
+- Manual Auth0 access-token smoke testing passed for `201`, `401`, and `403` behavior.
+- Full local CI passed after User Secrets cleanup and final documentation updates.
+- `git diff --check` passed before closeout commit.
 
 Future security milestones to plan after Milestone 7:
 
