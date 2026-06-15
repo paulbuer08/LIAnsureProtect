@@ -17,9 +17,13 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(databaseConnectionString);
 builder.Services.AddControllers();
 
+// ICurrentUser lets use cases ask who is calling w/out depending on ASP.NET Core.
+// HttpContextCurrentUser reads the current HTTP user's claims.
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
 
+// JWT bearer auth checks the caller's Auth0 access token.
+// The API trusts only the configured issuer, audience, expiry, signature, and role claim.
 var authenticationSection = builder.Configuration.GetSection("Authentication");
 var authority = authenticationSection["Authority"];
 var audience = authenticationSection["Audience"];
@@ -50,6 +54,7 @@ builder.Services
         };
     });
 
+// Authorization policies decide w/c authenticated roles can enter each protected endpoint.
 builder.Services.AddAuthorization(AuthorizationPolicies.AddApplicationAuthorizationPolicies);
 
 

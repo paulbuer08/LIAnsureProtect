@@ -80,3 +80,14 @@ The format follows simple milestone-based entries.
 - Submission endpoint authorization tests covering anonymous, forbidden, validation, successful, and allowed-role cases.
 - Local CI smoke test update proving anonymous submission creation returns `401 Unauthorized`.
 - Milestone 6 learning notes covering JWT/OIDC direction, current-user abstraction, roles versus policies, test auth, and intentionally deferred identity work.
+- Milestone 7 - Identity Provider Integration planning and manual Auth0 setup notes.
+- Auth0 development API setup direction using audience `https://api.liansureprotect.local`.
+- Auth0 roles claim direction using the namespaced custom claim `https://liansureprotect.local/roles`.
+- API project User Secrets support for keeping the real local Auth0 authority outside committed configuration.
+- Future security-hardening backlog covering fine-grained permissions, ownership policies, JWE evaluation, sender-constrained tokens, transactional authorization with MFA, and refresh-token/session security.
+- Future Auth0 identity lifecycle automation backlog covering pre-registration, post-registration, custom phone-message delivery, password-reset-post-challenge, and post-change-password triggers.
+- Manual Auth0 access-token smoke test proving `POST /api/v1/submissions` accepts a real Auth0 `Customer` token and creates a draft submission.
+- Manual anonymous smoke test proving `POST /api/v1/submissions` still returns `401 Unauthorized` without a bearer token after Auth0 integration.
+- Manual Auth0 `Underwriter` token smoke test proving `POST /api/v1/submissions` returns `403 Forbidden` for authenticated but unauthorized roles.
+- Runbook section for repeatable manual Auth0 access-token smoke testing with local PowerShell commands and expected `201`, `401`, and `403` outcomes.
+- Milestone 7 learning notes covering Auth0 setup, RBAC decisions, access-token hardening options, and intentionally deferred security scope.

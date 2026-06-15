@@ -9,7 +9,7 @@ Use this file at the start of a new conversation or coding session before making
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
 - Current branch: `codex/milestone-7-identity-provider-integration`
 - Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`.
-- Current milestone: Milestone 7 - Identity Provider Integration is pending scope confirmation.
+- Current milestone: Milestone 7 - Identity Provider Integration is in progress with manual Auth0 access-token smoke testing.
 - Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; frontend application code has not been created yet.
 
 ## User Collaboration Rules
@@ -661,7 +661,7 @@ Milestone 6 verification so far:
 
 ### Milestone 7 - Identity Provider Integration
 
-Status: pending scope confirmation.
+Status: in progress.
 
 Branch:
 
@@ -675,15 +675,74 @@ Starting point:
 811c893 docs: close authentication foundation milestone
 ```
 
-Recommended scope to discuss:
+Approved scope:
 
 - Connect the JWT bearer foundation to a real Auth0 tenant.
 - Document the local developer login/token workflow.
-- Decide how roles are represented in Auth0 tokens.
-- Confirm whether the first authenticated smoke test should use a manual token, Auth0 CLI/dashboard flow, or a scripted developer helper.
+- Represent real Auth0 roles in access tokens through a namespaced custom claim such as `https://liansureprotect.local/roles`.
+- Configure the API to use that namespaced claim through `Authentication:RoleClaimType`.
+- Start with manual access-token testing before adding automated token helpers or frontend login.
 - Keep implementation narrow and provider-neutral at the API boundary where practical.
 
-Do not start implementation until the exact Milestone 7 scope is confirmed.
+Current Auth0 setup progress:
+
+- Auth0 tenant was created for development.
+- Auth0 API `LIAnsureProtect API` was created with audience `https://api.liansureprotect.local`.
+- Auth0 API RBAC was enabled.
+- Auth0 API permissions are intentionally not included in access tokens yet because the current API enforces roles through ASP.NET Core policies.
+- Auth0 roles were created for `Customer`, `Broker`, `Underwriter`, `ClaimsAdjuster`, and `Admin`.
+- A test user was verified and assigned the `Customer` role.
+- Auth0 post-login Action `Add LIAnsureProtect Roles Claim` was deployed and attached to the post-login trigger.
+- `LIAnsureProtect Dev Token Tester` was authorized for user-delegated access to `LIAnsureProtect API`.
+- Local development authentication configuration uses committed project constants for audience `https://api.liansureprotect.local` and role claim type `https://liansureprotect.local/roles`; the real Auth0 tenant authority should be supplied locally through ASP.NET Core User Secrets or environment variables.
+- Manual Auth0 authorization-code token exchange succeeded and returned an access token for the verified `Customer` test user.
+- Manual authenticated smoke test against `POST /api/v1/submissions` succeeded with the Auth0 access token and returned a draft submission.
+- Manual anonymous smoke test against `POST /api/v1/submissions` returned `401 Unauthorized`, confirming the endpoint remains protected without a bearer token.
+- Manual authenticated-but-unauthorized smoke test against `POST /api/v1/submissions` returned `403 Forbidden` with an Auth0 `Underwriter` token, confirming disallowed roles remain blocked.
+- Local build was reported successful after the Auth0 development configuration, documentation updates, and explanatory `Program.cs` comments.
+- Full local CI was reported successful after the manual Auth0 access-token smoke testing, User Secrets cleanup, and final documentation updates.
+- `docs/dev/run-the-app.md` now documents the repeatable manual Auth0 access-token smoke-testing workflow, including token exchange, `201`, `401`, and `403` checks.
+
+Current Milestone 7 boundary:
+
+- Do not add React login UI, user registration screens, database user profile tables, refresh-token handling, admin user-management UI, ownership checks, or AWS deployment in Milestone 7 unless explicitly approved later.
+- Do not add JWE, DPoP, mTLS, transactional authorization with MFA, or refresh-token/offline-access support in Milestone 7. These are future security-hardening milestones after the basic Auth0 JWT flow is verified.
+
+Future security milestones to plan after Milestone 7:
+
+- Fine-grained authorization milestone:
+  - Evolve from role-only checks to role + permission + ownership checks.
+  - Example:
+    ```text
+    Role: Customer
+    Permission: create:submissions
+    Ownership rule: only create for own company
+    ```
+  - Keep broad Auth0 roles such as Customer, Broker, Underwriter, ClaimsAdjuster, and Admin.
+  - Add API/application permission strings such as `create:submissions`, `read:submissions`, `manage:users`, and `approve:quotes` only when the API code is ready to enforce them.
+  - Add ownership-aware policies so users cannot access or mutate records outside their allowed company, broker assignment, underwriting assignment, or claims assignment.
+- Token confidentiality hardening milestone:
+  - Evaluate JSON Web Encryption (JWE) for access tokens if access tokens ever need to carry confidential claims.
+  - Prefer keeping access tokens small and non-sensitive first.
+  - Do not enable JWE until the API has explicit decrypt-then-validate support, key management, rotation, and tests.
+- Sender-constrained token milestone:
+  - Evaluate DPoP for browser/public-client user flows.
+  - Evaluate mTLS for backend-to-backend or partner/service integrations.
+  - Use sender-constrained tokens to reduce the damage from stolen or leaked bearer tokens.
+  - Do not enable this until the client type, Auth0 support, API validation behavior, and local developer workflow are clear.
+- Sensitive action step-up authorization milestone:
+  - Evaluate Transactional Authorization with MFA or equivalent step-up MFA for high-risk actions.
+  - Candidate actions include binding coverage, approving payments, changing admin roles, releasing sensitive documents, and other high-impact insurance workflows.
+- React login and session security milestone:
+  - Add refresh-token/offline-access support only when the React login/session flow exists.
+  - Use secure storage, refresh token rotation, token revocation handling, logout behavior, and tests.
+- Identity lifecycle automation milestone:
+  - Evaluate Auth0 pre-user-registration Actions for registration guardrails such as blocking disposable email domains, enforcing invite-only broker/admin onboarding, or adding early risk checks before a user record is created.
+  - Evaluate Auth0 post-user-registration Actions for application onboarding work such as creating an internal user profile record, sending a welcome/onboarding notification, writing audit events, or starting broker/customer setup workflows after Auth0 creates the user.
+  - Evaluate Auth0 send-phone-message Actions only if LIAnsureProtect needs a custom SMS/MFA provider or custom phone-message delivery. Prefer Auth0's managed/default MFA messaging until the product has a clear reason to own phone-message delivery.
+  - Evaluate Auth0 password-reset-post-challenge Actions for security auditing, risk checks, or custom notifications after a password reset challenge is passed.
+  - Evaluate Auth0 post-change-password Actions for audit logging, security notifications, session/token revocation decisions, and account-risk workflows after a password is changed.
+  - Keep these triggers out of Milestone 7 so the first Auth0 integration stays focused on manual JWT access-token validation and roles.
 
 ## Open Local Setup Items
 

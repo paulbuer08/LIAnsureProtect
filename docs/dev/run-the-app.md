@@ -386,6 +386,258 @@ Broker
 Admin
 ```
 
+## Manual Auth0 Access-Token Smoke Testing
+
+Milestone 7 - Identity Provider Integration uses manual Auth0 access-token smoke testing before adding frontend login or automation.
+
+This means:
+
+```text
+manual:
+  A developer gets and uses the token by hand.
+
+Auth0 access-token:
+  The token is issued by Auth0 for the LIAnsureProtect API audience.
+
+smoke testing:
+  A small check that proves the main security path works.
+```
+
+Do not paste client secrets, authorization codes, access tokens, or ID tokens into docs, commits, screenshots, or chat. If a client secret is exposed, rotate it in Auth0 before continuing.
+
+### Auth0 Values
+
+Use values from:
+
+```text
+Applications > Applications > LIAnsureProtect Dev Token Tester
+```
+
+Set these in PowerShell. Replace the placeholders locally:
+
+```powershell
+$domain = "YOUR_AUTH0_DOMAIN"
+$clientId = "YOUR_CLIENT_ID"
+$clientSecret = "YOUR_CLIENT_SECRET"
+$redirectUri = "http://localhost:5223/callback"
+$audience = "https://api.liansureprotect.local"
+$scope = "openid profile email"
+```
+
+Example domain shape:
+
+```text
+dev-example.us.auth0.com
+```
+
+The API development configuration should use:
+
+```json
+"Authentication": {
+  "Authority": "https://YOUR_AUTH0_DOMAIN/",
+  "Audience": "https://api.liansureprotect.local",
+  "RoleClaimType": "https://liansureprotect.local/roles"
+}
+```
+
+Keep the committed file generic. For local development, store the real Auth0 tenant value in ASP.NET Core User Secrets:
+
+```powershell
+dotnet user-secrets set "Authentication:Authority" "https://YOUR_AUTH0_DOMAIN/" --project src/LIAnsureProtect.Api
+```
+
+Replace `YOUR_AUTH0_DOMAIN` with the tenant domain from Auth0, for example `dev-example.us.auth0.com`.
+
+Do not literally save `https://YOUR_AUTH0_DOMAIN/` in User Secrets. That text is only a placeholder in committed files and documentation.
+
+Correct local example:
+
+```powershell
+dotnet user-secrets set "Authentication:Authority" "https://dev-example.us.auth0.com/" --project src/LIAnsureProtect.Api
+```
+
+The audience and role-claim-type values are project constants, not private credentials. They can stay in committed development configuration. If you want to override all authentication values locally, User Secrets can store them too:
+
+```powershell
+dotnet user-secrets set "Authentication:Audience" "https://api.liansureprotect.local" --project src/LIAnsureProtect.Api
+dotnet user-secrets set "Authentication:RoleClaimType" "https://liansureprotect.local/roles" --project src/LIAnsureProtect.Api
+```
+
+For this milestone, the recommended split is:
+
+| Setting | Committed file | User Secrets | Why |
+| --- | --- | --- | --- |
+| `Authentication:Authority` | Placeholder | Real Auth0 tenant URL | Tenant-specific and should not be committed. |
+| `Authentication:Audience` | `https://api.liansureprotect.local` | Optional | Project API identifier, not secret. |
+| `Authentication:RoleClaimType` | `https://liansureprotect.local/roles` | Optional | Project role-claim location, not secret. |
+
+In plain English: `appsettings.Development.json` is the shared recipe, and User Secrets is your private sticky note on your own machine. The app reads both, and the private sticky note wins for your local run.
+
+Configuration loading works like a stack of transparent sheets:
+
+```mermaid
+flowchart TD
+    A["appsettings.json<br/>base shared settings"] --> B["appsettings.Development.json<br/>development shared settings"]
+    B --> C["User Secrets<br/>your local private development overrides"]
+    C --> D["Environment variables<br/>deployment or shell overrides"]
+    D --> E["Command-line args<br/>last-minute overrides"]
+```
+
+If two sheets contain the same key, the later sheet covers the earlier one.
+
+Example:
+
+```text
+appsettings.Development.json:
+  Authentication:Authority = https://YOUR_AUTH0_DOMAIN/
+
+User Secrets:
+  Authentication:Authority = https://dev-example.us.auth0.com/
+
+API sees:
+  Authentication:Authority = https://dev-example.us.auth0.com/
+```
+
+The API project contains this non-secret identifier:
+
+```xml
+<UserSecretsId>1d8c758e-0a3b-48e5-809c-7760f05d86ba</UserSecretsId>
+```
+
+That value tells .NET which local User Secrets file belongs to this project. It is like a mailbox number, not the message inside the mailbox.
+
+On Windows, the local file is stored under the current Windows user's profile:
+
+```text
+%APPDATA%\Microsoft\UserSecrets\1d8c758e-0a3b-48e5-809c-7760f05d86ba\secrets.json
+```
+
+For this machine, that usually means:
+
+```text
+C:\Users\Poy\AppData\Roaming\Microsoft\UserSecrets\1d8c758e-0a3b-48e5-809c-7760f05d86ba\secrets.json
+```
+
+User Secrets are local-only and outside the Git repository, but they are not encrypted. Use them for development convenience, not production secret storage.
+
+Verify local User Secrets:
+
+```powershell
+dotnet user-secrets list --project src/LIAnsureProtect.Api
+```
+
+Expected shape:
+
+```text
+Authentication:Authority = https://your-real-auth0-domain/
+```
+
+If the value still says `https://YOUR_AUTH0_DOMAIN/`, run the `dotnet user-secrets set` command again with the real Auth0 domain.
+
+### Get A Manual Authorization Code
+
+Build the Auth0 login URL:
+
+```powershell
+$authorizeUrl = "https://$domain/authorize?response_type=code&client_id=$([System.Uri]::EscapeDataString($clientId))&redirect_uri=$([System.Uri]::EscapeDataString($redirectUri))&audience=$([System.Uri]::EscapeDataString($audience))&scope=$([System.Uri]::EscapeDataString($scope))"
+$authorizeUrl
+```
+
+Open the printed URL in a browser and log in with the Auth0 test user.
+
+After Auth0 redirects to a URL like this:
+
+```text
+http://localhost:5223/callback?code=...
+```
+
+copy only the `code` value from the browser address bar. A `404` page is acceptable because the local API does not implement a real callback endpoint for this manual workflow.
+
+Authorization codes are short-lived and one-time use. Get a fresh code for each token exchange.
+
+### Exchange The Code For Tokens
+
+Set the fresh code locally:
+
+```powershell
+$code = "PASTE_FRESH_CODE_HERE"
+```
+
+Build the token request body:
+
+```powershell
+$tokenBody = @{ grant_type = "authorization_code"; client_id = $clientId; client_secret = $clientSecret; code = $code; redirect_uri = $redirectUri } | ConvertTo-Json
+```
+
+Exchange the code for tokens:
+
+```powershell
+$tokenResponse = Invoke-RestMethod -Method Post -Uri "https://$domain/oauth/token" -ContentType "application/json" -Body $tokenBody
+```
+
+Use the `access_token` for API calls:
+
+```powershell
+$accessToken = $tokenResponse.access_token
+```
+
+Do not use the `id_token` to call the API. The ID token describes the logged-in user for the client application. The access token is the badge for calling the API.
+
+### Smoke-Test Matrix
+
+Create a request body:
+
+```powershell
+$body = @{ applicantName = "Jane Applicant"; applicantEmail = "jane@example.com"; companyName = "Example Company" } | ConvertTo-Json
+```
+
+Authorized caller test:
+
+```powershell
+$apiResponse = Invoke-RestMethod -Method Post -Uri "http://localhost:5223/api/v1/submissions" -Headers @{ Authorization = "Bearer $accessToken" } -ContentType "application/json" -Body $body
+$apiResponse
+```
+
+Expected for an Auth0 user with `Customer`, `Broker`, or `Admin`:
+
+```text
+201 Created with status Draft
+```
+
+Anonymous caller test:
+
+```powershell
+$anonymousStatusCode = $null
+try { Invoke-RestMethod -Method Post -Uri "http://localhost:5223/api/v1/submissions" -ContentType "application/json" -Body $body } catch { $anonymousStatusCode = [int]$_.Exception.Response.StatusCode }
+$anonymousStatusCode
+```
+
+Expected:
+
+```text
+401
+```
+
+Authenticated but unauthorized caller test:
+
+1. In Auth0, temporarily remove `Customer` from the test user and assign `Underwriter`.
+2. Get a fresh authorization code and access token.
+3. Call the protected endpoint with the new token:
+
+```powershell
+$underwriterStatusCode = $null
+try { Invoke-RestMethod -Method Post -Uri "http://localhost:5223/api/v1/submissions" -Headers @{ Authorization = "Bearer $accessToken" } -ContentType "application/json" -Body $body } catch { $underwriterStatusCode = [int]$_.Exception.Response.StatusCode }
+$underwriterStatusCode
+```
+
+Expected:
+
+```text
+403
+```
+
+After the negative test, restore the test user to `Customer` so the happy-path smoke test remains easy to repeat.
+
 ## Request Workflow
 
 This is what happens when an authenticated and authorized caller sends `POST /api/v1/submissions`:

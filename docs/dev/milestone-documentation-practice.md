@@ -35,12 +35,77 @@ The learning notes should capture:
 - questions that came up during the milestone
 - decisions made and why
 - options considered and rejected
-- beginner-friendly explanations
+- beginner-friendly explanations in simple English
+- concrete examples, sample values, and copy-pasteable commands when useful
+- analogies that explain the concept without hiding the technical truth
+- diagrams for flows, boundaries, or configuration precedence when they make the idea easier to remember
 - production-minded tradeoffs
 - mistakes or confusing tool behavior
 - debugging steps and fixes
 - what should be remembered for future milestones
 - what should intentionally not be implemented yet
+
+Prefer complete and thorough milestone notes over short notes when the topic is foundational or confusing. Length is acceptable when the detail helps a future reader understand the project without replaying the original conversation.
+
+Simple rule:
+
+```text
+Code shows what changed.
+Docs explain what changed, why it changed, how it works, and how to verify it.
+```
+
+For security, authentication, infrastructure, and workflow topics, include:
+
+- what the setting or component is
+- why the project needs it
+- where it lives in the repository or local machine
+- how values are saved and loaded
+- what is safe to commit
+- what must stay local or secret
+- how to verify the setup
+- common mistakes and how to recover
+
+## Preferred Explanation Shape
+
+When a concept is new, confusing, security-sensitive, or likely to be revisited later, use a rich explanation shape like this:
+
+```text
+Concept name:
+  The short plain-English definition.
+
+Why it exists:
+  The practical problem it solves in this project.
+
+Think of it like this:
+  A concrete analogy that maps to the real behavior.
+
+Where it lives:
+  The exact file, folder, dashboard page, command, or local machine location.
+
+How it works:
+  The step-by-step flow in simple language.
+
+Example:
+  A small realistic sample value, request, command, or configuration snippet.
+
+Verification:
+  The command or manual check that proves it is working.
+
+Common mistake:
+  The easy thing to get wrong and how to fix it.
+```
+
+Example style:
+
+```text
+Project file:
+  "My private local settings are stored under this ID."
+
+Your computer:
+  "I have a secrets.json file for that ID."
+```
+
+This style is especially useful in learning notes, runbooks, architecture explanations, security decisions, and milestone handoffs. It is acceptable for these docs to be lengthy when the length preserves useful learning context.
 
 ## Milestone Naming Convention
 
