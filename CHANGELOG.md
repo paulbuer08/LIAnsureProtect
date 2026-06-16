@@ -92,3 +92,13 @@ The format follows simple milestone-based entries.
 - Runbook section for repeatable manual Auth0 access-token smoke testing with local PowerShell commands and expected `201`, `401`, and `403` outcomes.
 - Milestone 7 learning notes covering Auth0 setup, RBAC decisions, access-token hardening options, and intentionally deferred security scope.
 - Milestone 7 closeout recorded after final local CI passed with Auth0 User Secrets cleanup and complete documentation updates.
+- Milestone 8 - Frontend Login And Session Foundation branch and starter scope.
+- React + TypeScript + Vite frontend scaffold under `src/LIAnsureProtect.Web`, with initial browser/build/lint verification and Tailwind CSS package installation.
+- React Router, Auth0 React SDK, and local Vite environment configuration for the browser login/session foundation.
+- Auth0-backed home, callback, and guarded dashboard pages for the frontend session flow.
+- Dashboard access-token preview and protected API smoke-test button for creating draft submissions through the authenticated API.
+- Development CORS configuration allowing the local Vite frontend origin to call the ASP.NET API.
+- Fetch-based frontend API client for `POST /api/v1/submissions`.
+- Frontend Vitest and React Testing Library setup with route-guard and dashboard token/API behavior tests.
+- Local CI frontend checks for install, build, lint, and tests when the web project exists.
+- Real browser Auth0 smoke test proving the frontend can create a draft submission through the protected API and persist it in the PostgreSQL container.

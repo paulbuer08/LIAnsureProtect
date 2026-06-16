@@ -33,6 +33,8 @@ Milestone 6 is complete as `Milestone 6 - Authentication Foundation`. It adds JW
 
 Milestone 7 is complete as `Milestone 7 - Identity Provider Integration`. It connects the provider-neutral JWT foundation to Auth0 for the first external identity provider, starts with manual token testing, stores the tenant-specific Auth0 authority through ASP.NET Core User Secrets, and records later security-hardening goals such as permission strings, ownership policies, JWE evaluation, sender-constrained tokens, step-up MFA, and refresh-token/session security.
 
+Milestone 8 is complete as `Milestone 8 - Frontend Login And Session Foundation`. It adds the first React/Vite frontend, Auth0 Authorization Code with PKCE login, guarded dashboard routing, access-token retrieval for the LIAnsureProtect API audience, a protected API smoke-test button, local development CORS support, focused frontend tests, and a verified browser-to-API-to-PostgreSQL smoke path.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -55,6 +57,12 @@ To include tests in the setup run:
 .\scripts\setup-dev.ps1 -RunTests:$true
 ```
 
+Run the combined local CI path, including backend setup/tests/smoke checks and frontend install/build/lint/test checks:
+
+```powershell
+.\scripts\run-local-ci.ps1
+```
+
 ## Documentation
 
 - [Project Status](docs/project-status.md)
@@ -72,5 +80,6 @@ To include tests in the setup run:
 - [Milestone 5 Persistence Foundation Learnings](docs/dev/milestone-5-persistence-foundation-learnings.md)
 - [Milestone 6 Authentication Foundation Learnings](docs/dev/milestone-6-authentication-foundation-learnings.md)
 - [Milestone 7 Identity Provider Integration Learnings](docs/dev/milestone-7-identity-provider-integration-learnings.md)
+- [Milestone 8 Frontend Login And Session Foundation Learnings](docs/dev/milestone-8-frontend-login-and-session-foundation-learnings.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)
 - [AWS Environments](docs/dev/aws-environments.md)

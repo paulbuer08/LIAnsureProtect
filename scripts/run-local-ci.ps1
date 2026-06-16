@@ -1,5 +1,7 @@
 param(
     [bool] $RunSmokeTests = $true,
+    [bool] $RunFrontendChecks = $true,
+    [bool] $RunFrontendInstall = $true,
     [int] $ApiStartupTimeoutSeconds = 60,
     [ValidateSet("Cleanup", "LeaveRunning")]
     [string] $PostgreSqlAfterRun = "Cleanup",
@@ -28,6 +30,24 @@ try {
     }
     finally {
         Pop-Location
+    }
+
+    $frontendProjectPath = Join-Path $repositoryRoot "src\LIAnsureProtect.Web"
+
+    if ($RunFrontendChecks -and (Test-Path (Join-Path $frontendProjectPath "package.json") -PathType Leaf)) {
+        Push-Location $frontendProjectPath
+        try {
+            if ($RunFrontendInstall) {
+                Invoke-CheckedCommand "npm" @("ci")
+            }
+
+            Invoke-CheckedCommand "npm" @("run", "build")
+            Invoke-CheckedCommand "npm" @("run", "lint")
+            Invoke-CheckedCommand "npm" @("run", "test")
+        }
+        finally {
+            Pop-Location
+        }
     }
 
     if ($RunSmokeTests) {
@@ -137,6 +157,8 @@ try {
         status = "Passed"
         runTimestamp = $runTimestamp
         runSmokeTests = $RunSmokeTests
+        runFrontendChecks = $RunFrontendChecks
+        runFrontendInstall = $RunFrontendInstall
         postgreSqlAfterRun = $PostgreSqlAfterRun
         resultsDirectory = $testResultsDirectory
         artifactPath = if ($CreateZipArtifact) { $artifactPath } else { $null }

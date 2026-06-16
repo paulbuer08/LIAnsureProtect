@@ -7,10 +7,10 @@ Use this file at the start of a new conversation or coding session before making
 ## Current Workspace
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
-- Current branch: `codex/milestone-7-identity-provider-integration`
+- Current branch: `codex/milestone-8-frontend-login-and-session-foundation`
 - Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`; Milestone 7 closeout committed locally as `fcac659 feat: integrate Auth0 identity provider setup`.
-- Current milestone: Milestone 7 - Identity Provider Integration is complete. Next milestone is pending user approval and should start on a new branch.
-- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; frontend application code has not been created yet.
+- Current milestone: Milestone 8 - Frontend Login And Session Foundation is complete. Next milestone is pending user approval and should start on a new branch.
+- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; Milestone 8 has created the first React/Vite frontend under `src/LIAnsureProtect.Web` with Tailwind CSS, React Router, Auth0 React SDK wiring, a local Auth0 SPA config, login/logout flow, callback session display, dashboard session display, and a guarded dashboard route.
 
 ## User Collaboration Rules
 
@@ -755,6 +755,83 @@ Future security milestones to plan after Milestone 7:
   - Evaluate Auth0 password-reset-post-challenge Actions for security auditing, risk checks, or custom notifications after a password reset challenge is passed.
   - Evaluate Auth0 post-change-password Actions for audit logging, security notifications, session/token revocation decisions, and account-risk workflows after a password is changed.
   - Keep these triggers out of Milestone 7 so the first Auth0 integration stays focused on manual JWT access-token validation and roles.
+
+### Milestone 8 - Frontend Login And Session Foundation
+
+Status: in progress.
+
+Branch:
+
+```text
+codex/milestone-8-frontend-login-and-session-foundation
+```
+
+Starting point:
+
+```text
+8718bdb docs: close identity provider integration milestone
+```
+
+Approved direction:
+
+- Add the first frontend login/session foundation after the API proved real Auth0 access-token validation.
+- Use Auth0 Authorization Code with PKCE for browser login.
+- Let the frontend obtain an access token for the LIAnsureProtect API audience.
+- Use that access token to call protected API endpoints such as `POST /api/v1/submissions`.
+- Keep the API provider-neutral. The frontend can use Auth0 SDKs, but Application code should still depend on project security abstractions and JWT claims, not Auth0-specific types.
+- Continue guided manual implementation: explain each snippet in simple English before the user applies it.
+
+Simple analogy:
+
+```text
+Milestone 7:
+  We proved the API door scanner can read a real Auth0 badge.
+
+Milestone 8:
+  We build the frontend reception desk that sends the user to Auth0,
+  receives the badge, and uses it when calling the API.
+```
+
+Initial scope:
+
+- Inspect the current frontend/project structure before choosing exact files.
+- Decide whether the React app already exists or needs to be created.
+- Current inspection found no existing React/frontend project or `package.json`; Milestone 8 should create the first frontend project.
+- React + TypeScript + Vite frontend scaffold was created under `src/LIAnsureProtect.Web`.
+- The scaffold installed npm dependencies and started the Vite development server at `http://localhost:5173/`.
+- Tailwind CSS was installed for the frontend using the current Vite plugin package `@tailwindcss/vite`.
+- React Router was added with `/`, `/callback`, and `/dashboard` routes.
+- Auth0 frontend login was configured using Authorization Code with PKCE through `@auth0/auth0-react`.
+- A separate Auth0 Single Page Application client, `LIAnsureProtect Web Dev`, was created for the browser app.
+- Local frontend config is stored in `src/LIAnsureProtect.Web/.env.local`, which is intentionally ignored by git and contains only public browser configuration values.
+- The frontend can log in through Auth0, display callback/session state, show the signed-in dashboard, log out, and guard `/dashboard` from unauthenticated direct access.
+- The dashboard can request an Auth0 access token for the LIAnsureProtect API audience and display a safe shortened preview.
+- A development CORS policy now allows the local frontend origin `http://localhost:5173` to call the API during browser-based Milestone 8 testing.
+- The frontend now has a small fetch-based API client and a protected dashboard smoke-test button that can create a draft submission through `POST /api/v1/submissions` using the Auth0 access token.
+- Focused frontend tests now cover the authenticated route guard and dashboard token/API smoke behavior.
+- `run-local-ci.ps1` can now run frontend install/build/lint/test checks when the web project exists.
+- The real browser smoke test passed: the signed-in Auth0 user clicked `Create draft submission`, the dashboard displayed submission `826637af-7ca2-4715-bd71-eb9836caeb7c` with `Draft` status, and a direct PostgreSQL container query confirmed the row was persisted in the `submissions` table.
+- Final local CI passed with backend build, migrations, backend tests, API smoke tests, frontend build, frontend lint, and frontend tests using `.\scripts\run-local-ci.ps1 -RunFrontendInstall:$false`; artifact zip: `TestResults\local-ci-20260617-021009.zip`.
+- `-RunFrontendInstall:$false` was used because this machine still had Windows file locks under `node_modules`; the frontend build, lint, and tests still ran and passed.
+- Keep learning notes rich, with simple explanations, examples, analogies, diagrams, and verification commands.
+
+Out of scope unless explicitly approved later:
+
+- User registration screens.
+- Admin user-management UI.
+- Database user profile table.
+- Ownership checks.
+- Fine-grained permission enforcement.
+- JWE.
+- DPoP or mTLS sender-constrained tokens.
+- Transactional authorization with MFA.
+- Production AWS deployment.
+
+Refresh-token/offline-access direction:
+
+- Do not enable refresh tokens automatically at the start of Milestone 8.
+- First understand the basic login, access-token request, and protected API call.
+- Add refresh-token/offline-access only if the session behavior needs it and the storage, rotation, logout, and testing strategy are documented.
 
 ## Open Local Setup Items
 

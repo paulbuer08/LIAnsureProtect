@@ -1,6 +1,6 @@
 # Run The App
 
-This guide explains how to run everything that exists in LIAnsureProtect up to `Milestone 6 - Authentication Foundation`.
+This guide explains how to run everything that exists in LIAnsureProtect up to `Milestone 8 - Frontend Login And Session Foundation`.
 
 At this point, the runnable app is:
 
@@ -8,13 +8,13 @@ At this point, the runnable app is:
 - PostgreSQL with pgvector through Docker Compose
 - EF Core migrations for the submissions table
 - JWT bearer authentication and policy-based authorization foundation
+- React/Vite frontend login and session foundation
 - Unit and integration tests
+- Frontend build, lint, and unit tests
 
 Not included yet:
 
-- React frontend
 - Real external identity provider tenant setup
-- React login flow
 - User registration and account management
 - Redis cache
 - AWS services
@@ -106,7 +106,7 @@ From the repository root:
 .\scripts\run-local-ci.ps1
 ```
 
-This is the main one-time verification command. It runs the fresh setup path, applies migrations, runs all tests including the PostgreSQL-backed test, validates Docker Compose config, starts the API briefly, smoke-tests the root endpoint, health endpoint, and anonymous submission security gate, then stops the API.
+This is the main one-time verification command. It runs the fresh backend setup path, applies migrations, runs backend tests including the PostgreSQL-backed test, validates Docker Compose config, runs frontend install/build/lint/test checks when the web project exists, starts the API briefly, smoke-tests the root endpoint, health endpoint, and anonymous submission security gate, then stops the API.
 
 By default, it also removes the PostgreSQL container and local database volume after verification. That makes the script behave like CI: run the checks, keep the results, and remove disposable test infrastructure.
 
@@ -137,6 +137,8 @@ Current `run-local-ci.ps1` flags:
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `-RunSmokeTests` | `$true` | Starts the API briefly and checks root, health, and anonymous create-submission security behavior. |
+| `-RunFrontendChecks` | `$true` | Runs `npm ci`, `npm run build`, `npm run lint`, and `npm run test` under `src/LIAnsureProtect.Web` when the frontend project exists. |
+| `-RunFrontendInstall` | `$true` | Runs `npm ci` before frontend checks. Use `$false` only when dependencies are already installed and Windows has locked files under `node_modules`. |
 | `-ApiStartupTimeoutSeconds` | `60` | How long to wait for the API to become healthy during smoke tests. |
 | `-PostgreSqlAfterRun` | `Cleanup` | Use `Cleanup` to remove the PostgreSQL container and volume after verification, or `LeaveRunning` to keep it for local development. |
 | `-CreateZipArtifact` | `$true` | Creates a zip file from the timestamped result folder. |
@@ -149,6 +151,18 @@ Useful examples:
 ```
 
 That skips the temporary API startup and only verifies setup, migrations, tests, and Docker Compose config.
+
+```powershell
+.\scripts\run-local-ci.ps1 -RunFrontendChecks:$false
+```
+
+That skips frontend checks when you are intentionally debugging only backend setup. For normal Milestone 8 verification, keep frontend checks enabled.
+
+```powershell
+.\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
+```
+
+That skips only `npm ci` but still runs `npm run build`, `npm run lint`, and `npm run test`. Use this when dependencies are already installed and Windows reports an `EPERM unlink` error because a dev server, editor, or antivirus is holding a file under `node_modules`.
 
 ```powershell
 .\scripts\run-local-ci.ps1 -PostgreSqlAfterRun LeaveRunning
@@ -306,6 +320,35 @@ Test result files are created when tests run through `setup-dev.ps1 -RunTests:$t
 
 ```text
 TestResults/*.trx
+```
+
+### 4b. Run Frontend Checks
+
+From the frontend project folder:
+
+```powershell
+cd src\LIAnsureProtect.Web
+npm ci
+npm run build
+npm run lint
+npm run test
+```
+
+What each command means:
+
+| Command | Meaning |
+| --- | --- |
+| `npm ci` | Reinstalls frontend packages exactly from `package-lock.json`. Think of it as "build this frontend dependency tree exactly as recorded." |
+| `npm run build` | Compiles TypeScript and creates a production Vite build. |
+| `npm run lint` | Runs ESLint to catch common code-quality and React issues. |
+| `npm run test` | Runs Vitest tests for frontend components and behavior. |
+
+The combined `.\scripts\run-local-ci.ps1` command runs these frontend checks automatically by default.
+
+If `npm ci` fails with `EPERM unlink` on Windows, stop any running Vite dev server or Node process that might be using frontend dependencies, then rerun local CI. If dependencies are already installed and you only need the frontend build/lint/test checks, run:
+
+```powershell
+.\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
 ```
 
 ### 5. Run The API
@@ -843,9 +886,7 @@ Do not add these to the local run path yet unless a future milestone approves th
 - Redis
 - Kafka
 - LocalStack
-- React frontend
 - External identity provider tenant setup
-- React login flow
 - User registration and account management
 - Domain events or outbox
 - Event sourcing

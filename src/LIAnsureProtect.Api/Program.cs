@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 
 var applicationName = typeof(Program).Assembly.GetName().Name ?? "LIAnsureProtect.Api";
 var builder = WebApplication.CreateBuilder(args);
+const string LocalFrontendCorsPolicy = "LocalFrontend";
 
 
 // 1) Add services to the container.
@@ -16,6 +17,21 @@ var databaseConnectionString = builder.Configuration.GetConnectionString("LIAnsu
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(databaseConnectionString);
 builder.Services.AddControllers();
+
+var allowedCorsOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? [];
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(LocalFrontendCorsPolicy, policy =>
+    {
+        policy
+            .WithOrigins(allowedCorsOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 // ICurrentUser lets use cases ask who is calling w/out depending on ASP.NET Core.
 // HttpContextCurrentUser reads the current HTTP user's claims.
@@ -82,6 +98,7 @@ else
 }
 
 app.UseHttpsRedirection();
+app.UseCors(LocalFrontendCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 

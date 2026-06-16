@@ -94,6 +94,186 @@ The local equivalent is:
 .\scripts\setup-dev.ps1 -RunTests:$true
 ```
 
+## Frontend Checks In CI
+
+Milestone 8 adds the first React/Vite frontend under:
+
+```text
+src/LIAnsureProtect.Web
+```
+
+The first CI flow should run frontend checks as a separate frontend job or as a frontend step after checkout:
+
+```text
+checkout repository
+  -> setup Node.js
+  -> npm ci
+  -> npm run build
+  -> npm run lint
+  -> npm run test
+```
+
+In simple English:
+
+```text
+npm ci:
+  Install the exact package tree from package-lock.json.
+
+npm run build:
+  Prove TypeScript and Vite can produce a production build.
+
+npm run lint:
+  Prove ESLint accepts the frontend code.
+
+npm run test:
+  Prove focused frontend component tests pass.
+```
+
+The local equivalent is included in:
+
+```powershell
+.\scripts\run-local-ci.ps1
+```
+
+That script runs frontend checks when the web project exists.
+
+## Containerization Direction For CI/CD
+
+The project should become containerized for real CI/CD and deployment, but that does not mean every local development command must run inside application containers today.
+
+Recommended direction by stage:
+
+```text
+Current local development:
+  Run API and frontend directly on the host for fast debugging.
+  Run external dependencies, such as PostgreSQL, in Docker Compose.
+
+First CI:
+  Run build/test commands in GitHub Actions runners.
+  Run PostgreSQL as a CI service container.
+  Publish test/build artifacts.
+
+Deployment milestone:
+  Build container images for deployable services.
+  Push images to a registry.
+  Deploy immutable images to the target platform.
+```
+
+Simple analogy:
+
+```text
+Local development:
+  Work at your desk with tools open and easy to debug.
+
+CI:
+  Use a clean inspection bench that repeats the same checks every time.
+
+Deployment:
+  Seal the finished app into shipping boxes called container images.
+```
+
+### What Should Be Containerized
+
+Likely production/deployment containers:
+
+```text
+API:
+  ASP.NET Core Web API container.
+
+Worker:
+  Background worker container when worker jobs become real.
+
+Frontend:
+  Either static files built by CI and served by S3/CloudFront,
+  or a small web-server container if the chosen hosting target needs it.
+```
+
+Development/test service containers:
+
+```text
+PostgreSQL with pgvector:
+  Already containerized through Docker Compose.
+
+Future Redis/cache:
+  Containerized locally and in CI when introduced.
+
+Future local AWS emulation:
+  Containerized only if a future milestone needs it.
+```
+
+### Does Containerized Mean Tests Run Inside Containers?
+
+Sometimes, but not always.
+
+There are three common CI patterns:
+
+```text
+Pattern 1 - Runner executes tests, dependencies run in service containers:
+  GitHub Actions runner runs dotnet test and npm test.
+  PostgreSQL runs as a service container.
+
+Pattern 2 - Test commands run inside app containers:
+  Build a test image.
+  Run dotnet test or npm test inside that image.
+
+Pattern 3 - End-to-end environment uses containers:
+  API container + frontend container/static host + database container.
+  Browser tests run against that environment.
+```
+
+Recommended first approach for LIAnsureProtect:
+
+```text
+Use Pattern 1 first.
+```
+
+Why:
+
+```text
+It is simpler.
+It is easier to debug.
+It matches the current local scripts.
+It still gives a clean disposable PostgreSQL database.
+It avoids introducing Dockerfiles before deployment needs are clear.
+```
+
+Later, when deployment work starts, add Dockerfiles and container-image build checks.
+
+### Future GitHub Actions Shape
+
+First GitHub Actions workflow can look like this:
+
+```mermaid
+flowchart TD
+    Checkout["Checkout"] --> Backend["Backend job"]
+    Checkout --> Frontend["Frontend job"]
+
+    Backend --> Pg["PostgreSQL service container"]
+    Pg --> RestoreDotnet["dotnet restore"]
+    RestoreDotnet --> BuildDotnet["dotnet build"]
+    BuildDotnet --> Migrate["Apply EF migrations"]
+    Migrate --> TestDotnet["dotnet test"]
+
+    Frontend --> SetupNode["setup Node.js"]
+    SetupNode --> NpmCi["npm ci"]
+    NpmCi --> FrontendBuild["npm run build"]
+    FrontendBuild --> FrontendLint["npm run lint"]
+    FrontendLint --> FrontendTest["npm run test"]
+```
+
+Future deployment workflow can add:
+
+```text
+build API image
+build Worker image
+build or upload frontend static assets
+push image/artifact
+deploy infrastructure/app
+run post-deployment smoke tests
+```
+
+Do not add production containerization inside Milestone 8. Milestone 8's job is login/session foundation. Containerization belongs to a later CI/CD or deployment milestone.
+
 ## CD Flow
 
 The CD pipeline should not run `dev-up.ps1`.
