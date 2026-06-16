@@ -102,3 +102,4 @@ The format follows simple milestone-based entries.
 - Frontend Vitest and React Testing Library setup with route-guard and dashboard token/API behavior tests.
 - Local CI frontend checks for install, build, lint, and tests when the web project exists.
 - Real browser Auth0 smoke test proving the frontend can create a draft submission through the protected API and persist it in the PostgreSQL container.
+- Milestone 8 closeout recorded after final local CI passed with backend smoke tests and frontend build/lint/tests.

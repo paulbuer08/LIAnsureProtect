@@ -4053,3 +4053,67 @@ Role authorization:
 Submission persistence:
   Passed
 ```
+
+## Closeout Result
+
+Milestone 8 closed with implementation commit:
+
+```text
+2d73027 feat: add frontend login and session foundation
+```
+
+Final local CI command:
+
+```powershell
+.\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
+```
+
+Final local CI result:
+
+```text
+Local CI passed.
+Artifact zip: TestResults\local-ci-20260617-021009.zip
+```
+
+Why `-RunFrontendInstall:$false` was used:
+
+```text
+Windows still had local file locks under node_modules.
+The frontend dependencies were already installed.
+The command still ran frontend build, lint, and tests.
+```
+
+Verified final checks:
+
+```text
+Backend build:
+  Passed
+
+EF Core migration application:
+  Passed
+
+Backend UnitTests:
+  14 passed
+
+Backend IntegrationTests:
+  13 passed
+
+API smoke tests:
+  Passed
+
+Frontend build:
+  Passed
+
+Frontend lint:
+  Passed
+
+Frontend tests:
+  2 files passed
+  5 tests passed
+
+Real browser Auth0 smoke test:
+  Passed
+
+PostgreSQL persistence check:
+  Passed
+```
