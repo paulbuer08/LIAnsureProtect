@@ -133,3 +133,4 @@ The format follows simple milestone-based entries.
 - Integration test coverage proving one signed-in user cannot list or open another user's submission.
 - Milestone 11 learning notes covering owner ids, explicit repository filters, `404 Not Found` for cross-owner detail reads, and deferred organization/team ownership.
 - Post-Milestone-11 pattern roadmap auditing earlier REPR, CQRS, domain event, outbox, idempotency, strategy, adapter, retry/circuit-breaker, cache-aside, and process-manager recommendations.
+- Milestone 12 starter continuity notes for `Milestone 12 - Submission Submit And Domain Events Foundation`.

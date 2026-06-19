@@ -7,9 +7,9 @@ Use this file at the start of a new conversation or coding session before making
 ## Current Workspace
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
-- Current branch: `codex/milestone-11-submission-ownership-foundation`
-- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`; Milestone 7 closeout committed locally as `fcac659 feat: integrate Auth0 identity provider setup`; Milestone 8 implementation committed locally as `2d73027 feat: add frontend login and session foundation`; Milestone 9 implementation committed locally as `689df5b feat: add submission intake UI foundation`; Milestone 10 implementation committed locally as `172fb7b feat: add submission list and detail foundation`; Milestone 10 closeout committed locally as `f68617d docs: close submission list and detail foundation milestone`.
-- Current milestone: Milestone 11 - Submission Ownership Foundation is implemented locally and awaiting final closeout. It adds the first real submission ownership rule before the project expands into larger navigation graphs or underwriting features.
+- Current branch: `codex/milestone-12-submission-submit-and-domain-events-foundation`
+- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`; Milestone 7 closeout committed locally as `fcac659 feat: integrate Auth0 identity provider setup`; Milestone 8 implementation committed locally as `2d73027 feat: add frontend login and session foundation`; Milestone 9 implementation committed locally as `689df5b feat: add submission intake UI foundation`; Milestone 10 implementation committed locally as `172fb7b feat: add submission list and detail foundation`; Milestone 10 closeout committed locally as `f68617d docs: close submission list and detail foundation milestone`; Milestone 11 implementation committed locally as `699783d feat: add submission ownership foundation`.
+- Current milestone: Milestone 12 - Submission Submit And Domain Events Foundation is starting from the completed Milestone 11 implementation. The next work should add an owned submit action for draft submissions and the first domain event for a meaningful business transition.
 - Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; Milestone 8 has created the first React/Vite frontend under `src/LIAnsureProtect.Web` with Tailwind CSS, React Router, Auth0 React SDK wiring, a local Auth0 SPA config, login/logout flow, callback session display, dashboard session display, and a guarded dashboard route; Milestone 9 adds the first real protected submission intake UI at `/submissions/new` using React Hook Form, Zod, `@hookform/resolvers`, TanStack Query, the current Auth0 access-token flow, co-located frontend tests, and a production-scale feature-owned frontend structure under `src/LIAnsureProtect.Web/src/features/submissions`; Milestone 10 adds protected submission list/detail reads using Application queries, EF Core no-tracking LINQ repository reads, controller read endpoints, protected frontend read routes, and TanStack Query read states; Milestone 11 stores `OwnerUserId` on new submissions, persists `owner_user_id`, scopes list/detail reads to `ICurrentUser.UserId`, and uses a separate `Submissions.Read` policy for protected read endpoints.
 
 ## User Collaboration Rules
@@ -992,7 +992,7 @@ Noteworthy learning goals:
 
 ### Milestone 11 - Submission Ownership Foundation
 
-Status: implemented locally. Final closeout is pending after verification review.
+Status: complete and committed locally as `699783d feat: add submission ownership foundation`.
 
 Branch:
 
@@ -1035,6 +1035,41 @@ Current Milestone 11 boundary:
 - Do not add organization/team ownership unless it is needed for the smallest safe ownership model.
 - Do not add lazy loading by default. If it is introduced later, it should be an explicit learning comparison, not the default data-access strategy.
 - Do not convert the API to an API Gateway or BFF shape in this milestone.
+
+### Milestone 12 - Submission Submit And Domain Events Foundation
+
+Status: starting.
+
+Branch:
+
+```text
+codex/milestone-12-submission-submit-and-domain-events-foundation
+```
+
+Starting point:
+
+```text
+699783d feat: add submission ownership foundation
+```
+
+Recommended direction:
+
+- Add a real submit action for owned draft submissions.
+- Keep the ownership boundary from Milestone 11: users can submit only their own draft submissions.
+- Use the existing `Submission.Submit()` domain method as the core business transition.
+- Introduce the first domain event around a meaningful business fact, preferably `SubmissionSubmittedDomainEvent`.
+- Keep event dispatch simple in this milestone; do not add the transactional outbox yet.
+- Add protected API endpoint `POST /api/v1/submissions/{submissionId}/submit`.
+- Add Application command/handler/result for the submit action.
+- Add repository support to load an owned submission for update.
+- Add focused tests proving owner submit succeeds, cross-owner submit does not leak or mutate data, repeated submit is rejected, and the submit event is raised.
+
+Current Milestone 12 boundary:
+
+- Do not add outbox storage yet. That is planned for Milestone 13.
+- Do not add notifications, worker dispatch, SNS/SQS, email, retry/circuit breaker, idempotency, quote generation, or underwriting queues.
+- Do not add organization/team ownership or admin bypass unless explicitly approved later.
+- Do not start questionnaire, document upload, or premium calculation in this milestone.
 
 ## Open Local Setup Items
 
