@@ -114,3 +114,11 @@ The format follows simple milestone-based entries.
 - Milestone 9 learning notes covering the new frontend libraries, validation flow, mutation flow, co-located test convention, package-lock handling, and verification results.
 - Production-scale frontend feature structure for submission intake under `src/features/submissions`, separating feature-owned API calls, hooks, schemas, form components, route pages, and types.
 - Route-level frontend code splitting with `React.lazy` and `Suspense` so submission-intake code loads when the user opens the submission route instead of inflating the initial JavaScript chunk.
+- Milestone 10 - Submission List And Detail Foundation plan covering protected submission list/detail reads, Application query handlers, EF Core no-tracking reads, protected frontend read routes, TanStack Query read states, and deferred architecture patterns.
+- Milestone 10 starter learning notes capturing the REPR/vertical-slice, CQRS query, no-tracking read, and deferred-pattern decisions before implementation.
+- Protected `GET /api/v1/submissions` and `GET /api/v1/submissions/{submissionId}` endpoints for submission list and detail reads.
+- Application-layer `ListSubmissionsQuery` and `GetSubmissionDetailQuery` handlers dispatched through MediatR.
+- EF Core submission repository read methods using LINQ with `AsNoTracking()`, `OrderByDescending`, `Where`, and `Select` projections.
+- Protected frontend `/submissions` and `/submissions/:submissionId` routes with TanStack Query loading, empty, error, not-found, and success states.
+- Dashboard navigation to view existing submissions and create new submissions.
+- Focused backend and frontend test coverage for submission list/detail reads.

@@ -96,22 +96,28 @@ export function DashboardPage() {
         </div>
 
         <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
-          <h2 className="text-base font-semibold text-white">
-            Submission intake
-          </h2>
+          <h2 className="text-base font-semibold text-white">Submissions</h2>
 
           <p className="mt-2 text-slate-300">
-            Start a real draft submission by entering applicant and company
-            details. The form uses the current Auth0 session to call the
-            protected API.
+            View existing draft submissions or create a new one. These
+            workflows use the current Auth0 session to call the protected API.
           </p>
 
-          <Link
-            to="/submissions/new"
-            className="mt-4 inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
-          >
-            Create submission
-          </Link>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              to="/submissions"
+              className="inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
+            >
+              View submissions
+            </Link>
+
+            <Link
+              to="/submissions/new"
+              className="inline-flex rounded-lg border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 hover:border-slate-500"
+            >
+              Create submission
+            </Link>
+          </div>
         </div>
 
         <div className="mt-8 flex flex-wrap gap-4">

@@ -26,6 +26,20 @@ const NewSubmissionPage = lazy(() =>
   })),
 );
 
+const SubmissionsPage = lazy(() =>
+  import("./features/submissions/pages/SubmissionsPage").then((module) => ({
+    default: module.SubmissionsPage,
+  })),
+);
+
+const SubmissionDetailPage = lazy(() =>
+  import("./features/submissions/pages/SubmissionDetailPage").then(
+    (module) => ({
+      default: module.SubmissionDetailPage,
+    }),
+  ),
+);
+
 function RouteLoadingFallback() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-sm font-medium text-slate-300">
@@ -53,6 +67,22 @@ function App() {
           element={
             <RequireAuth>
               <NewSubmissionPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/submissions"
+          element={
+            <RequireAuth>
+              <SubmissionsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/submissions/:submissionId"
+          element={
+            <RequireAuth>
+              <SubmissionDetailPage />
             </RequireAuth>
           }
         />

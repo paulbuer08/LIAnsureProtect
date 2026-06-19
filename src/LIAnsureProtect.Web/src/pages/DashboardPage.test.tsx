@@ -59,6 +59,9 @@ describe("DashboardPage", () => {
       screen.getByRole("link", { name: "Create submission" }),
     ).toHaveAttribute("href", "/submissions/new");
     expect(
+      screen.getByRole("link", { name: "View submissions" }),
+    ).toHaveAttribute("href", "/submissions");
+    expect(
       screen.queryByRole("button", { name: "Create draft submission" }),
     ).not.toBeInTheDocument();
   });

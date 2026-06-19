@@ -179,6 +179,51 @@ API/Worker
             -> PostgreSQL/storage/cache/messaging later
 ```
 
+Milestone 10 - Submission List And Detail Foundation uses the same pattern for read workflows.
+
+The project will use REPR-style thinking for the read endpoints:
+
+```text
+Request -> Endpoint -> Response
+```
+
+This does not mean replacing the existing controller-based API. It means each controller action should still have a clear request shape, a thin endpoint method, an Application query, and an explicit response shape.
+
+Milestone 10 read flows:
+
+```text
+GET /api/v1/submissions
+  -> SubmissionsController
+  -> ListSubmissionsQuery
+  -> ListSubmissionsQueryHandler
+  -> ISubmissionRepository.ListAsync(...)
+  -> EfCoreSubmissionRepository
+  -> SubmissionDbContext.Submissions.AsNoTracking()
+  -> PostgreSQL
+```
+
+```text
+GET /api/v1/submissions/{submissionId}
+  -> SubmissionsController
+  -> GetSubmissionDetailQuery
+  -> GetSubmissionDetailQueryHandler
+  -> ISubmissionRepository.GetDetailAsync(...)
+  -> EfCoreSubmissionRepository
+  -> SubmissionDbContext.Submissions.AsNoTracking()
+  -> PostgreSQL
+```
+
+These read flows intentionally do not add a separate read database, cache, domain events, outbox, API Gateway, or BFF. Those are useful patterns for later milestones when the product has a concrete need for them.
+
+The EF Core read implementation uses LINQ intentionally:
+
+- `AsNoTracking()` because list/detail pages only display data and do not need EF Core change tracking.
+- `OrderByDescending(...)` so the list shows newest submissions first.
+- `Where(...)` so the detail query filters by submission id in the database.
+- `Select(...)` so each query projects only the fields needed by the response.
+
+The read implementation does not use `Include(...)`, `AsSplitQuery()`, lazy loading, or eager-loading navigation graphs because `Submission` currently has no related entity collection to load. It also does not use `HasQueryFilter(...)` yet because ownership filtering needs a proper internal user/profile model first.
+
 Domain events and a transactional outbox are planned later for reliable asynchronous workflows. Event sourcing is not part of the initial architecture. It may be considered later only for selected workflows if replayable history provides enough value to justify the added complexity.
 
 ## Dependency Runtime Direction

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.IntegrationTests.Security;
 using Microsoft.AspNetCore.Authentication;
@@ -80,6 +81,18 @@ public sealed class SubmissionEndpointTests
         {
             Content = JsonContent.Create(body)
         };
+        request.Headers.Add(TestAuthHandler.UserIdHeader, "test-user-1");
+        request.Headers.Add(TestAuthHandler.EmailHeader, "test-user@example.com");
+        request.Headers.Add(TestAuthHandler.RolesHeader, role);
+
+        return request;
+    }
+
+
+
+    private static HttpRequestMessage CreateAuthenticatedGetRequest(string role, string path)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Add(TestAuthHandler.UserIdHeader, "test-user-1");
         request.Headers.Add(TestAuthHandler.EmailHeader, "test-user@example.com");
         request.Headers.Add(TestAuthHandler.RolesHeader, role);
@@ -205,6 +218,120 @@ public sealed class SubmissionEndpointTests
         using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+
+
+    [Fact]
+    public async Task List_Submissions_Returns_Unauthorized_For_Anonymous_User()
+    {
+        using var response = await httpClient.GetAsync(
+            SubmissionsEndpointPath,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+
+
+    [Fact]
+    public async Task List_Submissions_Returns_Saved_Submissions_For_Authorized_User()
+    {
+        var olderSubmission = Submission.CreateDraft(
+            "Older Applicant",
+            "older@example.com",
+            "Older Company",
+            new DateTime(2026, 6, 19, 8, 0, 0, DateTimeKind.Utc));
+        var newerSubmission = Submission.CreateDraft(
+            "Newer Applicant",
+            "newer@example.com",
+            "Newer Company",
+            new DateTime(2026, 6, 19, 9, 0, 0, DateTimeKind.Utc));
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddRangeAsync(
+                [olderSubmission, newerSubmission],
+                TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedGetRequest("Customer", SubmissionsEndpointPath);
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(content);
+        var submissions = payload.RootElement.GetProperty("submissions").EnumerateArray().ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, submissions.Length);
+        Assert.Equal(newerSubmission.Id, submissions[0].GetProperty("submissionId").GetGuid());
+        Assert.Equal("Newer Applicant", submissions[0].GetProperty("applicantName").GetString());
+        Assert.Equal("newer@example.com", submissions[0].GetProperty("applicantEmail").GetString());
+        Assert.Equal("Newer Company", submissions[0].GetProperty("companyName").GetString());
+        Assert.Equal("Draft", submissions[0].GetProperty("status").GetString());
+        Assert.Equal(olderSubmission.Id, submissions[1].GetProperty("submissionId").GetGuid());
+    }
+
+
+
+    [Fact]
+    public async Task Get_Submission_Detail_Returns_Unauthorized_For_Anonymous_User()
+    {
+        var submissionId = Guid.Parse("af1453a4-0b68-4432-99d9-becb456a1001");
+
+        using var response = await httpClient.GetAsync(
+            $"{SubmissionsEndpointPath}/{submissionId}",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+
+
+    [Fact]
+    public async Task Get_Submission_Detail_Returns_Saved_Submission_For_Authorized_User()
+    {
+        var submission = Submission.CreateDraft(
+            "Jane Applicant",
+            "jane@example.com",
+            "Example Company",
+            new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc));
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedGetRequest("Customer", $"{SubmissionsEndpointPath}/{submission.Id}");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(content);
+        var root = payload.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(submission.Id, root.GetProperty("submissionId").GetGuid());
+        Assert.Equal("Jane Applicant", root.GetProperty("applicantName").GetString());
+        Assert.Equal("jane@example.com", root.GetProperty("applicantEmail").GetString());
+        Assert.Equal("Example Company", root.GetProperty("companyName").GetString());
+        Assert.Equal("Draft", root.GetProperty("status").GetString());
+    }
+
+
+
+    [Fact]
+    public async Task Get_Submission_Detail_Returns_Not_Found_For_Missing_Submission()
+    {
+        var submissionId = Guid.Parse("c43e4434-6b30-4d52-a38b-b2d24f8a1002");
+
+        using var httpRequest = CreateAuthenticatedGetRequest("Customer", $"{SubmissionsEndpointPath}/{submissionId}");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
 

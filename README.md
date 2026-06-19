@@ -37,6 +37,8 @@ Milestone 8 is complete as `Milestone 8 - Frontend Login And Session Foundation`
 
 Milestone 9 is implemented as `Milestone 9 - Submission Intake UI Foundation`. It replaces the dashboard-only hard-coded smoke submission with a protected `/submissions/new` workflow using React Hook Form, Zod, TanStack Query, and the existing Auth0 access-token API call path. The submission intake frontend is organized as a feature-owned vertical slice under `src/LIAnsureProtect.Web/src/features/submissions` so future submission workflows can grow without turning route pages into large mixed files.
 
+Milestone 10 is implemented as `Milestone 10 - Submission List And Detail Foundation`. It adds the first protected submission read workflow after creation: `GET /api/v1/submissions`, `GET /api/v1/submissions/{submissionId}`, Application query handlers, EF Core no-tracking LINQ reads, protected `/submissions` and `/submissions/:submissionId` frontend routes, and TanStack Query read states. It uses REPR-style request/endpoint/response thinking and the existing vertical-slice structure without replacing the current controller-based API.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -84,5 +86,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 7 Identity Provider Integration Learnings](docs/dev/milestone-7-identity-provider-integration-learnings.md)
 - [Milestone 8 Frontend Login And Session Foundation Learnings](docs/dev/milestone-8-frontend-login-and-session-foundation-learnings.md)
 - [Milestone 9 Submission Intake UI Foundation Learnings](docs/dev/milestone-9-submission-intake-ui-foundation-learnings.md)
+- [Milestone 10 Submission List And Detail Foundation Learnings](docs/dev/milestone-10-submission-list-and-detail-foundation-learnings.md)
+- [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)
 - [AWS Environments](docs/dev/aws-environments.md)

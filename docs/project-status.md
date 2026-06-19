@@ -7,10 +7,10 @@ Use this file at the start of a new conversation or coding session before making
 ## Current Workspace
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
-- Current branch: `codex/milestone-9-submission-intake-ui-foundation`
-- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`; Milestone 7 closeout committed locally as `fcac659 feat: integrate Auth0 identity provider setup`; Milestone 8 implementation committed locally as `2d73027 feat: add frontend login and session foundation`.
-- Current milestone: Milestone 9 - Submission Intake UI Foundation is implemented. Frontend compile, lint, test, build, protected-route browser verification, signed-in Auth0 submission creation, PostgreSQL persistence verification, and final local CI passed.
-- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; Milestone 8 has created the first React/Vite frontend under `src/LIAnsureProtect.Web` with Tailwind CSS, React Router, Auth0 React SDK wiring, a local Auth0 SPA config, login/logout flow, callback session display, dashboard session display, and a guarded dashboard route; Milestone 9 adds the first real protected submission intake UI at `/submissions/new` using React Hook Form, Zod, `@hookform/resolvers`, TanStack Query, the current Auth0 access-token flow, co-located frontend tests, and a production-scale feature-owned frontend structure under `src/LIAnsureProtect.Web/src/features/submissions`.
+- Current branch: `codex/milestone-10-submission-list-and-detail-foundation`
+- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`; Milestone 7 closeout committed locally as `fcac659 feat: integrate Auth0 identity provider setup`; Milestone 8 implementation committed locally as `2d73027 feat: add frontend login and session foundation`; Milestone 9 implementation committed locally as `689df5b feat: add submission intake UI foundation`.
+- Current milestone: Milestone 10 - Submission List And Detail Foundation is implemented. Automated local CI passed; a real signed-in Auth0 browser smoke remains recommended for user-side validation.
+- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; Milestone 8 has created the first React/Vite frontend under `src/LIAnsureProtect.Web` with Tailwind CSS, React Router, Auth0 React SDK wiring, a local Auth0 SPA config, login/logout flow, callback session display, dashboard session display, and a guarded dashboard route; Milestone 9 adds the first real protected submission intake UI at `/submissions/new` using React Hook Form, Zod, `@hookform/resolvers`, TanStack Query, the current Auth0 access-token flow, co-located frontend tests, and a production-scale feature-owned frontend structure under `src/LIAnsureProtect.Web/src/features/submissions`; Milestone 10 adds protected submission list/detail reads using Application queries, EF Core no-tracking LINQ repository reads, controller read endpoints, protected frontend read routes, and TanStack Query read states.
 
 ## User Collaboration Rules
 
@@ -911,6 +911,84 @@ Current Milestone 9 boundary:
 - Do not add deployment.
 - Do not add DPoP, mTLS, or JWE.
 - Do not expand into a full design system milestone.
+
+### Milestone 10 - Submission List And Detail Foundation
+
+Status: implemented. Automated local CI passed; a real signed-in Auth0 browser smoke remains recommended for user-side validation. The detailed implementation plan is captured in `docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md`, and the learning notes are captured in `docs/dev/milestone-10-submission-list-and-detail-foundation-learnings.md`.
+
+Branch:
+
+```text
+codex/milestone-10-submission-list-and-detail-foundation
+```
+
+Starting point:
+
+```text
+689df5b feat: add submission intake UI foundation
+```
+
+Approved direction:
+
+- Add the first protected read workflow after Milestone 9's create-submission workflow.
+- Add `GET /api/v1/submissions` for a submission list.
+- Add `GET /api/v1/submissions/{submissionId}` for a submission detail view.
+- Continue practical CQRS with MediatR by adding Application query handlers instead of putting read logic in controllers.
+- Use REPR-style request/endpoint/response thinking without replacing the current controller-based API shape.
+- Extend the existing `ISubmissionRepository` with read promises and implement them through EF Core no-tracking queries.
+- Keep PostgreSQL as the system of record; do not add a separate read database.
+- Add protected frontend routes for `/submissions` and `/submissions/:submissionId`.
+- Keep frontend code in the existing feature-owned submissions vertical slice under `src/LIAnsureProtect.Web/src/features/submissions`.
+- Use TanStack Query to represent loading, empty, error, success, and not-found read states.
+- Update dashboard navigation so signed-in users can both view submissions and create a new submission.
+- Add focused backend unit tests, backend integration tests, frontend route/page tests, and final local CI/browser verification.
+
+Implemented:
+
+- Added `ListSubmissionsQuery`, `ListSubmissionsQueryHandler`, and `ListSubmissionsResult`.
+- Added `GetSubmissionDetailQuery`, `GetSubmissionDetailQueryHandler`, and `SubmissionDetailResult`.
+- Extended `ISubmissionRepository` with list/detail read promises.
+- Implemented EF Core read methods with LINQ:
+  - `AsNoTracking()` because the list/detail pages only display data.
+  - `OrderByDescending(...)` so newest submissions appear first.
+  - `Where(...)` for detail lookup by id.
+  - `Select(...)` projections so the query only reads the fields the response needs.
+- Did not add `Include(...)` or `AsSplitQuery()` because the current `Submission` aggregate has no navigation graph to eager-load or split.
+- Did not add `HasQueryFilter(...)` because ownership filtering is intentionally deferred until the app has internal user/profile ownership data.
+- Added protected `GET /api/v1/submissions`.
+- Added protected `GET /api/v1/submissions/{submissionId}` with `404 Not Found` for missing submissions.
+- Reused the existing `Submissions.Create` policy for the read endpoints as a deliberate Milestone 10 simplification. A future security milestone should add `Submissions.Read` when fine-grained permissions and ownership rules are ready.
+- Added frontend API functions, hooks, routes, and pages for `/submissions` and `/submissions/:submissionId`.
+- Added dashboard navigation for both "View submissions" and "Create submission".
+- Added focused backend unit tests, backend integration tests, and frontend tests for the new read workflow.
+
+Current verification:
+
+- `dotnet build LIAnsureProtect.slnx --no-restore` passed with 0 warnings and 0 errors.
+- `dotnet test LIAnsureProtect.slnx --no-build` passed with UnitTests 17 passed and IntegrationTests 17 passed, 1 skipped PostgreSQL opt-in test.
+- Frontend TypeScript compile with `tsc -b` passed.
+- Frontend ESLint passed.
+- Frontend Vitest passed with 5 test files and 16 tests.
+- Vite production build passed and emitted separate route chunks for `SubmissionsPage` and `SubmissionDetailPage`.
+- Full `.\scripts\run-local-ci.ps1 -RunFrontendInstall:$false` passed using a temporary npm command shim for this Codex shell; artifact zip: `TestResults\local-ci-20260619-172803.zip`.
+- The local CI run started PostgreSQL/pgvector, applied the committed migration, ran backend tests, validated Docker Compose config, ran frontend build/lint/tests, produced the artifact zip, and cleaned up the PostgreSQL container, volume, and network.
+- Real signed-in Auth0 browser smoke is still recommended from the user's browser session: create a submission at `/submissions/new`, confirm it appears at `/submissions`, and open its detail page.
+
+Current Milestone 10 boundary:
+
+- Do not add ownership filtering yet. That should wait until internal user/profile ownership data exists.
+- Do not add fine-grained `Submissions.Read` permissions unless the implementation remains very small; otherwise backlog it for a security-hardening milestone.
+- Do not add edit, submit-for-review, withdraw, questionnaire, document upload, quote generation, admin screens, deployment, API Gateway, or BFF.
+- Do not add domain events, outbox, inbox, saga/process manager, idempotency, cache-aside, external provider adapters, retry, or circuit breaker in this milestone.
+- Do not rewrite controllers to Minimal APIs or endpoint-per-class REPR handlers. Use REPR as a design lens only.
+
+Noteworthy learning goals:
+
+- Understand how the read side of CQRS differs from the create command already built in Milestone 9.
+- Learn why EF Core `AsNoTracking()` is appropriate for read-only list/detail queries.
+- Learn how TanStack Query models server-state reads differently from create mutations.
+- Learn how vertical slices can contain backend and frontend feature work without turning pages or controllers into large mixed files.
+- Learn how to defer good patterns until the product has a concrete need for them.
 
 ## Open Local Setup Items
 
