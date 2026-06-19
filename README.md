@@ -39,6 +39,8 @@ Milestone 9 is implemented as `Milestone 9 - Submission Intake UI Foundation`. I
 
 Milestone 10 is implemented as `Milestone 10 - Submission List And Detail Foundation`. It adds the first protected submission read workflow after creation: `GET /api/v1/submissions`, `GET /api/v1/submissions/{submissionId}`, Application query handlers, EF Core no-tracking LINQ reads, protected `/submissions` and `/submissions/:submissionId` frontend routes, and TanStack Query read states. It uses REPR-style request/endpoint/response thinking and the existing vertical-slice structure without replacing the current controller-based API.
 
+Milestone 11 is starting as `Milestone 11 - Submission Ownership Foundation`. It will add the first real ownership rule for submissions so protected list/detail reads can be scoped to the signed-in user before the project expands into richer submission navigation graphs.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:

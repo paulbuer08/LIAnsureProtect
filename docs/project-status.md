@@ -7,9 +7,9 @@ Use this file at the start of a new conversation or coding session before making
 ## Current Workspace
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
-- Current branch: `codex/milestone-10-submission-list-and-detail-foundation`
-- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`; Milestone 7 closeout committed locally as `fcac659 feat: integrate Auth0 identity provider setup`; Milestone 8 implementation committed locally as `2d73027 feat: add frontend login and session foundation`; Milestone 9 implementation committed locally as `689df5b feat: add submission intake UI foundation`.
-- Current milestone: Milestone 10 - Submission List And Detail Foundation is implemented and browser-smoke verified. Automated local CI passed, and the real signed-in Auth0 browser smoke passed from the user's browser session.
+- Current branch: `codex/milestone-11-submission-ownership-foundation`
+- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`; Milestone 7 closeout committed locally as `fcac659 feat: integrate Auth0 identity provider setup`; Milestone 8 implementation committed locally as `2d73027 feat: add frontend login and session foundation`; Milestone 9 implementation committed locally as `689df5b feat: add submission intake UI foundation`; Milestone 10 implementation committed locally as `172fb7b feat: add submission list and detail foundation`; Milestone 10 closeout committed locally as `f68617d docs: close submission list and detail foundation milestone`.
+- Current milestone: Milestone 11 - Submission Ownership Foundation is starting from the completed Milestone 10 closeout. The next work should add the first real submission ownership rule before expanding into larger navigation graphs or underwriting features.
 - Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; Milestone 8 has created the first React/Vite frontend under `src/LIAnsureProtect.Web` with Tailwind CSS, React Router, Auth0 React SDK wiring, a local Auth0 SPA config, login/logout flow, callback session display, dashboard session display, and a guarded dashboard route; Milestone 9 adds the first real protected submission intake UI at `/submissions/new` using React Hook Form, Zod, `@hookform/resolvers`, TanStack Query, the current Auth0 access-token flow, co-located frontend tests, and a production-scale feature-owned frontend structure under `src/LIAnsureProtect.Web/src/features/submissions`; Milestone 10 adds protected submission list/detail reads using Application queries, EF Core no-tracking LINQ repository reads, controller read endpoints, protected frontend read routes, and TanStack Query read states.
 
 ## User Collaboration Rules
@@ -989,6 +989,39 @@ Noteworthy learning goals:
 - Learn how TanStack Query models server-state reads differently from create mutations.
 - Learn how vertical slices can contain backend and frontend feature work without turning pages or controllers into large mixed files.
 - Learn how to defer good patterns until the product has a concrete need for them.
+
+### Milestone 11 - Submission Ownership Foundation
+
+Status: starting. This milestone should introduce the first real ownership rule for submissions so list/detail reads stop being globally visible to every signed-in user.
+
+Branch:
+
+```text
+codex/milestone-11-submission-ownership-foundation
+```
+
+Starting point:
+
+```text
+f68617d docs: close submission list and detail foundation milestone
+```
+
+Recommended direction:
+
+- Keep the milestone focused on ownership and authorization boundaries, not on underwriting workflow expansion.
+- Introduce the smallest internal ownership model that can connect an authenticated user to submissions they created or own.
+- Persist ownership metadata on submissions so backend reads can be filtered by the current authenticated user.
+- Add EF Core query filtering or repository-level ownership filtering where it is justified by the model.
+- Add focused LINQ learning around ownership reads, especially `Where(...)`, `Select(...)`, indexed lookup shape, and when a global `HasQueryFilter(...)` is or is not appropriate.
+- Add tests proving one signed-in user cannot list or open another user's submission.
+- Keep `Include(...)`, `AsSplitQuery()`, and lazy loading deferred unless this milestone also adds a real navigation graph that needs them.
+
+Current Milestone 11 boundary:
+
+- Do not add questionnaires, document uploads, underwriting notes, quote generation, or external provider adapters yet.
+- Do not add organization/team ownership unless it is needed for the smallest safe ownership model.
+- Do not add lazy loading by default. If it is introduced later, it should be an explicit learning comparison, not the default data-access strategy.
+- Do not convert the API to an API Gateway or BFF shape in this milestone.
 
 ## Open Local Setup Items
 

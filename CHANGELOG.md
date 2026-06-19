@@ -123,3 +123,4 @@ The format follows simple milestone-based entries.
 - Dashboard navigation to view existing submissions and create new submissions.
 - Focused backend and frontend test coverage for submission list/detail reads.
 - Milestone 10 closeout notes recording the passed signed-in Auth0 browser smoke for `/submissions` and `/submissions/{submissionId}`.
+- Milestone 11 starter continuity notes for `Milestone 11 - Submission Ownership Foundation`.
