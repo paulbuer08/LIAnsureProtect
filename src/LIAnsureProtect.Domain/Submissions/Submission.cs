@@ -4,6 +4,7 @@ public sealed class Submission
 {
     private Submission(
         Guid id,
+        string ownerUserId,
         string applicantName,
         string applicantEmail,
         string companyName,
@@ -11,6 +12,7 @@ public sealed class Submission
         DateTime createdAtUtc)
     {
         Id = id;
+        OwnerUserId = ownerUserId;
         ApplicantName = applicantName;
         ApplicantEmail = applicantEmail;
         CompanyName = companyName;
@@ -19,6 +21,8 @@ public sealed class Submission
     }
 
     public Guid Id { get; }
+
+    public string OwnerUserId { get; }
 
     public string ApplicantName { get; }
 
@@ -34,10 +38,15 @@ public sealed class Submission
         string applicantName,
         string applicantEmail,
         string companyName,
+        string ownerUserId,
         DateTime createdAtUtc)
     {
+        if (string.IsNullOrWhiteSpace(ownerUserId))
+            throw new ArgumentException("Owner user id is required.", nameof(ownerUserId));
+
         return new Submission(
             Guid.NewGuid(),
+            ownerUserId,
             applicantName,
             applicantEmail,
             companyName,

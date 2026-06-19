@@ -39,7 +39,7 @@ Milestone 9 is implemented as `Milestone 9 - Submission Intake UI Foundation`. I
 
 Milestone 10 is implemented as `Milestone 10 - Submission List And Detail Foundation`. It adds the first protected submission read workflow after creation: `GET /api/v1/submissions`, `GET /api/v1/submissions/{submissionId}`, Application query handlers, EF Core no-tracking LINQ reads, protected `/submissions` and `/submissions/:submissionId` frontend routes, and TanStack Query read states. It uses REPR-style request/endpoint/response thinking and the existing vertical-slice structure without replacing the current controller-based API.
 
-Milestone 11 is starting as `Milestone 11 - Submission Ownership Foundation`. It will add the first real ownership rule for submissions so protected list/detail reads can be scoped to the signed-in user before the project expands into richer submission navigation graphs.
+Milestone 11 is implemented as `Milestone 11 - Submission Ownership Foundation`. It adds the first real ownership rule for submissions: each new submission stores the authenticated owner user id, and protected list/detail reads are scoped to that same signed-in user before the project expands into richer submission navigation graphs.
 
 ## Local Run
 
@@ -89,6 +89,8 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 8 Frontend Login And Session Foundation Learnings](docs/dev/milestone-8-frontend-login-and-session-foundation-learnings.md)
 - [Milestone 9 Submission Intake UI Foundation Learnings](docs/dev/milestone-9-submission-intake-ui-foundation-learnings.md)
 - [Milestone 10 Submission List And Detail Foundation Learnings](docs/dev/milestone-10-submission-list-and-detail-foundation-learnings.md)
+- [Milestone 11 Submission Ownership Foundation Learnings](docs/dev/milestone-11-submission-ownership-foundation-learnings.md)
+- [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)
 - [AWS Environments](docs/dev/aws-environments.md)

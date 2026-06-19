@@ -75,13 +75,16 @@ public sealed class SubmissionEndpointTests
 
 
 
-    private static HttpRequestMessage CreateAuthenticatedPostRequest(string role, object body)
+    private static HttpRequestMessage CreateAuthenticatedPostRequest(
+        string role,
+        object body,
+        string userId = "test-user-1")
     {
         var request = new HttpRequestMessage(HttpMethod.Post, SubmissionsEndpointPath)
         {
             Content = JsonContent.Create(body)
         };
-        request.Headers.Add(TestAuthHandler.UserIdHeader, "test-user-1");
+        request.Headers.Add(TestAuthHandler.UserIdHeader, userId);
         request.Headers.Add(TestAuthHandler.EmailHeader, "test-user@example.com");
         request.Headers.Add(TestAuthHandler.RolesHeader, role);
 
@@ -90,10 +93,13 @@ public sealed class SubmissionEndpointTests
 
 
 
-    private static HttpRequestMessage CreateAuthenticatedGetRequest(string role, string path)
+    private static HttpRequestMessage CreateAuthenticatedGetRequest(
+        string role,
+        string path,
+        string userId = "test-user-1")
     {
         var request = new HttpRequestMessage(HttpMethod.Get, path);
-        request.Headers.Add(TestAuthHandler.UserIdHeader, "test-user-1");
+        request.Headers.Add(TestAuthHandler.UserIdHeader, userId);
         request.Headers.Add(TestAuthHandler.EmailHeader, "test-user@example.com");
         request.Headers.Add(TestAuthHandler.RolesHeader, role);
 
@@ -135,6 +141,7 @@ public sealed class SubmissionEndpointTests
         Assert.Equal("Jane Applicant", savedSubmission.ApplicantName);
         Assert.Equal("jane@example.com", savedSubmission.ApplicantEmail);
         Assert.Equal("Example Company", savedSubmission.CompanyName);
+        Assert.Equal("test-user-1", savedSubmission.OwnerUserId);
     }
 
 
@@ -241,11 +248,13 @@ public sealed class SubmissionEndpointTests
             "Older Applicant",
             "older@example.com",
             "Older Company",
+            "test-user-1",
             new DateTime(2026, 6, 19, 8, 0, 0, DateTimeKind.Utc));
         var newerSubmission = Submission.CreateDraft(
             "Newer Applicant",
             "newer@example.com",
             "Newer Company",
+            "test-user-1",
             new DateTime(2026, 6, 19, 9, 0, 0, DateTimeKind.Utc));
 
         using (var scope = webApplicationFactory.Services.CreateScope())
@@ -277,6 +286,46 @@ public sealed class SubmissionEndpointTests
 
 
     [Fact]
+    public async Task List_Submissions_Returns_Only_Submissions_Owned_By_Current_User()
+    {
+        var currentUserSubmission = Submission.CreateDraft(
+            "Current User Applicant",
+            "current@example.com",
+            "Current User Company",
+            "test-user-1",
+            new DateTime(2026, 6, 19, 9, 0, 0, DateTimeKind.Utc));
+        var otherUserSubmission = Submission.CreateDraft(
+            "Other User Applicant",
+            "other@example.com",
+            "Other User Company",
+            "test-user-2",
+            new DateTime(2026, 6, 19, 10, 0, 0, DateTimeKind.Utc));
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddRangeAsync(
+                [currentUserSubmission, otherUserSubmission],
+                TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedGetRequest("Customer", SubmissionsEndpointPath, "test-user-1");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(content);
+        var submissions = payload.RootElement.GetProperty("submissions").EnumerateArray().ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var submission = Assert.Single(submissions);
+        Assert.Equal(currentUserSubmission.Id, submission.GetProperty("submissionId").GetGuid());
+        Assert.Equal("Current User Applicant", submission.GetProperty("applicantName").GetString());
+    }
+
+
+
+    [Fact]
     public async Task Get_Submission_Detail_Returns_Unauthorized_For_Anonymous_User()
     {
         var submissionId = Guid.Parse("af1453a4-0b68-4432-99d9-becb456a1001");
@@ -297,6 +346,7 @@ public sealed class SubmissionEndpointTests
             "Jane Applicant",
             "jane@example.com",
             "Example Company",
+            "test-user-1",
             new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc));
 
         using (var scope = webApplicationFactory.Services.CreateScope())
@@ -329,6 +379,34 @@ public sealed class SubmissionEndpointTests
         var submissionId = Guid.Parse("c43e4434-6b30-4d52-a38b-b2d24f8a1002");
 
         using var httpRequest = CreateAuthenticatedGetRequest("Customer", $"{SubmissionsEndpointPath}/{submissionId}");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+
+
+    [Fact]
+    public async Task Get_Submission_Detail_Returns_Not_Found_For_Submission_Owned_By_Different_User()
+    {
+        var otherUserSubmission = Submission.CreateDraft(
+            "Other User Applicant",
+            "other@example.com",
+            "Other User Company",
+            "test-user-2",
+            new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc));
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(otherUserSubmission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedGetRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{otherUserSubmission.Id}",
+            "test-user-1");
         using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);

@@ -15,7 +15,7 @@ namespace LIAnsureProtect.Api.Controllers;
 public sealed class SubmissionsController(ISender sender) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Policy = ApplicationPolicies.CreateSubmission)]
+    [Authorize(Policy = ApplicationPolicies.ReadSubmission)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ListSubmissionsResult>(StatusCodes.Status200OK)]
@@ -27,7 +27,7 @@ public sealed class SubmissionsController(ISender sender) : ControllerBase
     }
 
     [HttpGet("{submissionId:guid}")]
-    [Authorize(Policy = ApplicationPolicies.CreateSubmission)]
+    [Authorize(Policy = ApplicationPolicies.ReadSubmission)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

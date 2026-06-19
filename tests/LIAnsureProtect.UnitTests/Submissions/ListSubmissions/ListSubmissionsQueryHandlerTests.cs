@@ -1,5 +1,6 @@
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Application.Submissions.Queries.ListSubmissions;
+using LIAnsureProtect.UnitTests.Submissions;
 using Moq;
 
 namespace LIAnsureProtect.UnitTests.Submissions.ListSubmissions;
@@ -23,10 +24,13 @@ public sealed class ListSubmissionsQueryHandlerTests
 
         var repository = new Mock<ISubmissionRepository>();
         repository
-            .Setup(repo => repo.ListAsync(It.IsAny<CancellationToken>()))
+            .Setup(repo => repo.ListAsync(
+                "auth0|owner-user-1",
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedSubmissions);
 
-        var handler = new ListSubmissionsQueryHandler(repository.Object);
+        var currentUser = new TestCurrentUser("auth0|owner-user-1");
+        var handler = new ListSubmissionsQueryHandler(repository.Object, currentUser);
 
         var result = await handler.Handle(new ListSubmissionsQuery(), CancellationToken.None);
 
@@ -38,7 +42,9 @@ public sealed class ListSubmissionsQueryHandlerTests
         Assert.Equal("Draft", submission.Status);
         Assert.Equal(createdAtUtc, submission.CreatedAtUtc);
         repository.Verify(
-            repo => repo.ListAsync(It.IsAny<CancellationToken>()),
+            repo => repo.ListAsync(
+                "auth0|owner-user-1",
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 }

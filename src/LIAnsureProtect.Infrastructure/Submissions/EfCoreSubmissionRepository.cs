@@ -14,10 +14,13 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
         await dbContext.Submissions.AddAsync(submission, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<SubmissionListItemResult>> ListAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<SubmissionListItemResult>> ListAsync(
+        string ownerUserId,
+        CancellationToken cancellationToken)
     {
         var submissions = await dbContext.Submissions
             .AsNoTracking()
+            .Where(submission => submission.OwnerUserId == ownerUserId)
             .OrderByDescending(submission => submission.CreatedAtUtc)
             .Select(submission => new
             {
@@ -43,11 +46,13 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
 
     public async Task<SubmissionDetailResult?> GetDetailAsync(
         Guid submissionId,
+        string ownerUserId,
         CancellationToken cancellationToken)
     {
         var submission = await dbContext.Submissions
             .AsNoTracking()
             .Where(submission => submission.Id == submissionId)
+            .Where(submission => submission.OwnerUserId == ownerUserId)
             .Select(submission => new
             {
                 submission.Id,

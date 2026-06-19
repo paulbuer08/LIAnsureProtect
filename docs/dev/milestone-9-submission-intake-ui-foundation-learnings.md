@@ -1029,7 +1029,7 @@ Example future scenario:
 
 ```text
 Milestone 10 adds a submission list.
-Milestone 11 adds a multi-step questionnaire.
+A future milestone can add a multi-step questionnaire when the ownership and read boundaries are already safe.
 Milestone 12 adds file upload and document review.
 Milestone 13 adds underwriter quote workflow.
 

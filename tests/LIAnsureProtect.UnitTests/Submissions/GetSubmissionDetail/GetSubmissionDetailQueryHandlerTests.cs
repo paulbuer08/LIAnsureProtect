@@ -1,5 +1,6 @@
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Application.Submissions.Queries.GetSubmissionDetail;
+using LIAnsureProtect.UnitTests.Submissions;
 using Moq;
 
 namespace LIAnsureProtect.UnitTests.Submissions.GetSubmissionDetail;
@@ -23,10 +24,12 @@ public sealed class GetSubmissionDetailQueryHandlerTests
         repository
             .Setup(repo => repo.GetDetailAsync(
                 submissionId,
+                "auth0|owner-user-1",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedDetail);
 
-        var handler = new GetSubmissionDetailQueryHandler(repository.Object);
+        var currentUser = new TestCurrentUser("auth0|owner-user-1");
+        var handler = new GetSubmissionDetailQueryHandler(repository.Object, currentUser);
 
         var result = await handler.Handle(
             new GetSubmissionDetailQuery(submissionId),
@@ -42,6 +45,7 @@ public sealed class GetSubmissionDetailQueryHandlerTests
         repository.Verify(
             repo => repo.GetDetailAsync(
                 submissionId,
+                "auth0|owner-user-1",
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -55,10 +59,12 @@ public sealed class GetSubmissionDetailQueryHandlerTests
         repository
             .Setup(repo => repo.GetDetailAsync(
                 submissionId,
+                "auth0|owner-user-1",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((SubmissionDetailResult?)null);
 
-        var handler = new GetSubmissionDetailQueryHandler(repository.Object);
+        var currentUser = new TestCurrentUser("auth0|owner-user-1");
+        var handler = new GetSubmissionDetailQueryHandler(repository.Object, currentUser);
 
         var result = await handler.Handle(
             new GetSubmissionDetailQuery(submissionId),
@@ -68,6 +74,7 @@ public sealed class GetSubmissionDetailQueryHandlerTests
         repository.Verify(
             repo => repo.GetDetailAsync(
                 submissionId,
+                "auth0|owner-user-1",
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }

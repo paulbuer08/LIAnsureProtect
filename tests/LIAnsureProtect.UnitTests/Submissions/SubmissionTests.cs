@@ -13,9 +13,11 @@ public sealed class SubmissionTests
             "Jane Applicant",
             "jane@example.com",
             "Example Company",
+            "auth0|owner-user-1",
             createdAtUtc);
 
         Assert.NotEqual(Guid.Empty, submission.Id);
+        Assert.Equal("auth0|owner-user-1", submission.OwnerUserId);
         Assert.Equal("Jane Applicant", submission.ApplicantName);
         Assert.Equal("jane@example.com", submission.ApplicantEmail);
         Assert.Equal("Example Company", submission.CompanyName);
@@ -71,6 +73,7 @@ public sealed class SubmissionTests
             "Jane Applicant",
             "jane@example.com",
             "Example Company",
+            "auth0|owner-user-1",
             DateTime.UtcNow);
     }
 }

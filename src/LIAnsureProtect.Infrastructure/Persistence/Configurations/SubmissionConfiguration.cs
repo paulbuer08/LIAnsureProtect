@@ -16,6 +16,11 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
             .HasColumnName("id")
             .ValueGeneratedNever();
 
+        builder.Property(submission => submission.OwnerUserId)
+            .HasColumnName("owner_user_id")
+            .HasMaxLength(256)
+            .IsRequired();
+
         builder.Property(submission => submission.ApplicantName)
             .HasColumnName("applicant_name")
             .HasMaxLength(200)
@@ -40,5 +45,12 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
         builder.Property(submission => submission.CreatedAtUtc)
             .HasColumnName("created_at_utc")
             .IsRequired();
+
+        builder.HasIndex(submission => new
+            {
+                submission.OwnerUserId,
+                submission.CreatedAtUtc
+            })
+            .HasDatabaseName("ix_submissions_owner_user_id_created_at_utc");
     }
 }

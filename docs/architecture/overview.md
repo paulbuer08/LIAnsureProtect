@@ -213,16 +213,43 @@ GET /api/v1/submissions/{submissionId}
   -> PostgreSQL
 ```
 
+Milestone 11 - Submission Ownership Foundation keeps the same read flow shape, but adds the first row-level ownership boundary. The authenticated user's stable user id from `ICurrentUser.UserId` is stored on new submissions as `OwnerUserId`, persisted in PostgreSQL as `owner_user_id`, and passed explicitly into list/detail repository reads.
+
+Milestone 11 owner-scoped read flows:
+
+```text
+GET /api/v1/submissions
+  -> Submissions.Read authorization policy
+  -> ListSubmissionsQueryHandler
+  -> ICurrentUser.UserId
+  -> ISubmissionRepository.ListAsync(ownerUserId, ...)
+  -> SubmissionDbContext.Submissions.AsNoTracking()
+  -> Where(submission => submission.OwnerUserId == ownerUserId)
+  -> PostgreSQL
+```
+
+```text
+GET /api/v1/submissions/{submissionId}
+  -> Submissions.Read authorization policy
+  -> GetSubmissionDetailQueryHandler
+  -> ICurrentUser.UserId
+  -> ISubmissionRepository.GetDetailAsync(submissionId, ownerUserId, ...)
+  -> SubmissionDbContext.Submissions.AsNoTracking()
+  -> Where(submission => submission.Id == submissionId)
+  -> Where(submission => submission.OwnerUserId == ownerUserId)
+  -> PostgreSQL
+```
+
 These read flows intentionally do not add a separate read database, cache, domain events, outbox, API Gateway, or BFF. Those are useful patterns for later milestones when the product has a concrete need for them.
 
 The EF Core read implementation uses LINQ intentionally:
 
 - `AsNoTracking()` because list/detail pages only display data and do not need EF Core change tracking.
 - `OrderByDescending(...)` so the list shows newest submissions first.
-- `Where(...)` so the detail query filters by submission id in the database.
+- `Where(...)` so list/detail queries filter by owner id and the detail query also filters by submission id in the database.
 - `Select(...)` so each query projects only the fields needed by the response.
 
-The read implementation does not use `Include(...)`, `AsSplitQuery()`, lazy loading, or eager-loading navigation graphs because `Submission` currently has no related entity collection to load. It also does not use `HasQueryFilter(...)` yet because ownership filtering needs a proper internal user/profile model first.
+The read implementation does not use `Include(...)`, `AsSplitQuery()`, lazy loading, or eager-loading navigation graphs because `Submission` currently has no related entity collection to load. It also does not use `HasQueryFilter(...)` yet because this milestone is intentionally teaching the ownership boundary explicitly at the repository methods where list/detail reads are introduced. A future milestone can revisit global query filters if many owned aggregates need the same rule and the project has enough tests to make hidden filters safe.
 
 Domain events and a transactional outbox are planned later for reliable asynchronous workflows. Event sourcing is not part of the initial architecture. It may be considered later only for selected workflows if replayable history provides enough value to justify the added complexity.
 

@@ -32,6 +32,7 @@ public sealed class PostgreSqlPersistenceTests
             "PostgreSQL Applicant",
             "postgresql-applicant@example.com",
             $"PostgreSQL Company {Guid.NewGuid():N}",
+            "postgres-test-user-1",
             createdAtUtc);
 
         await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
@@ -44,6 +45,7 @@ public sealed class PostgreSqlPersistenceTests
         Assert.Equal(submission.Id, savedSubmission.Id);
         Assert.Equal("PostgreSQL Applicant", savedSubmission.ApplicantName);
         Assert.Equal("postgresql-applicant@example.com", savedSubmission.ApplicantEmail);
+        Assert.Equal("postgres-test-user-1", savedSubmission.OwnerUserId);
         Assert.Equal(SubmissionStatus.Draft, savedSubmission.Status);
     }
 

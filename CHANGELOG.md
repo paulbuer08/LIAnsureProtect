@@ -124,3 +124,12 @@ The format follows simple milestone-based entries.
 - Focused backend and frontend test coverage for submission list/detail reads.
 - Milestone 10 closeout notes recording the passed signed-in Auth0 browser smoke for `/submissions` and `/submissions/{submissionId}`.
 - Milestone 11 starter continuity notes for `Milestone 11 - Submission Ownership Foundation`.
+- Milestone 11 - Submission Ownership Foundation implementation.
+- Submission ownership metadata through `Submission.OwnerUserId` persisted as `owner_user_id`.
+- EF Core migration adding `owner_user_id` plus an owner/date index for submission read filtering.
+- Create-submission handler ownership capture from `ICurrentUser.UserId`.
+- Owner-scoped Application query handlers and repository read methods for submission list/detail reads.
+- Separate `Submissions.Read` authorization policy for protected read endpoints.
+- Integration test coverage proving one signed-in user cannot list or open another user's submission.
+- Milestone 11 learning notes covering owner ids, explicit repository filters, `404 Not Found` for cross-owner detail reads, and deferred organization/team ownership.
+- Post-Milestone-11 pattern roadmap auditing earlier REPR, CQRS, domain event, outbox, idempotency, strategy, adapter, retry/circuit-breaker, cache-aside, and process-manager recommendations.
