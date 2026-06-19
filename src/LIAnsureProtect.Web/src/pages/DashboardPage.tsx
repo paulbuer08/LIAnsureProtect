@@ -2,21 +2,12 @@ import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router";
 
-import {
-  createSubmission,
-  type CreateSubmissionResponse,
-} from "../lib/apiClient";
-
 export function DashboardPage() {
   const { getAccessTokenSilently, isAuthenticated, isLoading, logout, user } =
     useAuth0();
   const [accessTokenPreview, setAccessTokenPreview] = useState<string>();
   const [accessTokenError, setAccessTokenError] = useState<string>();
   const [isRequestingToken, setIsRequestingToken] = useState(false);
-  const [submissionResult, setSubmissionResult] =
-    useState<CreateSubmissionResponse>();
-  const [submissionError, setSubmissionError] = useState<string>();
-  const [isCreatingSubmission, setIsCreatingSubmission] = useState(false);
 
   async function handleGetAccessToken() {
     setIsRequestingToken(true);
@@ -38,30 +29,6 @@ export function DashboardPage() {
     }
   }
 
-  async function handleCreateSubmission() {
-    setIsCreatingSubmission(true);
-    setSubmissionError(undefined);
-
-    try {
-      const accessToken = await getAccessTokenSilently();
-      const result = await createSubmission(accessToken, {
-        applicantName: "Frontend Smoke Test Applicant",
-        applicantEmail: "frontend-smoke@example.com",
-        companyName: "Frontend Smoke Test Company",
-      });
-
-      setSubmissionResult(result);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unable to create submission.";
-
-      setSubmissionError(message);
-      setSubmissionResult(undefined);
-    } finally {
-      setIsCreatingSubmission(false);
-    }
-  }
-
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-16 text-white">
       <section className="mx-auto max-w-5xl">
@@ -74,8 +41,8 @@ export function DashboardPage() {
         </h1>
 
         <p className="mt-4 max-w-2xl text-slate-300">
-          This page shows the current Auth0 browser session. Later, it will also
-          call protected LIAnsureProtect API endpoints with an access token.
+          This page shows the current Auth0 browser session and links to the
+          protected frontend workflows that call the LIAnsureProtect API.
         </p>
 
         <div className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
@@ -130,43 +97,21 @@ export function DashboardPage() {
 
         <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
           <h2 className="text-base font-semibold text-white">
-            Protected API smoke test
+            Submission intake
           </h2>
 
           <p className="mt-2 text-slate-300">
-            Create a draft submission through the ASP.NET API using the current
-            Auth0 access token.
+            Start a real draft submission by entering applicant and company
+            details. The form uses the current Auth0 session to call the
+            protected API.
           </p>
 
-          <button
-            type="button"
-            onClick={handleCreateSubmission}
-            disabled={isCreatingSubmission}
-            className="mt-4 rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+          <Link
+            to="/submissions/new"
+            className="mt-4 inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
           >
-            {isCreatingSubmission
-              ? "Creating submission..."
-              : "Create draft submission"}
-          </button>
-
-          {submissionResult && (
-            <div className="mt-4 rounded-md bg-slate-950 p-3 text-emerald-300">
-              <p>
-                <span className="font-semibold">Submission ID:</span>{" "}
-                {submissionResult.submissionId}
-              </p>
-              <p className="mt-2">
-                <span className="font-semibold">Status:</span>{" "}
-                {submissionResult.status}
-              </p>
-            </div>
-          )}
-
-          {submissionError && (
-            <p className="mt-4 whitespace-pre-wrap rounded-md border border-red-900 bg-red-950 p-3 text-red-200">
-              {submissionError}
-            </p>
-          )}
+            Create submission
+          </Link>
         </div>
 
         <div className="mt-8 flex flex-wrap gap-4">

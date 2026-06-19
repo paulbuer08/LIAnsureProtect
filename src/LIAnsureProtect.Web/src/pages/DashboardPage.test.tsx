@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createSubmission } from "../lib/apiClient";
 import { DashboardPage } from "./DashboardPage";
 
 const getAccessTokenSilently = vi.fn();
@@ -21,15 +20,10 @@ vi.mock("@auth0/auth0-react", () => ({
   }),
 }));
 
-vi.mock("../lib/apiClient", () => ({
-  createSubmission: vi.fn(),
-}));
-
 describe("DashboardPage", () => {
   beforeEach(() => {
     getAccessTokenSilently.mockReset();
     logout.mockReset();
-    vi.mocked(createSubmission).mockReset();
   });
 
   it("shows a shortened access token preview instead of the full token", async () => {
@@ -54,31 +48,18 @@ describe("DashboardPage", () => {
     expect(screen.queryByText(accessToken)).not.toBeInTheDocument();
   });
 
-  it("creates a draft submission with the current API access token", async () => {
-    const user = userEvent.setup();
-    getAccessTokenSilently.mockResolvedValue("api-access-token");
-    vi.mocked(createSubmission).mockResolvedValue({
-      submissionId: "submission-123",
-      status: "Draft",
-    });
-
+  it("links signed-in users to the real submission intake workflow", () => {
     render(
       <MemoryRouter>
         <DashboardPage />
       </MemoryRouter>,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "Create draft submission" }),
-    );
-
-    expect(getAccessTokenSilently).toHaveBeenCalledTimes(1);
-    expect(createSubmission).toHaveBeenCalledWith("api-access-token", {
-      applicantName: "Frontend Smoke Test Applicant",
-      applicantEmail: "frontend-smoke@example.com",
-      companyName: "Frontend Smoke Test Company",
-    });
-    expect(await screen.findByText("submission-123")).toBeInTheDocument();
-    expect(screen.getByText("Draft")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Create submission" }),
+    ).toHaveAttribute("href", "/submissions/new");
+    expect(
+      screen.queryByRole("button", { name: "Create draft submission" }),
+    ).not.toBeInTheDocument();
   });
 });

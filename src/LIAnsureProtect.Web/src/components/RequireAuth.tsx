@@ -29,8 +29,8 @@ export function RequireAuth({ children }: RequireAuthProps) {
           </h1>
 
           <p className="mt-4 text-slate-300">
-            The dashboard is a signed-in area. Log in with Auth0 to view your
-            session and future API smoke-test results.
+            This is a signed-in area. Log in with Auth0 to continue to your
+            protected LIAnsureProtect workflow.
           </p>
 
           <button

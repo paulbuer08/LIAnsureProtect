@@ -1,6 +1,6 @@
 # Run The App
 
-This guide explains how to run everything that exists in LIAnsureProtect up to `Milestone 8 - Frontend Login And Session Foundation`.
+This guide explains how to run everything that exists in LIAnsureProtect up to `Milestone 9 - Submission Intake UI Foundation`.
 
 At this point, the runnable app is:
 
@@ -9,12 +9,13 @@ At this point, the runnable app is:
 - EF Core migrations for the submissions table
 - JWT bearer authentication and policy-based authorization foundation
 - React/Vite frontend login and session foundation
+- Protected React submission intake page at `/submissions/new`
 - Unit and integration tests
 - Frontend build, lint, and unit tests
 
 Not included yet:
 
-- Real external identity provider tenant setup
+- Production identity-provider automation
 - User registration and account management
 - Redis cache
 - AWS services
@@ -156,7 +157,7 @@ That skips the temporary API startup and only verifies setup, migrations, tests,
 .\scripts\run-local-ci.ps1 -RunFrontendChecks:$false
 ```
 
-That skips frontend checks when you are intentionally debugging only backend setup. For normal Milestone 8 verification, keep frontend checks enabled.
+That skips frontend checks when you are intentionally debugging only backend setup. For normal Milestone 9 verification, keep frontend checks enabled.
 
 ```powershell
 .\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
@@ -344,6 +345,21 @@ What each command means:
 | `npm run test` | Runs Vitest tests for frontend components and behavior. |
 
 The combined `.\scripts\run-local-ci.ps1` command runs these frontend checks automatically by default.
+
+Milestone 9 added React Hook Form, Zod, `@hookform/resolvers`, and TanStack Query to the frontend. Those packages are recorded in `package.json` and `package-lock.json`, so `npm ci` installs them exactly as locked.
+
+Simple analogy:
+
+```text
+package.json:
+  The shopping list.
+
+package-lock.json:
+  The exact receipt with versions.
+
+npm ci:
+  Rebuild the pantry exactly from the receipt.
+```
 
 If `npm ci` fails with `EPERM unlink` on Windows, stop any running Vite dev server or Node process that might be using frontend dependencies, then rerun local CI. If dependencies are already installed and you only need the frontend build/lint/test checks, run:
 
@@ -681,6 +697,166 @@ Expected:
 
 After the negative test, restore the test user to `Customer` so the happy-path smoke test remains easy to repeat.
 
+## Frontend Submission Intake Smoke Testing
+
+Milestone 9 adds the first real frontend submission creation workflow:
+
+```text
+http://localhost:5173/submissions/new
+```
+
+This route is protected by the same Auth0 route guard as the dashboard. If the user is not signed in, the app asks the user to log in first.
+
+Run the API and frontend:
+
+```powershell
+.\scripts\dev-up.ps1
+```
+
+In a second terminal:
+
+```powershell
+cd src\LIAnsureProtect.Web
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+Manual smoke flow:
+
+```text
+1. Log in with Auth0.
+2. Open Dashboard.
+3. Click Create submission.
+4. Enter:
+   Applicant name: Jane Applicant
+   Applicant email: jane@example.com
+   Company name: Example Company
+5. Click Create draft submission.
+6. Confirm the page shows:
+   Submission ID
+   Status: Draft
+```
+
+What each piece proves:
+
+| Result | Meaning |
+| --- | --- |
+| Inline validation messages appear | React Hook Form and Zod are stopping incomplete or invalid input before the API call. |
+| Button shows `Creating submission...` | TanStack Query mutation state is active while the API request is running. |
+| Submission ID and `Draft` appear | Auth0 token retrieval, API call, authorization, backend validation, and persistence worked. |
+| `401 Unauthorized` appears | The API did not receive or accept a valid access token. |
+| `403 Forbidden` appears | The token is valid, but the user does not have an allowed role for `Submissions.Create`. |
+
+Database verification with DBeaver:
+
+```text
+Connection:
+  Host: localhost
+  Port: 5432
+  Database: liansureprotect
+  Username: postgres
+  Password: postgres
+
+Tree path:
+  liansureprotect
+  -> Databases
+  -> liansureprotect
+  -> Schemas
+  -> public
+  -> Tables
+  -> submissions
+```
+
+If the table is not visible immediately, right-click the `liansureprotect`
+database or the `Schemas` node and choose refresh. DBeaver can show stale
+metadata until the tree is refreshed.
+
+Run this SQL to check the latest created draft submissions:
+
+```sql
+select
+  id,
+  applicant_name,
+  applicant_email,
+  company_name,
+  status,
+  created_at_utc
+from public.submissions
+order by created_at_utc desc
+limit 10;
+```
+
+If the browser shows a specific submission id, verify that exact row:
+
+```sql
+select
+  id,
+  applicant_name,
+  applicant_email,
+  company_name,
+  status,
+  created_at_utc
+from public.submissions
+where id = '3d80c3c8-e96e-4bc6-8fc5-f2c425383b7b';
+```
+
+Simple explanation:
+
+```text
+The green success panel in the browser proves the API returned success.
+
+The database query proves the draft was physically stored in PostgreSQL.
+```
+
+Common confusing log lines:
+
+```text
+ERROR: relation "__EFMigrationsHistory" does not exist
+```
+
+This can appear when EF Core checks a fresh database before the migrations
+history table exists. It is not automatically a failure. After migrations run,
+the database should contain both `public.__EFMigrationsHistory` and
+`public.submissions`.
+
+```text
+ERROR: relation "pgagent.pga_job" does not exist
+```
+
+This comes from a database tool checking for pgAgent jobs. LIAnsureProtect does
+not currently use pgAgent, so this is not related to submission persistence.
+
+The frontend form is intentionally still small. It creates the same backend draft submission shape that already exists:
+
+```json
+{
+  "applicantName": "Jane Applicant",
+  "applicantEmail": "jane@example.com",
+  "companyName": "Example Company"
+}
+```
+
+The larger insurance questionnaire, document upload, ownership rules, quote generation, and underwriting screens are future milestones.
+
+The submission intake code is organized as a feature-owned frontend slice:
+
+```text
+src/LIAnsureProtect.Web/src/features/submissions/
+  api/
+  components/
+  hooks/
+  pages/
+  schemas/
+  types.ts
+```
+
+This keeps submission-specific business logic close together while leaving `src/test/setup.ts` for shared test setup and leaving truly reusable UI primitives for a later milestone when repeated form patterns justify them.
+
 ## Request Workflow
 
 This is what happens when an authenticated and authorized caller sends `POST /api/v1/submissions`:
@@ -847,6 +1023,85 @@ Fix:
 3. Run `dotnet restore LIAnsureProtect.slnx` from a normal development terminal.
 4. Rerun `.\scripts\setup-dev.ps1`.
 
+### Build Fails Because LIAnsureProtect.Api Is Still Running
+
+Symptom:
+
+```text
+The process cannot access the file
+src\LIAnsureProtect.Api\bin\Debug\net10.0\LIAnsureProtect.Domain.dll
+because it is being used by another process.
+
+The file is locked by: "LIAnsureProtect.Api (26928)"
+
+error MSB3027: Could not copy ...
+error MSB3021: Unable to copy file ...
+```
+
+Meaning:
+
+The API is already running from an earlier `dev-up.ps1`, `dotnet run`, Visual Studio, Rider, or another terminal session.
+
+During `dotnet build`, .NET tries to copy freshly built DLL files into the API output folder:
+
+```text
+src\LIAnsureProtect.Api\bin\Debug\net10.0\
+```
+
+If the API process is still running, Windows keeps those DLL files locked because the process loaded them into memory. The build retries several times, then fails when the files are still locked.
+
+Simple analogy:
+
+```text
+The build is trying to replace a book on the shelf.
+
+The running API is still reading that book.
+
+Windows says:
+  "You cannot replace it until the reader closes it."
+```
+
+Fix:
+
+1. Stop the old API process first.
+
+   If the previous API terminal is still open, press:
+
+   ```text
+   Ctrl+C
+   ```
+
+2. If you cannot find the old terminal, use the process id shown in the error message:
+
+   ```powershell
+   Stop-Process -Id 26928
+   ```
+
+   Replace `26928` with the process id from your own error output.
+
+3. Rerun:
+
+   ```powershell
+   .\scripts\dev-up.ps1
+   ```
+
+How to check before rerunning:
+
+```powershell
+Get-Process -Id 26928
+```
+
+If PowerShell says it cannot find the process, the old API process is already stopped.
+
+Why Docker reset did not fix this:
+
+```text
+Docker Compose controls PostgreSQL.
+It does not stop a separate dotnet API process that is already running on Windows.
+```
+
+So this failure is not a database issue and not a migration issue. It is just a running API process holding build output files open.
+
 ### Port 5432 Is Already In Use
 
 Symptom:
@@ -886,8 +1141,9 @@ Do not add these to the local run path yet unless a future milestone approves th
 - Redis
 - Kafka
 - LocalStack
-- External identity provider tenant setup
 - User registration and account management
+- Multi-step insurance questionnaire
+- File uploads and document handling
 - Domain events or outbox
 - Event sourcing
 

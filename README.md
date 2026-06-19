@@ -35,6 +35,8 @@ Milestone 7 is complete as `Milestone 7 - Identity Provider Integration`. It con
 
 Milestone 8 is complete as `Milestone 8 - Frontend Login And Session Foundation`. It adds the first React/Vite frontend, Auth0 Authorization Code with PKCE login, guarded dashboard routing, access-token retrieval for the LIAnsureProtect API audience, a protected API smoke-test button, local development CORS support, focused frontend tests, and a verified browser-to-API-to-PostgreSQL smoke path.
 
+Milestone 9 is implemented as `Milestone 9 - Submission Intake UI Foundation`. It replaces the dashboard-only hard-coded smoke submission with a protected `/submissions/new` workflow using React Hook Form, Zod, TanStack Query, and the existing Auth0 access-token API call path. The submission intake frontend is organized as a feature-owned vertical slice under `src/LIAnsureProtect.Web/src/features/submissions` so future submission workflows can grow without turning route pages into large mixed files.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -81,5 +83,6 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 6 Authentication Foundation Learnings](docs/dev/milestone-6-authentication-foundation-learnings.md)
 - [Milestone 7 Identity Provider Integration Learnings](docs/dev/milestone-7-identity-provider-integration-learnings.md)
 - [Milestone 8 Frontend Login And Session Foundation Learnings](docs/dev/milestone-8-frontend-login-and-session-foundation-learnings.md)
+- [Milestone 9 Submission Intake UI Foundation Learnings](docs/dev/milestone-9-submission-intake-ui-foundation-learnings.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)
 - [AWS Environments](docs/dev/aws-environments.md)

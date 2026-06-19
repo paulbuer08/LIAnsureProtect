@@ -1,15 +1,9 @@
+import type {
+  CreateSubmissionRequest,
+  CreateSubmissionResponse,
+} from "../types";
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5223";
-
-type CreateSubmissionRequest = {
-  applicantName: string;
-  applicantEmail: string;
-  companyName: string;
-};
-
-export type CreateSubmissionResponse = {
-  submissionId: string;
-  status: string;
-};
 
 export async function createSubmission(
   accessToken: string,

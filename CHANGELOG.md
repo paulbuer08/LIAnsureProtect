@@ -103,3 +103,14 @@ The format follows simple milestone-based entries.
 - Local CI frontend checks for install, build, lint, and tests when the web project exists.
 - Real browser Auth0 smoke test proving the frontend can create a draft submission through the protected API and persist it in the PostgreSQL container.
 - Milestone 8 closeout recorded after final local CI passed with backend smoke tests and frontend build/lint/tests.
+- Milestone 9 - Submission Intake UI Foundation.
+- Frontend form dependencies for the first real submission intake workflow: React Hook Form, Zod, `@hookform/resolvers`, and TanStack Query.
+- React Query provider setup for frontend API mutations.
+- Protected `/submissions/new` route for creating a draft submission from user-entered applicant and company details.
+- Zod-backed inline frontend validation for applicant name, applicant email, and company name.
+- TanStack Query mutation flow that obtains the current Auth0 access token and calls `POST /api/v1/submissions`.
+- Dashboard navigation to the real Create submission page, replacing the old hard-coded protected API smoke-test submit section.
+- Co-located frontend tests covering submission form rendering, validation errors, successful API mutation, and dashboard navigation.
+- Milestone 9 learning notes covering the new frontend libraries, validation flow, mutation flow, co-located test convention, package-lock handling, and verification results.
+- Production-scale frontend feature structure for submission intake under `src/features/submissions`, separating feature-owned API calls, hooks, schemas, form components, route pages, and types.
+- Route-level frontend code splitting with `React.lazy` and `Suspense` so submission-intake code loads when the user opens the submission route instead of inflating the initial JavaScript chunk.

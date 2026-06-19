@@ -7,10 +7,10 @@ Use this file at the start of a new conversation or coding session before making
 ## Current Workspace
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
-- Current branch: `codex/milestone-8-frontend-login-and-session-foundation`
+- Current branch: `codex/milestone-9-submission-intake-ui-foundation`
 - Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`; Milestone 7 closeout committed locally as `fcac659 feat: integrate Auth0 identity provider setup`; Milestone 8 implementation committed locally as `2d73027 feat: add frontend login and session foundation`.
-- Current milestone: Milestone 8 - Frontend Login And Session Foundation is complete. Next milestone is pending user approval and should start on a new branch.
-- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; Milestone 8 has created the first React/Vite frontend under `src/LIAnsureProtect.Web` with Tailwind CSS, React Router, Auth0 React SDK wiring, a local Auth0 SPA config, login/logout flow, callback session display, dashboard session display, and a guarded dashboard route.
+- Current milestone: Milestone 9 - Submission Intake UI Foundation is implemented. Frontend compile, lint, test, build, protected-route browser verification, signed-in Auth0 submission creation, PostgreSQL persistence verification, and final local CI passed.
+- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; Milestone 8 has created the first React/Vite frontend under `src/LIAnsureProtect.Web` with Tailwind CSS, React Router, Auth0 React SDK wiring, a local Auth0 SPA config, login/logout flow, callback session display, dashboard session display, and a guarded dashboard route; Milestone 9 adds the first real protected submission intake UI at `/submissions/new` using React Hook Form, Zod, `@hookform/resolvers`, TanStack Query, the current Auth0 access-token flow, co-located frontend tests, and a production-scale feature-owned frontend structure under `src/LIAnsureProtect.Web/src/features/submissions`.
 
 ## User Collaboration Rules
 
@@ -758,7 +758,7 @@ Future security milestones to plan after Milestone 7:
 
 ### Milestone 8 - Frontend Login And Session Foundation
 
-Status: in progress.
+Status: complete.
 
 Branch:
 
@@ -833,13 +833,92 @@ Refresh-token/offline-access direction:
 - First understand the basic login, access-token request, and protected API call.
 - Add refresh-token/offline-access only if the session behavior needs it and the storage, rotation, logout, and testing strategy are documented.
 
+### Milestone 9 - Submission Intake UI Foundation
+
+Status: implemented. Frontend verification and signed-in Auth0 full-stack browser smoke testing passed.
+
+Branch:
+
+```text
+codex/milestone-9-submission-intake-ui-foundation
+```
+
+Starting point:
+
+```text
+7a99186 docs: close frontend login and session foundation milestone
+```
+
+Approved direction:
+
+- Turn the dashboard-only smoke-test button into the first real frontend workflow for creating a submission.
+- Add a protected `/submissions/new` route.
+- Use a small form for applicant name, applicant email, and company name.
+- Validate the form in the browser with friendly inline messages.
+- Use the existing Auth0 access-token flow to call `POST /api/v1/submissions`.
+- Use TanStack Query to represent the loading, success, and error state of the create-submission API mutation.
+- Keep tests co-located with the pages they protect.
+- Keep the milestone narrow and do not start questionnaire, document, quote, ownership, admin, deployment, or advanced token-hardening work.
+
+Implemented:
+
+- Added frontend dependencies:
+  - `react-hook-form`
+  - `zod`
+  - `@hookform/resolvers`
+  - `@tanstack/react-query`
+- Added `QueryClientProvider` at the frontend root.
+- Added `/submissions/new` as a protected route.
+- Added `NewSubmissionPage` with Zod-backed validation and React Hook Form field wiring.
+- Updated the dashboard to link to the real Create submission page instead of keeping the hard-coded protected API smoke-test submit section.
+- Exported the `CreateSubmissionRequest` type from the frontend API client.
+- Added co-located tests for:
+  - form rendering
+  - validation errors
+  - successful submit with mocked Auth0 token and API client
+  - dashboard navigation to the create-submission page
+- Refactored the submission intake workflow into a feature-owned vertical slice under `src/LIAnsureProtect.Web/src/features/submissions`:
+  - `api/createSubmission.ts`
+  - `components/SubmissionIntakeForm.tsx`
+  - `hooks/useCreateSubmission.ts`
+  - `pages/NewSubmissionPage.tsx`
+  - `schemas/submissionIntakeSchema.ts`
+  - `types.ts`
+- Added `docs/dev/milestone-9-submission-intake-ui-foundation-learnings.md`.
+
+Current verification:
+
+- Focused RED test failed before implementation because `NewSubmissionPage` did not exist and the dashboard did not link to `Create submission`.
+- Focused GREEN test passed after implementation: 2 test files, 5 tests passed.
+- Full frontend test command passed: 3 test files, 8 tests passed.
+- TypeScript build check passed.
+- ESLint check passed.
+- Vite production build passed without the chunk-size warning after adding route-level code splitting for frontend pages.
+- Browser verification against `http://127.0.0.1:5173/submissions/new` passed for the protected unauthenticated route state, with the generic Auth0 login guard visible and no console warnings or errors.
+- Full signed-in Auth0 browser submission creation passed: the user created draft submission `3d80c3c8-e96e-4bc6-8fc5-f2c425383b7b` from `/submissions/new`.
+- PostgreSQL persistence verification passed in DBeaver and by direct container query: `public.submissions` contains the created `Draft` row for `Jane Applicant`, `jane@example.com`, and `Example Company`.
+- Final local CI passed in the user's PowerShell session after the browser and database smoke checks.
+- Feature-structure refactor verification passed with focused frontend tests, TypeScript build, and a post-refactor browser route check after the move.
+
+Current Milestone 9 boundary:
+
+- Do not add ownership rules.
+- Do not add the multi-step insurance questionnaire.
+- Do not add file uploads or document storage.
+- Do not add quote generation.
+- Do not add admin screens.
+- Do not add refresh tokens.
+- Do not add deployment.
+- Do not add DPoP, mTLS, or JWE.
+- Do not expand into a full design system milestone.
+
 ## Open Local Setup Items
 
 Known from earlier environment checks:
 
 - .NET 10 is installed.
 - Docker is installed, but Docker config access produced a permission warning.
-- Node.js/npm is not currently usable from this environment.
+- Node.js/npm is not currently on the Codex shell PATH in this environment; Milestone 9 verification used the bundled Codex Node runtime directly, while the normal project runbook still assumes npm is available on a developer machine.
 - AWS CLI is not currently available from this environment.
 - Terraform is not currently available from this environment.
 
