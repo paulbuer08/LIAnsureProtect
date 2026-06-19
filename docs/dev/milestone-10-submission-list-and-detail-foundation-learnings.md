@@ -412,9 +412,13 @@ The frontend project is currently npm-lockfile based. Running `pnpm run ...` can
 C:\Users\Poy\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin\pnpm.cmd dlx npm@11.7.0 run build
 ```
 
-Manual browser smoke still should prove before final user closeout:
+Manual browser smoke result:
 
-1. A signed-in user can create a draft submission.
-2. The new draft appears in `/submissions`.
-3. The user can open `/submissions/{submissionId}`.
-4. The detail page shows the expected applicant, email, company, status, id, and timestamp.
+Passed on 2026-06-19 from the user's signed-in Auth0 browser session.
+
+Evidence from the user's browser smoke screenshots:
+
+1. The signed-in user created a draft submission.
+2. `/submissions` showed the draft row for `Jane Applicant`, `jane@example.com`, and `Example Company`.
+3. The user opened `/submissions/e4baab2b-44c0-4619-b961-bc1d4d0a3c70`.
+4. The detail page showed the expected submission id, `Draft` status, applicant, email, company, and created UTC timestamp `2026-06-19T09:39:46.944492Z`.

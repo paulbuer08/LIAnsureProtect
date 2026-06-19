@@ -122,3 +122,4 @@ The format follows simple milestone-based entries.
 - Protected frontend `/submissions` and `/submissions/:submissionId` routes with TanStack Query loading, empty, error, not-found, and success states.
 - Dashboard navigation to view existing submissions and create new submissions.
 - Focused backend and frontend test coverage for submission list/detail reads.
+- Milestone 10 closeout notes recording the passed signed-in Auth0 browser smoke for `/submissions` and `/submissions/{submissionId}`.
