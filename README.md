@@ -47,7 +47,7 @@ Milestone 13 is complete as `Milestone 13 - Transactional Outbox Foundation`. It
 
 Milestone 14 is complete as `Milestone 14 - Outbox Dispatcher Foundation`. It adds the first Worker-side dispatcher path that reads pending PostgreSQL `outbox_messages` rows and marks them processed locally. This keeps the milestone focused on the polling/processing loop before adding SNS/SQS, email, notification inboxes, full retry policy, circuit breakers, idempotency keys, quote generation, or underwriting queues.
 
-Milestone 15 is starting as `Milestone 15 - Idempotent Submission Actions Foundation`. Its recommended scope is to protect selected important POST actions from duplicate client retries, starting with the submit action unless planning changes the slice.
+Milestone 15 is implemented as `Milestone 15 - Idempotent Submission Actions Foundation`. It adds PostgreSQL-backed `Idempotency-Key` handling for the current protected write endpoints: `POST /api/v1/submissions` and `POST /api/v1/submissions/{submissionId}/submit`. Matching retries return the stored response without rerunning the write, while unsafe key reuse returns `409 Conflict`.
 
 ## Local Run
 
@@ -101,6 +101,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 12 Submission Submit And Domain Events Foundation Learnings](docs/dev/milestone-12-submission-submit-and-domain-events-foundation-learnings.md)
 - [Milestone 13 Transactional Outbox Foundation Learnings](docs/dev/milestone-13-transactional-outbox-foundation-learnings.md)
 - [Milestone 14 Outbox Dispatcher Foundation Learnings](docs/dev/milestone-14-outbox-dispatcher-foundation-learnings.md)
+- [Milestone 15 Idempotent Submission Actions Foundation Learnings](docs/dev/milestone-15-idempotent-submission-actions-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)

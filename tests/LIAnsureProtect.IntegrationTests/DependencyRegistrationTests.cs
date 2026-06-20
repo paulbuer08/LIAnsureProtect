@@ -1,4 +1,5 @@
 using LIAnsureProtect.Application;
+using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure;
@@ -43,6 +44,7 @@ public sealed class DependencyRegistrationTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<SubmissionDbContext>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISubmissionRepository>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUnitOfWork>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IIdempotencyService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>());
     }
 
@@ -65,5 +67,7 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("CREATE TABLE submissions", script);
         Assert.Contains("CREATE TABLE outbox_messages", script);
         Assert.Contains("ix_outbox_messages_processed_at_utc_created_at_utc", script);
+        Assert.Contains("CREATE TABLE idempotency_records", script);
+        Assert.Contains("ux_idempotency_records_key", script);
     }
 }

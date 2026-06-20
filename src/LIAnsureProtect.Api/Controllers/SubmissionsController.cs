@@ -1,8 +1,12 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using LIAnsureProtect.Application.Common.Idempotency;
+using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Application.Submissions.Commands.CreateSubmission;
 using LIAnsureProtect.Application.Submissions.Commands.SubmitSubmission;
 using LIAnsureProtect.Application.Submissions.Queries.GetSubmissionDetail;
 using LIAnsureProtect.Application.Submissions.Queries.ListSubmissions;
-using LIAnsureProtect.Application.Common.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
@@ -13,8 +17,14 @@ namespace LIAnsureProtect.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]")]
-public sealed class SubmissionsController(ISender sender) : ControllerBase
+public sealed class SubmissionsController(
+    ISender sender,
+    IIdempotencyService idempotencyService,
+    ICurrentUser currentUser) : ControllerBase
 {
+    private const string IdempotencyKeyHeaderName = "Idempotency-Key";
+    private static readonly JsonSerializerOptions FingerprintJsonOptions = JsonSerializerOptions.Web;
+
     [HttpGet]
     [Authorize(Policy = ApplicationPolicies.ReadSubmission)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -57,6 +67,53 @@ public sealed class SubmissionsController(ISender sender) : ControllerBase
         Guid submissionId,
         CancellationToken cancellationToken)
     {
+        var idempotencyKey = GetIdempotencyKey();
+        if (!string.IsNullOrEmpty(idempotencyKey))
+        {
+            var idempotencyRequest = new IdempotencyRequest(
+                idempotencyKey,
+                GetRequiredCurrentUserId("submit a submission"),
+                ApplicationPolicies.SubmitSubmission,
+                CreateRequestFingerprint(
+                    HttpMethods.Post,
+                    "/api/v1/submissions/{submissionId}/submit",
+                    new { submissionId }));
+
+            var executionResult = await idempotencyService.ExecuteAsync(
+                idempotencyRequest,
+                async operationCancellationToken =>
+                {
+                    try
+                    {
+                        var result = await sender.Send(
+                            new SubmitSubmissionCommand(submissionId),
+                            operationCancellationToken);
+
+                        return result is null
+                            ? IdempotencyActionResponse.Json(
+                                StatusCodes.Status404NotFound,
+                                CreateProblemDetails(
+                                    StatusCodes.Status404NotFound,
+                                    "Submission was not found."))
+                            : IdempotencyActionResponse.Json(
+                                StatusCodes.Status200OK,
+                                result);
+                    }
+                    catch (InvalidOperationException exception)
+                    {
+                        return IdempotencyActionResponse.Json(
+                            StatusCodes.Status409Conflict,
+                            CreateProblemDetails(
+                                StatusCodes.Status409Conflict,
+                                "Submission cannot be submitted.",
+                                exception.Message));
+                    }
+                },
+                cancellationToken);
+
+            return ToActionResult<SubmitSubmissionResult>(executionResult);
+        }
+
         try
         {
             var result = await sender.Send(
@@ -93,6 +150,44 @@ public sealed class SubmissionsController(ISender sender) : ControllerBase
             request.ApplicantEmail,
             request.CompanyName);
 
+        var idempotencyKey = GetIdempotencyKey();
+        if (!string.IsNullOrEmpty(idempotencyKey))
+        {
+            var idempotencyRequest = new IdempotencyRequest(
+                idempotencyKey,
+                GetRequiredCurrentUserId("create a submission"),
+                ApplicationPolicies.CreateSubmission,
+                CreateRequestFingerprint(
+                    HttpMethods.Post,
+                    "/api/v1/submissions",
+                    request));
+
+            var executionResult = await idempotencyService.ExecuteAsync(
+                idempotencyRequest,
+                async operationCancellationToken =>
+                {
+                    try
+                    {
+                        var result = await sender.Send(command, operationCancellationToken);
+                        var location = $"/api/v1/submissions/{result.SubmissionId}";
+
+                        return IdempotencyActionResponse.Json(
+                            StatusCodes.Status201Created,
+                            result,
+                            location);
+                    }
+                    catch (ApplicationValidationException exception)
+                    {
+                        return IdempotencyActionResponse.Json(
+                            StatusCodes.Status400BadRequest,
+                            CreateValidationProblemDetails(exception));
+                    }
+                },
+                cancellationToken);
+
+            return ToActionResult<CreateSubmissionResult>(executionResult);
+        }
+
         try
         {
             var result = await sender.Send(command, cancellationToken);
@@ -101,19 +196,92 @@ public sealed class SubmissionsController(ISender sender) : ControllerBase
         }
         catch (ApplicationValidationException exception)
         {
-            var problemDetails = new HttpValidationProblemDetails(
-                exception.Errors.ToDictionary(
-                    error => error.Key,
-                    error => error.Value))
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "One or more validation errors occurred."
-            };
-
-            return BadRequest(problemDetails);
+            return BadRequest(CreateValidationProblemDetails(exception));
         }
     }
 
+    private string? GetIdempotencyKey()
+    {
+        return Request.Headers.TryGetValue(IdempotencyKeyHeaderName, out var headerValues)
+            ? headerValues.FirstOrDefault()
+            : null;
+    }
+
+    private string GetRequiredCurrentUserId(string actionDescription)
+    {
+        return string.IsNullOrWhiteSpace(currentUser.UserId)
+            ? throw new InvalidOperationException($"An authenticated user id is required to {actionDescription}.")
+            : currentUser.UserId;
+    }
+
+    private static string CreateRequestFingerprint(
+        string httpMethod,
+        string routeTemplate,
+        object? body)
+    {
+        var fingerprintPayload = JsonSerializer.Serialize(
+            new
+            {
+                httpMethod,
+                routeTemplate,
+                body
+            },
+            FingerprintJsonOptions);
+
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(fingerprintPayload));
+
+        return Convert.ToHexString(hash);
+    }
+
+    private ActionResult<T> ToActionResult<T>(IdempotencyExecutionResult result)
+    {
+        if (result.Status == IdempotencyExecutionStatus.Conflict)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Idempotency key conflict.",
+                result.ConflictDetail));
+        }
+
+        var response = result.Response
+            ?? throw new InvalidOperationException("A completed idempotency result must include a response.");
+
+        if (!string.IsNullOrWhiteSpace(response.Location))
+            Response.Headers.Location = response.Location;
+
+        return new ContentResult
+        {
+            StatusCode = response.StatusCode,
+            Content = response.Body,
+            ContentType = response.ContentType
+        };
+    }
+
+    private static ProblemDetails CreateProblemDetails(
+        int status,
+        string title,
+        string? detail = null)
+    {
+        return new ProblemDetails
+        {
+            Status = status,
+            Title = title,
+            Detail = detail
+        };
+    }
+
+    private static HttpValidationProblemDetails CreateValidationProblemDetails(
+        ApplicationValidationException exception)
+    {
+        return new HttpValidationProblemDetails(
+            exception.Errors.ToDictionary(
+                error => error.Key,
+                error => error.Value))
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "One or more validation errors occurred."
+        };
+    }
 }
 
 

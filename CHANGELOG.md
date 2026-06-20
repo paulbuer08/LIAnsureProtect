@@ -160,3 +160,11 @@ The format follows simple milestone-based entries.
 - Milestone 14 learning notes explaining the Worker-side dispatcher flow, local processing boundary, deferred messaging features, and verification path.
 - Milestone 14 closeout notes recording implementation commit `eef3f34 feat: add outbox dispatcher foundation`.
 - Milestone 15 starter continuity notes for `Milestone 15 - Idempotent Submission Actions Foundation`.
+- Milestone 15 - Idempotent Submission Actions Foundation implementation.
+- Application-level idempotency contract for protected write actions.
+- PostgreSQL-backed `idempotency_records` table through EF Core migration `AddIdempotencyRecords`.
+- Infrastructure-owned idempotency service that reserves keys, runs protected writes in a database transaction, stores stable responses, replays safe retries, and rejects unsafe key reuse.
+- `Idempotency-Key` support for `POST /api/v1/submissions` so matching retries return the same `201 Created` response without creating duplicate draft submissions.
+- `Idempotency-Key` support for `POST /api/v1/submissions/{submissionId}/submit` so matching retries return the same `200 OK` response without creating duplicate outbox messages.
+- Integration test coverage for safe create retry, unsafe create body reuse, safe submit retry, cross-user key reuse, cross-action key reuse, dependency registration, and committed migration shape.
+- Milestone 15 learning notes explaining the idempotency table, PostgreSQL storage decision, create flow, submit flow, replay flow, conflict flow, and future endpoint opt-in rule.

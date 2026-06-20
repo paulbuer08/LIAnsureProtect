@@ -344,7 +344,7 @@ Milestone 14:
   and stamp them as handled.
 ```
 
-The current dispatcher is intentionally local and in-process. It does not publish to SNS, send email, write a notification inbox, run a full retry policy, use a circuit breaker, create idempotency records, generate quotes, or enqueue underwriting work. Those features need their own milestones because each one adds a new responsibility and new failure modes.
+The current dispatcher is intentionally local and in-process. It does not publish to SNS, send email, write a notification inbox, run a full retry policy, use a circuit breaker, generate quotes, or enqueue underwriting work. Those features need their own milestones because each one adds a new responsibility and new failure modes.
 
 The Worker flow is:
 
@@ -363,6 +363,104 @@ Why the Worker creates a scope each loop:
 - The dispatcher depends on `SubmissionDbContext`.
 - A long-running background service should not keep one database context alive forever.
 - Creating a small scope per polling pass gives each pass a clean database unit of work.
+
+Milestone 15 - Idempotent Submission Actions Foundation adds the first retry-safety layer for protected write endpoints.
+
+Current idempotent endpoints:
+
+```text
+POST /api/v1/submissions
+POST /api/v1/submissions/{submissionId}/submit
+```
+
+The API supports an optional request header:
+
+```text
+Idempotency-Key: client-generated-unique-key
+```
+
+When the header is present, the controller builds an idempotency request from:
+
+```text
+key
+owner user id
+action name
+request fingerprint
+```
+
+The request fingerprint is a SHA-256 hash of the HTTP method, route template, and request body or route data.
+
+Current idempotency flow:
+
+```text
+Client POST with Idempotency-Key
+  -> authorization policy
+  -> SubmissionsController
+  -> IIdempotencyService
+  -> idempotency_records row reserved as InProgress
+  -> MediatR command runs
+  -> submission/outbox changes are saved
+  -> response is stored on idempotency_records
+  -> transaction commits
+  -> API returns the response
+```
+
+Safe retry flow:
+
+```text
+Client retries same POST with same Idempotency-Key
+  -> IIdempotencyService finds completed record
+  -> owner/action/fingerprint match
+  -> API replays stored response
+  -> command is not run again
+```
+
+Unsafe reuse flow:
+
+```text
+Same key with different user, action, body, or submission id
+  -> owner/action/fingerprint mismatch
+  -> 409 Conflict
+  -> no business command runs
+```
+
+The idempotency table lives in PostgreSQL:
+
+```text
+idempotency_records
+  id
+  key
+  owner_user_id
+  action_name
+  request_fingerprint
+  status
+  response_status_code
+  response_body jsonb
+  response_content_type
+  response_location
+  created_at_utc
+  completed_at_utc
+```
+
+Why PostgreSQL:
+
+- idempotency records protect durable writes, so they should be durable too
+- the reservation, business write, outbox row, and stored response can use one database transaction
+- a unique index on `key` gives the database a hard duplicate-key guard
+- Redis remains a cache direction, not the official retry-safety record
+- a separate NoSQL database would add cross-store consistency concerns before the project needs them
+
+Simple analogy:
+
+```text
+Idempotency-Key is a claim ticket.
+idempotency_records is the receipt book.
+
+The receipt book belongs beside the official submission and outbox paperwork,
+not in a temporary cache.
+```
+
+Future important protected POST endpoints should be reviewed for this same pattern. If retrying the endpoint can create duplicate state or duplicate side effects, it should opt into idempotency.
 
 ## Dependency Runtime Direction
 

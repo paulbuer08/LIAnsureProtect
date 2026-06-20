@@ -96,6 +96,20 @@ public sealed class SubmissionEndpointTests
 
     private static HttpRequestMessage CreateAuthenticatedPostRequest(
         string role,
+        object body,
+        string userId,
+        string idempotencyKey)
+    {
+        var request = CreateAuthenticatedPostRequest(role, body, userId);
+        request.Headers.Add("Idempotency-Key", idempotencyKey);
+
+        return request;
+    }
+
+
+
+    private static HttpRequestMessage CreateAuthenticatedPostRequest(
+        string role,
         string path,
         string userId = "test-user-1")
     {
@@ -103,6 +117,20 @@ public sealed class SubmissionEndpointTests
         request.Headers.Add(TestAuthHandler.UserIdHeader, userId);
         request.Headers.Add(TestAuthHandler.EmailHeader, "test-user@example.com");
         request.Headers.Add(TestAuthHandler.RolesHeader, role);
+
+        return request;
+    }
+
+
+
+    private static HttpRequestMessage CreateAuthenticatedPostRequest(
+        string role,
+        string path,
+        string userId,
+        string idempotencyKey)
+    {
+        var request = CreateAuthenticatedPostRequest(role, path, userId);
+        request.Headers.Add("Idempotency-Key", idempotencyKey);
 
         return request;
     }
@@ -241,6 +269,100 @@ public sealed class SubmissionEndpointTests
         using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+
+
+    [Fact]
+    public async Task Create_Submission_With_Idempotency_Key_Returns_Same_Response_And_Creates_One_Submission()
+    {
+        var request = new
+        {
+            applicantName = "Jane Applicant",
+            applicantEmail = "jane@example.com",
+            companyName = "Example Company"
+        };
+        var idempotencyKey = "create-submission-key-1";
+
+        using var firstRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            request,
+            "test-user-1",
+            idempotencyKey);
+        using var firstResponse = await httpClient.SendAsync(firstRequest, TestContext.Current.CancellationToken);
+        var firstContent = await firstResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var secondRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            request,
+            "test-user-1",
+            idempotencyKey);
+        using var secondResponse = await httpClient.SendAsync(secondRequest, TestContext.Current.CancellationToken);
+        var secondContent = await secondResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var firstPayload = JsonDocument.Parse(firstContent);
+        using var secondPayload = JsonDocument.Parse(secondContent);
+        var firstSubmissionId = firstPayload.RootElement.GetProperty("submissionId").GetGuid();
+        var secondSubmissionId = secondPayload.RootElement.GetProperty("submissionId").GetGuid();
+
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, secondResponse.StatusCode);
+        Assert.Equal(firstSubmissionId, secondSubmissionId);
+        Assert.Equal(firstContent, secondContent);
+        Assert.Equal(firstResponse.Headers.Location?.OriginalString, secondResponse.Headers.Location?.OriginalString);
+
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedSubmissionCount = await dbContext.Submissions.CountAsync(
+            submission => submission.OwnerUserId == "test-user-1",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, savedSubmissionCount);
+    }
+
+
+
+    [Fact]
+    public async Task Create_Submission_Returns_Conflict_When_Idempotency_Key_Is_Reused_With_Different_Body()
+    {
+        var firstRequestBody = new
+        {
+            applicantName = "Jane Applicant",
+            applicantEmail = "jane@example.com",
+            companyName = "Example Company"
+        };
+        var secondRequestBody = new
+        {
+            applicantName = "Different Applicant",
+            applicantEmail = "different@example.com",
+            companyName = "Different Company"
+        };
+        var idempotencyKey = "create-submission-key-2";
+
+        using var firstRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            firstRequestBody,
+            "test-user-1",
+            idempotencyKey);
+        using var firstResponse = await httpClient.SendAsync(firstRequest, TestContext.Current.CancellationToken);
+
+        using var secondRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            secondRequestBody,
+            "test-user-1",
+            idempotencyKey);
+        using var secondResponse = await httpClient.SendAsync(secondRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
+
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedSubmissionCount = await dbContext.Submissions.CountAsync(
+            submission => submission.OwnerUserId == "test-user-1",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, savedSubmissionCount);
     }
 
 
@@ -537,6 +659,151 @@ public sealed class SubmissionEndpointTests
         Assert.Null(outboxMessage.Error);
         Assert.Contains(submission.Id.ToString(), outboxMessage.Payload);
         Assert.Contains("test-user-1", outboxMessage.Payload);
+    }
+
+
+
+    [Fact]
+    public async Task Submit_Submission_With_Idempotency_Key_Returns_Same_Response_And_Creates_One_Outbox_Message()
+    {
+        var submission = Submission.CreateDraft(
+            "Jane Applicant",
+            "jane@example.com",
+            "Example Company",
+            "test-user-1",
+            new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc));
+        var idempotencyKey = "submit-submission-key-1";
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var firstRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/submit",
+            "test-user-1",
+            idempotencyKey);
+        using var firstResponse = await httpClient.SendAsync(firstRequest, TestContext.Current.CancellationToken);
+        var firstContent = await firstResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var secondRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/submit",
+            "test-user-1",
+            idempotencyKey);
+        using var secondResponse = await httpClient.SendAsync(secondRequest, TestContext.Current.CancellationToken);
+        var secondContent = await secondResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+        Assert.Equal(firstContent, secondContent);
+
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var outboxMessageCount = await verifyDbContext.Set<OutboxMessage>().CountAsync(
+            message => message.Type == nameof(SubmissionSubmittedDomainEvent),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outboxMessageCount);
+    }
+
+
+
+    [Fact]
+    public async Task Submit_Submission_Returns_Conflict_When_Idempotency_Key_Is_Reused_By_Different_User()
+    {
+        var firstUserSubmission = Submission.CreateDraft(
+            "First User Applicant",
+            "first@example.com",
+            "First User Company",
+            "test-user-1",
+            new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc));
+        var secondUserSubmission = Submission.CreateDraft(
+            "Second User Applicant",
+            "second@example.com",
+            "Second User Company",
+            "test-user-2",
+            new DateTime(2026, 6, 19, 8, 35, 0, DateTimeKind.Utc));
+        var idempotencyKey = "submit-submission-key-2";
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddRangeAsync(
+                [firstUserSubmission, secondUserSubmission],
+                TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var firstRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{firstUserSubmission.Id}/submit",
+            "test-user-1",
+            idempotencyKey);
+        using var firstResponse = await httpClient.SendAsync(firstRequest, TestContext.Current.CancellationToken);
+
+        using var secondRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{secondUserSubmission.Id}/submit",
+            "test-user-2",
+            idempotencyKey);
+        using var secondResponse = await httpClient.SendAsync(secondRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
+
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedSecondSubmission = await verifyDbContext.Submissions.SingleAsync(
+            submission => submission.Id == secondUserSubmission.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(SubmissionStatus.Draft, savedSecondSubmission.Status);
+    }
+
+
+
+    [Fact]
+    public async Task Submit_Submission_Returns_Conflict_When_Idempotency_Key_Is_Reused_For_Different_Action()
+    {
+        var createRequestBody = new
+        {
+            applicantName = "Jane Applicant",
+            applicantEmail = "jane@example.com",
+            companyName = "Example Company"
+        };
+        var idempotencyKey = "shared-action-key-1";
+
+        using var createRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            createRequestBody,
+            "test-user-1",
+            idempotencyKey);
+        using var createResponse = await httpClient.SendAsync(createRequest, TestContext.Current.CancellationToken);
+        var createContent = await createResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var createPayload = JsonDocument.Parse(createContent);
+        var submissionId = createPayload.RootElement.GetProperty("submissionId").GetGuid();
+
+        using var submitRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submissionId}/submit",
+            "test-user-1",
+            idempotencyKey);
+        using var submitResponse = await httpClient.SendAsync(submitRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, submitResponse.StatusCode);
+
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedSubmission = await verifyDbContext.Submissions.SingleAsync(
+            submission => submission.Id == submissionId,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(SubmissionStatus.Draft, savedSubmission.Status);
     }
 
 

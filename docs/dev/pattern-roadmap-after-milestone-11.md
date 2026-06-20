@@ -24,7 +24,7 @@ Do not add the pattern just because it is a good interview keyword.
 | Submission ownership filtering | Implemented in Milestone 11 | New submissions store `OwnerUserId`; list/detail reads are scoped to `ICurrentUser.UserId`. |
 | Domain events | Implemented in Milestone 12 | `Submission.Submit()` now records `SubmissionSubmittedDomainEvent` on the aggregate. Events remain in-memory until the transactional outbox milestone persists them durably. |
 | Transactional outbox | Implemented in Milestone 13 | `SubmissionSubmittedDomainEvent` is now persisted to PostgreSQL `outbox_messages` in the same save boundary as the submission status change. Dispatch is still deferred. |
-| Idempotency | Not implemented | Recommended when create/submit/quote workflows need safe retry behavior. |
+| Idempotency | Implemented in Milestone 15 for current protected write endpoints | `POST /api/v1/submissions` and `POST /api/v1/submissions/{submissionId}/submit` now support PostgreSQL-backed `Idempotency-Key` handling. Future important POST endpoints should opt into the same pattern when retries can create duplicate state or side effects. |
 | Strategy pattern | Not implemented | Recommended when premium/rating logic exists and variation by product or factor becomes real. |
 | Adapter pattern | Not implemented | Recommended when the app calls an external provider or a provider-shaped local fake. |
 | Retry and circuit breaker | Not implemented | Recommended only around external network calls, not around local database queries. |
@@ -220,6 +220,12 @@ dotnet test LIAnsureProtect.slnx --no-restore
 
 ### Milestone 15 - Idempotent Submission Actions Foundation
 
+Status:
+
+```text
+Implemented for the current protected write endpoints.
+```
+
 Goal:
 
 ```text
@@ -231,24 +237,34 @@ Why this comes after submit/outbox:
 - Once submit can trigger downstream events/notifications, duplicate requests matter more.
 - Idempotency is most useful when a repeated write could cause duplicate side effects.
 
-Planned scope:
+Implemented scope:
 
-- Add `Idempotency-Key` support for selected POST endpoints.
-- Start with `POST /api/v1/submissions/{submissionId}/submit`.
-- Persist idempotency records with request key, owner user id, endpoint/action name, response summary, and status.
-- Return the same successful response for a repeated matching key.
-- Reject conflicting reuse of the same key for a different action or user.
-- Add tests for:
-  - first request processes normally
-  - retry with same key returns same result
-  - retry does not add duplicate outbox messages
-  - same key from different owner is not accepted
+- Added `Idempotency-Key` support for every currently applicable protected POST endpoint:
+  - `POST /api/v1/submissions`
+  - `POST /api/v1/submissions/{submissionId}/submit`
+- Persisted idempotency records in PostgreSQL through `idempotency_records`.
+- Stored request key, owner user id, action name, request fingerprint, response status/body/content type/location, and status.
+- Returned the same stored response for a repeated matching key.
+- Rejected conflicting reuse of the same key for a different body, action, route data, or user.
+- Proved safe create retries do not create duplicate draft submissions.
+- Proved safe submit retries do not create duplicate outbox messages.
+- Added dependency-registration and migration guard coverage for the idempotency service and table.
 
 Out of scope:
 
-- Idempotency for every endpoint.
 - Distributed cache.
 - Payment-style idempotency complexity.
+- Expiration/cleanup job for old idempotency records.
+- Metrics and tracing around replay/conflict/in-progress counts.
+- Making `Idempotency-Key` mandatory for all high-risk POST actions.
+
+Future rule:
+
+```text
+Every future important protected POST endpoint should be reviewed for idempotency.
+If retrying it can create duplicate state or duplicate side effects,
+it should use the Milestone 15 idempotency pattern.
+```
 
 Verification:
 

@@ -1,4 +1,5 @@
 using LIAnsureProtect.Domain.Submissions;
+using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,8 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
     public DbSet<Submission> Submissions => Set<Submission>();
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

@@ -1,6 +1,8 @@
+using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
+using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.Infrastructure.Submissions;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +26,7 @@ public static class DependencyInjection
 
         services.AddScoped<ISubmissionRepository, EfCoreSubmissionRepository>();
         services.AddScoped<IUnitOfWork, EfCoreUnitOfWork>();
+        services.AddScoped<IIdempotencyService, EfCoreIdempotencyService>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
 
         return services;
