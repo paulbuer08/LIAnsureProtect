@@ -49,7 +49,7 @@ Milestone 14 is complete as `Milestone 14 - Outbox Dispatcher Foundation`. It ad
 
 Milestone 15 is complete as `Milestone 15 - Idempotent Submission Actions Foundation`. It adds PostgreSQL-backed `Idempotency-Key` handling for the current protected write endpoints: `POST /api/v1/submissions` and `POST /api/v1/submissions/{submissionId}/submit`. Matching retries return the stored response without rerunning the write, while unsafe key reuse returns `409 Conflict`.
 
-Milestone 16 is implemented locally as `Milestone 16 - Idempotency Operational Hardening Foundation`. It adds the first operational hardening slice for idempotency by deleting expired completed `idempotency_records` from the Worker, keeping abandoned `InProgress` recovery and required-key policy decisions documented for later hardening slices.
+Milestone 16 is complete as `Milestone 16 - Idempotency Operational Hardening Foundation`. It adds the first operational hardening slice for idempotency by deleting expired completed `idempotency_records` from the Worker, keeping abandoned `InProgress` recovery and required-key policy decisions documented for later hardening slices.
 
 ## Local Run
 

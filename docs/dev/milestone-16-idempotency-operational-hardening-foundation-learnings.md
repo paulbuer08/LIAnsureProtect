@@ -313,6 +313,20 @@ docs/dev/milestone-16-idempotency-operational-hardening-foundation-learnings.md
 - The cleanup query has an index on status and completion time.
 - This milestone does not add premium calculation, quote generation, SNS/SQS, email, notification inboxes, underwriting queues, distributed cache, payment-provider semantics, or ownership bypasses.
 
+## Closeout
+
+Milestone 16 implementation was committed locally as:
+
+```text
+6bba9d0 feat: add idempotency operational cleanup foundation
+```
+
+The next milestone should return to the roadmap's premium calculation strategy work:
+
+```text
+Milestone 17 - Premium Calculation Strategy Foundation
+```
+
 ## Verification
 
 Focused integration tests:

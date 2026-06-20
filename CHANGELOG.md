@@ -176,3 +176,4 @@ The format follows simple milestone-based entries.
 - Worker-side hourly cleanup pass with a seven-day completed-record retention window.
 - EF Core migration adding an index on idempotency record status and completion time for the cleanup query.
 - Integration test coverage proving cleanup deletes only expired completed idempotency records while keeping recent completed and `InProgress` records.
+- Milestone 16 closeout notes recording implementation commit `6bba9d0 feat: add idempotency operational cleanup foundation`.
