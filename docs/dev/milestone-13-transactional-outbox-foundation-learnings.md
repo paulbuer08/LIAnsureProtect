@@ -348,3 +348,13 @@ What the CI run verified:
 - `outbox_messages` stores pending durable messages.
 - `processed_at_utc` stays null until a later dispatcher milestone.
 - No SNS/SQS, email, Worker dispatch, retry, circuit breaker, or idempotency was added in Milestone 13.
+
+## Closeout
+
+Milestone 13 implementation was committed locally as:
+
+```text
+8f5b65c feat: add transactional outbox foundation
+```
+
+The next milestone should stay separate from this storage foundation. A good next slice is an outbox dispatcher foundation, where the Worker can read pending `outbox_messages` and mark processed rows without adding SNS/SQS, email, full retry policy, or idempotency yet.

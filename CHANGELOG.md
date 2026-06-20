@@ -150,3 +150,4 @@ The format follows simple milestone-based entries.
 - Integration test coverage proving submission submit persists `SubmissionSubmittedDomainEvent` as an outbox message.
 - Migration script guard coverage proving committed migrations create the `outbox_messages` table and pending-message index.
 - Milestone 13 learning notes explaining why the transactional outbox belongs in the same PostgreSQL database instead of a separate NoSQL store.
+- Milestone 13 closeout notes recording implementation commit `8f5b65c feat: add transactional outbox foundation`.

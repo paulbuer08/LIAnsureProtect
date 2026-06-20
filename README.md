@@ -43,7 +43,7 @@ Milestone 11 is implemented as `Milestone 11 - Submission Ownership Foundation`.
 
 Milestone 12 is complete as `Milestone 12 - Submission Submit And Domain Events Foundation`. It adds an owned submit action for draft submissions through `POST /api/v1/submissions/{submissionId}/submit`, raises `SubmissionSubmittedDomainEvent` from the `Submission` aggregate, and keeps event storage/dispatch deferred to the planned transactional outbox and Worker milestones.
 
-Milestone 13 is implemented as `Milestone 13 - Transactional Outbox Foundation`. It persists submitted-domain events into an `outbox_messages` table in the same PostgreSQL database transaction as the submission status update, keeping dispatch, SNS/SQS, email, retries, and idempotency for later milestones.
+Milestone 13 is complete as `Milestone 13 - Transactional Outbox Foundation`. It persists submitted-domain events into an `outbox_messages` table in the same PostgreSQL database transaction as the submission status update, keeping dispatch, SNS/SQS, email, retries, and idempotency for later milestones.
 
 ## Local Run
 
