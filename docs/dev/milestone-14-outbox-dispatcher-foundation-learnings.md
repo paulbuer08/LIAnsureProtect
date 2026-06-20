@@ -464,3 +464,13 @@ What the CI run verified:
 - Frontend Vitest passed: 5 files, 16 tests.
 - The CI artifact zip was created.
 - The PostgreSQL container, volume, and network were cleaned up.
+
+## Closeout
+
+Milestone 14 implementation was committed locally as:
+
+```text
+eef3f34 feat: add outbox dispatcher foundation
+```
+
+The next milestone should stay separate from the local dispatcher foundation. A good next slice is `Milestone 15 - Idempotent Submission Actions Foundation`, where selected important POST actions can become safe to retry without creating duplicate downstream effects.

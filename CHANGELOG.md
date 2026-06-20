@@ -158,3 +158,4 @@ The format follows simple milestone-based entries.
 - Dependency-registration coverage proving Infrastructure provides the outbox dispatcher.
 - Integration test coverage proving a pending outbox message is marked processed by the dispatcher.
 - Milestone 14 learning notes explaining the Worker-side dispatcher flow, local processing boundary, deferred messaging features, and verification path.
+- Milestone 14 closeout notes recording implementation commit `eef3f34 feat: add outbox dispatcher foundation`.
