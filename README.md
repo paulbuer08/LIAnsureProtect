@@ -47,6 +47,8 @@ Milestone 13 is complete as `Milestone 13 - Transactional Outbox Foundation`. It
 
 Milestone 14 is complete as `Milestone 14 - Outbox Dispatcher Foundation`. It adds the first Worker-side dispatcher path that reads pending PostgreSQL `outbox_messages` rows and marks them processed locally. This keeps the milestone focused on the polling/processing loop before adding SNS/SQS, email, notification inboxes, full retry policy, circuit breakers, idempotency keys, quote generation, or underwriting queues.
 
+Milestone 15 is starting as `Milestone 15 - Idempotent Submission Actions Foundation`. Its recommended scope is to protect selected important POST actions from duplicate client retries, starting with the submit action unless planning changes the slice.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
