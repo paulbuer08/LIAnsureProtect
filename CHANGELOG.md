@@ -170,3 +170,4 @@ The format follows simple milestone-based entries.
 - Milestone 15 learning notes explaining the idempotency table, PostgreSQL storage decision, create flow, submit flow, replay flow, conflict flow, and future endpoint opt-in rule.
 - Milestone 15 closeout notes recording implementation commit `cdc3f86 feat: add idempotent submission actions foundation`.
 - Planned Milestone 16 - Idempotency Operational Hardening Foundation before returning to premium calculation strategy work.
+- Milestone 16 starter continuity notes for `Milestone 16 - Idempotency Operational Hardening Foundation`.

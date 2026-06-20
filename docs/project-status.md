@@ -8,8 +8,8 @@ Use this file at the start of a new conversation or coding session before making
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
 - Current branch: `codex/milestone-15-idempotent-submission-actions-foundation`
-- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`; Milestone 7 closeout committed locally as `fcac659 feat: integrate Auth0 identity provider setup`; Milestone 8 implementation committed locally as `2d73027 feat: add frontend login and session foundation`; Milestone 9 implementation committed locally as `689df5b feat: add submission intake UI foundation`; Milestone 10 implementation committed locally as `172fb7b feat: add submission list and detail foundation`; Milestone 10 closeout committed locally as `f68617d docs: close submission list and detail foundation milestone`; Milestone 11 implementation committed locally as `699783d feat: add submission ownership foundation`; Milestone 12 implementation committed locally as `883a243 feat: add submission submit and domain events foundation`; Milestone 13 implementation committed locally as `8f5b65c feat: add transactional outbox foundation`; Milestone 13 closeout committed locally as `4c08d60 docs: close transactional outbox foundation milestone`; Milestone 14 implementation committed locally as `eef3f34 feat: add outbox dispatcher foundation`; Milestone 14 closeout committed locally as `a1f2409 docs: close outbox dispatcher foundation milestone`; Milestone 15 implementation committed locally as `cdc3f86 feat: add idempotent submission actions foundation`.
-- Current milestone: Milestone 15 - Idempotent Submission Actions Foundation is complete and ready for closeout commit. The milestone protects the current applicable protected POST actions, `POST /api/v1/submissions` and `POST /api/v1/submissions/{submissionId}/submit`, from duplicate client retries when callers provide `Idempotency-Key`.
+- Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`; Milestone 7 closeout committed locally as `fcac659 feat: integrate Auth0 identity provider setup`; Milestone 8 implementation committed locally as `2d73027 feat: add frontend login and session foundation`; Milestone 9 implementation committed locally as `689df5b feat: add submission intake UI foundation`; Milestone 10 implementation committed locally as `172fb7b feat: add submission list and detail foundation`; Milestone 10 closeout committed locally as `f68617d docs: close submission list and detail foundation milestone`; Milestone 11 implementation committed locally as `699783d feat: add submission ownership foundation`; Milestone 12 implementation committed locally as `883a243 feat: add submission submit and domain events foundation`; Milestone 13 implementation committed locally as `8f5b65c feat: add transactional outbox foundation`; Milestone 13 closeout committed locally as `4c08d60 docs: close transactional outbox foundation milestone`; Milestone 14 implementation committed locally as `eef3f34 feat: add outbox dispatcher foundation`; Milestone 14 closeout committed locally as `a1f2409 docs: close outbox dispatcher foundation milestone`; Milestone 15 implementation committed locally as `cdc3f86 feat: add idempotent submission actions foundation`; Milestone 15 closeout committed locally as `72c4eca docs: close idempotent submission actions milestone`.
+- Current milestone: Milestone 16 - Idempotency Operational Hardening Foundation is starting from `72c4eca docs: close idempotent submission actions milestone`. The milestone should harden the Milestone 15 idempotency foundation before the roadmap returns to premium calculation strategy work.
 - Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; Milestone 8 has created the first React/Vite frontend under `src/LIAnsureProtect.Web` with Tailwind CSS, React Router, Auth0 React SDK wiring, a local Auth0 SPA config, login/logout flow, callback session display, dashboard session display, and a guarded dashboard route; Milestone 9 adds the first real protected submission intake UI at `/submissions/new` using React Hook Form, Zod, `@hookform/resolvers`, TanStack Query, the current Auth0 access-token flow, co-located frontend tests, and a production-scale feature-owned frontend structure under `src/LIAnsureProtect.Web/src/features/submissions`; Milestone 10 adds protected submission list/detail reads using Application queries, EF Core no-tracking LINQ repository reads, controller read endpoints, protected frontend read routes, and TanStack Query read states; Milestone 11 stores `OwnerUserId` on new submissions, persists `owner_user_id`, scopes list/detail reads to `ICurrentUser.UserId`, and uses a separate `Submissions.Read` policy for protected read endpoints; Milestone 12 adds `POST /api/v1/submissions/{submissionId}/submit`, `Submissions.Submit`, an owned tracked submit load, and in-memory `SubmissionSubmittedDomainEvent` recording on the `Submission` aggregate; Milestone 13 adds PostgreSQL `outbox_messages`, outbox EF mapping, and `SaveChangesAsync` event capture for durable domain-event storage; Milestone 14 adds `IOutboxDispatcher`, local pending-message processing, `OutboxMessage.MarkProcessed(...)`, and Worker polling loop wiring; Milestone 15 adds PostgreSQL-backed `idempotency_records`, `IIdempotencyService`, and `Idempotency-Key` handling for create and submit POST actions.
 
 ## User Collaboration Rules
@@ -1283,6 +1283,41 @@ Recommended direction:
 - Add observability around completed, replayed, conflicted, and in-progress idempotency requests.
 - Decide whether selected high-risk POST endpoints should require `Idempotency-Key`.
 - Document the convention future write endpoints should follow when they opt into idempotency.
+
+### Milestone 16 - Idempotency Operational Hardening Foundation
+
+Status: branch started from the Milestone 15 closeout commit. Planning and implementation are not started yet.
+
+Branch:
+
+```text
+codex/milestone-16-idempotency-operational-hardening-foundation
+```
+
+Starting point:
+
+```text
+72c4eca docs: close idempotent submission actions milestone
+```
+
+Recommended direction:
+
+- Harden the PostgreSQL-backed idempotency foundation introduced in Milestone 15.
+- Add cleanup/expiry behavior for old completed idempotency records.
+- Add explicit in-progress recovery behavior for abandoned records.
+- Add observability around completed, replayed, conflicted, and in-progress idempotency requests.
+- Decide whether selected high-risk POST endpoints should require `Idempotency-Key`.
+- Document the convention future write endpoints should follow when they opt into idempotency.
+- Keep the implementation focused on operational hardening, then return to the roadmap's premium calculation strategy milestone unless the project direction changes again.
+
+Recommended out of scope:
+
+- Premium calculation strategy.
+- Quote generation.
+- SNS/SQS, email, notification inboxes, and underwriting queues.
+- Distributed cache.
+- Full payment-provider idempotency semantics.
+- Any change that bypasses the existing submission ownership boundary.
 
 ## Open Local Setup Items
 

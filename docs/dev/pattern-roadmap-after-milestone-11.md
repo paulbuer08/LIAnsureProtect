@@ -273,7 +273,47 @@ dotnet test LIAnsureProtect.slnx --no-restore
 .\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
 ```
 
-### Milestone 16 - Premium Calculation Strategy Foundation
+### Milestone 16 - Idempotency Operational Hardening Foundation
+
+Goal:
+
+```text
+Harden the idempotency foundation so it is safer to operate over time.
+```
+
+Why this comes after Milestone 15:
+
+- Milestone 15 added durable idempotency records and safe replay behavior.
+- A production-style idempotency system also needs retention, abandoned in-progress handling, observability, and future endpoint conventions.
+- Hardening idempotency before adding quote/rating writes keeps later POST actions safer by default.
+
+Planned scope:
+
+- Add cleanup/expiry behavior for old completed idempotency records.
+- Add explicit recovery behavior for abandoned `InProgress` records.
+- Add logging or lightweight observability for completed, replayed, conflicted, and in-progress idempotency outcomes.
+- Decide whether selected high-risk POST endpoints should require `Idempotency-Key`.
+- Document the checklist future protected POST endpoints should follow when opting into idempotency.
+
+Out of scope:
+
+- Premium calculation strategy.
+- Quote generation.
+- SNS/SQS.
+- Email.
+- Notification inbox/read model.
+- Underwriting queues.
+- Distributed cache.
+- Full payment-provider idempotency semantics.
+
+Verification:
+
+```powershell
+dotnet test LIAnsureProtect.slnx --no-restore
+.\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
+```
+
+### Milestone 17 - Premium Calculation Strategy Foundation
 
 Goal:
 
@@ -314,7 +354,7 @@ dotnet test LIAnsureProtect.slnx --no-restore
 .\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
 ```
 
-### Milestone 17 - External Rating Provider Adapter And Resilience Foundation
+### Milestone 18 - External Rating Provider Adapter And Resilience Foundation
 
 Goal:
 
@@ -352,7 +392,7 @@ dotnet test LIAnsureProtect.slnx --no-restore
 .\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
 ```
 
-### Milestone 18 - Dashboard Counts Cache-Aside Foundation
+### Milestone 19 - Dashboard Counts Cache-Aside Foundation
 
 Goal:
 
@@ -390,7 +430,7 @@ dotnet test LIAnsureProtect.slnx --no-restore
 .\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
 ```
 
-### Milestone 19 - Underwriting Workflow Process Manager Foundation
+### Milestone 20 - Underwriting Workflow Process Manager Foundation
 
 Goal:
 
