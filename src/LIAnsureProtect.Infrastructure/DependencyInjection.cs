@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<ISubmissionRepository, EfCoreSubmissionRepository>();
         services.AddScoped<IUnitOfWork, EfCoreUnitOfWork>();
         services.AddScoped<IIdempotencyService, EfCoreIdempotencyService>();
+        services.AddScoped<IIdempotencyRecordCleanup, EfCoreIdempotencyRecordCleanup>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
 
         return services;

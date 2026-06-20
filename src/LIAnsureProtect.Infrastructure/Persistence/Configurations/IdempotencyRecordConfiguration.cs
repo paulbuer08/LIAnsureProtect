@@ -66,5 +66,12 @@ public sealed class IdempotencyRecordConfiguration : IEntityTypeConfiguration<Id
         builder.HasIndex(record => record.Key)
             .IsUnique()
             .HasDatabaseName("ux_idempotency_records_key");
+
+        builder.HasIndex(record => new
+            {
+                record.Status,
+                record.CompletedAtUtc
+            })
+            .HasDatabaseName("ix_idempotency_records_status_completed_at_utc");
     }
 }

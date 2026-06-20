@@ -4,6 +4,7 @@ using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure;
 using LIAnsureProtect.Infrastructure.Persistence;
+using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -45,6 +46,7 @@ public sealed class DependencyRegistrationTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISubmissionRepository>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUnitOfWork>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IIdempotencyService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IIdempotencyRecordCleanup>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>());
     }
 
@@ -69,5 +71,6 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("ix_outbox_messages_processed_at_utc_created_at_utc", script);
         Assert.Contains("CREATE TABLE idempotency_records", script);
         Assert.Contains("ux_idempotency_records_key", script);
+        Assert.Contains("ix_idempotency_records_status_completed_at_utc", script);
     }
 }

@@ -171,3 +171,8 @@ The format follows simple milestone-based entries.
 - Milestone 15 closeout notes recording implementation commit `cdc3f86 feat: add idempotent submission actions foundation`.
 - Planned Milestone 16 - Idempotency Operational Hardening Foundation before returning to premium calculation strategy work.
 - Milestone 16 starter continuity notes for `Milestone 16 - Idempotency Operational Hardening Foundation`.
+- Milestone 16 - Idempotency Operational Hardening Foundation implementation.
+- Infrastructure-owned idempotency cleanup service for deleting expired completed `idempotency_records`.
+- Worker-side hourly cleanup pass with a seven-day completed-record retention window.
+- EF Core migration adding an index on idempotency record status and completion time for the cleanup query.
+- Integration test coverage proving cleanup deletes only expired completed idempotency records while keeping recent completed and `InProgress` records.

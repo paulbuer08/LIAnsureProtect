@@ -24,7 +24,7 @@ Do not add the pattern just because it is a good interview keyword.
 | Submission ownership filtering | Implemented in Milestone 11 | New submissions store `OwnerUserId`; list/detail reads are scoped to `ICurrentUser.UserId`. |
 | Domain events | Implemented in Milestone 12 | `Submission.Submit()` now records `SubmissionSubmittedDomainEvent` on the aggregate. Events remain in-memory until the transactional outbox milestone persists them durably. |
 | Transactional outbox | Implemented in Milestone 13 | `SubmissionSubmittedDomainEvent` is now persisted to PostgreSQL `outbox_messages` in the same save boundary as the submission status change. Dispatch is still deferred. |
-| Idempotency | Implemented in Milestone 15 for current protected write endpoints | `POST /api/v1/submissions` and `POST /api/v1/submissions/{submissionId}/submit` now support PostgreSQL-backed `Idempotency-Key` handling. Future important POST endpoints should opt into the same pattern when retries can create duplicate state or side effects. |
+| Idempotency | Implemented in Milestone 15 and operationally hardened in Milestone 16 | `POST /api/v1/submissions` and `POST /api/v1/submissions/{submissionId}/submit` now support PostgreSQL-backed `Idempotency-Key` handling. Milestone 16 adds completed-record cleanup so the receipt table does not grow forever. Future important POST endpoints should opt into the same pattern when retries can create duplicate state or side effects. |
 | Strategy pattern | Not implemented | Recommended when premium/rating logic exists and variation by product or factor becomes real. |
 | Adapter pattern | Not implemented | Recommended when the app calls an external provider or a provider-shaped local fake. |
 | Retry and circuit breaker | Not implemented | Recommended only around external network calls, not around local database queries. |
@@ -275,6 +275,12 @@ dotnet test LIAnsureProtect.slnx --no-restore
 
 ### Milestone 16 - Idempotency Operational Hardening Foundation
 
+Status:
+
+```text
+Implemented as the first operational hardening slice for idempotency cleanup/expiry.
+```
+
 Goal:
 
 ```text
@@ -287,11 +293,20 @@ Why this comes after Milestone 15:
 - A production-style idempotency system also needs retention, abandoned in-progress handling, observability, and future endpoint conventions.
 - Hardening idempotency before adding quote/rating writes keeps later POST actions safer by default.
 
-Planned scope:
+Implemented scope:
 
 - Add cleanup/expiry behavior for old completed idempotency records.
+- Add an Infrastructure-owned cleanup service for `idempotency_records`.
+- Add Worker-side cleanup that runs about once per hour.
+- Keep completed idempotency records for seven days before deleting them.
+- Keep `InProgress` records during cleanup so abandoned-record recovery can be designed explicitly.
+- Add a cleanup-query index on `status` and `completed_at_utc`.
+- Add focused integration test coverage for cleanup behavior, dependency registration, and migration shape.
+
+Deferred hardening:
+
 - Add explicit recovery behavior for abandoned `InProgress` records.
-- Add logging or lightweight observability for completed, replayed, conflicted, and in-progress idempotency outcomes.
+- Add broader observability for completed, replayed, conflicted, and in-progress idempotency outcomes.
 - Decide whether selected high-risk POST endpoints should require `Idempotency-Key`.
 - Document the checklist future protected POST endpoints should follow when opting into idempotency.
 

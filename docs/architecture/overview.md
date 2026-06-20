@@ -462,6 +462,26 @@ not in a temporary cache.
 
 Future important protected POST endpoints should be reviewed for this same pattern. If retrying the endpoint can create duplicate state or duplicate side effects, it should opt into idempotency.
 
+Milestone 16 - Idempotency Operational Hardening Foundation adds the first table-maintenance path for this receipt book.
+
+Completed idempotency records are not useful forever. They are needed long enough for realistic client retries, but old completed receipts should eventually be removed so the table does not grow without bound.
+
+Current cleanup rule:
+
+```text
+Worker polling loop
+  -> IIdempotencyRecordCleanup
+  -> delete Completed idempotency_records older than 7 days
+  -> keep recent Completed records
+  -> keep InProgress records for explicit recovery handling later
+```
+
+Why only completed rows:
+
+- `Completed` rows already have a stored response and are safe to expire after the retention window.
+- `InProgress` rows may represent an active or abandoned request, so deleting or replaying them needs a separate recovery rule.
+- The cleanup query has an index on `status` and `completed_at_utc` so table maintenance can stay efficient as records grow.
+
 ## Dependency Runtime Direction
 
 Local development should avoid manually installed service dependencies.
