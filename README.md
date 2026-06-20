@@ -41,7 +41,7 @@ Milestone 10 is implemented as `Milestone 10 - Submission List And Detail Founda
 
 Milestone 11 is implemented as `Milestone 11 - Submission Ownership Foundation`. It adds the first real ownership rule for submissions: each new submission stores the authenticated owner user id, and protected list/detail reads are scoped to that same signed-in user before the project expands into richer submission navigation graphs.
 
-Milestone 12 is implemented as `Milestone 12 - Submission Submit And Domain Events Foundation`. It adds an owned submit action for draft submissions through `POST /api/v1/submissions/{submissionId}/submit`, raises `SubmissionSubmittedDomainEvent` from the `Submission` aggregate, and keeps event storage/dispatch deferred to the planned transactional outbox and Worker milestones.
+Milestone 12 is complete as `Milestone 12 - Submission Submit And Domain Events Foundation`. It adds an owned submit action for draft submissions through `POST /api/v1/submissions/{submissionId}/submit`, raises `SubmissionSubmittedDomainEvent` from the `Submission` aggregate, and keeps event storage/dispatch deferred to the planned transactional outbox and Worker milestones.
 
 ## Local Run
 

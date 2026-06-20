@@ -497,6 +497,12 @@ What the CI run verified:
 - The CI artifact zip was created.
 - The PostgreSQL container, volume, and network were cleaned up.
 
+Milestone implementation commit:
+
+```text
+883a243 feat: add submission submit and domain events foundation
+```
+
 ## What To Remember
 
 - `Submissions.Submit` now protects submit actions.
