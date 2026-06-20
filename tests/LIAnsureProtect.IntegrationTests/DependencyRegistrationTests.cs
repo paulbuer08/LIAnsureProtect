@@ -3,6 +3,7 @@ using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure;
 using LIAnsureProtect.Infrastructure.Persistence;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,6 +43,7 @@ public sealed class DependencyRegistrationTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<SubmissionDbContext>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISubmissionRepository>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUnitOfWork>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>());
     }
 
     [Fact]

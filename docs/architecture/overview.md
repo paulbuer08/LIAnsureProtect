@@ -323,7 +323,46 @@ outbox_messages
   error
 ```
 
-`processed_at_utc` and `error` are present for the future dispatcher milestone. Milestone 13 writes pending rows only; it does not publish, retry, or mark messages processed.
+Milestone 13 writes pending rows only. Milestone 14 - Outbox Dispatcher Foundation adds the first local Worker-side consumer path:
+
+```text
+outbox_messages where processed_at_utc is null
+  -> OutboxDispatcher
+  -> mark each local message as processed
+  -> SubmissionDbContext.SaveChangesAsync(...)
+  -> processed_at_utc is no longer null
+```
+
+Simple analogy:
+
+```text
+Milestone 13:
+  Put sealed envelopes in the outgoing mail tray.
+
+Milestone 14:
+  Teach the office clerk to pick up envelopes from the tray
+  and stamp them as handled.
+```
+
+The current dispatcher is intentionally local and in-process. It does not publish to SNS, send email, write a notification inbox, run a full retry policy, use a circuit breaker, create idempotency records, generate quotes, or enqueue underwriting work. Those features need their own milestones because each one adds a new responsibility and new failure modes.
+
+The Worker flow is:
+
+```text
+LIAnsureProtect.Worker
+  -> create dependency-injection scope
+  -> resolve IOutboxDispatcher
+  -> DispatchPendingMessagesAsync(...)
+  -> delay briefly
+  -> repeat until the Worker stops
+```
+
+Why the Worker creates a scope each loop:
+
+- `SubmissionDbContext` is scoped.
+- The dispatcher depends on `SubmissionDbContext`.
+- A long-running background service should not keep one database context alive forever.
+- Creating a small scope per polling pass gives each pass a clean database unit of work.
 
 ## Dependency Runtime Direction
 
@@ -348,10 +387,13 @@ The planned AWS-native messaging path is:
 ```text
 Domain event
   -> transactional outbox
+  -> local outbox dispatcher
   -> SNS topic
   -> SQS queue
   -> Worker
 ```
+
+Milestone 14 implements only the local outbox dispatcher step. SNS and SQS are still planned later.
 
 Use SNS when one published event should fan out to one or more subscribers. Use SQS when work needs durable queueing and retry by workers.
 

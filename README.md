@@ -45,6 +45,8 @@ Milestone 12 is complete as `Milestone 12 - Submission Submit And Domain Events 
 
 Milestone 13 is complete as `Milestone 13 - Transactional Outbox Foundation`. It persists submitted-domain events into an `outbox_messages` table in the same PostgreSQL database transaction as the submission status update, keeping dispatch, SNS/SQS, email, retries, and idempotency for later milestones.
 
+Milestone 14 is implemented locally as `Milestone 14 - Outbox Dispatcher Foundation`. It adds the first Worker-side dispatcher path that reads pending PostgreSQL `outbox_messages` rows and marks them processed locally. This keeps the milestone focused on the polling/processing loop before adding SNS/SQS, email, notification inboxes, full retry policy, circuit breakers, idempotency keys, quote generation, or underwriting queues.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -96,6 +98,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 11 Submission Ownership Foundation Learnings](docs/dev/milestone-11-submission-ownership-foundation-learnings.md)
 - [Milestone 12 Submission Submit And Domain Events Foundation Learnings](docs/dev/milestone-12-submission-submit-and-domain-events-foundation-learnings.md)
 - [Milestone 13 Transactional Outbox Foundation Learnings](docs/dev/milestone-13-transactional-outbox-foundation-learnings.md)
+- [Milestone 14 Outbox Dispatcher Foundation Learnings](docs/dev/milestone-14-outbox-dispatcher-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)

@@ -151,3 +151,10 @@ The format follows simple milestone-based entries.
 - Migration script guard coverage proving committed migrations create the `outbox_messages` table and pending-message index.
 - Milestone 13 learning notes explaining why the transactional outbox belongs in the same PostgreSQL database instead of a separate NoSQL store.
 - Milestone 13 closeout notes recording implementation commit `8f5b65c feat: add transactional outbox foundation`.
+- Milestone 14 - Outbox Dispatcher Foundation implementation.
+- Infrastructure-owned `IOutboxDispatcher` and `OutboxDispatcher` for the first local pending-message processing path.
+- `OutboxMessage.MarkProcessed(...)` so pending outbox rows can be stamped with `processed_at_utc`.
+- Worker host polling loop that creates a scoped dispatcher and processes pending outbox messages every few seconds.
+- Dependency-registration coverage proving Infrastructure provides the outbox dispatcher.
+- Integration test coverage proving a pending outbox message is marked processed by the dispatcher.
+- Milestone 14 learning notes explaining the Worker-side dispatcher flow, local processing boundary, deferred messaging features, and verification path.

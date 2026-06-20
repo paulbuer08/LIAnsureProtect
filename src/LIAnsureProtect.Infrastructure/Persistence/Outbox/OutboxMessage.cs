@@ -39,6 +39,12 @@ public sealed class OutboxMessage
 
     public string? Error { get; private set; }
 
+    public void MarkProcessed(DateTime processedAtUtc)
+    {
+        ProcessedAtUtc = processedAtUtc;
+        Error = null;
+    }
+
     public static OutboxMessage FromDomainEvent(
         IDomainEvent domainEvent,
         DateTime createdAtUtc)

@@ -170,38 +170,46 @@ dotnet test LIAnsureProtect.slnx --no-restore
 .\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
 ```
 
-### Milestone 14 - Outbox Dispatcher And Notification Adapter Foundation
+### Milestone 14 - Outbox Dispatcher Foundation
+
+Status:
+
+```text
+Implemented locally as the first Worker-side outbox dispatcher foundation. Notification adapters remain deferred.
+```
 
 Goal:
 
 ```text
-Add the first outbox consumer path and a local notification adapter for submission-submitted notifications.
+Add the first Worker-side outbox consumer path that reads pending outbox messages and can mark them processed.
 ```
 
 Why this comes after Milestone 13:
 
 - The outbox table should exist before a dispatcher tries to read from it.
-- A notification adapter gives the Adapter pattern a concrete job.
+- `processed_at_utc` already exists on `outbox_messages`, so the next smallest useful behavior is to stamp pending rows after local handling.
 
-Planned scope:
+Implemented scope:
 
-- Add an outbox dispatcher service in Worker or Infrastructure.
-- Add `INotificationSender` Application interface.
-- Add a local fake/logging notification sender in Infrastructure.
-- Process `SubmissionSubmittedDomainEvent` outbox messages into notification sends.
-- Mark processed messages with processed timestamp or error details.
-- Add tests proving:
-  - dispatcher reads pending outbox messages
-  - known event type triggers the notification adapter
-  - processed messages are not sent repeatedly
-  - failed send leaves retryable state
+- Added an Infrastructure-owned `IOutboxDispatcher`.
+- Added `OutboxDispatcher` that reads pending `outbox_messages` rows ordered by creation time.
+- Added `OutboxMessage.MarkProcessed(...)`.
+- Updated the Worker host loop to resolve the dispatcher from a scoped dependency-injection scope and run it repeatedly.
+- Added tests proving:
+  - Infrastructure registration provides the dispatcher
+  - the dispatcher marks a pending outbox message processed
 
 Out of scope:
 
+- Notification adapter.
 - Real email/SMS provider.
 - SNS/SQS.
+- Full retry policy.
 - Circuit breaker.
+- Idempotency keys.
 - User notification inbox.
+- Quote generation.
+- Underwriting queues.
 
 Verification:
 
