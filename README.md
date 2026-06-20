@@ -47,7 +47,9 @@ Milestone 13 is complete as `Milestone 13 - Transactional Outbox Foundation`. It
 
 Milestone 14 is complete as `Milestone 14 - Outbox Dispatcher Foundation`. It adds the first Worker-side dispatcher path that reads pending PostgreSQL `outbox_messages` rows and marks them processed locally. This keeps the milestone focused on the polling/processing loop before adding SNS/SQS, email, notification inboxes, full retry policy, circuit breakers, idempotency keys, quote generation, or underwriting queues.
 
-Milestone 15 is implemented as `Milestone 15 - Idempotent Submission Actions Foundation`. It adds PostgreSQL-backed `Idempotency-Key` handling for the current protected write endpoints: `POST /api/v1/submissions` and `POST /api/v1/submissions/{submissionId}/submit`. Matching retries return the stored response without rerunning the write, while unsafe key reuse returns `409 Conflict`.
+Milestone 15 is complete as `Milestone 15 - Idempotent Submission Actions Foundation`. It adds PostgreSQL-backed `Idempotency-Key` handling for the current protected write endpoints: `POST /api/v1/submissions` and `POST /api/v1/submissions/{submissionId}/submit`. Matching retries return the stored response without rerunning the write, while unsafe key reuse returns `409 Conflict`.
+
+Milestone 16 is planned as `Milestone 16 - Idempotency Operational Hardening Foundation`. Its recommended scope is to harden the new idempotency foundation with cleanup/expiry, in-progress recovery behavior, observability, and conventions for future high-risk POST endpoints before returning to premium calculation strategy work.
 
 ## Local Run
 

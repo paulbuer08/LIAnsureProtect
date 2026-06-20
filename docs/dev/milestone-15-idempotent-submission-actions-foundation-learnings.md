@@ -670,6 +670,20 @@ docs/dev/milestone-15-idempotent-submission-actions-foundation-learnings.md
 - Submit retries do not create duplicate outbox messages.
 - Future important POST endpoints should be reviewed for this same pattern.
 
+## Closeout
+
+Milestone 15 implementation was committed locally as:
+
+```text
+cdc3f86 feat: add idempotent submission actions foundation
+```
+
+The next milestone should harden the idempotency foundation before the roadmap returns to premium calculation strategy work:
+
+```text
+Milestone 16 - Idempotency Operational Hardening Foundation
+```
+
 ## Verification
 
 Focused integration tests:
