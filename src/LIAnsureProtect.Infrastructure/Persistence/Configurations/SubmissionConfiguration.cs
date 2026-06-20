@@ -12,6 +12,8 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
 
         builder.HasKey(submission => submission.Id);
 
+        builder.Ignore(submission => submission.DomainEvents);
+
         builder.Property(submission => submission.Id)
             .HasColumnName("id")
             .ValueGeneratedNever();

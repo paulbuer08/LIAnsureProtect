@@ -22,7 +22,7 @@ Do not add the pattern just because it is a good interview keyword.
 | Minimal API conversion | Not implemented | Still not recommended. The current controller API is clean and already thin. |
 | `Submissions.Read` policy | Implemented in Milestone 11 | GET endpoints now use `Submissions.Read` instead of reusing `Submissions.Create`. |
 | Submission ownership filtering | Implemented in Milestone 11 | New submissions store `OwnerUserId`; list/detail reads are scoped to `ICurrentUser.UserId`. |
-| Domain events | Not implemented | Recommended next after Milestone 11, but tied to a meaningful business action such as submitting a draft. |
+| Domain events | Implemented in Milestone 12 | `Submission.Submit()` now records `SubmissionSubmittedDomainEvent` on the aggregate. Events remain in-memory until the transactional outbox milestone persists them durably. |
 | Transactional outbox | Not implemented | Recommended after domain events exist, so there is something real to persist and dispatch reliably. |
 | Idempotency | Not implemented | Recommended when create/submit/quote workflows need safe retry behavior. |
 | Strategy pattern | Not implemented | Recommended when premium/rating logic exists and variation by product or factor becomes real. |
@@ -68,6 +68,12 @@ That is acceptable because the Application layer has already established `Create
 
 ### Milestone 12 - Submission Submit And Domain Events Foundation
 
+Status:
+
+```text
+Implemented as the domain-event foundation. Durable outbox dispatch remains planned for Milestone 13.
+```
+
 Goal:
 
 ```text
@@ -82,20 +88,23 @@ Why this comes next:
 
 Planned scope:
 
-- Add Application command:
+Implemented scope:
+
+- Added Application command:
   - `SubmitSubmissionCommand`
   - `SubmitSubmissionCommandHandler`
   - `SubmitSubmissionResult`
-- Add repository method to load an owned submission for update.
-- Add protected API endpoint:
+- Added repository method to load an owned submission for update:
+  - `GetOwnedForUpdateAsync(...)`
+- Added protected API endpoint:
   - `POST /api/v1/submissions/{submissionId}/submit`
-- Require ownership through the same `OwnerUserId` boundary from Milestone 11.
-- Add first domain event infrastructure in Domain:
-  - base domain event abstraction
+- Required ownership through the same `OwnerUserId` boundary from Milestone 11.
+- Added first domain event infrastructure in Domain:
+  - `IDomainEvent`
   - aggregate event collection pattern
   - `SubmissionSubmittedDomainEvent`
-- Keep event dispatch in-memory/no-op for this milestone unless needed for tests.
-- Add focused backend tests for:
+- Kept event dispatch in-memory/no-op for this milestone.
+- Added focused backend tests for:
   - owner can submit own draft
   - other user cannot submit someone else's draft
   - submitted submission raises `SubmissionSubmittedDomainEvent`

@@ -253,6 +253,41 @@ The read implementation does not use `Include(...)`, `AsSplitQuery()`, lazy load
 
 Domain events and a transactional outbox are planned later for reliable asynchronous workflows. Event sourcing is not part of the initial architecture. It may be considered later only for selected workflows if replayable history provides enough value to justify the added complexity.
 
+Milestone 12 - Submission Submit And Domain Events Foundation introduces the first domain event, but deliberately does not persist or dispatch it yet.
+
+Submit flow:
+
+```text
+POST /api/v1/submissions/{submissionId}/submit
+  -> Submissions.Submit authorization policy
+  -> SubmitSubmissionCommandHandler
+  -> ICurrentUser.UserId
+  -> ISubmissionRepository.GetOwnedForUpdateAsync(submissionId, ownerUserId, ...)
+  -> Submission.Submit()
+  -> SubmissionSubmittedDomainEvent recorded on the aggregate
+  -> IUnitOfWork.SaveChangesAsync(...)
+  -> PostgreSQL status update
+```
+
+The repository uses a tracked EF Core entity for submit because the status changes from `Draft` to `Submitted`. This is different from the list/detail reads, which still use `AsNoTracking()` because they only display data.
+
+Domain events are currently stored only on the in-memory aggregate instance:
+
+```text
+Submission.DomainEvents
+```
+
+That is a temporary milestone boundary, not the final production async design. The next durable step is:
+
+```text
+SubmissionSubmittedDomainEvent
+  -> transactional outbox row in PostgreSQL
+  -> Worker-hosted dispatcher
+  -> SNS/SQS or another downstream adapter later
+```
+
+The existing `LIAnsureProtect.Worker` project is the right host shape for future background dispatch work because it is a .NET Worker Service that already composes Application and Infrastructure through the same dependency-registration methods as the API. Milestone 12 does not use it yet because there is no outbox table or pending durable work to process.
+
 ## Dependency Runtime Direction
 
 Local development should avoid manually installed service dependencies.

@@ -1,4 +1,5 @@
 using LIAnsureProtect.Application.Submissions.Commands.CreateSubmission;
+using LIAnsureProtect.Application.Submissions.Commands.SubmitSubmission;
 using LIAnsureProtect.Application.Submissions.Queries.GetSubmissionDetail;
 using LIAnsureProtect.Application.Submissions.Queries.ListSubmissions;
 using LIAnsureProtect.Application.Common.Security;
@@ -43,6 +44,38 @@ public sealed class SubmissionsController(ISender sender) : ControllerBase
         return result is null
             ? NotFound()
             : Ok(result);
+    }
+
+    [HttpPost("{submissionId:guid}/submit")]
+    [Authorize(Policy = ApplicationPolicies.SubmitSubmission)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<SubmitSubmissionResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<SubmitSubmissionResult>> Submit(
+        Guid submissionId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new SubmitSubmissionCommand(submissionId),
+                cancellationToken);
+
+            return result is null
+                ? NotFound()
+                : Ok(result);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Submission cannot be submitted.",
+                Detail = exception.Message
+            });
+        }
     }
 
     [HttpPost]

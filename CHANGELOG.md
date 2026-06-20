@@ -134,3 +134,12 @@ The format follows simple milestone-based entries.
 - Milestone 11 learning notes covering owner ids, explicit repository filters, `404 Not Found` for cross-owner detail reads, and deferred organization/team ownership.
 - Post-Milestone-11 pattern roadmap auditing earlier REPR, CQRS, domain event, outbox, idempotency, strategy, adapter, retry/circuit-breaker, cache-aside, and process-manager recommendations.
 - Milestone 12 starter continuity notes for `Milestone 12 - Submission Submit And Domain Events Foundation`.
+- Milestone 12 - Submission Submit And Domain Events Foundation implementation.
+- Protected `POST /api/v1/submissions/{submissionId}/submit` endpoint for submitting owned draft submissions.
+- Application-layer `SubmitSubmissionCommand`, handler, and result for the submit workflow.
+- Owner-scoped tracked repository load for submit updates while keeping list/detail reads no-tracking.
+- Separate `Submissions.Submit` authorization policy for submit actions.
+- Domain event foundation with `IDomainEvent`, aggregate-owned `DomainEvents`, and `SubmissionSubmittedDomainEvent`.
+- EF Core mapping update that ignores in-memory domain events until the transactional outbox milestone persists event messages.
+- Unit and integration test coverage for owner submit success, cross-owner submit not found, repeated submit conflict, authorization responses, persistence, and event recording.
+- Milestone 12 learning notes covering temporary in-memory domain events, why the outbox waits until Milestone 13, and how the existing Worker project fits later dispatcher work.

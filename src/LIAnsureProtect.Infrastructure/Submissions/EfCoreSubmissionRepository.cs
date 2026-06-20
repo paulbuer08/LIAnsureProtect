@@ -74,4 +74,15 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
                 submission.Status.ToString(),
                 submission.CreatedAtUtc);
     }
+
+    public Task<Submission?> GetOwnedForUpdateAsync(
+        Guid submissionId,
+        string ownerUserId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.Submissions
+            .Where(submission => submission.Id == submissionId)
+            .Where(submission => submission.OwnerUserId == ownerUserId)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
 }

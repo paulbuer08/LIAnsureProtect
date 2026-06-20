@@ -16,4 +16,9 @@ public interface ISubmissionRepository
         Guid submissionId,
         string ownerUserId,
         CancellationToken cancellationToken);
+
+    Task<Submission?> GetOwnedForUpdateAsync(
+        Guid submissionId,
+        string ownerUserId,
+        CancellationToken cancellationToken);
 }

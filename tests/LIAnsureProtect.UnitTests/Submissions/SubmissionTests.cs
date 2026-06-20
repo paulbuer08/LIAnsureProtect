@@ -36,6 +36,30 @@ public sealed class SubmissionTests
     }
 
     [Fact]
+    public void Submit_records_submission_submitted_domain_event()
+    {
+        var submission = CreateDraftSubmission();
+
+        submission.Submit();
+
+        var domainEvent = Assert.Single(
+            submission.DomainEvents.OfType<SubmissionSubmittedDomainEvent>());
+        Assert.Equal(submission.Id, domainEvent.SubmissionId);
+        Assert.Equal(submission.OwnerUserId, domainEvent.OwnerUserId);
+    }
+
+    [Fact]
+    public void ClearDomainEvents_removes_recorded_domain_events()
+    {
+        var submission = CreateDraftSubmission();
+        submission.Submit();
+
+        submission.ClearDomainEvents();
+
+        Assert.Empty(submission.DomainEvents);
+    }
+
+    [Fact]
     public void Submit_rejects_non_draft_submission()
     {
         var submission = CreateDraftSubmission();

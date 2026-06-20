@@ -1,7 +1,11 @@
+using LIAnsureProtect.Domain.Common;
+
 namespace LIAnsureProtect.Domain.Submissions;
 
 public sealed class Submission
 {
+    private readonly List<IDomainEvent> domainEvents = [];
+
     private Submission(
         Guid id,
         string ownerUserId,
@@ -34,6 +38,8 @@ public sealed class Submission
 
     public DateTime CreatedAtUtc { get; }
 
+    public IReadOnlyCollection<IDomainEvent> DomainEvents => domainEvents.AsReadOnly();
+
     public static Submission CreateDraft(
         string applicantName,
         string applicantEmail,
@@ -60,6 +66,16 @@ public sealed class Submission
             throw new InvalidOperationException("Only draft submissions can be submitted.");
 
         Status = SubmissionStatus.Submitted;
+
+        domainEvents.Add(new SubmissionSubmittedDomainEvent(
+            Id,
+            OwnerUserId,
+            DateTime.UtcNow));
+    }
+
+    public void ClearDomainEvents()
+    {
+        domainEvents.Clear();
     }
 
     public void Withdraw()
