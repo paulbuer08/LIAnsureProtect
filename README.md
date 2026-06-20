@@ -43,6 +43,8 @@ Milestone 11 is implemented as `Milestone 11 - Submission Ownership Foundation`.
 
 Milestone 12 is complete as `Milestone 12 - Submission Submit And Domain Events Foundation`. It adds an owned submit action for draft submissions through `POST /api/v1/submissions/{submissionId}/submit`, raises `SubmissionSubmittedDomainEvent` from the `Submission` aggregate, and keeps event storage/dispatch deferred to the planned transactional outbox and Worker milestones.
 
+Milestone 13 is implemented as `Milestone 13 - Transactional Outbox Foundation`. It persists submitted-domain events into an `outbox_messages` table in the same PostgreSQL database transaction as the submission status update, keeping dispatch, SNS/SQS, email, retries, and idempotency for later milestones.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -93,6 +95,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 10 Submission List And Detail Foundation Learnings](docs/dev/milestone-10-submission-list-and-detail-foundation-learnings.md)
 - [Milestone 11 Submission Ownership Foundation Learnings](docs/dev/milestone-11-submission-ownership-foundation-learnings.md)
 - [Milestone 12 Submission Submit And Domain Events Foundation Learnings](docs/dev/milestone-12-submission-submit-and-domain-events-foundation-learnings.md)
+- [Milestone 13 Transactional Outbox Foundation Learnings](docs/dev/milestone-13-transactional-outbox-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)

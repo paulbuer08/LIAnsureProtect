@@ -23,7 +23,7 @@ Do not add the pattern just because it is a good interview keyword.
 | `Submissions.Read` policy | Implemented in Milestone 11 | GET endpoints now use `Submissions.Read` instead of reusing `Submissions.Create`. |
 | Submission ownership filtering | Implemented in Milestone 11 | New submissions store `OwnerUserId`; list/detail reads are scoped to `ICurrentUser.UserId`. |
 | Domain events | Implemented in Milestone 12 | `Submission.Submit()` now records `SubmissionSubmittedDomainEvent` on the aggregate. Events remain in-memory until the transactional outbox milestone persists them durably. |
-| Transactional outbox | Not implemented | Recommended after domain events exist, so there is something real to persist and dispatch reliably. |
+| Transactional outbox | Implemented in Milestone 13 | `SubmissionSubmittedDomainEvent` is now persisted to PostgreSQL `outbox_messages` in the same save boundary as the submission status change. Dispatch is still deferred. |
 | Idempotency | Not implemented | Recommended when create/submit/quote workflows need safe retry behavior. |
 | Strategy pattern | Not implemented | Recommended when premium/rating logic exists and variation by product or factor becomes real. |
 | Adapter pattern | Not implemented | Recommended when the app calls an external provider or a provider-shaped local fake. |
@@ -127,6 +127,12 @@ dotnet test LIAnsureProtect.slnx --no-restore
 
 ### Milestone 13 - Transactional Outbox Foundation
 
+Status:
+
+```text
+Implemented as durable outbox storage. Message dispatch remains planned for Milestone 14.
+```
+
 Goal:
 
 ```text
@@ -138,17 +144,17 @@ Why this comes after Milestone 12:
 - The outbox needs real domain events to store.
 - `SubmissionSubmittedDomainEvent` gives the outbox a concrete message shape.
 
-Planned scope:
+Implemented scope:
 
 - Add `outbox_messages` table through EF Core migration.
-- Add an Application or Infrastructure-owned outbox message model.
+- Add an Infrastructure-owned outbox message model.
 - Capture domain events during `SaveChangesAsync`.
 - Persist serialized outbox messages in the same transaction as the submission update.
 - Keep actual message publishing deferred.
 - Add tests proving:
   - submitting a submission updates submission status
   - the outbox row is written in the same save boundary
-  - failed validation does not write an outbox message
+  - committed migrations create the outbox table and pending-message index
 
 Out of scope:
 

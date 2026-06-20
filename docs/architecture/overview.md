@@ -288,6 +288,43 @@ SubmissionSubmittedDomainEvent
 
 The existing `LIAnsureProtect.Worker` project is the right host shape for future background dispatch work because it is a .NET Worker Service that already composes Application and Infrastructure through the same dependency-registration methods as the API. Milestone 12 does not use it yet because there is no outbox table or pending durable work to process.
 
+Milestone 13 - Transactional Outbox Foundation adds that first durable event table:
+
+```text
+Submission.Submit()
+  -> SubmissionSubmittedDomainEvent
+  -> SubmissionDbContext.SaveChangesAsync(...)
+  -> submissions row status changes to Submitted
+  -> outbox_messages row is inserted
+  -> one PostgreSQL transaction
+```
+
+The outbox table lives in the same PostgreSQL database as `submissions`.
+
+It is not a separate PostgreSQL database and it is not a NoSQL store.
+
+Why:
+
+- The outbox row must be committed atomically with the business change.
+- A separate database would need cross-database/distributed transaction coordination.
+- A NoSQL store would be useful for later read models or notification inboxes, but not for the first write-side outbox guarantee.
+- PostgreSQL can efficiently handle the outbox shape because rows are small, append-oriented, and indexed for future pending-message dispatch.
+
+Current outbox flow:
+
+```text
+outbox_messages
+  id
+  type
+  payload jsonb
+  occurred_at_utc
+  created_at_utc
+  processed_at_utc
+  error
+```
+
+`processed_at_utc` and `error` are present for the future dispatcher milestone. Milestone 13 writes pending rows only; it does not publish, retry, or mark messages processed.
+
 ## Dependency Runtime Direction
 
 Local development should avoid manually installed service dependencies.

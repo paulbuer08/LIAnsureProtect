@@ -61,5 +61,7 @@ public sealed class DependencyRegistrationTests
         // Assert
         Assert.Contains("CREATE EXTENSION IF NOT EXISTS vector", script);
         Assert.Contains("CREATE TABLE submissions", script);
+        Assert.Contains("CREATE TABLE outbox_messages", script);
+        Assert.Contains("ix_outbox_messages_processed_at_utc_created_at_utc", script);
     }
 }

@@ -7,10 +7,10 @@ Use this file at the start of a new conversation or coding session before making
 ## Current Workspace
 
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
-- Current branch: `codex/milestone-12-submission-submit-and-domain-events-foundation`
+- Current branch: `codex/milestone-13-transactional-outbox-foundation`
 - Git state: Milestone 1 committed locally as `3d16e8c docs: add project foundation`; Milestone 2 committed locally as `f36a8aa feat: add backend foundation`; Milestone 3 committed locally as `bb4b547 feat: add dependency registration and architecture guards`; Milestone 4 planning committed locally as `dab62d0 docs: add application use case foundation plan`; Milestone 4 implementation committed locally as `fe8c27d feat: add application use case foundation`; Milestone 5 implementation committed locally as `2fbdf7f feat: add persistence foundation`; Milestone 5 closeout committed locally as `7cade1a docs: close persistence foundation milestone`; Milestone 6 implementation committed locally as `436ee0e feat: add authentication foundation`; Milestone 7 closeout committed locally as `fcac659 feat: integrate Auth0 identity provider setup`; Milestone 8 implementation committed locally as `2d73027 feat: add frontend login and session foundation`; Milestone 9 implementation committed locally as `689df5b feat: add submission intake UI foundation`; Milestone 10 implementation committed locally as `172fb7b feat: add submission list and detail foundation`; Milestone 10 closeout committed locally as `f68617d docs: close submission list and detail foundation milestone`; Milestone 11 implementation committed locally as `699783d feat: add submission ownership foundation`; Milestone 12 implementation committed locally as `883a243 feat: add submission submit and domain events foundation`.
-- Current milestone: Milestone 12 - Submission Submit And Domain Events Foundation is implemented, verified by full local CI, and committed locally as `883a243 feat: add submission submit and domain events foundation`. The milestone added an owned submit action for draft submissions and the first domain event for a meaningful business transition.
-- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; Milestone 8 has created the first React/Vite frontend under `src/LIAnsureProtect.Web` with Tailwind CSS, React Router, Auth0 React SDK wiring, a local Auth0 SPA config, login/logout flow, callback session display, dashboard session display, and a guarded dashboard route; Milestone 9 adds the first real protected submission intake UI at `/submissions/new` using React Hook Form, Zod, `@hookform/resolvers`, TanStack Query, the current Auth0 access-token flow, co-located frontend tests, and a production-scale feature-owned frontend structure under `src/LIAnsureProtect.Web/src/features/submissions`; Milestone 10 adds protected submission list/detail reads using Application queries, EF Core no-tracking LINQ repository reads, controller read endpoints, protected frontend read routes, and TanStack Query read states; Milestone 11 stores `OwnerUserId` on new submissions, persists `owner_user_id`, scopes list/detail reads to `ICurrentUser.UserId`, and uses a separate `Submissions.Read` policy for protected read endpoints; Milestone 12 adds `POST /api/v1/submissions/{submissionId}/submit`, `Submissions.Submit`, an owned tracked submit load, and in-memory `SubmissionSubmittedDomainEvent` recording on the `Submission` aggregate.
+- Current milestone: Milestone 13 - Transactional Outbox Foundation is implemented and verified by full local CI. The milestone persists submission domain events to PostgreSQL `outbox_messages` in the same database save boundary as the submission status update.
+- Application code status: backend solution and project structure created; API baseline and root/health endpoint integration tests are in place; shared Application and Infrastructure dependency-registration methods have been added; architecture-boundary tests now protect the current project-reference direction; Milestone 4 contains the first submission intake slice using `POST /api/v1/submissions`, MediatR, FluentValidation, a validation pipeline behavior, `ISubmissionRepository`, and Moq-backed handler tests; Milestone 5 replaces temporary in-memory submission storage with EF Core/PostgreSQL persistence, `SubmissionDbContext`, explicit submission mapping, a PostgreSQL-backed repository, Unit of Work, Docker Compose PostgreSQL/pgvector dependency setup, the first EF Core migration, centralized NuGet package versions, and an opt-in PostgreSQL-backed integration test; Milestone 6 adds JWT bearer authentication, policy-based authorization, `ICurrentUser`, role/policy constants, protected submission creation, test-only authentication for integration tests, and local CI smoke coverage for anonymous submission rejection; Milestone 8 has created the first React/Vite frontend under `src/LIAnsureProtect.Web` with Tailwind CSS, React Router, Auth0 React SDK wiring, a local Auth0 SPA config, login/logout flow, callback session display, dashboard session display, and a guarded dashboard route; Milestone 9 adds the first real protected submission intake UI at `/submissions/new` using React Hook Form, Zod, `@hookform/resolvers`, TanStack Query, the current Auth0 access-token flow, co-located frontend tests, and a production-scale feature-owned frontend structure under `src/LIAnsureProtect.Web/src/features/submissions`; Milestone 10 adds protected submission list/detail reads using Application queries, EF Core no-tracking LINQ repository reads, controller read endpoints, protected frontend read routes, and TanStack Query read states; Milestone 11 stores `OwnerUserId` on new submissions, persists `owner_user_id`, scopes list/detail reads to `ICurrentUser.UserId`, and uses a separate `Submissions.Read` policy for protected read endpoints; Milestone 12 adds `POST /api/v1/submissions/{submissionId}/submit`, `Submissions.Submit`, an owned tracked submit load, and in-memory `SubmissionSubmittedDomainEvent` recording on the `Submission` aggregate; Milestone 13 adds PostgreSQL `outbox_messages`, outbox EF mapping, and `SaveChangesAsync` event capture for durable domain-event storage.
 
 ## User Collaboration Rules
 
@@ -1093,6 +1093,61 @@ Current Milestone 12 boundary:
 - Do not add notifications, worker dispatch, SNS/SQS, email, retry/circuit breaker, idempotency, quote generation, or underwriting queues.
 - Do not add organization/team ownership or admin bypass unless explicitly approved later.
 - Do not start questionnaire, document upload, or premium calculation in this milestone.
+
+### Milestone 13 - Transactional Outbox Foundation
+
+Status: implemented and verified; closeout is next.
+
+Branch:
+
+```text
+codex/milestone-13-transactional-outbox-foundation
+```
+
+Starting point:
+
+```text
+b7e62c8 docs: close submission submit and domain events milestone
+```
+
+Implemented direction:
+
+- Add a PostgreSQL `outbox_messages` table through EF Core migration.
+- Keep the outbox in the same PostgreSQL database as `submissions`.
+- Do not use a separate database or NoSQL store for the write-side outbox.
+- Capture aggregate domain events during `SubmissionDbContext.SaveChangesAsync(...)`.
+- Persist serialized domain events in the same database save boundary as the submission status update.
+- Keep actual publishing and Worker dispatch deferred.
+
+Implemented:
+
+- Added Infrastructure-owned `OutboxMessage`.
+- Added `OutboxMessageConfiguration`.
+- Added `SubmissionDbContext.OutboxMessages`.
+- Updated `SubmissionDbContext.SaveChangesAsync(...)` to convert `Submission.DomainEvents` into outbox rows before saving and clear events after a successful save.
+- Added EF Core migration `20260620012622_AddTransactionalOutbox`.
+- Added integration test coverage proving `POST /api/v1/submissions/{submissionId}/submit` writes a `SubmissionSubmittedDomainEvent` outbox row.
+- Added migration script guard coverage proving committed migrations create `outbox_messages` and the pending-message index.
+
+Current verification:
+
+- Focused RED integration test run failed before implementation because `LIAnsureProtect.Infrastructure.Persistence.Outbox` did not exist.
+- Second RED integration test run failed because committed migrations did not yet create `outbox_messages`.
+- `dotnet test tests\LIAnsureProtect.IntegrationTests\LIAnsureProtect.IntegrationTests.csproj --no-restore` passed with 25 tests and 1 skipped PostgreSQL opt-in test.
+- `dotnet build LIAnsureProtect.slnx --no-restore` passed with 0 warnings and 0 errors.
+- `dotnet test LIAnsureProtect.slnx --no-restore` passed with UnitTests 22 passed and IntegrationTests 25 passed, 1 skipped PostgreSQL opt-in test.
+- `dotnet ef migrations has-pending-model-changes --project src\LIAnsureProtect.Infrastructure\LIAnsureProtect.Infrastructure.csproj --startup-project src\LIAnsureProtect.Api\LIAnsureProtect.Api.csproj --context SubmissionDbContext --no-build` reported no pending model changes.
+- Full local CI passed with Docker-backed PostgreSQL, migrations, backend tests, Docker Compose config validation, frontend build, frontend lint, frontend tests, artifact creation, and Docker cleanup. Artifact zip: `TestResults\local-ci-20260620-181324.zip`.
+
+Current Milestone 13 boundary:
+
+- Do not add SNS/SQS.
+- Do not add Worker dispatch yet.
+- Do not add email notification.
+- Do not add retry/circuit breaker.
+- Do not add idempotency keys.
+- Do not add notification inbox/read model.
+- Do not add quote generation or underwriting queues.
 
 ## Open Local Setup Items
 

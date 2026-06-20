@@ -143,3 +143,10 @@ The format follows simple milestone-based entries.
 - EF Core mapping update that ignores in-memory domain events until the transactional outbox milestone persists event messages.
 - Unit and integration test coverage for owner submit success, cross-owner submit not found, repeated submit conflict, authorization responses, persistence, and event recording.
 - Milestone 12 learning notes covering temporary in-memory domain events, why the outbox waits until Milestone 13, and how the existing Worker project fits later dispatcher work.
+- Milestone 13 - Transactional Outbox Foundation implementation.
+- PostgreSQL-backed `outbox_messages` table through EF Core migration `AddTransactionalOutbox`.
+- Infrastructure-owned `OutboxMessage` model with event type, JSON payload, event occurrence time, outbox creation time, processing timestamp, and error fields.
+- EF Core `SaveChangesAsync` outbox capture that turns aggregate domain events into outbox rows in the same database save boundary as submission updates.
+- Integration test coverage proving submission submit persists `SubmissionSubmittedDomainEvent` as an outbox message.
+- Migration script guard coverage proving committed migrations create the `outbox_messages` table and pending-message index.
+- Milestone 13 learning notes explaining why the transactional outbox belongs in the same PostgreSQL database instead of a separate NoSQL store.

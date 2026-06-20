@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.IntegrationTests.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -496,6 +497,46 @@ public sealed class SubmissionEndpointTests
             saved => saved.Id == submission.Id,
             TestContext.Current.CancellationToken);
         Assert.Equal(SubmissionStatus.Submitted, savedSubmission.Status);
+    }
+
+
+
+    [Fact]
+    public async Task Submit_Submission_Persists_SubmissionSubmitted_Outbox_Message()
+    {
+        var submission = Submission.CreateDraft(
+            "Jane Applicant",
+            "jane@example.com",
+            "Example Company",
+            "test-user-1",
+            new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc));
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/submit",
+            "test-user-1");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var outboxMessage = await verifyDbContext.Set<OutboxMessage>().SingleAsync(
+            message => message.Type.Contains(nameof(SubmissionSubmittedDomainEvent)),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(nameof(SubmissionSubmittedDomainEvent), outboxMessage.Type);
+        Assert.Null(outboxMessage.ProcessedAtUtc);
+        Assert.Null(outboxMessage.Error);
+        Assert.Contains(submission.Id.ToString(), outboxMessage.Payload);
+        Assert.Contains("test-user-1", outboxMessage.Payload);
     }
 
 
