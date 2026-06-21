@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
@@ -130,6 +131,40 @@ public sealed class SubmissionEndpointTests
         string idempotencyKey)
     {
         var request = CreateAuthenticatedPostRequest(role, path, userId);
+        request.Headers.Add("Idempotency-Key", idempotencyKey);
+
+        return request;
+    }
+
+
+
+    private static HttpRequestMessage CreateAuthenticatedPostRequest(
+        string role,
+        string path,
+        object body,
+        string userId = "test-user-1")
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = JsonContent.Create(body)
+        };
+        request.Headers.Add(TestAuthHandler.UserIdHeader, userId);
+        request.Headers.Add(TestAuthHandler.EmailHeader, "test-user@example.com");
+        request.Headers.Add(TestAuthHandler.RolesHeader, role);
+
+        return request;
+    }
+
+
+
+    private static HttpRequestMessage CreateAuthenticatedPostRequest(
+        string role,
+        string path,
+        object body,
+        string userId,
+        string idempotencyKey)
+    {
+        var request = CreateAuthenticatedPostRequest(role, path, body, userId);
         request.Headers.Add("Idempotency-Key", idempotencyKey);
 
         return request;
@@ -868,6 +903,248 @@ public sealed class SubmissionEndpointTests
         using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+
+
+    [Fact]
+    public async Task Create_Quote_Returns_Created_And_Persists_Quote_For_Owned_Submitted_Submission()
+    {
+        var submission = CreateSubmittedSubmission("test-user-1");
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes",
+            CreateBaselineQuoteRequest(),
+            "test-user-1");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(content);
+        var root = payload.RootElement;
+        var quoteId = root.GetProperty("quoteId").GetGuid();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotEqual(Guid.Empty, quoteId);
+        Assert.Equal(submission.Id, root.GetProperty("submissionId").GetGuid());
+        Assert.Equal("Quoted", root.GetProperty("status").GetString());
+        Assert.Equal("Moderate", root.GetProperty("riskTier").GetString());
+        Assert.True(root.GetProperty("premium").GetDecimal() > 0);
+        Assert.Equal(1_000_000m, root.GetProperty("requestedLimit").GetDecimal());
+        Assert.Equal(10_000m, root.GetProperty("retention").GetDecimal());
+        Assert.Equal($"/api/v1/quotes/{quoteId}", response.Headers.Location?.OriginalString);
+
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedQuote = await verifyDbContext.Set<Quote>().SingleAsync(
+            quote => quote.Id == quoteId,
+            TestContext.Current.CancellationToken);
+        var outboxMessage = await verifyDbContext.Set<OutboxMessage>().SingleAsync(
+            message => message.Type == nameof(QuoteGeneratedDomainEvent),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(submission.Id, savedQuote.SubmissionId);
+        Assert.Equal("test-user-1", savedQuote.OwnerUserId);
+        Assert.Equal(QuoteStatus.Quoted, savedQuote.Status);
+        Assert.Contains(quoteId.ToString(), outboxMessage.Payload);
+    }
+
+
+
+    [Fact]
+    public async Task Create_Quote_Returns_Conflict_For_Draft_Submission()
+    {
+        var submission = Submission.CreateDraft(
+            "Jane Applicant",
+            "jane@example.com",
+            "Example Company",
+            "test-user-1",
+            new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc));
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes",
+            CreateBaselineQuoteRequest(),
+            "test-user-1");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+
+
+    [Fact]
+    public async Task Create_Quote_Returns_Not_Found_For_Submission_Owned_By_Different_User()
+    {
+        var otherUserSubmission = CreateSubmittedSubmission("test-user-2");
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(otherUserSubmission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{otherUserSubmission.Id}/quotes",
+            CreateBaselineQuoteRequest(),
+            "test-user-1");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+
+
+    [Fact]
+    public async Task Create_Quote_Returns_Referred_For_High_Risk_Profile()
+    {
+        var submission = CreateSubmittedSubmission("test-user-1");
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes",
+            CreateHighRiskQuoteRequest(),
+            "test-user-1");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(content);
+        var root = payload.RootElement;
+        var referralReasons = root.GetProperty("referralReasons").EnumerateArray().ToArray();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal("Referred", root.GetProperty("status").GetString());
+        Assert.Equal("Severe", root.GetProperty("riskTier").GetString());
+        Assert.NotEmpty(referralReasons);
+    }
+
+
+
+    [Fact]
+    public async Task Create_Quote_With_Idempotency_Key_Returns_Same_Response_And_Creates_One_Quote()
+    {
+        var submission = CreateSubmittedSubmission("test-user-1");
+        var requestBody = CreateBaselineQuoteRequest();
+        var idempotencyKey = "create-quote-key-1";
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var firstRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes",
+            requestBody,
+            "test-user-1",
+            idempotencyKey);
+        using var firstResponse = await httpClient.SendAsync(firstRequest, TestContext.Current.CancellationToken);
+        var firstContent = await firstResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var secondRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes",
+            requestBody,
+            "test-user-1",
+            idempotencyKey);
+        using var secondResponse = await httpClient.SendAsync(secondRequest, TestContext.Current.CancellationToken);
+        var secondContent = await secondResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, secondResponse.StatusCode);
+        Assert.Equal(firstContent, secondContent);
+        Assert.Equal(firstResponse.Headers.Location?.OriginalString, secondResponse.Headers.Location?.OriginalString);
+
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedQuoteCount = await verifyDbContext.Set<Quote>().CountAsync(
+            quote => quote.SubmissionId == submission.Id,
+            TestContext.Current.CancellationToken);
+        var quoteOutboxMessageCount = await verifyDbContext.Set<OutboxMessage>().CountAsync(
+            message => message.Type == nameof(QuoteGeneratedDomainEvent),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, savedQuoteCount);
+        Assert.Equal(1, quoteOutboxMessageCount);
+    }
+
+
+
+    private static Submission CreateSubmittedSubmission(string ownerUserId)
+    {
+        var submission = Submission.CreateDraft(
+            "Jane Applicant",
+            "jane@example.com",
+            "Example Company",
+            ownerUserId,
+            new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc));
+        submission.Submit();
+        submission.ClearDomainEvents();
+
+        return submission;
+    }
+
+
+
+    private static object CreateBaselineQuoteRequest()
+    {
+        return new
+        {
+            industryClass = "ProfessionalServices",
+            annualRevenueBand = "From10MTo50M",
+            requestedLimit = 1_000_000m,
+            retention = 10_000m,
+            mfaStatus = "Implemented",
+            edrStatus = "Implemented",
+            backupMaturity = "Mature",
+            hasIncidentResponsePlan = true,
+            priorCyberIncidents = 0,
+            sensitiveDataExposure = "Moderate"
+        };
+    }
+
+
+
+    private static object CreateHighRiskQuoteRequest()
+    {
+        return new
+        {
+            industryClass = "Healthcare",
+            annualRevenueBand = "From50MTo250M",
+            requestedLimit = 5_000_000m,
+            retention = 2_500m,
+            mfaStatus = "NotImplemented",
+            edrStatus = "NotImplemented",
+            backupMaturity = "Weak",
+            hasIncidentResponsePlan = false,
+            priorCyberIncidents = 2,
+            sensitiveDataExposure = "High"
+        };
     }
 
 

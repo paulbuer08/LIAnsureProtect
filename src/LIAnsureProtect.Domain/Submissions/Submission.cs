@@ -2,7 +2,7 @@ using LIAnsureProtect.Domain.Common;
 
 namespace LIAnsureProtect.Domain.Submissions;
 
-public sealed class Submission
+public sealed class Submission : IHasDomainEvents
 {
     private readonly List<IDomainEvent> domainEvents = [];
 

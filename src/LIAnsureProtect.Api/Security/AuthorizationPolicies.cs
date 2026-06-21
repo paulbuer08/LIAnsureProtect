@@ -32,6 +32,14 @@ public static class AuthorizationPolicies
             )
         );
 
+        options.AddPolicy(ApplicationPolicies.CreateQuote,
+            policy => policy.RequireRole(
+                ApplicationRoles.Customer,
+                ApplicationRoles.Broker,
+                ApplicationRoles.Admin
+            )
+        );
+
         options.AddPolicy(ApplicationPolicies.AdminAccess,
             policy => policy.RequireRole(
                 ApplicationRoles.Admin

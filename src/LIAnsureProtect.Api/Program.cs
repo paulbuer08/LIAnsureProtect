@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using LIAnsureProtect.Application;
 using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Api.Security;
@@ -16,7 +17,12 @@ var databaseConnectionString = builder.Configuration.GetConnectionString("LIAnsu
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(databaseConnectionString);
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 var allowedCorsOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")

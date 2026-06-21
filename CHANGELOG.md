@@ -177,3 +177,11 @@ The format follows simple milestone-based entries.
 - EF Core migration adding an index on idempotency record status and completion time for the cleanup query.
 - Integration test coverage proving cleanup deletes only expired completed idempotency records while keeping recent completed and `InProgress` records.
 - Milestone 16 closeout notes recording implementation commit `6bba9d0 feat: add idempotency operational cleanup foundation`.
+- Milestone 17 - Cyber Rating And Quote Foundation implementation.
+- Synthetic but realistic local cyber rating inputs for industry class, revenue band, requested limit, retention, MFA, EDR, backup maturity, incident response planning, prior incidents, and sensitive data exposure.
+- Baseline and high-risk cyber rating strategies with premium factors, risk tiers, subjectivities, and underwriter referral reasons.
+- PostgreSQL-backed `quotes` table through EF Core migration `AddCyberQuotes`.
+- Protected `POST /api/v1/submissions/{submissionId}/quotes` endpoint for owned submitted submissions.
+- PostgreSQL-backed `Idempotency-Key` support for quote creation so safe quote retries replay the same response without creating duplicate quotes or duplicate outbox messages.
+- `QuoteGeneratedDomainEvent` outbox capture for generated quote records.
+- Focused unit and integration tests covering rating variation, high-risk referral, owner-scoped quote creation, submitted-only quote creation, idempotent retries, dependency registration, and migration shape.

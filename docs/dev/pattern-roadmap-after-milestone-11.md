@@ -25,7 +25,7 @@ Do not add the pattern just because it is a good interview keyword.
 | Domain events | Implemented in Milestone 12 | `Submission.Submit()` now records `SubmissionSubmittedDomainEvent` on the aggregate. Events remain in-memory until the transactional outbox milestone persists them durably. |
 | Transactional outbox | Implemented in Milestone 13 | `SubmissionSubmittedDomainEvent` is now persisted to PostgreSQL `outbox_messages` in the same save boundary as the submission status change. Dispatch is still deferred. |
 | Idempotency | Implemented in Milestone 15 and operationally hardened in Milestone 16 | `POST /api/v1/submissions` and `POST /api/v1/submissions/{submissionId}/submit` now support PostgreSQL-backed `Idempotency-Key` handling. Milestone 16 adds completed-record cleanup so the receipt table does not grow forever. Future important POST endpoints should opt into the same pattern when retries can create duplicate state or side effects. |
-| Strategy pattern | Not implemented | Recommended when premium/rating logic exists and variation by product or factor becomes real. |
+| Strategy pattern | Implemented in Milestone 17 | Cyber rating now uses explicit baseline and high-risk strategies behind a selector. |
 | Adapter pattern | Not implemented | Recommended when the app calls an external provider or a provider-shaped local fake. |
 | Retry and circuit breaker | Not implemented | Recommended only around external network calls, not around local database queries. |
 | Cache-aside | Not implemented | Recommended later for expensive dashboard counts or summaries, not for the current basic reads. |
@@ -328,39 +328,50 @@ dotnet test LIAnsureProtect.slnx --no-restore
 .\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
 ```
 
-### Milestone 17 - Premium Calculation Strategy Foundation
+### Milestone 17 - Cyber Rating And Quote Foundation
 
 Goal:
 
 ```text
-Introduce a small quote/rating slice where premium calculation varies through explicit strategy classes.
+Introduce the first realistic local cyber rating and quote slice.
 ```
 
 Why this comes after submission workflow basics:
 
-- Strategy pattern is useful only when there are real alternative algorithms.
-- Premium calculation is the right business area for that lesson.
+- Strategy pattern is useful once rating varies by cyber risk profile.
+- Quote creation is a protected POST, so the Milestone 15 idempotency pattern now has another real endpoint to protect.
+- Quote generation is the natural bridge between submitted applications, underwriting referral, policy binding, notifications, and advisory AI.
 
-Planned scope:
+Implemented scope:
 
-- Add first quote request concept for an owned submitted submission.
-- Add simple rating inputs that already exist or can be safely derived from current submission data.
-- Add `IPremiumCalculationStrategy`.
-- Add at least two strategies, for example:
-  - simple cyber baseline strategy
-  - higher-risk placeholder strategy
-- Add Application service to select the strategy.
-- Add tests proving:
-  - different strategy inputs produce different premium outputs
-  - unsupported product/risk shape is rejected clearly
-  - quote request remains owner-scoped
+- Added a protected endpoint:
+  - `POST /api/v1/submissions/{submissionId}/quotes`
+- Added local cyber rating inputs:
+  - industry class
+  - annual revenue band
+  - requested limit
+  - retention
+  - MFA
+  - EDR
+  - backup maturity
+  - incident response plan
+  - prior cyber incidents
+  - sensitive data exposure
+- Added baseline and high-risk cyber rating strategies.
+- Added premium factors, risk tiers, subjectivities, referral reasons, and quote status.
+- Added PostgreSQL `quotes`.
+- Added `QuoteGeneratedDomainEvent`.
+- Added idempotency support for quote creation.
+- Kept quote creation owner-scoped and limited to submitted submissions.
 
 Out of scope:
 
-- Real insurer rating logic.
-- Binding/issuing policy.
+- Proprietary insurer rate tables, forms, underwriting manuals, or policy wording.
+- Underwriter approval/decline/adjustment workflow.
 - External provider calls.
 - AI.
+- Quote acceptance and policy binding.
+- SNS/SQS notification publishing.
 
 Verification:
 
@@ -369,7 +380,46 @@ dotnet test LIAnsureProtect.slnx --no-restore
 .\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
 ```
 
-### Milestone 18 - External Rating Provider Adapter And Resilience Foundation
+### Milestone 18 - Underwriting Referral Foundation
+
+Goal:
+
+```text
+Put realistic underwriter workflow around referred quotes.
+```
+
+Why this comes after local rating:
+
+- Milestone 17 can already produce `Referred` quotes and referral reasons.
+- A real specialty workflow needs human review before high-risk quotes move forward.
+- Underwriter authority should be explicit rather than hidden behind admin or owner bypass behavior.
+
+Planned scope:
+
+- Add underwriter-only approval, decline, and adjustment actions for referred quotes.
+- Add `Quotes.Underwrite` policy for Underwriter and Admin roles.
+- Add audit-friendly reason fields for approval, decline, and adjustment.
+- Keep customer/broker ownership separate from underwriter review authority.
+- Add tests proving:
+  - customers cannot approve their own referred quote
+  - underwriters can act only through the underwriter policy
+  - adjusted premium/retention/subjectivity changes are persisted with a reason
+  - declined quotes cannot be accepted later
+
+Out of scope:
+
+- External rating provider calls.
+- Policy binding.
+- AI-generated decisions.
+
+Verification:
+
+```powershell
+dotnet test LIAnsureProtect.slnx --no-restore
+.\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
+```
+
+### Milestone 19 - External Rating Provider Adapter And Resilience Foundation
 
 Goal:
 
@@ -377,10 +427,11 @@ Goal:
 Add a provider-shaped external rating call behind an adapter and protect it with retry/circuit-breaker behavior.
 ```
 
-Why this comes after strategy:
+Why this comes after local rating and referral:
 
-- Adapter is useful when the app has something provider-shaped to call.
+- Adapter is useful when the app has a stable local rating contract to map to a provider-shaped request.
 - Retry/circuit breaker belongs around network calls, not local EF Core queries.
+- Provider failure should not erase the local quote and referral workflow.
 
 Planned scope:
 
@@ -388,6 +439,8 @@ Planned scope:
 - Add Infrastructure HTTP adapter using `IHttpClientFactory`.
 - Use a local fake provider endpoint or test handler first.
 - Add retry and circuit-breaker policy around the outbound call.
+- Record provider success/failure status safely on the quote or provider-attempt record.
+- Allow local rating to remain available when the external provider is unavailable.
 - Add tests proving:
   - Application depends on interface, not provider implementation
   - transient provider failure is retried
@@ -407,36 +460,42 @@ dotnet test LIAnsureProtect.slnx --no-restore
 .\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
 ```
 
-### Milestone 19 - Dashboard Counts Cache-Aside Foundation
+### Milestone 20 - Quote Acceptance And Policy Binding Foundation
 
 Goal:
 
 ```text
-Add cache-aside for dashboard summary counts after the app has enough owned data to summarize.
+Convert an accepted quote into a bound policy with explicit authority and audit.
 ```
 
-Why this waits:
+Why this comes after quotes and underwriting:
 
-- Current list/detail reads are simple and should stay PostgreSQL-backed.
-- Cache-aside is useful when repeated summary reads become expensive or common.
+- Binding coverage is a high-impact insurance action.
+- It needs quote state, authority, idempotency, audit fields, and a separate policy record.
+- AI must not bind or issue coverage.
 
 Planned scope:
 
-- Add dashboard summary endpoint for owned submission counts.
-- Add cache abstraction such as `ICacheService`.
-- Start with in-memory or local Redis depending on setup readiness.
-- Cache derived counts only, not sensitive documents or raw claim details.
-- Invalidate or refresh counts after relevant submission changes.
+- Add quote acceptance endpoint.
+- Add bind policy command.
+- Add policy aggregate/table.
+- Add policy number generation.
+- Add effective and expiration dates.
+- Add `Policies.Bind` policy.
+- Add idempotency for bind action.
+- Add `PolicyBoundDomainEvent`.
+- Add audit fields for who accepted and bound the policy.
 - Add tests proving:
-  - first read loads from PostgreSQL and stores cache
-  - second read can use cache
-  - submit/create changes invalidate or refresh the summary
+  - only eligible quotes can be bound
+  - repeated bind retries do not create duplicate policies
+  - declined/referred/unapproved quotes cannot bind
+  - bound policies write an outbox event
 
 Out of scope:
 
-- Caching private documents.
-- Caching raw claim details.
-- Distributed invalidation complexity beyond the chosen local pattern.
+- Claims workflow.
+- Payment collection.
+- AI decision-making.
 
 Verification:
 
@@ -445,54 +504,81 @@ dotnet test LIAnsureProtect.slnx --no-restore
 .\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
 ```
 
-### Milestone 20 - Underwriting Workflow Process Manager Foundation
+### Milestone 21 - Notification And Outbox Publishing Foundation
 
 Goal:
 
 ```text
-Introduce a small multi-step underwriting workflow and coordinate it with a process manager.
+Put the existing outbox foundation to real use for quote and policy workflow notifications.
 ```
 
-Why this is later:
+Why this comes after quote and policy events:
 
-- Saga/process manager is only useful when the workflow has multiple steps, state transitions, and follow-up actions.
-- The project should first have submission ownership, submit events, outbox, notifications, idempotency, and quote/rating basics.
+- The outbox exists and now has more meaningful event types.
+- Notification delivery should be built after the business events are real.
+- SNS/SQS or a local provider-shaped adapter should be added when there is actual downstream work to publish.
 
 Planned scope:
 
-- Add an underwriting review workflow state.
-- React to submission-submitted or quote-requested events.
-- Assign or create an underwriting task.
-- Track workflow state separately from the `Submission` aggregate when appropriate.
-- Add tests proving:
-  - event starts the workflow once
-  - repeated event does not duplicate workflow state
-  - workflow progresses through expected states
-  - failed downstream action can be retried safely
+- Add event publisher abstraction.
+- Add local SNS/SQS-shaped adapter or LocalStack-backed path if ready.
+- Add notification event types for quote generated, quote referred, and policy bound.
+- Update Worker dispatch behavior beyond simply marking rows processed.
+- Add retry-safe downstream processing.
+- Add tests proving one business action creates one notification event.
 
 Out of scope:
 
-- Full production underwriting workbench.
-- Complex human assignment rules.
-- Claims workflow.
-- Real insurer integration.
+- Full user notification inbox.
+- Complex email/SMS templates.
+- Claims notifications.
 
 Verification:
 
 ```powershell
+dotnet test LIAnsureProtect.slnx --no-restore
+.\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
+```
+
+### Milestone 22 - AI Underwriting Assistant Foundation
+
+Goal:
+
+```text
+Add advisory-only AI support for underwriting review without allowing AI to make insurance decisions.
+```
+
+Why this is later:
+
+- AI needs real submission, quote, referral, and underwriting context to assist with.
+- Insurance AI needs governance, audit, explainability, and human oversight.
+- AI should support underwriters, not approve, decline, bind, issue, or price coverage by itself.
+
+Planned scope:
+
+- Add `IAiReviewService`.
+- Add advisory summary for submitted risk and quote referral.
+- Store prompt/input audit data and AI output.
+- Show AI output as recommendation/explanation only.
+- Add guardrails so AI failure does not block manual underwriting.
+- Add tests proving:
+  - AI output cannot change quote or policy status directly
+  - AI failure still allows manual underwriting
+  - stored AI review is visibly advisory
+
+Out of scope:
+
+- Autonomous approve/decline/bind/issue decisions.
+- Training custom models.
+- Replacing the rating engine with AI.
+
+Verification:
+
+```text
 dotnet test LIAnsureProtect.slnx --no-restore
 .\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
 ```
 
 ## Current Recommendation
 
-Do not add any of these larger infrastructure patterns into the current Milestone 11 implementation.
-
-Milestone 11 already added an important security boundary:
-
-```text
-Authentication + role policy decides whether the caller can enter.
-Ownership filtering decides which submission rows the caller can see.
-```
-
-That should be closed, verified, documented, and committed before starting domain events or outbox work.
+Continue milestone by milestone. Milestone 17 now gives the product a real quote/rating foundation; the next highest-value step is underwriter referral workflow before external provider integration, policy binding, notifications, or AI.

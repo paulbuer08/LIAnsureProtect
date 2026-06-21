@@ -51,6 +51,8 @@ Milestone 15 is complete as `Milestone 15 - Idempotent Submission Actions Founda
 
 Milestone 16 is complete as `Milestone 16 - Idempotency Operational Hardening Foundation`. It adds the first operational hardening slice for idempotency by deleting expired completed `idempotency_records` from the Worker, keeping abandoned `InProgress` recovery and required-key policy decisions documented for later hardening slices.
 
+Milestone 17 is implemented as `Milestone 17 - Cyber Rating And Quote Foundation`. It adds the first realistic local cyber rating slice with synthetic actuarial-style factors, owner-scoped quote creation for submitted submissions, PostgreSQL quote persistence, `QuoteGeneratedDomainEvent` outbox capture, and idempotent quote creation through `POST /api/v1/submissions/{submissionId}/quotes`.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -105,6 +107,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 14 Outbox Dispatcher Foundation Learnings](docs/dev/milestone-14-outbox-dispatcher-foundation-learnings.md)
 - [Milestone 15 Idempotent Submission Actions Foundation Learnings](docs/dev/milestone-15-idempotent-submission-actions-foundation-learnings.md)
 - [Milestone 16 Idempotency Operational Hardening Foundation Learnings](docs/dev/milestone-16-idempotency-operational-hardening-foundation-learnings.md)
+- [Milestone 17 Cyber Rating And Quote Foundation Learnings](docs/dev/milestone-17-cyber-rating-and-quote-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)

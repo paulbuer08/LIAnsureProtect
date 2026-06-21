@@ -1,5 +1,6 @@
 using FluentValidation;
 using LIAnsureProtect.Application.Common.Behaviors;
+using LIAnsureProtect.Application.Quotes.Rating;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LIAnsureProtect.Application;
@@ -15,6 +16,9 @@ public static class DependencyInjection
         });
 
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
+        services.AddTransient<ICyberRatingStrategy, HighRiskCyberRatingStrategy>();
+        services.AddTransient<ICyberRatingStrategy, BaselineCyberRatingStrategy>();
+        services.AddTransient<ICyberRatingStrategySelector, CyberRatingStrategySelector>();
 
         return services;
     }

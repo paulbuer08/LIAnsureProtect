@@ -482,6 +482,37 @@ Why only completed rows:
 - `InProgress` rows may represent an active or abandoned request, so deleting or replaying them needs a separate recovery rule.
 - The cleanup query has an index on `status` and `completed_at_utc` so table maintenance can stay efficient as records grow.
 
+Milestone 17 - Cyber Rating And Quote Foundation adds the first realistic local quote/rating path.
+
+The current quote flow is:
+
+```text
+POST /api/v1/submissions/{submissionId}/quotes
+  -> Quotes.Create authorization policy
+  -> owner-scoped submitted submission load
+  -> cyber rating strategy selector
+  -> baseline or high-risk cyber rating strategy
+  -> Quote persisted in PostgreSQL
+  -> QuoteGeneratedDomainEvent persisted to outbox_messages
+```
+
+The rating model is synthetic and portfolio-safe. It does not copy any insurer's proprietary rate tables, forms, underwriting manuals, or policy wording. It still models real cyber underwriting concerns:
+
+- industry class
+- annual revenue band
+- requested limit
+- retention
+- MFA
+- EDR
+- backup maturity
+- incident response planning
+- prior cyber incidents
+- sensitive data exposure
+
+Quote creation uses the same idempotency pattern as earlier protected write actions because retrying quote creation could otherwise create duplicate quote records and duplicate downstream outbox messages.
+
+This milestone deliberately keeps external provider calls, retry/circuit-breaker behavior, quote acceptance, policy binding, notification delivery, and AI assistance in later milestones. Those are real specialty-insurance concerns, but each adds separate business state, authorization, audit, and operational failure modes.
+
 ## Dependency Runtime Direction
 
 Local development should avoid manually installed service dependencies.

@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application;
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
+using LIAnsureProtect.Application.Quotes;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure;
 using LIAnsureProtect.Infrastructure.Persistence;
@@ -44,6 +45,7 @@ public sealed class DependencyRegistrationTests
         // Assert
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<SubmissionDbContext>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISubmissionRepository>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IQuoteRepository>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUnitOfWork>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IIdempotencyService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IIdempotencyRecordCleanup>());
@@ -72,5 +74,7 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("CREATE TABLE idempotency_records", script);
         Assert.Contains("ux_idempotency_records_key", script);
         Assert.Contains("ix_idempotency_records_status_completed_at_utc", script);
+        Assert.Contains("CREATE TABLE quotes", script);
+        Assert.Contains("ix_quotes_submission_id", script);
     }
 }

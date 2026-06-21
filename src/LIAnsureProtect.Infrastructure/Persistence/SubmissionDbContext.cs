@@ -1,3 +1,5 @@
+using LIAnsureProtect.Domain.Common;
+using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
@@ -9,20 +11,23 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
 {
     public DbSet<Submission> Submissions => Set<Submission>();
 
+    public DbSet<Quote> Quotes => Set<Quote>();
+
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        var submissionsWithDomainEvents = ChangeTracker
-            .Entries<Submission>()
-            .Where(entry => entry.Entity.DomainEvents.Count > 0)
-            .Select(entry => entry.Entity)
+        var entitiesWithDomainEvents = ChangeTracker
+            .Entries()
+            .Where(entry => entry.Entity is IHasDomainEvents domainEventSource
+                && domainEventSource.DomainEvents.Count > 0)
+            .Select(entry => (IHasDomainEvents)entry.Entity)
             .ToList();
 
-        var domainEvents = submissionsWithDomainEvents
-            .SelectMany(submission => submission.DomainEvents)
+        var domainEvents = entitiesWithDomainEvents
+            .SelectMany(entity => entity.DomainEvents)
             .ToList();
 
         if (domainEvents.Count > 0)
@@ -37,9 +42,9 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
 
         var result = await base.SaveChangesAsync(cancellationToken);
 
-        foreach (var submission in submissionsWithDomainEvents)
+        foreach (var entity in entitiesWithDomainEvents)
         {
-            submission.ClearDomainEvents();
+            entity.ClearDomainEvents();
         }
 
         return result;
