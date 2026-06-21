@@ -55,7 +55,7 @@ Milestone 17 is complete as `Milestone 17 - Cyber Rating And Quote Foundation`. 
 
 Milestone 18 is complete as `Milestone 18 - Underwriting Referral Foundation`. It builds on Milestone 17's `Referred` quote state with an underwriter referral queue, `Quotes.Underwrite` authorization, approve/decline/adjust review actions, PostgreSQL review audit history, and `QuoteUnderwritingDecisionRecordedDomainEvent` outbox capture without introducing external provider calls, policy binding, notification delivery, or AI yet.
 
-Milestone 19 is implemented as `Milestone 19 - External Rating Provider Adapter And Resilience Foundation`. It adds an Application-owned external rating provider boundary, an Infrastructure typed `HttpClient` adapter with `Microsoft.Extensions.Http.Resilience` retry and circuit-breaker behavior, a simulated provider-shaped market indication, and PostgreSQL `quote_rating_provider_attempts` audit persistence while keeping local rating and underwriting referral behavior authoritative.
+Milestone 19 is complete as `Milestone 19 - External Rating Provider Adapter And Resilience Foundation`. It adds an Application-owned external rating provider boundary, an Infrastructure typed `HttpClient` adapter with `Microsoft.Extensions.Http.Resilience` retry and circuit-breaker behavior, a simulated provider-shaped market indication, and PostgreSQL `quote_rating_provider_attempts` audit persistence while keeping local rating and underwriting referral behavior authoritative.
 
 ## Local Run
 
