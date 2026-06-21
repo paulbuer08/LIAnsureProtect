@@ -485,7 +485,7 @@ dotnet test LIAnsureProtect.slnx --no-restore
 Status:
 
 ```text
-Implemented locally as the first quote acceptance and policy binding foundation.
+Complete locally as the first quote acceptance and policy binding foundation.
 ```
 
 Goal:
@@ -513,6 +513,7 @@ Implemented scope:
 - Added idempotency for both accept and bind actions.
 - Added `PolicyBoundDomainEvent` outbox capture.
 - Added tests proving eligible acceptance, binding, authorization, idempotent replay, duplicate prevention, persistence, and migration shape.
+- Closed with implementation commit `ade6297 feat: add quote acceptance and policy binding foundation` and full local CI artifact `TestResults\local-ci-20260621-210031.zip`.
 
 Out of scope:
 

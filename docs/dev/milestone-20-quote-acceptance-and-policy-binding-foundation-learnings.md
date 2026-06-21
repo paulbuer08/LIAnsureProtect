@@ -291,3 +291,27 @@ What the CI run verified:
 - Frontend Vitest passed.
 - CI artifact zip was created.
 - The PostgreSQL container, volume, and network were cleaned up.
+
+## Closeout
+
+Milestone 20 is complete.
+
+Implementation commit:
+
+```text
+ade6297 feat: add quote acceptance and policy binding foundation
+```
+
+Final verification artifact:
+
+```text
+TestResults\local-ci-20260621-210031.zip
+```
+
+Recommended next milestone:
+
+```text
+Milestone 21 - Notification And Outbox Publishing Foundation
+```
+
+The next milestone should put the existing transactional outbox to practical use by publishing provider-shaped notification messages for important quote and policy workflow events. Real payment collection, production policy documents, real carrier APIs, real e-signature, claims, billing, and AI underwriting assistance should remain separate milestones because they require separate data models, external integration decisions, failure handling, and legal or operational workflows.
