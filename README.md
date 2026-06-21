@@ -55,6 +55,8 @@ Milestone 17 is complete as `Milestone 17 - Cyber Rating And Quote Foundation`. 
 
 Milestone 18 is complete as `Milestone 18 - Underwriting Referral Foundation`. It builds on Milestone 17's `Referred` quote state with an underwriter referral queue, `Quotes.Underwrite` authorization, approve/decline/adjust review actions, PostgreSQL review audit history, and `QuoteUnderwritingDecisionRecordedDomainEvent` outbox capture without introducing external provider calls, policy binding, notification delivery, or AI yet.
 
+Milestone 19 is started as `Milestone 19 - External Rating Provider Adapter And Resilience Foundation`. It should add a provider-shaped rating integration boundary behind an Application interface, keep local rating available, and introduce retry/circuit-breaker behavior around simulated external HTTP calls without adding real carrier credentials, policy binding, notifications, or AI yet.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -111,6 +113,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 16 Idempotency Operational Hardening Foundation Learnings](docs/dev/milestone-16-idempotency-operational-hardening-foundation-learnings.md)
 - [Milestone 17 Cyber Rating And Quote Foundation Learnings](docs/dev/milestone-17-cyber-rating-and-quote-foundation-learnings.md)
 - [Milestone 18 Underwriting Referral Foundation Learnings](docs/dev/milestone-18-underwriting-referral-foundation-learnings.md)
+- [Milestone 19 External Rating Provider Adapter And Resilience Foundation Learnings](docs/dev/milestone-19-external-rating-provider-adapter-and-resilience-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)

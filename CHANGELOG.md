@@ -195,3 +195,4 @@ The format follows simple milestone-based entries.
 - `QuoteUnderwritingDecisionRecordedDomainEvent` outbox capture for underwriting decisions.
 - Focused backend tests proving customer/broker denial, underwriter/admin authority, review state transitions, audit persistence, outbox capture, and migration shape.
 - Milestone 18 closeout notes recording implementation commit `dc8a924 feat: add underwriting referral foundation`.
+- Milestone 19 starter continuity notes for `Milestone 19 - External Rating Provider Adapter And Resilience Foundation`.
