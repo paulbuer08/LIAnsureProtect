@@ -511,7 +511,31 @@ The rating model is synthetic and portfolio-safe. It does not copy any insurer's
 
 Quote creation uses the same idempotency pattern as earlier protected write actions because retrying quote creation could otherwise create duplicate quote records and duplicate downstream outbox messages.
 
-This milestone deliberately keeps external provider calls, retry/circuit-breaker behavior, quote acceptance, policy binding, notification delivery, and AI assistance in later milestones. Those are real specialty-insurance concerns, but each adds separate business state, authorization, audit, and operational failure modes.
+Milestone 18 - Underwriting Referral Foundation adds the first human underwriting workflow around referred quotes.
+
+The current underwriting referral flow is:
+
+```text
+GET /api/v1/underwriting/quote-referrals
+  -> Quotes.Underwrite authorization policy
+  -> list pending Referred quotes oldest first
+```
+
+```text
+POST /api/v1/underwriting/quote-referrals/{quoteId}/approve
+POST /api/v1/underwriting/quote-referrals/{quoteId}/decline
+POST /api/v1/underwriting/quote-referrals/{quoteId}/adjust
+  -> Quotes.Underwrite authorization policy
+  -> tracked quote load
+  -> Quote approve/decline/adjust domain method
+  -> current decision snapshot on quotes
+  -> quote_underwriting_reviews audit row
+  -> QuoteUnderwritingDecisionRecordedDomainEvent persisted to outbox_messages
+```
+
+This keeps customer/broker ownership separate from underwriter review authority. Customers and brokers can create owned submissions and quotes through their own policies, but they cannot approve, decline, or adjust referred quotes. Underwriters and admins use a separate policy and leave a reasoned audit trail for each decision.
+
+The quote and underwriting milestones deliberately keep external provider calls, retry/circuit-breaker behavior, quote acceptance, policy binding, notification delivery, and AI assistance in later milestones. Those are real specialty-insurance concerns, but each adds separate business state, authorization, audit, and operational failure modes.
 
 ## Dependency Runtime Direction
 

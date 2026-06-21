@@ -13,6 +13,8 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
 
     public DbSet<Quote> Quotes => Set<Quote>();
 
+    public DbSet<QuoteUnderwritingReview> QuoteUnderwritingReviews => Set<QuoteUnderwritingReview>();
+
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();

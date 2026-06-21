@@ -5,4 +5,10 @@ namespace LIAnsureProtect.Application.Quotes;
 public interface IQuoteRepository
 {
     Task AddAsync(Quote quote, CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken);
+
+    Task<Quote?> GetForUnderwritingReviewAsync(Guid quoteId, CancellationToken cancellationToken);
+
+    Task AddUnderwritingReviewAsync(QuoteUnderwritingReview review, CancellationToken cancellationToken);
 }

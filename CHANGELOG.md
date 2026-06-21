@@ -187,3 +187,10 @@ The format follows simple milestone-based entries.
 - Focused unit and integration tests covering rating variation, high-risk referral, owner-scoped quote creation, submitted-only quote creation, idempotent retries, dependency registration, and migration shape.
 - Milestone 17 closeout notes recording implementation commit `0792023 feat: add cyber rating and quote foundation`.
 - Milestone 18 starter continuity notes for `Milestone 18 - Underwriting Referral Foundation`.
+- Milestone 18 - Underwriting Referral Foundation implementation.
+- `Quotes.Underwrite` authorization policy for Underwriter and Admin roles.
+- Underwriter-only `GET /api/v1/underwriting/quote-referrals` queue for pending referred quotes.
+- Underwriter-only approve, decline, and adjust actions for referred quotes.
+- PostgreSQL-backed `quote_underwriting_reviews` audit table plus current review snapshot fields on `quotes`.
+- `QuoteUnderwritingDecisionRecordedDomainEvent` outbox capture for underwriting decisions.
+- Focused backend tests proving customer/broker denial, underwriter/admin authority, review state transitions, audit persistence, outbox capture, and migration shape.

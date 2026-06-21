@@ -78,12 +78,34 @@ public sealed class QuoteConfiguration : IEntityTypeConfiguration<Quote>
             .HasColumnName("expires_at_utc")
             .IsRequired();
 
+        builder.Property(quote => quote.ReviewedByUserId)
+            .HasColumnName("reviewed_by_user_id")
+            .HasMaxLength(256);
+
+        builder.Property(quote => quote.ReviewedAtUtc)
+            .HasColumnName("reviewed_at_utc");
+
+        builder.Property(quote => quote.UnderwritingDecisionReason)
+            .HasColumnName("underwriting_decision_reason")
+            .HasColumnType("text");
+
+        builder.Property(quote => quote.UnderwritingDecisionNotes)
+            .HasColumnName("underwriting_decision_notes")
+            .HasColumnType("text");
+
         builder.HasIndex(quote => new
             {
                 quote.OwnerUserId,
                 quote.CreatedAtUtc
             })
             .HasDatabaseName("ix_quotes_owner_user_id_created_at_utc");
+
+        builder.HasIndex(quote => new
+            {
+                quote.Status,
+                quote.CreatedAtUtc
+            })
+            .HasDatabaseName("ix_quotes_status_created_at_utc");
 
         builder.HasIndex(quote => quote.SubmissionId)
             .HasDatabaseName("ix_quotes_submission_id");

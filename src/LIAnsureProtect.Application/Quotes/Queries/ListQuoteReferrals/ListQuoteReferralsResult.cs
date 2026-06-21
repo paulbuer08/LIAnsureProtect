@@ -1,0 +1,18 @@
+namespace LIAnsureProtect.Application.Quotes.Queries.ListQuoteReferrals;
+
+public sealed record ListQuoteReferralsResult(
+    IReadOnlyCollection<QuoteReferralResult> QuoteReferrals);
+
+public sealed record QuoteReferralResult(
+    Guid QuoteId,
+    Guid SubmissionId,
+    string OwnerUserId,
+    decimal Premium,
+    decimal RequestedLimit,
+    decimal Retention,
+    string RiskTier,
+    string Status,
+    IReadOnlyCollection<string> Subjectivities,
+    IReadOnlyCollection<string> ReferralReasons,
+    DateTime CreatedAtUtc,
+    DateTime ExpiresAtUtc);

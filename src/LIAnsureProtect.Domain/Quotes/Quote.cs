@@ -19,7 +19,11 @@ public sealed class Quote : IHasDomainEvents
         string subjectivities,
         string referralReasons,
         DateTime createdAtUtc,
-        DateTime expiresAtUtc)
+        DateTime expiresAtUtc,
+        string? reviewedByUserId = null,
+        DateTime? reviewedAtUtc = null,
+        string? underwritingDecisionReason = null,
+        string? underwritingDecisionNotes = null)
     {
         Id = id;
         SubmissionId = submissionId;
@@ -34,6 +38,10 @@ public sealed class Quote : IHasDomainEvents
         ReferralReasons = referralReasons;
         CreatedAtUtc = createdAtUtc;
         ExpiresAtUtc = expiresAtUtc;
+        ReviewedByUserId = reviewedByUserId;
+        ReviewedAtUtc = reviewedAtUtc;
+        UnderwritingDecisionReason = underwritingDecisionReason;
+        UnderwritingDecisionNotes = underwritingDecisionNotes;
     }
 
     private Quote()
@@ -69,6 +77,14 @@ public sealed class Quote : IHasDomainEvents
     public DateTime CreatedAtUtc { get; private set; }
 
     public DateTime ExpiresAtUtc { get; private set; }
+
+    public string? ReviewedByUserId { get; private set; }
+
+    public DateTime? ReviewedAtUtc { get; private set; }
+
+    public string? UnderwritingDecisionReason { get; private set; }
+
+    public string? UnderwritingDecisionNotes { get; private set; }
 
     public IReadOnlyCollection<IDomainEvent> DomainEvents => domainEvents.AsReadOnly();
 
@@ -128,6 +144,116 @@ public sealed class Quote : IHasDomainEvents
         return quote;
     }
 
+    public QuoteUnderwritingReview ApproveReferral(
+        string reviewedByUserId,
+        string reason,
+        string? notes,
+        DateTime reviewedAtUtc)
+    {
+        EnsureCanReview();
+        ValidateReviewInputs(reviewedByUserId, reason);
+
+        var premiumBefore = Premium;
+        var retentionBefore = Retention;
+
+        Status = QuoteStatus.Approved;
+        RecordDecisionSnapshot(reviewedByUserId, reason, notes, reviewedAtUtc);
+
+        var review = QuoteUnderwritingReview.Record(
+            Id,
+            QuoteUnderwritingDecision.Approved,
+            reviewedByUserId,
+            reason,
+            notes,
+            premiumBefore,
+            Premium,
+            retentionBefore,
+            Retention,
+            reviewedAtUtc);
+
+        RecordUnderwritingDecisionEvent(review.Decision, reviewedAtUtc);
+
+        return review;
+    }
+
+    public QuoteUnderwritingReview DeclineReferral(
+        string reviewedByUserId,
+        string reason,
+        string? notes,
+        DateTime reviewedAtUtc)
+    {
+        EnsureCanReview();
+        ValidateReviewInputs(reviewedByUserId, reason);
+
+        var premiumBefore = Premium;
+        var retentionBefore = Retention;
+
+        Status = QuoteStatus.Declined;
+        RecordDecisionSnapshot(reviewedByUserId, reason, notes, reviewedAtUtc);
+
+        var review = QuoteUnderwritingReview.Record(
+            Id,
+            QuoteUnderwritingDecision.Declined,
+            reviewedByUserId,
+            reason,
+            notes,
+            premiumBefore,
+            Premium,
+            retentionBefore,
+            Retention,
+            reviewedAtUtc);
+
+        RecordUnderwritingDecisionEvent(review.Decision, reviewedAtUtc);
+
+        return review;
+    }
+
+    public QuoteUnderwritingReview AdjustReferral(
+        string reviewedByUserId,
+        decimal adjustedPremium,
+        decimal adjustedRetention,
+        string? updatedSubjectivities,
+        string reason,
+        string? notes,
+        DateTime reviewedAtUtc)
+    {
+        EnsureCanReview();
+        ValidateReviewInputs(reviewedByUserId, reason);
+
+        if (adjustedPremium <= 0)
+            throw new ArgumentOutOfRangeException(nameof(adjustedPremium), "Adjusted premium must be greater than zero.");
+
+        if (adjustedRetention <= 0)
+            throw new ArgumentOutOfRangeException(nameof(adjustedRetention), "Adjusted retention must be greater than zero.");
+
+        var premiumBefore = Premium;
+        var retentionBefore = Retention;
+
+        Premium = adjustedPremium;
+        Retention = adjustedRetention;
+        if (updatedSubjectivities is not null)
+            Subjectivities = updatedSubjectivities.Trim();
+
+        Status = QuoteStatus.Approved;
+        RecordDecisionSnapshot(reviewedByUserId, reason, notes, reviewedAtUtc);
+
+        var review = QuoteUnderwritingReview.Record(
+            Id,
+            QuoteUnderwritingDecision.Adjusted,
+            reviewedByUserId,
+            reason,
+            notes,
+            premiumBefore,
+            Premium,
+            retentionBefore,
+            Retention,
+            reviewedAtUtc);
+
+        RecordUnderwritingDecisionEvent(review.Decision, reviewedAtUtc);
+
+        return review;
+    }
+
     public void ClearDomainEvents()
     {
         domainEvents.Clear();
@@ -136,5 +262,45 @@ public sealed class Quote : IHasDomainEvents
     private static string JoinLines(IReadOnlyCollection<string> values)
     {
         return string.Join("\n", values.Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private void EnsureCanReview()
+    {
+        if (Status != QuoteStatus.Referred)
+            throw new InvalidOperationException("Only referred quotes can be reviewed.");
+    }
+
+    private static void ValidateReviewInputs(string reviewedByUserId, string reason)
+    {
+        if (string.IsNullOrWhiteSpace(reviewedByUserId))
+            throw new ArgumentException("Reviewed by user id is required.", nameof(reviewedByUserId));
+
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Review reason is required.", nameof(reason));
+    }
+
+    private void RecordDecisionSnapshot(
+        string reviewedByUserId,
+        string reason,
+        string? notes,
+        DateTime reviewedAtUtc)
+    {
+        ReviewedByUserId = reviewedByUserId.Trim();
+        ReviewedAtUtc = reviewedAtUtc;
+        UnderwritingDecisionReason = reason.Trim();
+        UnderwritingDecisionNotes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+    }
+
+    private void RecordUnderwritingDecisionEvent(
+        QuoteUnderwritingDecision decision,
+        DateTime recordedAtUtc)
+    {
+        domainEvents.Add(new QuoteUnderwritingDecisionRecordedDomainEvent(
+            Id,
+            SubmissionId,
+            OwnerUserId,
+            ReviewedByUserId ?? string.Empty,
+            decision,
+            recordedAtUtc));
     }
 }

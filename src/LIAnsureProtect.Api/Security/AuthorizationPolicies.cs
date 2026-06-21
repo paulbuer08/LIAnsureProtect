@@ -40,6 +40,13 @@ public static class AuthorizationPolicies
             )
         );
 
+        options.AddPolicy(ApplicationPolicies.UnderwriteQuote,
+            policy => policy.RequireRole(
+                ApplicationRoles.Underwriter,
+                ApplicationRoles.Admin
+            )
+        );
+
         options.AddPolicy(ApplicationPolicies.AdminAccess,
             policy => policy.RequireRole(
                 ApplicationRoles.Admin

@@ -382,6 +382,12 @@ dotnet test LIAnsureProtect.slnx --no-restore
 
 ### Milestone 18 - Underwriting Referral Foundation
 
+Status:
+
+```text
+Implemented locally as the first underwriter referral workflow around Referred quotes.
+```
+
 Goal:
 
 ```text
@@ -394,17 +400,21 @@ Why this comes after local rating:
 - A real specialty workflow needs human review before high-risk quotes move forward.
 - Underwriter authority should be explicit rather than hidden behind admin or owner bypass behavior.
 
-Planned scope:
+Implemented scope:
 
 - Add underwriter-only approval, decline, and adjustment actions for referred quotes.
 - Add `Quotes.Underwrite` policy for Underwriter and Admin roles.
+- Add underwriter-only pending referral queue reads.
 - Add audit-friendly reason fields for approval, decline, and adjustment.
+- Add current review snapshot fields on quotes.
+- Add PostgreSQL `quote_underwriting_reviews` audit history.
+- Add `QuoteUnderwritingDecisionRecordedDomainEvent` outbox capture.
 - Keep customer/broker ownership separate from underwriter review authority.
 - Add tests proving:
   - customers cannot approve their own referred quote
   - underwriters can act only through the underwriter policy
   - adjusted premium/retention/subjectivity changes are persisted with a reason
-  - declined quotes cannot be accepted later
+  - declined quotes cannot be reviewed again
 
 Out of scope:
 
@@ -581,4 +591,4 @@ dotnet test LIAnsureProtect.slnx --no-restore
 
 ## Current Recommendation
 
-Continue milestone by milestone. Milestone 17 now gives the product a real quote/rating foundation; the next highest-value step is underwriter referral workflow before external provider integration, policy binding, notifications, or AI.
+Continue milestone by milestone. Milestone 18 now gives the product a real underwriter referral workflow around high-risk quotes; the next highest-value step is external rating provider adapter and resilience before policy binding, notifications, or AI.

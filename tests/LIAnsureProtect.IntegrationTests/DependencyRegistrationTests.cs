@@ -76,5 +76,7 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("ix_idempotency_records_status_completed_at_utc", script);
         Assert.Contains("CREATE TABLE quotes", script);
         Assert.Contains("ix_quotes_submission_id", script);
+        Assert.Contains("CREATE TABLE quote_underwriting_reviews", script);
+        Assert.Contains("ix_quote_underwriting_reviews_quote_id_created_at_utc", script);
     }
 }
