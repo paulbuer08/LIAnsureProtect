@@ -482,6 +482,12 @@ dotnet test LIAnsureProtect.slnx --no-restore
 
 ### Milestone 20 - Quote Acceptance And Policy Binding Foundation
 
+Status:
+
+```text
+Implemented locally as the first quote acceptance and policy binding foundation.
+```
+
 Goal:
 
 ```text
@@ -494,22 +500,19 @@ Why this comes after quotes and underwriting:
 - It needs quote state, authority, idempotency, audit fields, and a separate policy record.
 - AI must not bind or issue coverage.
 
-Planned scope:
+Implemented scope:
 
-- Add quote acceptance endpoint.
-- Add bind policy command.
-- Add policy aggregate/table.
-- Add policy number generation.
-- Add effective and expiration dates.
-- Add `Policies.Bind` policy.
-- Add idempotency for bind action.
-- Add `PolicyBoundDomainEvent`.
-- Add audit fields for who accepted and bound the policy.
-- Add tests proving:
-  - only eligible quotes can be bound
-  - repeated bind retries do not create duplicate policies
-  - declined/referred/unapproved quotes cannot bind
-  - bound policies write an outbox event
+- Added `POST /api/v1/quotes/{quoteId}/accept`.
+- Added `POST /api/v1/quotes/{quoteId}/bind`.
+- Added `Quotes.Accept` and `Policies.Bind` authorization policies.
+- Added quote acceptance audit fields.
+- Added `Policy` aggregate and PostgreSQL `policies`.
+- Added policy number generation, effective date, expiration date, `Bound` status, bound audit fields, and quote term snapshot.
+- Added Application-owned `IPolicyBindingProviderClient` and an Infrastructure simulated binding provider.
+- Added PostgreSQL `policy_binding_attempts`.
+- Added idempotency for both accept and bind actions.
+- Added `PolicyBoundDomainEvent` outbox capture.
+- Added tests proving eligible acceptance, binding, authorization, idempotent replay, duplicate prevention, persistence, and migration shape.
 
 Out of scope:
 

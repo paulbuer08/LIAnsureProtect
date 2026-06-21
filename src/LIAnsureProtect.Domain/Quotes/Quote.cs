@@ -23,7 +23,12 @@ public sealed class Quote : IHasDomainEvents
         string? reviewedByUserId = null,
         DateTime? reviewedAtUtc = null,
         string? underwritingDecisionReason = null,
-        string? underwritingDecisionNotes = null)
+        string? underwritingDecisionNotes = null,
+        string? acceptedByUserId = null,
+        string? acceptedByName = null,
+        string? acceptedByTitle = null,
+        bool subjectivitiesAcknowledged = false,
+        DateTime? acceptedAtUtc = null)
     {
         Id = id;
         SubmissionId = submissionId;
@@ -42,6 +47,11 @@ public sealed class Quote : IHasDomainEvents
         ReviewedAtUtc = reviewedAtUtc;
         UnderwritingDecisionReason = underwritingDecisionReason;
         UnderwritingDecisionNotes = underwritingDecisionNotes;
+        AcceptedByUserId = acceptedByUserId;
+        AcceptedByName = acceptedByName;
+        AcceptedByTitle = acceptedByTitle;
+        SubjectivitiesAcknowledged = subjectivitiesAcknowledged;
+        AcceptedAtUtc = acceptedAtUtc;
     }
 
     private Quote()
@@ -85,6 +95,16 @@ public sealed class Quote : IHasDomainEvents
     public string? UnderwritingDecisionReason { get; private set; }
 
     public string? UnderwritingDecisionNotes { get; private set; }
+
+    public string? AcceptedByUserId { get; private set; }
+
+    public string? AcceptedByName { get; private set; }
+
+    public string? AcceptedByTitle { get; private set; }
+
+    public bool SubjectivitiesAcknowledged { get; private set; }
+
+    public DateTime? AcceptedAtUtc { get; private set; }
 
     public IReadOnlyCollection<IDomainEvent> DomainEvents => domainEvents.AsReadOnly();
 
@@ -252,6 +272,50 @@ public sealed class Quote : IHasDomainEvents
         RecordUnderwritingDecisionEvent(review.Decision, reviewedAtUtc);
 
         return review;
+    }
+
+    public void Accept(
+        string acceptedByUserId,
+        string acceptedByName,
+        string acceptedByTitle,
+        bool subjectivitiesAcknowledged,
+        DateTime acceptedAtUtc)
+    {
+        if (Status != QuoteStatus.Quoted && Status != QuoteStatus.Approved)
+            throw new InvalidOperationException("Only quoted or approved quotes can be accepted.");
+
+        if (acceptedAtUtc > ExpiresAtUtc)
+            throw new InvalidOperationException("Expired quotes cannot be accepted.");
+
+        if (string.IsNullOrWhiteSpace(acceptedByUserId))
+            throw new ArgumentException("Accepted by user id is required.", nameof(acceptedByUserId));
+
+        if (string.IsNullOrWhiteSpace(acceptedByName))
+            throw new ArgumentException("Accepted by name is required.", nameof(acceptedByName));
+
+        if (string.IsNullOrWhiteSpace(acceptedByTitle))
+            throw new ArgumentException("Accepted by title is required.", nameof(acceptedByTitle));
+
+        if (!subjectivitiesAcknowledged)
+            throw new InvalidOperationException("Quote subjectivities must be acknowledged before acceptance.");
+
+        Status = QuoteStatus.Accepted;
+        AcceptedByUserId = acceptedByUserId.Trim();
+        AcceptedByName = acceptedByName.Trim();
+        AcceptedByTitle = acceptedByTitle.Trim();
+        SubjectivitiesAcknowledged = subjectivitiesAcknowledged;
+        AcceptedAtUtc = acceptedAtUtc;
+    }
+
+    public void MarkBound(DateTime boundAtUtc)
+    {
+        if (Status != QuoteStatus.Accepted)
+            throw new InvalidOperationException("Only accepted quotes can be bound.");
+
+        if (boundAtUtc < AcceptedAtUtc)
+            throw new InvalidOperationException("Quote cannot be bound before it is accepted.");
+
+        Status = QuoteStatus.Bound;
     }
 
     public void ClearDomainEvents()

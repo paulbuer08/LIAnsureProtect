@@ -1,6 +1,8 @@
 using LIAnsureProtect.Application;
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
+using LIAnsureProtect.Application.Policies;
+using LIAnsureProtect.Application.Policies.Binding;
 using LIAnsureProtect.Application.Quotes;
 using LIAnsureProtect.Application.Quotes.RatingProviders;
 using LIAnsureProtect.Application.Submissions;
@@ -47,6 +49,8 @@ public sealed class DependencyRegistrationTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<SubmissionDbContext>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISubmissionRepository>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IQuoteRepository>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IPolicyRepository>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IPolicyBindingProviderClient>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUnitOfWork>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IIdempotencyService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IIdempotencyRecordCleanup>());
@@ -82,5 +86,10 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("ix_quote_underwriting_reviews_quote_id_created_at_utc", script);
         Assert.Contains("CREATE TABLE quote_rating_provider_attempts", script);
         Assert.Contains("ix_quote_rating_provider_attempts_quote_id_created_at_utc", script);
+        Assert.Contains("CREATE TABLE policies", script);
+        Assert.Contains("ux_policies_quote_id", script);
+        Assert.Contains("ix_policies_owner_user_id_bound_at_utc", script);
+        Assert.Contains("CREATE TABLE policy_binding_attempts", script);
+        Assert.Contains("ix_policy_binding_attempts_policy_id_created_at_utc", script);
     }
 }

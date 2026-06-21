@@ -40,9 +40,25 @@ public static class AuthorizationPolicies
             )
         );
 
+        options.AddPolicy(ApplicationPolicies.AcceptQuote,
+            policy => policy.RequireRole(
+                ApplicationRoles.Customer,
+                ApplicationRoles.Broker,
+                ApplicationRoles.Admin
+            )
+        );
+
         options.AddPolicy(ApplicationPolicies.UnderwriteQuote,
             policy => policy.RequireRole(
                 ApplicationRoles.Underwriter,
+                ApplicationRoles.Admin
+            )
+        );
+
+        options.AddPolicy(ApplicationPolicies.BindPolicy,
+            policy => policy.RequireRole(
+                ApplicationRoles.Customer,
+                ApplicationRoles.Broker,
                 ApplicationRoles.Admin
             )
         );

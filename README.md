@@ -57,7 +57,7 @@ Milestone 18 is complete as `Milestone 18 - Underwriting Referral Foundation`. I
 
 Milestone 19 is complete as `Milestone 19 - External Rating Provider Adapter And Resilience Foundation`. It adds an Application-owned external rating provider boundary, an Infrastructure typed `HttpClient` adapter with `Microsoft.Extensions.Http.Resilience` retry and circuit-breaker behavior, a simulated provider-shaped market indication, and PostgreSQL `quote_rating_provider_attempts` audit persistence while keeping local rating and underwriting referral behavior authoritative.
 
-Milestone 20 is starting as `Milestone 20 - Quote Acceptance And Policy Binding Foundation`. Its planning target is to convert an accepted local quote into an auditable policy-binding foundation while keeping real payment collection, production policy documents, notification delivery, and carrier binding integrations out of scope until later milestones.
+Milestone 20 is implemented as `Milestone 20 - Quote Acceptance And Policy Binding Foundation`. It adds quote acceptance attestations, durable bound policies, simulated binding acknowledgement audit rows, idempotent accept/bind POST actions, and `PolicyBoundDomainEvent` outbox capture while keeping real payment collection, production policy documents, notification delivery, real e-signature, real carrier binding APIs, and advisory AI out of scope until later milestones.
 
 ## Local Run
 

@@ -14,5 +14,15 @@ public interface IQuoteRepository
 
     Task<Quote?> GetForUnderwritingReviewAsync(Guid quoteId, CancellationToken cancellationToken);
 
+    Task<Quote?> GetOwnedForAcceptanceAsync(
+        Guid quoteId,
+        string ownerUserId,
+        CancellationToken cancellationToken);
+
+    Task<Quote?> GetOwnedForBindingAsync(
+        Guid quoteId,
+        string ownerUserId,
+        CancellationToken cancellationToken);
+
     Task AddUnderwritingReviewAsync(QuoteUnderwritingReview review, CancellationToken cancellationToken);
 }

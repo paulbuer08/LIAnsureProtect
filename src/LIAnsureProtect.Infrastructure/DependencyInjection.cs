@@ -1,11 +1,14 @@
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
+using LIAnsureProtect.Application.Policies;
+using LIAnsureProtect.Application.Policies.Binding;
 using LIAnsureProtect.Application.Quotes;
 using LIAnsureProtect.Application.Quotes.RatingProviders;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
+using LIAnsureProtect.Infrastructure.Policies;
 using LIAnsureProtect.Infrastructure.Quotes;
 using LIAnsureProtect.Infrastructure.Quotes.RatingProviders;
 using LIAnsureProtect.Infrastructure.Submissions;
@@ -31,10 +34,12 @@ public static class DependencyInjection
 
         services.AddScoped<ISubmissionRepository, EfCoreSubmissionRepository>();
         services.AddScoped<IQuoteRepository, EfCoreQuoteRepository>();
+        services.AddScoped<IPolicyRepository, EfCorePolicyRepository>();
         services.AddScoped<IUnitOfWork, EfCoreUnitOfWork>();
         services.AddScoped<IIdempotencyService, EfCoreIdempotencyService>();
         services.AddScoped<IIdempotencyRecordCleanup, EfCoreIdempotencyRecordCleanup>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
+        services.AddScoped<IPolicyBindingProviderClient, SimulatedPolicyBindingProviderClient>();
         services.AddTransient<RatingProviderAttemptCountingHandler>();
         services.AddTransient<SimulatedRatingProviderHttpMessageHandler>();
         var ratingProviderClientBuilder = services

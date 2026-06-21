@@ -35,6 +35,26 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
             cancellationToken);
     }
 
+    public async Task<Quote?> GetOwnedForAcceptanceAsync(
+        Guid quoteId,
+        string ownerUserId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.Quotes.SingleOrDefaultAsync(
+            quote => quote.Id == quoteId && quote.OwnerUserId == ownerUserId,
+            cancellationToken);
+    }
+
+    public async Task<Quote?> GetOwnedForBindingAsync(
+        Guid quoteId,
+        string ownerUserId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.Quotes.SingleOrDefaultAsync(
+            quote => quote.Id == quoteId && quote.OwnerUserId == ownerUserId,
+            cancellationToken);
+    }
+
     public async Task AddUnderwritingReviewAsync(
         QuoteUnderwritingReview review,
         CancellationToken cancellationToken)

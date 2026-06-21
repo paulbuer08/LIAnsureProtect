@@ -1,4 +1,5 @@
 using LIAnsureProtect.Domain.Common;
+using LIAnsureProtect.Domain.Policies;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
@@ -16,6 +17,10 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
     public DbSet<QuoteRatingProviderAttempt> QuoteRatingProviderAttempts => Set<QuoteRatingProviderAttempt>();
 
     public DbSet<QuoteUnderwritingReview> QuoteUnderwritingReviews => Set<QuoteUnderwritingReview>();
+
+    public DbSet<Policy> Policies => Set<Policy>();
+
+    public DbSet<PolicyBindingAttempt> PolicyBindingAttempts => Set<PolicyBindingAttempt>();
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 

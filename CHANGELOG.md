@@ -206,3 +206,12 @@ The format follows simple milestone-based entries.
 - Integration-test SQLite native bundle hardening by overriding `SQLitePCLRaw.bundle_e_sqlite3` to `3.0.3`, removing the transitive `SQLitePCLRaw.lib.e_sqlite3` `2.1.11` advisory warning from vulnerability scans.
 - Milestone 19 closeout notes after implementation commit `5106907 feat: add external rating provider resilience foundation` and local CI artifact `TestResults\local-ci-20260621-170602.zip`.
 - Milestone 20 starter continuity notes for `Milestone 20 - Quote Acceptance And Policy Binding Foundation`.
+- Milestone 20 - Quote Acceptance And Policy Binding Foundation implementation.
+- Protected `POST /api/v1/quotes/{quoteId}/accept` endpoint for customer, broker, and admin quote acceptance attestations.
+- Protected `POST /api/v1/quotes/{quoteId}/bind` endpoint for creating durable bound policies from accepted local quotes.
+- Quote acceptance audit fields for accepted-by user id, accepted-by name, accepted-by title, subjectivity acknowledgement, and accepted-at timestamp.
+- PostgreSQL-backed `policies` table with policy number, premium, limit, retention, effective date, expiration date, bound audit fields, and local quote term snapshot.
+- PostgreSQL-backed `policy_binding_attempts` table for simulated carrier/binding acknowledgement audit evidence.
+- Application-owned `IPolicyBindingProviderClient` boundary with an Infrastructure simulated binding provider.
+- `PolicyBoundDomainEvent` transactional outbox capture when a policy binds.
+- `Idempotency-Key` support for quote acceptance and policy binding so safe retries do not duplicate policies, binding attempts, or outbox messages.

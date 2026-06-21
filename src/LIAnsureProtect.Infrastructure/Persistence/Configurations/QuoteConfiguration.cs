@@ -93,6 +93,25 @@ public sealed class QuoteConfiguration : IEntityTypeConfiguration<Quote>
             .HasColumnName("underwriting_decision_notes")
             .HasColumnType("text");
 
+        builder.Property(quote => quote.AcceptedByUserId)
+            .HasColumnName("accepted_by_user_id")
+            .HasMaxLength(256);
+
+        builder.Property(quote => quote.AcceptedByName)
+            .HasColumnName("accepted_by_name")
+            .HasMaxLength(200);
+
+        builder.Property(quote => quote.AcceptedByTitle)
+            .HasColumnName("accepted_by_title")
+            .HasMaxLength(200);
+
+        builder.Property(quote => quote.SubjectivitiesAcknowledged)
+            .HasColumnName("subjectivities_acknowledged")
+            .IsRequired();
+
+        builder.Property(quote => quote.AcceptedAtUtc)
+            .HasColumnName("accepted_at_utc");
+
         builder.HasIndex(quote => new
             {
                 quote.OwnerUserId,

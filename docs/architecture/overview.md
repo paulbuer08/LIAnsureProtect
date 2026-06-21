@@ -614,6 +614,27 @@ Circuit breaker:
 
 The quote, underwriting, and provider-adapter milestones still deliberately keep quote acceptance, policy binding, notification delivery, and AI assistance in later milestones. Those are real specialty-insurance concerns, but each adds separate business state, authorization, audit, and operational failure modes.
 
+Milestone 20 - Quote Acceptance And Policy Binding Foundation adds the first safe path from quote to bound policy:
+
+```text
+POST /api/v1/quotes/{quoteId}/accept
+  -> Quotes.Accept policy
+  -> owner-scoped quote load
+  -> only Quoted or Approved quotes can be accepted
+  -> acceptance attestation fields are stored on quotes
+```
+
+```text
+POST /api/v1/quotes/{quoteId}/bind
+  -> Policies.Bind policy
+  -> owner-scoped accepted quote load
+  -> Policy created from local quote terms
+  -> simulated binding acknowledgement recorded
+  -> PolicyBoundDomainEvent persisted to outbox_messages
+```
+
+The local `policies` row is authoritative for this milestone. The simulated binding acknowledgement is an audit and integration-shape foundation, not a real carrier API bind. Real payment collection, production policy documents, real e-signature, notification publishing, and AI assistance remain separate milestones because each adds its own external dependency, state machine, and failure modes.
+
 ## Dependency Runtime Direction
 
 Local development should avoid manually installed service dependencies.

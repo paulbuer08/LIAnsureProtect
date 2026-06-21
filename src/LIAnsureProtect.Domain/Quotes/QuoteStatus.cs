@@ -6,5 +6,7 @@ public enum QuoteStatus
     Quoted,
     Referred,
     Approved,
-    Declined
+    Declined,
+    Accepted,
+    Bound
 }
