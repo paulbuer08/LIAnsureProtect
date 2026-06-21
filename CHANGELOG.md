@@ -205,3 +205,4 @@ The format follows simple milestone-based entries.
 - Focused backend tests proving provider success/failure mapping, provider-attempt persistence, idempotent replay without duplicate provider calls, dependency registration, migration shape, retry recovery, and circuit-open behavior.
 - Integration-test SQLite native bundle hardening by overriding `SQLitePCLRaw.bundle_e_sqlite3` to `3.0.3`, removing the transitive `SQLitePCLRaw.lib.e_sqlite3` `2.1.11` advisory warning from vulnerability scans.
 - Milestone 19 closeout notes after implementation commit `5106907 feat: add external rating provider resilience foundation` and local CI artifact `TestResults\local-ci-20260621-170602.zip`.
+- Milestone 20 starter continuity notes for `Milestone 20 - Quote Acceptance And Policy Binding Foundation`.

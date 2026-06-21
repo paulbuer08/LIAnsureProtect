@@ -57,6 +57,8 @@ Milestone 18 is complete as `Milestone 18 - Underwriting Referral Foundation`. I
 
 Milestone 19 is complete as `Milestone 19 - External Rating Provider Adapter And Resilience Foundation`. It adds an Application-owned external rating provider boundary, an Infrastructure typed `HttpClient` adapter with `Microsoft.Extensions.Http.Resilience` retry and circuit-breaker behavior, a simulated provider-shaped market indication, and PostgreSQL `quote_rating_provider_attempts` audit persistence while keeping local rating and underwriting referral behavior authoritative.
 
+Milestone 20 is starting as `Milestone 20 - Quote Acceptance And Policy Binding Foundation`. Its planning target is to convert an accepted local quote into an auditable policy-binding foundation while keeping real payment collection, production policy documents, notification delivery, and carrier binding integrations out of scope until later milestones.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -114,6 +116,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 17 Cyber Rating And Quote Foundation Learnings](docs/dev/milestone-17-cyber-rating-and-quote-foundation-learnings.md)
 - [Milestone 18 Underwriting Referral Foundation Learnings](docs/dev/milestone-18-underwriting-referral-foundation-learnings.md)
 - [Milestone 19 External Rating Provider Adapter And Resilience Foundation Learnings](docs/dev/milestone-19-external-rating-provider-adapter-and-resilience-foundation-learnings.md)
+- [Milestone 20 Quote Acceptance And Policy Binding Foundation Learnings](docs/dev/milestone-20-quote-acceptance-and-policy-binding-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)
