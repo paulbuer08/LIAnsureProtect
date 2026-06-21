@@ -12,6 +12,13 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         await dbContext.Quotes.AddAsync(quote, cancellationToken);
     }
 
+    public async Task AddRatingProviderAttemptAsync(
+        QuoteRatingProviderAttempt attempt,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.QuoteRatingProviderAttempts.AddAsync(attempt, cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken)
     {
         return await dbContext.Quotes

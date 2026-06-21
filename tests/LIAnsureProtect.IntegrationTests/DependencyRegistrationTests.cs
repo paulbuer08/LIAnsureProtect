@@ -2,6 +2,7 @@ using LIAnsureProtect.Application;
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Application.Quotes;
+using LIAnsureProtect.Application.Quotes.RatingProviders;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure;
 using LIAnsureProtect.Infrastructure.Persistence;
@@ -50,6 +51,7 @@ public sealed class DependencyRegistrationTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IIdempotencyService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IIdempotencyRecordCleanup>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IRatingProviderClient>());
     }
 
     [Fact]
@@ -78,5 +80,7 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("ix_quotes_submission_id", script);
         Assert.Contains("CREATE TABLE quote_underwriting_reviews", script);
         Assert.Contains("ix_quote_underwriting_reviews_quote_id_created_at_utc", script);
+        Assert.Contains("CREATE TABLE quote_rating_provider_attempts", script);
+        Assert.Contains("ix_quote_rating_provider_attempts_quote_id_created_at_utc", script);
     }
 }

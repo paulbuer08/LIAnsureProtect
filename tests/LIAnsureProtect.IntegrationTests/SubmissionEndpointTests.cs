@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using LIAnsureProtect.Application.Quotes.RatingProviders;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
@@ -60,6 +61,11 @@ public sealed class SubmissionEndpointTests
                         TestAuthHandler.AuthenticationScheme,
                         options => { }
                     );
+
+                services.RemoveAll<IRatingProviderClient>();
+                services.AddSingleton<TestRatingProviderClient>();
+                services.AddSingleton<IRatingProviderClient>(
+                    serviceProvider => serviceProvider.GetRequiredService<TestRatingProviderClient>());
             });
         });
 
@@ -939,6 +945,11 @@ public sealed class SubmissionEndpointTests
         Assert.True(root.GetProperty("premium").GetDecimal() > 0);
         Assert.Equal(1_000_000m, root.GetProperty("requestedLimit").GetDecimal());
         Assert.Equal(10_000m, root.GetProperty("retention").GetDecimal());
+        var providerIndication = root.GetProperty("providerIndication");
+        Assert.Equal("Contoso Specialty", providerIndication.GetProperty("providerName").GetString());
+        Assert.Equal("Succeeded", providerIndication.GetProperty("status").GetString());
+        Assert.Equal("Quoted", providerIndication.GetProperty("marketDisposition").GetString());
+        Assert.Equal("CNT-Q-TEST-1", providerIndication.GetProperty("providerQuoteNumber").GetString());
         Assert.Equal($"/api/v1/quotes/{quoteId}", response.Headers.Location?.OriginalString);
 
         using var verifyScope = webApplicationFactory.Services.CreateScope();
@@ -949,10 +960,18 @@ public sealed class SubmissionEndpointTests
         var outboxMessage = await verifyDbContext.Set<OutboxMessage>().SingleAsync(
             message => message.Type == nameof(QuoteGeneratedDomainEvent),
             TestContext.Current.CancellationToken);
+        var providerAttempt = await verifyDbContext.Set<QuoteRatingProviderAttempt>().SingleAsync(
+            attempt => attempt.QuoteId == quoteId,
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(submission.Id, savedQuote.SubmissionId);
         Assert.Equal("test-user-1", savedQuote.OwnerUserId);
         Assert.Equal(QuoteStatus.Quoted, savedQuote.Status);
+        Assert.Equal("Contoso Specialty", providerAttempt.ProviderName);
+        Assert.Equal(RatingProviderAttemptStatus.Succeeded, providerAttempt.Status);
+        Assert.Equal(RatingProviderMarketDisposition.Quoted, providerAttempt.MarketDisposition);
+        Assert.Equal("CNT-Q-TEST-1", providerAttempt.ProviderQuoteNumber);
+        Assert.NotEqual(string.Empty, providerAttempt.RequestPayloadHash);
         Assert.Contains(quoteId.ToString(), outboxMessage.Payload);
     }
 
@@ -1088,9 +1107,15 @@ public sealed class SubmissionEndpointTests
         var quoteOutboxMessageCount = await verifyDbContext.Set<OutboxMessage>().CountAsync(
             message => message.Type == nameof(QuoteGeneratedDomainEvent),
             TestContext.Current.CancellationToken);
+        var providerAttemptCount = await verifyDbContext.Set<QuoteRatingProviderAttempt>().CountAsync(
+            attempt => attempt.Quote.SubmissionId == submission.Id,
+            TestContext.Current.CancellationToken);
+        var providerClient = webApplicationFactory.Services.GetRequiredService<TestRatingProviderClient>();
 
         Assert.Equal(1, savedQuoteCount);
         Assert.Equal(1, quoteOutboxMessageCount);
+        Assert.Equal(1, providerAttemptCount);
+        Assert.Equal(1, providerClient.CallCount);
     }
 
 
@@ -1145,6 +1170,33 @@ public sealed class SubmissionEndpointTests
             priorCyberIncidents = 2,
             sensitiveDataExposure = "High"
         };
+    }
+
+
+
+    private sealed class TestRatingProviderClient : IRatingProviderClient
+    {
+        public int CallCount { get; private set; }
+
+        public Task<RatingProviderResult> GetMarketIndicationAsync(
+            RatingProviderRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+
+            return Task.FromResult(RatingProviderResult.Succeeded(
+                providerName: "Contoso Specialty",
+                marketDisposition: RatingProviderMarketDisposition.Quoted,
+                providerReference: "CNT-REF-TEST-1",
+                providerQuoteNumber: "CNT-Q-TEST-1",
+                indicatedPremium: request.LocalPremium + 500m,
+                indicatedLimit: request.RequestedLimit,
+                indicatedRetention: request.Retention,
+                httpStatusCode: 200,
+                attemptCount: 1,
+                duration: TimeSpan.FromMilliseconds(25),
+                completedAtUtc: new DateTime(2026, 6, 21, 1, 0, 0, DateTimeKind.Utc)));
+        }
     }
 
 

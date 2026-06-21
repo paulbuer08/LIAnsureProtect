@@ -10,4 +10,5 @@ public sealed record CreateQuoteResult(
     string Status,
     IReadOnlyList<string> Subjectivities,
     IReadOnlyList<string> ReferralReasons,
-    DateTime ExpiresAtUtc);
+    DateTime ExpiresAtUtc,
+    RatingProviderIndicationResult ProviderIndication);

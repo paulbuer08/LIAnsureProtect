@@ -196,3 +196,11 @@ The format follows simple milestone-based entries.
 - Focused backend tests proving customer/broker denial, underwriter/admin authority, review state transitions, audit persistence, outbox capture, and migration shape.
 - Milestone 18 closeout notes recording implementation commit `dc8a924 feat: add underwriting referral foundation`.
 - Milestone 19 starter continuity notes for `Milestone 19 - External Rating Provider Adapter And Resilience Foundation`.
+- Milestone 19 - External Rating Provider Adapter And Resilience Foundation implementation.
+- Application-owned `IRatingProviderClient` boundary and provider-shaped rating request/result DTOs for simulated specialty-insurance market indications.
+- Infrastructure typed `HttpClient` rating provider adapter using `IHttpClientFactory` and `Microsoft.Extensions.Http.Resilience` standard retry, timeout, and circuit-breaker behavior.
+- Local simulated rating provider HTTP handler so Milestone 19 exercises the provider adapter shape without real insurer credentials or production onboarding.
+- PostgreSQL-backed `quote_rating_provider_attempts` audit table for provider status, market disposition, references, indicated terms, sanitized failure details, attempt count, duration, and request payload hash.
+- Quote creation response enrichment with a safe provider indication summary while preserving local quote premium, status, referral, idempotency, and outbox behavior.
+- Focused backend tests proving provider success/failure mapping, provider-attempt persistence, idempotent replay without duplicate provider calls, dependency registration, migration shape, retry recovery, and circuit-open behavior.
+- Integration-test SQLite native bundle hardening by overriding `SQLitePCLRaw.bundle_e_sqlite3` to `3.0.3`, removing the transitive `SQLitePCLRaw.lib.e_sqlite3` `2.1.11` advisory warning from vulnerability scans.

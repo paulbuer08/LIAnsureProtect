@@ -26,8 +26,8 @@ Do not add the pattern just because it is a good interview keyword.
 | Transactional outbox | Implemented in Milestone 13 | `SubmissionSubmittedDomainEvent` is now persisted to PostgreSQL `outbox_messages` in the same save boundary as the submission status change. Dispatch is still deferred. |
 | Idempotency | Implemented in Milestone 15 and operationally hardened in Milestone 16 | `POST /api/v1/submissions` and `POST /api/v1/submissions/{submissionId}/submit` now support PostgreSQL-backed `Idempotency-Key` handling. Milestone 16 adds completed-record cleanup so the receipt table does not grow forever. Future important POST endpoints should opt into the same pattern when retries can create duplicate state or side effects. |
 | Strategy pattern | Implemented in Milestone 17 | Cyber rating now uses explicit baseline and high-risk strategies behind a selector. |
-| Adapter pattern | Not implemented | Recommended when the app calls an external provider or a provider-shaped local fake. |
-| Retry and circuit breaker | Not implemented | Recommended only around external network calls, not around local database queries. |
+| Adapter pattern | Implemented in Milestone 19 | Rating provider calls now go through an Application-owned `IRatingProviderClient` and an Infrastructure typed `HttpClient` adapter. |
+| Retry and circuit breaker | Implemented in Milestone 19 | `Microsoft.Extensions.Http.Resilience` protects only the outbound rating provider HTTP call. Local EF Core and local rating are not wrapped in this policy. |
 | Cache-aside | Not implemented | Recommended later for expensive dashboard counts or summaries, not for the current basic reads. |
 | Saga / process manager | Not implemented | Recommended much later for multi-step underwriting, quote, policy, or claims workflows. |
 
@@ -431,6 +431,12 @@ dotnet test LIAnsureProtect.slnx --no-restore
 
 ### Milestone 19 - External Rating Provider Adapter And Resilience Foundation
 
+Status:
+
+```text
+Implemented locally as the first external rating provider adapter and resilience foundation.
+```
+
 Goal:
 
 ```text
@@ -443,19 +449,23 @@ Why this comes after local rating and referral:
 - Retry/circuit breaker belongs around network calls, not local EF Core queries.
 - Provider failure should not erase the local quote and referral workflow.
 
-Planned scope:
+Implemented scope:
 
-- Add `IRatingProviderClient` Application interface.
-- Add Infrastructure HTTP adapter using `IHttpClientFactory`.
-- Use a local fake provider endpoint or test handler first.
-- Add retry and circuit-breaker policy around the outbound call.
-- Record provider success/failure status safely on the quote or provider-attempt record.
-- Allow local rating to remain available when the external provider is unavailable.
+- Added `IRatingProviderClient` Application interface.
+- Added provider-shaped rating request/result DTOs that carry a market indication instead of a generic ping result.
+- Added Infrastructure typed HTTP adapter using `IHttpClientFactory`.
+- Added `Microsoft.Extensions.Http.Resilience` standard retry, timeout, and circuit-breaker behavior around the outbound call.
+- Added a local simulated provider HTTP handler instead of real insurer credentials.
+- Added PostgreSQL `quote_rating_provider_attempts` audit persistence.
+- Added safe provider indication fields to the quote creation response.
+- Kept local rating, local quote persistence, idempotent quote replay, and underwriting referral behavior available when the provider is unavailable.
 - Add tests proving:
   - Application depends on interface, not provider implementation
   - transient provider failure is retried
   - repeated provider failure opens/breaks the circuit
   - provider error maps to safe API/application response
+  - provider attempts are persisted
+  - idempotent replay does not create duplicate provider attempts
 
 Out of scope:
 
@@ -591,4 +601,4 @@ dotnet test LIAnsureProtect.slnx --no-restore
 
 ## Current Recommendation
 
-Continue milestone by milestone. Milestone 18 now gives the product a real underwriter referral workflow around high-risk quotes; the next highest-value step is external rating provider adapter and resilience before policy binding, notifications, or AI.
+Continue milestone by milestone. Milestone 19 now gives the product a realistic provider integration boundary and resilience layer around quote creation; the next highest-value step is quote acceptance and policy binding before notifications or AI.

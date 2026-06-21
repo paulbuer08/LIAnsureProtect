@@ -6,6 +6,10 @@ public interface IQuoteRepository
 {
     Task AddAsync(Quote quote, CancellationToken cancellationToken);
 
+    Task AddRatingProviderAttemptAsync(
+        QuoteRatingProviderAttempt attempt,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken);
 
     Task<Quote?> GetForUnderwritingReviewAsync(Guid quoteId, CancellationToken cancellationToken);

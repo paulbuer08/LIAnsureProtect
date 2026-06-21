@@ -535,7 +535,84 @@ POST /api/v1/underwriting/quote-referrals/{quoteId}/adjust
 
 This keeps customer/broker ownership separate from underwriter review authority. Customers and brokers can create owned submissions and quotes through their own policies, but they cannot approve, decline, or adjust referred quotes. Underwriters and admins use a separate policy and leave a reasoned audit trail for each decision.
 
-The quote and underwriting milestones deliberately keep external provider calls, retry/circuit-breaker behavior, quote acceptance, policy binding, notification delivery, and AI assistance in later milestones. Those are real specialty-insurance concerns, but each adds separate business state, authorization, audit, and operational failure modes.
+Milestone 19 - External Rating Provider Adapter And Resilience Foundation adds the first provider-shaped rating integration boundary.
+
+The current external rating flow is:
+
+```text
+POST /api/v1/submissions/{submissionId}/quotes
+  -> local cyber rating remains authoritative
+  -> Quote.Generate(...)
+  -> IRatingProviderClient
+  -> Infrastructure typed HttpClient
+  -> Microsoft.Extensions.Http.Resilience retry/timeout/circuit breaker
+  -> simulated provider market indication
+  -> quote_rating_provider_attempts audit row
+  -> safe provider indication in API response
+```
+
+This milestone treats the external provider as a market indication, not as the system of record. The local quote row still controls the current LIAnsureProtect quote premium, risk tier, status, referral reasons, and later underwriting workflow. The provider indication is captured beside the quote so the system can answer operational and audit questions such as:
+
+```text
+Which market did we ask?
+Did the call succeed?
+What reference did the provider return?
+Was the provider unavailable?
+Did the circuit breaker stop calls temporarily?
+What sanitized reason can support troubleshooting without exposing secrets?
+```
+
+The provider attempt table is:
+
+```text
+quote_rating_provider_attempts
+  id
+  quote_id
+  provider_name
+  status
+  market_disposition
+  provider_reference
+  provider_quote_number
+  indicated_premium
+  indicated_limit
+  indicated_retention
+  http_status_code
+  failure_category
+  failure_reason
+  attempt_count
+  duration_ms
+  request_payload_hash
+  created_at_utc
+  completed_at_utc
+```
+
+Why this is separate from `quotes`:
+
+- The `quotes` row answers the business question: "What is LIAnsureProtect's current quote?"
+- The provider attempt row answers the integration question: "What happened when we contacted a market/provider?"
+- Multiple provider attempts or multiple markets could be added later without changing the main quote shape every time.
+- Sensitive provider details can be kept out of API responses while still preserving safe operational evidence.
+
+Retry and circuit breaker are intentionally placed only around the outbound provider HTTP call. They are not wrapped around EF Core queries or local rating because database persistence and local business rules have different failure semantics. A retry can make sense when a provider returns a transient `500` or `502`; retrying a local database transaction needs separate idempotency and transaction rules.
+
+Simple analogy:
+
+```text
+Local rating engine:
+  LIAnsureProtect's internal pricing desk.
+
+External rating provider:
+  A carrier or market desk we ask for an indication.
+
+quote_rating_provider_attempts:
+  The call log that records who was contacted and what safe result came back.
+
+Circuit breaker:
+  Temporarily stop calling a market that is repeatedly failing,
+  so the app does not keep hammering a broken external dependency.
+```
+
+The quote, underwriting, and provider-adapter milestones still deliberately keep quote acceptance, policy binding, notification delivery, and AI assistance in later milestones. Those are real specialty-insurance concerns, but each adds separate business state, authorization, audit, and operational failure modes.
 
 ## Dependency Runtime Direction
 
