@@ -216,3 +216,4 @@ The format follows simple milestone-based entries.
 - `PolicyBoundDomainEvent` transactional outbox capture when a policy binds.
 - `Idempotency-Key` support for quote acceptance and policy binding so safe retries do not duplicate policies, binding attempts, or outbox messages.
 - Milestone 20 closeout notes after implementation commit `ade6297 feat: add quote acceptance and policy binding foundation` and local CI artifact `TestResults\local-ci-20260621-210031.zip`.
+- Milestone 21 starter continuity notes for `Milestone 21 - Notification And Outbox Publishing Foundation`.

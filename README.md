@@ -59,6 +59,8 @@ Milestone 19 is complete as `Milestone 19 - External Rating Provider Adapter And
 
 Milestone 20 is complete as `Milestone 20 - Quote Acceptance And Policy Binding Foundation`. It adds quote acceptance attestations, durable bound policies, simulated binding acknowledgement audit rows, idempotent accept/bind POST actions, and `PolicyBoundDomainEvent` outbox capture while keeping real payment collection, production policy documents, notification delivery, real e-signature, real carrier binding APIs, and advisory AI out of scope until later milestones.
 
+Milestone 21 has started as `Milestone 21 - Notification And Outbox Publishing Foundation`. The planned slice is to put the existing transactional outbox to practical use through an Application-owned notification publisher boundary, retry-safe Worker dispatch, and provider-shaped local publishing for important quote and policy workflow events without adding production SNS/SQS, email/SMS delivery, inboxes, or notification templates yet.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -117,6 +119,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 18 Underwriting Referral Foundation Learnings](docs/dev/milestone-18-underwriting-referral-foundation-learnings.md)
 - [Milestone 19 External Rating Provider Adapter And Resilience Foundation Learnings](docs/dev/milestone-19-external-rating-provider-adapter-and-resilience-foundation-learnings.md)
 - [Milestone 20 Quote Acceptance And Policy Binding Foundation Learnings](docs/dev/milestone-20-quote-acceptance-and-policy-binding-foundation-learnings.md)
+- [Milestone 21 Notification And Outbox Publishing Foundation Learnings](docs/dev/milestone-21-notification-and-outbox-publishing-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)

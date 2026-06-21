@@ -530,6 +530,12 @@ dotnet test LIAnsureProtect.slnx --no-restore
 
 ### Milestone 21 - Notification And Outbox Publishing Foundation
 
+Status:
+
+```text
+Started from Milestone 20 closeout commit 4d91665 as the next planned backend foundation slice.
+```
+
 Goal:
 
 ```text
