@@ -226,3 +226,4 @@ The format follows simple milestone-based entries.
 - Focused backend tests for quote acceptance events, notification publish success, transient retry behavior, poison failure recording, dependency registration, and migration shape.
 - Milestone 21 verification passed with local CI artifact `TestResults\local-ci-20260621-214045.zip`.
 - Milestone 21 closeout notes after implementation commit `ed0d073 feat: add notification and outbox publishing foundation`.
+- Milestone 22 starter continuity notes for `Milestone 22 - AI Underwriting Assistant Foundation`.
