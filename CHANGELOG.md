@@ -194,3 +194,4 @@ The format follows simple milestone-based entries.
 - PostgreSQL-backed `quote_underwriting_reviews` audit table plus current review snapshot fields on `quotes`.
 - `QuoteUnderwritingDecisionRecordedDomainEvent` outbox capture for underwriting decisions.
 - Focused backend tests proving customer/broker denial, underwriter/admin authority, review state transitions, audit persistence, outbox capture, and migration shape.
+- Milestone 18 closeout notes recording implementation commit `dc8a924 feat: add underwriting referral foundation`.

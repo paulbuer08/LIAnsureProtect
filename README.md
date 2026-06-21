@@ -53,7 +53,7 @@ Milestone 16 is complete as `Milestone 16 - Idempotency Operational Hardening Fo
 
 Milestone 17 is complete as `Milestone 17 - Cyber Rating And Quote Foundation`. It adds the first realistic local cyber rating slice with synthetic actuarial-style factors, owner-scoped quote creation for submitted submissions, PostgreSQL quote persistence, `QuoteGeneratedDomainEvent` outbox capture, and idempotent quote creation through `POST /api/v1/submissions/{submissionId}/quotes`.
 
-Milestone 18 is implemented locally as `Milestone 18 - Underwriting Referral Foundation`. It builds on Milestone 17's `Referred` quote state with an underwriter referral queue, `Quotes.Underwrite` authorization, approve/decline/adjust review actions, PostgreSQL review audit history, and `QuoteUnderwritingDecisionRecordedDomainEvent` outbox capture without introducing external provider calls, policy binding, notification delivery, or AI yet.
+Milestone 18 is complete as `Milestone 18 - Underwriting Referral Foundation`. It builds on Milestone 17's `Referred` quote state with an underwriter referral queue, `Quotes.Underwrite` authorization, approve/decline/adjust review actions, PostgreSQL review audit history, and `QuoteUnderwritingDecisionRecordedDomainEvent` outbox capture without introducing external provider calls, policy binding, notification delivery, or AI yet.
 
 ## Local Run
 

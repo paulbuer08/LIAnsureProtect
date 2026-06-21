@@ -285,6 +285,20 @@ docs/dev/milestone-18-underwriting-referral-foundation-learnings.md
 - Each decision records an outbox event for later notification or workflow milestones.
 - The milestone does not bind coverage, issue a policy, call an external rating provider, send notifications, or add AI.
 
+## Closeout
+
+Milestone 18 implementation was committed locally as:
+
+```text
+dc8a924 feat: add underwriting referral foundation
+```
+
+The next milestone should add a provider-shaped external rating integration behind an adapter and resilience boundary:
+
+```text
+Milestone 19 - External Rating Provider Adapter And Resilience Foundation
+```
+
 ## Verification
 
 Focused unit tests:
