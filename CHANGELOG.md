@@ -186,3 +186,4 @@ The format follows simple milestone-based entries.
 - `QuoteGeneratedDomainEvent` outbox capture for generated quote records.
 - Focused unit and integration tests covering rating variation, high-risk referral, owner-scoped quote creation, submitted-only quote creation, idempotent retries, dependency registration, and migration shape.
 - Milestone 17 closeout notes recording implementation commit `0792023 feat: add cyber rating and quote foundation`.
+- Milestone 18 starter continuity notes for `Milestone 18 - Underwriting Referral Foundation`.
