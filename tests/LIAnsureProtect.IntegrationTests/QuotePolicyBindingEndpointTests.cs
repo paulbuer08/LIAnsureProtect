@@ -108,6 +108,12 @@ public sealed class QuotePolicyBindingEndpointTests
 
         Assert.Equal(QuoteStatus.Accepted, savedQuote.Status);
         Assert.Equal("customer-1", savedQuote.AcceptedByUserId);
+
+        var outboxMessage = await dbContext.Set<OutboxMessage>().SingleAsync(
+            message => message.Type == nameof(QuoteAcceptedDomainEvent),
+            TestContext.Current.CancellationToken);
+        Assert.Contains(quote.Id.ToString(), outboxMessage.Payload);
+        Assert.Contains("customer-1", outboxMessage.Payload);
     }
 
     [Fact]

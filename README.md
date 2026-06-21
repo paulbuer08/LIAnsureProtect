@@ -59,7 +59,7 @@ Milestone 19 is complete as `Milestone 19 - External Rating Provider Adapter And
 
 Milestone 20 is complete as `Milestone 20 - Quote Acceptance And Policy Binding Foundation`. It adds quote acceptance attestations, durable bound policies, simulated binding acknowledgement audit rows, idempotent accept/bind POST actions, and `PolicyBoundDomainEvent` outbox capture while keeping real payment collection, production policy documents, notification delivery, real e-signature, real carrier binding APIs, and advisory AI out of scope until later milestones.
 
-Milestone 21 has started as `Milestone 21 - Notification And Outbox Publishing Foundation`. The planned slice is to put the existing transactional outbox to practical use through an Application-owned notification publisher boundary, retry-safe Worker dispatch, and provider-shaped local publishing for important quote and policy workflow events without adding production SNS/SQS, email/SMS delivery, inboxes, or notification templates yet.
+Milestone 21 is implemented as `Milestone 21 - Notification And Outbox Publishing Foundation`. It puts the existing transactional outbox to practical use through an Application-owned notification publisher boundary, provider-shaped local publishing for important quote and policy workflow events, explicit publish retry/failure metadata on outbox rows, and `QuoteAcceptedDomainEvent` capture while keeping production SNS/SQS, email/SMS delivery, inboxes, preferences, webhooks, and notification templates out of scope.
 
 ## Local Run
 

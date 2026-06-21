@@ -305,6 +305,13 @@ public sealed class Quote : IHasDomainEvents
         AcceptedByTitle = acceptedByTitle.Trim();
         SubjectivitiesAcknowledged = subjectivitiesAcknowledged;
         AcceptedAtUtc = acceptedAtUtc;
+
+        domainEvents.Add(new QuoteAcceptedDomainEvent(
+            Id,
+            SubmissionId,
+            OwnerUserId,
+            AcceptedByUserId,
+            acceptedAtUtc));
     }
 
     public void MarkBound(DateTime boundAtUtc)

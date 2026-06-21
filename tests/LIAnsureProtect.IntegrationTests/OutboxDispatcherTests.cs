@@ -1,3 +1,5 @@
+using LIAnsureProtect.Application.Notifications;
+using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
@@ -37,7 +39,8 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var dispatcher = new OutboxDispatcher(dbContext);
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = new OutboxDispatcher(dbContext, publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -51,9 +54,140 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Null(savedMessage.Error);
     }
 
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Publishes_Quote_Notification_Before_Marking_Message_Processed()
+    {
+        var domainEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("d9f7a2f5-0c3c-46f3-a841-ac26f8af1169"),
+            Guid.Parse("a6f943ad-9c87-4932-9e65-8fdd97da4079"),
+            "customer-1",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 6, 21, 5, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            domainEvent,
+            new DateTime(2026, 6, 21, 5, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+
+        var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var savedMessage = await dbContext.OutboxMessages.SingleAsync(
+            message => message.Id == outboxMessage.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, processedCount);
+        var publishedMessage = Assert.Single(publisher.PublishedMessages);
+        Assert.Equal(outboxMessage.Id.ToString("N"), publishedMessage.MessageId);
+        Assert.Equal(NotificationMessageTypes.QuoteReady, publishedMessage.Type);
+        Assert.Equal(NotificationAudiences.CustomerOrBroker, publishedMessage.Audience);
+        Assert.Equal("customer-1", publishedMessage.OwnerUserId);
+        Assert.Equal(outboxMessage.Id, publishedMessage.OutboxMessageId);
+        Assert.NotNull(savedMessage.ProcessedAtUtc);
+        Assert.Equal(1, savedMessage.PublishAttemptCount);
+        Assert.Equal("local-provider-message-1", savedMessage.ProviderMessageId);
+        Assert.Null(savedMessage.NextAttemptAtUtc);
+        Assert.Null(savedMessage.FailedAtUtc);
+        Assert.Null(savedMessage.Error);
+    }
+
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Leaves_Message_Pending_For_Retry_When_Notification_Publish_Fails()
+    {
+        var domainEvent = new QuoteUnderwritingDecisionRecordedDomainEvent(
+            Guid.Parse("fd61c036-06eb-46d0-a811-cef15408dd8e"),
+            Guid.Parse("1aaf4497-3ba4-4f0b-8c5d-bf8f97474cb7"),
+            "customer-1",
+            "underwriter-1",
+            QuoteUnderwritingDecision.Approved,
+            new DateTime(2026, 6, 21, 6, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            domainEvent,
+            new DateTime(2026, 6, 21, 6, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher(
+            NotificationPublishResult.TransientFailure("local notification provider is unavailable"));
+        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+
+        var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var savedMessage = await dbContext.OutboxMessages.SingleAsync(
+            message => message.Id == outboxMessage.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, processedCount);
+        Assert.Single(publisher.PublishedMessages);
+        Assert.Null(savedMessage.ProcessedAtUtc);
+        Assert.Equal(1, savedMessage.PublishAttemptCount);
+        Assert.NotNull(savedMessage.LastPublishAttemptAtUtc);
+        Assert.NotNull(savedMessage.NextAttemptAtUtc);
+        Assert.Null(savedMessage.FailedAtUtc);
+        Assert.Equal("local notification provider is unavailable", savedMessage.Error);
+    }
+
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Records_Poison_Failure_When_Notification_Publish_Permanently_Fails()
+    {
+        var domainEvent = new QuoteAcceptedDomainEvent(
+            Guid.Parse("d5ea7781-c981-4d08-967b-83369343a626"),
+            Guid.Parse("426c2ac3-bf10-47af-a4ca-36825a354b14"),
+            "customer-1",
+            "customer-1",
+            new DateTime(2026, 6, 21, 7, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            domainEvent,
+            new DateTime(2026, 6, 21, 7, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher(
+            NotificationPublishResult.PermanentFailure("notification payload is not accepted by provider"));
+        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+
+        var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var savedMessage = await dbContext.OutboxMessages.SingleAsync(
+            message => message.Id == outboxMessage.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, processedCount);
+        var publishedMessage = Assert.Single(publisher.PublishedMessages);
+        Assert.Equal(NotificationMessageTypes.QuoteAccepted, publishedMessage.Type);
+        Assert.Equal(NotificationAudiences.BindingOperations, publishedMessage.Audience);
+        Assert.Null(savedMessage.ProcessedAtUtc);
+        Assert.Equal(1, savedMessage.PublishAttemptCount);
+        Assert.NotNull(savedMessage.LastPublishAttemptAtUtc);
+        Assert.Null(savedMessage.NextAttemptAtUtc);
+        Assert.NotNull(savedMessage.FailedAtUtc);
+        Assert.Equal("notification payload is not accepted by provider", savedMessage.Error);
+    }
+
     public void Dispose()
     {
         dbContext.Dispose();
         databaseConnection.Dispose();
+    }
+
+    private sealed class RecordingNotificationPublisher(
+        NotificationPublishResult? result = null) : INotificationPublisher
+    {
+        public List<NotificationMessage> PublishedMessages { get; } = [];
+
+        public Task<NotificationPublishResult> PublishAsync(
+            NotificationMessage message,
+            CancellationToken cancellationToken)
+        {
+            PublishedMessages.Add(message);
+
+            return Task.FromResult(result
+                ?? NotificationPublishResult.Success("local-provider-message-1"));
+        }
     }
 }

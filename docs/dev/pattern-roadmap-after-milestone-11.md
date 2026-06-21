@@ -533,7 +533,7 @@ dotnet test LIAnsureProtect.slnx --no-restore
 Status:
 
 ```text
-Started from Milestone 20 closeout commit 4d91665 as the next planned backend foundation slice.
+Implemented locally as the first notification publishing foundation on top of the transactional outbox.
 ```
 
 Goal:
@@ -548,20 +548,31 @@ Why this comes after quote and policy events:
 - Notification delivery should be built after the business events are real.
 - SNS/SQS or a local provider-shaped adapter should be added when there is actual downstream work to publish.
 
-Planned scope:
+Implemented scope:
 
-- Add event publisher abstraction.
-- Add local SNS/SQS-shaped adapter or LocalStack-backed path if ready.
-- Add notification event types for quote generated, quote referred, and policy bound.
-- Update Worker dispatch behavior beyond simply marking rows processed.
-- Add retry-safe downstream processing.
-- Add tests proving one business action creates one notification event.
+- Added an Application-owned `INotificationPublisher` boundary.
+- Added provider-shaped `NotificationMessage` contracts and notification type/audience constants.
+- Added an Infrastructure local notification publisher for safe tests without AWS credentials or real email/SMS delivery.
+- Added `QuoteAcceptedDomainEvent` so quote acceptance becomes a durable outbox event.
+- Mapped selected domain events to notification messages:
+  - `QuoteGeneratedDomainEvent` with `Quoted` status maps to a customer/broker quote-ready notification.
+  - `QuoteGeneratedDomainEvent` with `Referred` status maps to an underwriting-operations review-needed notification.
+  - `QuoteUnderwritingDecisionRecordedDomainEvent` maps to a customer/broker decision notification.
+  - `QuoteAcceptedDomainEvent` maps to a binding-operations notification.
+  - `PolicyBoundDomainEvent` maps to a customer/broker policy-bound notification.
+- Updated Worker-side outbox dispatch so selected rows publish before `processed_at_utc` is stamped.
+- Added retry/debug metadata on `outbox_messages`: publish attempt count, last publish attempt time, next retry time, provider message id, and poison failure time.
+- Added migration/index coverage for the outbox publishing metadata.
+- Added tests proving quote acceptance event capture, publish success, transient retry, permanent failure recording, dependency registration, and migration shape.
 
 Out of scope:
 
 - Full user notification inbox.
 - Complex email/SMS templates.
 - Claims notifications.
+- Production SNS/SQS publishing.
+- User notification preferences.
+- External broker/customer webhooks.
 
 Verification:
 

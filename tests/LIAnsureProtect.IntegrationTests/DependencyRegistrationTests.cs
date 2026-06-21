@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application;
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
+using LIAnsureProtect.Application.Notifications;
 using LIAnsureProtect.Application.Policies;
 using LIAnsureProtect.Application.Policies.Binding;
 using LIAnsureProtect.Application.Quotes;
@@ -56,6 +57,7 @@ public sealed class DependencyRegistrationTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IIdempotencyRecordCleanup>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IRatingProviderClient>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<INotificationPublisher>());
     }
 
     [Fact]
@@ -77,6 +79,11 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("CREATE TABLE submissions", script);
         Assert.Contains("CREATE TABLE outbox_messages", script);
         Assert.Contains("ix_outbox_messages_processed_at_utc_created_at_utc", script);
+        Assert.Contains("publish_attempt_count", script);
+        Assert.Contains("last_publish_attempt_at_utc", script);
+        Assert.Contains("next_attempt_at_utc", script);
+        Assert.Contains("provider_message_id", script);
+        Assert.Contains("failed_at_utc", script);
         Assert.Contains("CREATE TABLE idempotency_records", script);
         Assert.Contains("ux_idempotency_records_key", script);
         Assert.Contains("ix_idempotency_records_status_completed_at_utc", script);

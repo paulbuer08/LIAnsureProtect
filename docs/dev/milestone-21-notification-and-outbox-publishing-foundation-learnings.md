@@ -27,21 +27,112 @@ In simple English:
 
 ## Proposed Scope
 
-Milestone 21 should stay focused on a realistic publishing foundation:
+Milestone 21 stayed focused on a realistic publishing foundation:
 
-- Add an Application-owned notification publisher boundary.
-- Add an Infrastructure local provider-shaped notification publisher.
-- Update Worker dispatch behavior so outbox rows are published through the boundary before being marked processed.
-- Record enough publish attempt metadata to debug success, retry, and failure behavior.
-- Add notification message contracts for important quote and policy workflow events.
-- Keep publishing retry-safe so one business action does not create duplicate downstream notifications.
-- Add focused backend tests and a migration guard if new persistence is introduced.
+- Added an Application-owned notification publisher boundary.
+- Added an Infrastructure local provider-shaped notification publisher.
+- Updated Worker dispatch behavior so selected outbox rows are published through the boundary before being marked processed.
+- Recorded enough publish attempt metadata to debug success, retry, and failure behavior.
+- Added notification message contracts for important quote and policy workflow events.
+- Kept publishing retry-safe so one business action does not create duplicate downstream notifications.
+- Added focused backend tests and a migration guard for the new outbox metadata.
+- Added `QuoteAcceptedDomainEvent` because quote acceptance is a real specialty-insurance communication point before binding.
 
-Candidate event coverage:
+Implemented event coverage:
 
 - `QuoteGeneratedDomainEvent`
+  - `Quoted` quotes map to `quote.ready` for the customer/broker audience.
+  - `Referred` quotes map to `quote.referred_for_underwriting` for the underwriting operations audience.
 - `QuoteUnderwritingDecisionRecordedDomainEvent`
+  - underwriting approve/adjust/decline decisions map to `quote.underwriting_decision_recorded` for the customer/broker audience.
+- `QuoteAcceptedDomainEvent`
+  - accepted quotes map to `quote.accepted` for the binding operations audience.
 - `PolicyBoundDomainEvent`
+  - bound policies map to `policy.bound` for the customer/broker audience and include the policy number.
+
+## Implemented Shape
+
+Application owns the notification publishing contract:
+
+```text
+INotificationPublisher
+NotificationMessage
+NotificationPublishResult
+NotificationMessageTypes
+NotificationAudiences
+```
+
+Infrastructure owns the current local provider-shaped implementation:
+
+```text
+LocalNotificationPublisher
+OutboxNotificationMapper
+OutboxDispatcher
+OutboxMessage
+```
+
+The dispatch flow is now:
+
+```text
+outbox_messages pending row
+  -> OutboxDispatcher
+  -> OutboxNotificationMapper
+  -> NotificationMessage
+  -> INotificationPublisher
+  -> LocalNotificationPublisher
+  -> provider message id
+  -> OutboxMessage.MarkPublishSucceeded(...)
+  -> processed_at_utc stamped
+```
+
+If publishing fails transiently:
+
+```text
+publisher returns transient failure
+  -> publish_attempt_count increments
+  -> last_publish_attempt_at_utc is stamped
+  -> error stores safe failure reason
+  -> next_attempt_at_utc is set
+  -> processed_at_utc remains null
+```
+
+If publishing fails permanently:
+
+```text
+publisher returns permanent failure
+  -> publish_attempt_count increments
+  -> failed_at_utc is stamped
+  -> next_attempt_at_utc remains null
+  -> processed_at_utc remains null
+```
+
+This keeps the outbox honest: a row is processed only after the notification boundary accepts it. A retryable failure stays pending for a later pass, while a poison failure is visible for investigation.
+
+## Persistence Added
+
+Milestone 21 extends `outbox_messages` with:
+
+```text
+publish_attempt_count
+last_publish_attempt_at_utc
+next_attempt_at_utc
+provider_message_id
+failed_at_utc
+```
+
+It also adds the retry-oriented index:
+
+```text
+ix_outbox_messages_dispatch_retry
+```
+
+The stable downstream message id is based on the outbox message id:
+
+```text
+NotificationMessage.MessageId = OutboxMessage.Id formatted as N
+```
+
+That is the local foundation for duplicate-safe downstream publishing later. A future SNS/SQS or email provider can use this message id as its idempotency or correlation key where the provider supports it.
 
 ## Important Boundaries
 
@@ -68,14 +159,13 @@ Application:
 
 ```text
 src/LIAnsureProtect.Application/Notifications/*
-src/LIAnsureProtect.Application/Outbox/*
 ```
 
 Infrastructure:
 
 ```text
 src/LIAnsureProtect.Infrastructure/Notifications/*
-src/LIAnsureProtect.Infrastructure/Outbox/*
+src/LIAnsureProtect.Infrastructure/Persistence/Outbox/*
 src/LIAnsureProtect.Infrastructure/Persistence/*
 ```
 
@@ -116,4 +206,36 @@ dotnet ef migrations has-pending-model-changes --project src\LIAnsureProtect.Inf
 
 ## Closeout
 
-Not started yet.
+Implementation is verified locally.
+
+Verification:
+
+```text
+Focused policy binding unit tests: 7 passed
+Focused outbox dispatcher integration tests: 4 passed
+Focused dependency registration and migration guard tests: 3 passed
+Focused quote acceptance/policy binding endpoint tests: 12 passed
+Build: succeeded with 0 warnings and 0 errors
+Direct solution test run:
+  UnitTests: 37 passed
+  IntegrationTests: 60 passed, 1 skipped PostgreSQL opt-in test
+EF Core pending model check: no pending model changes
+Local CI: passed
+Local CI UnitTests: 37 passed
+Local CI IntegrationTests: 61 passed, including the PostgreSQL opt-in persistence test
+Frontend Vitest: 5 files passed, 16 tests passed
+Artifact zip: TestResults\local-ci-20260621-214045.zip
+```
+
+What the CI run verified:
+
+- Docker-backed PostgreSQL/pgvector started successfully.
+- All committed migrations applied, including `20260621133523_AddOutboxNotificationPublishingMetadata`.
+- Backend build passed with 0 warnings and 0 errors.
+- Backend unit and integration tests passed.
+- Docker Compose config validation passed.
+- Frontend production build passed.
+- Frontend ESLint passed.
+- Frontend Vitest passed.
+- CI artifact zip was created.
+- The PostgreSQL container, volume, and network were cleaned up.

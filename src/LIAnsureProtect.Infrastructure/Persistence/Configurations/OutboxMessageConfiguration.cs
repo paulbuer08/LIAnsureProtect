@@ -41,11 +41,38 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
             .HasColumnName("error")
             .HasMaxLength(2000);
 
+        builder.Property(message => message.PublishAttemptCount)
+            .HasColumnName("publish_attempt_count")
+            .HasDefaultValue(0)
+            .IsRequired();
+
+        builder.Property(message => message.LastPublishAttemptAtUtc)
+            .HasColumnName("last_publish_attempt_at_utc");
+
+        builder.Property(message => message.NextAttemptAtUtc)
+            .HasColumnName("next_attempt_at_utc");
+
+        builder.Property(message => message.ProviderMessageId)
+            .HasColumnName("provider_message_id")
+            .HasMaxLength(500);
+
+        builder.Property(message => message.FailedAtUtc)
+            .HasColumnName("failed_at_utc");
+
         builder.HasIndex(message => new
             {
                 message.ProcessedAtUtc,
                 message.CreatedAtUtc
             })
             .HasDatabaseName("ix_outbox_messages_processed_at_utc_created_at_utc");
+
+        builder.HasIndex(message => new
+            {
+                message.ProcessedAtUtc,
+                message.FailedAtUtc,
+                message.NextAttemptAtUtc,
+                message.CreatedAtUtc
+            })
+            .HasDatabaseName("ix_outbox_messages_dispatch_retry");
     }
 }

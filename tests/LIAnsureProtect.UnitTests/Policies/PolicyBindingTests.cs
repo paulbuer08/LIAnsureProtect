@@ -24,6 +24,14 @@ public sealed class PolicyBindingTests
         Assert.Equal("Chief Financial Officer", quote.AcceptedByTitle);
         Assert.True(quote.SubjectivitiesAcknowledged);
         Assert.Equal(acceptedAtUtc, quote.AcceptedAtUtc);
+        Assert.Contains(
+            quote.DomainEvents,
+            domainEvent => domainEvent is QuoteAcceptedDomainEvent accepted
+                && accepted.QuoteId == quote.Id
+                && accepted.SubmissionId == quote.SubmissionId
+                && accepted.OwnerUserId == quote.OwnerUserId
+                && accepted.AcceptedByUserId == "customer-1"
+                && accepted.OccurredAtUtc == acceptedAtUtc);
     }
 
     [Fact]

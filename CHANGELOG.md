@@ -217,3 +217,11 @@ The format follows simple milestone-based entries.
 - `Idempotency-Key` support for quote acceptance and policy binding so safe retries do not duplicate policies, binding attempts, or outbox messages.
 - Milestone 20 closeout notes after implementation commit `ade6297 feat: add quote acceptance and policy binding foundation` and local CI artifact `TestResults\local-ci-20260621-210031.zip`.
 - Milestone 21 starter continuity notes for `Milestone 21 - Notification And Outbox Publishing Foundation`.
+- Milestone 21 - Notification And Outbox Publishing Foundation implementation.
+- `QuoteAcceptedDomainEvent` transactional outbox capture when an eligible quote is accepted.
+- Application-owned notification publisher boundary and provider-shaped notification message contracts.
+- Infrastructure local notification publisher for safe Worker publishing tests without AWS credentials or real email/SMS delivery.
+- Worker outbox dispatch behavior that maps important quote and policy events to notification messages before marking outbox rows processed.
+- PostgreSQL outbox publish metadata for attempt count, last attempt time, next retry time, provider message id, and poison failure time.
+- Focused backend tests for quote acceptance events, notification publish success, transient retry behavior, poison failure recording, dependency registration, and migration shape.
+- Milestone 21 verification passed with local CI artifact `TestResults\local-ci-20260621-214045.zip`.

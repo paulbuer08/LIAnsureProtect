@@ -320,17 +320,27 @@ outbox_messages
   occurred_at_utc
   created_at_utc
   processed_at_utc
+  publish_attempt_count
+  last_publish_attempt_at_utc
+  next_attempt_at_utc
+  provider_message_id
+  failed_at_utc
   error
 ```
 
-Milestone 13 writes pending rows only. Milestone 14 - Outbox Dispatcher Foundation adds the first local Worker-side consumer path:
+Milestone 13 writes pending rows only. Milestone 14 - Outbox Dispatcher Foundation adds the first local Worker-side consumer path. Milestone 21 - Notification And Outbox Publishing Foundation turns selected quote and policy outbox rows into provider-shaped local notification messages before marking them processed.
 
 ```text
 outbox_messages where processed_at_utc is null
   -> OutboxDispatcher
-  -> mark each local message as processed
+  -> map selected domain events to NotificationMessage
+  -> INotificationPublisher
+  -> local provider-shaped publisher
+  -> mark published rows processed
+  -> leave transient failures retryable
+  -> record poison failures for investigation
   -> SubmissionDbContext.SaveChangesAsync(...)
-  -> processed_at_utc is no longer null
+  -> processed_at_utc, provider_message_id, retry, or failure metadata is updated
 ```
 
 Simple analogy:
@@ -342,9 +352,23 @@ Milestone 13:
 Milestone 14:
   Teach the office clerk to pick up envelopes from the tray
   and stamp them as handled.
+
+Milestone 21:
+  Teach the clerk to hand selected envelopes to a local mail provider,
+  record the provider receipt, and only stamp the envelope handled after
+  the provider accepts it.
 ```
 
-The current dispatcher is intentionally local and in-process. It does not publish to SNS, send email, write a notification inbox, run a full retry policy, use a circuit breaker, generate quotes, or enqueue underwriting work. Those features need their own milestones because each one adds a new responsibility and new failure modes.
+The current dispatcher is still intentionally local and in-process. It publishes provider-shaped notification messages through an Application-owned boundary and a local Infrastructure implementation. It does not publish to production SNS/SQS, send real email/SMS, write a notification inbox, manage user notification preferences, execute webhooks, use a circuit breaker, generate quotes, or enqueue underwriting work. Those features need their own milestones because each one adds a new responsibility and new failure modes.
+
+Current notification event coverage:
+
+- `QuoteGeneratedDomainEvent`
+  - `Quoted` quotes map to a customer/broker quote-ready notification.
+  - `Referred` quotes map to an underwriting-operations review-needed notification.
+- `QuoteUnderwritingDecisionRecordedDomainEvent` maps to a customer/broker underwriting decision notification.
+- `QuoteAcceptedDomainEvent` maps to a binding-operations notification.
+- `PolicyBoundDomainEvent` maps to a customer/broker policy-bound notification that includes the policy number.
 
 The Worker flow is:
 

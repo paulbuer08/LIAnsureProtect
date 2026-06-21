@@ -1,0 +1,8 @@
+namespace LIAnsureProtect.Application.Notifications;
+
+public static class NotificationAudiences
+{
+    public const string CustomerOrBroker = "customer-or-broker";
+    public const string UnderwritingOperations = "underwriting-operations";
+    public const string BindingOperations = "binding-operations";
+}

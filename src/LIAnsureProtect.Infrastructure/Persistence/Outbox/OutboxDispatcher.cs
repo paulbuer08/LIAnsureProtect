@@ -1,15 +1,23 @@
+using LIAnsureProtect.Application.Notifications;
 using Microsoft.EntityFrameworkCore;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 
-public sealed class OutboxDispatcher(SubmissionDbContext dbContext) : IOutboxDispatcher
+public sealed class OutboxDispatcher(
+    SubmissionDbContext dbContext,
+    INotificationPublisher notificationPublisher) : IOutboxDispatcher
 {
     private const int BatchSize = 20;
+    private const int MaxPublishAttempts = 3;
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromMinutes(5);
 
     public async Task<int> DispatchPendingMessagesAsync(CancellationToken cancellationToken)
     {
+        var nowUtc = DateTime.UtcNow;
         var pendingMessages = await dbContext.OutboxMessages
-            .Where(message => message.ProcessedAtUtc == null)
+            .Where(message => message.ProcessedAtUtc == null
+                && message.FailedAtUtc == null
+                && (message.NextAttemptAtUtc == null || message.NextAttemptAtUtc <= nowUtc))
             .OrderBy(message => message.CreatedAtUtc)
             .Take(BatchSize)
             .ToListAsync(cancellationToken);
@@ -17,15 +25,42 @@ public sealed class OutboxDispatcher(SubmissionDbContext dbContext) : IOutboxDis
         if (pendingMessages.Count == 0)
             return 0;
 
-        var processedAtUtc = DateTime.UtcNow;
+        var processedCount = 0;
 
         foreach (var message in pendingMessages)
         {
-            message.MarkProcessed(processedAtUtc);
+            var notificationMessage = OutboxNotificationMapper.TryMap(message);
+            if (notificationMessage is null)
+            {
+                message.MarkProcessed(nowUtc);
+                processedCount++;
+                continue;
+            }
+
+            var publishResult = await notificationPublisher.PublishAsync(
+                notificationMessage,
+                cancellationToken);
+
+            if (publishResult.IsSuccess)
+            {
+                message.MarkPublishSucceeded(
+                    nowUtc,
+                    publishResult.ProviderMessageId ?? string.Empty);
+                processedCount++;
+                continue;
+            }
+
+            var nextAttemptNumber = message.PublishAttemptCount + 1;
+            var exhausted = !publishResult.IsTransient || nextAttemptNumber >= MaxPublishAttempts;
+            message.MarkPublishFailed(
+                nowUtc,
+                publishResult.FailureReason ?? "Notification publish failed.",
+                exhausted ? null : nowUtc.Add(RetryDelay),
+                exhausted);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return pendingMessages.Count;
+        return processedCount;
     }
 }
