@@ -185,3 +185,4 @@ The format follows simple milestone-based entries.
 - PostgreSQL-backed `Idempotency-Key` support for quote creation so safe quote retries replay the same response without creating duplicate quotes or duplicate outbox messages.
 - `QuoteGeneratedDomainEvent` outbox capture for generated quote records.
 - Focused unit and integration tests covering rating variation, high-risk referral, owner-scoped quote creation, submitted-only quote creation, idempotent retries, dependency registration, and migration shape.
+- Milestone 17 closeout notes recording implementation commit `0792023 feat: add cyber rating and quote foundation`.

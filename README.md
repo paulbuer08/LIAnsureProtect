@@ -51,7 +51,7 @@ Milestone 15 is complete as `Milestone 15 - Idempotent Submission Actions Founda
 
 Milestone 16 is complete as `Milestone 16 - Idempotency Operational Hardening Foundation`. It adds the first operational hardening slice for idempotency by deleting expired completed `idempotency_records` from the Worker, keeping abandoned `InProgress` recovery and required-key policy decisions documented for later hardening slices.
 
-Milestone 17 is implemented as `Milestone 17 - Cyber Rating And Quote Foundation`. It adds the first realistic local cyber rating slice with synthetic actuarial-style factors, owner-scoped quote creation for submitted submissions, PostgreSQL quote persistence, `QuoteGeneratedDomainEvent` outbox capture, and idempotent quote creation through `POST /api/v1/submissions/{submissionId}/quotes`.
+Milestone 17 is complete as `Milestone 17 - Cyber Rating And Quote Foundation`. It adds the first realistic local cyber rating slice with synthetic actuarial-style factors, owner-scoped quote creation for submitted submissions, PostgreSQL quote persistence, `QuoteGeneratedDomainEvent` outbox capture, and idempotent quote creation through `POST /api/v1/submissions/{submissionId}/quotes`.
 
 ## Local Run
 

@@ -313,6 +313,20 @@ docs/dev/milestone-17-cyber-rating-and-quote-foundation-learnings.md
 - Quote-generated events are captured through the existing transactional outbox.
 - Later milestones should add underwriter referral workflow, provider adapter/resilience, binding, notifications, and advisory AI separately.
 
+## Closeout
+
+Milestone 17 implementation was committed locally as:
+
+```text
+0792023 feat: add cyber rating and quote foundation
+```
+
+The next milestone should start the underwriter workflow that consumes the `Referred` quote state created in this milestone:
+
+```text
+Milestone 18 - Underwriting Referral Foundation
+```
+
 ## Verification
 
 Focused unit tests:
