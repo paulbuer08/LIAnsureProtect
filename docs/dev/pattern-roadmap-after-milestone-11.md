@@ -622,4 +622,4 @@ dotnet test LIAnsureProtect.slnx --no-restore
 
 ## Current Recommendation
 
-Continue milestone by milestone. Milestone 19 now gives the product a realistic provider integration boundary and resilience layer around quote creation; the next highest-value step is quote acceptance and policy binding before notifications or AI.
+Continue milestone by milestone. Milestone 21 now gives the product a provider-shaped local notification publishing foundation on top of the transactional outbox. The next highest-value step is `Milestone 22 - AI Underwriting Assistant Foundation`, kept advisory-only with human underwriting authority preserved.

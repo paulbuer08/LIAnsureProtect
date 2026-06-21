@@ -206,7 +206,13 @@ dotnet ef migrations has-pending-model-changes --project src\LIAnsureProtect.Inf
 
 ## Closeout
 
-Implementation is verified locally.
+Milestone 21 is complete.
+
+Implementation commit:
+
+```text
+ed0d073 feat: add notification and outbox publishing foundation
+```
 
 Verification:
 
@@ -239,3 +245,11 @@ What the CI run verified:
 - Frontend Vitest passed.
 - CI artifact zip was created.
 - The PostgreSQL container, volume, and network were cleaned up.
+
+Recommended next milestone:
+
+```text
+Milestone 22 - AI Underwriting Assistant Foundation
+```
+
+The next milestone should add advisory-only AI underwriting assistance with governance and human oversight. It should not allow AI to approve, decline, bind, issue, price, cancel, renew, or close any insurance decision.

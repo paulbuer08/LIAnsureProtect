@@ -225,3 +225,4 @@ The format follows simple milestone-based entries.
 - PostgreSQL outbox publish metadata for attempt count, last attempt time, next retry time, provider message id, and poison failure time.
 - Focused backend tests for quote acceptance events, notification publish success, transient retry behavior, poison failure recording, dependency registration, and migration shape.
 - Milestone 21 verification passed with local CI artifact `TestResults\local-ci-20260621-214045.zip`.
+- Milestone 21 closeout notes after implementation commit `ed0d073 feat: add notification and outbox publishing foundation`.
