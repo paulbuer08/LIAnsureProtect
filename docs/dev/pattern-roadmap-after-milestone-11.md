@@ -597,13 +597,17 @@ Why this is later:
 
 Planned scope:
 
-- Add `IAiReviewService`.
-- Add advisory summary for submitted risk and quote referral.
-- Store prompt/input audit data and AI output.
-- Show AI output as recommendation/explanation only.
-- Add guardrails so AI failure does not block manual underwriting.
-- Add tests proving:
+Implemented scope:
+
+- Added Application-owned `IAiReviewService`.
+- Added provider-shaped request/result DTOs for advisory underwriting review.
+- Added an underwriter-only `POST /api/v1/underwriting/quote-referrals/{quoteId}/ai-review` endpoint.
+- Added Infrastructure `LocalSimulatedAiReviewService` so the milestone proves the provider shape without real model credentials.
+- Added PostgreSQL `ai_underwriting_reviews` for prompt version, output schema version, input snapshot hash, structured advisory output, citations, limitations, status, failure reason, optional feedback, requester, and timestamps.
+- Stored structured underwriting packets with executive summary, risk signals, cyber control gaps, suggested underwriting questions, suggested subjectivity candidates, citations, limitations, and advisory disclaimer.
+- Added guardrails and tests proving:
   - AI output cannot change quote or policy status directly
+  - AI output cannot change premium, retention, subjectivities, underwriting decisions, acceptance, or binding state
   - AI failure still allows manual underwriting
   - stored AI review is visibly advisory
 
@@ -612,6 +616,7 @@ Out of scope:
 - Autonomous approve/decline/bind/issue decisions.
 - Training custom models.
 - Replacing the rating engine with AI.
+- RAG over uploaded documents, embeddings, prompt-management UI, and customer-facing AI chat.
 
 Verification:
 

@@ -1,4 +1,5 @@
 using LIAnsureProtect.Application.Common.Security;
+using LIAnsureProtect.Application.Quotes.Commands.GenerateAiUnderwritingReview;
 using LIAnsureProtect.Application.Quotes.Commands.UnderwriteQuoteReferral;
 using LIAnsureProtect.Application.Quotes.Queries.ListQuoteReferrals;
 using MediatR;
@@ -22,6 +23,35 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
         var result = await sender.Send(new ListQuoteReferralsQuery(), cancellationToken);
 
         return Ok(result);
+    }
+
+    [HttpPost("{quoteId:guid}/ai-review")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<GenerateAiUnderwritingReviewResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<GenerateAiUnderwritingReviewResult>> GenerateAiReview(
+        Guid quoteId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new GenerateAiUnderwritingReviewCommand(quoteId),
+                cancellationToken);
+
+            return result is null
+                ? NotFound()
+                : Ok(result);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "AI underwriting review cannot be generated.",
+                exception.Message));
+        }
     }
 
     [HttpPost("{quoteId:guid}/approve")]

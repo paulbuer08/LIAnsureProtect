@@ -638,6 +638,54 @@ Circuit breaker:
 
 The quote, underwriting, and provider-adapter milestones still deliberately keep quote acceptance, policy binding, notification delivery, and AI assistance in later milestones. Those are real specialty-insurance concerns, but each adds separate business state, authorization, audit, and operational failure modes.
 
+Milestone 22 - AI Underwriting Assistant Foundation adds advisory-only AI support beside the existing human underwriting referral workflow.
+
+The current AI review flow is:
+
+```text
+POST /api/v1/underwriting/quote-referrals/{quoteId}/ai-review
+  -> Quotes.Underwrite authorization policy
+  -> GenerateAiUnderwritingReviewCommandHandler
+  -> load referred quote context only
+  -> IAiReviewService
+  -> Infrastructure local simulated AI review provider
+  -> ai_underwriting_reviews audit row
+  -> no quote or policy state changes
+```
+
+The AI review output is a structured advisory packet, not a decision. It can include an executive summary, positive and negative risk signals, cyber control gaps, suggested underwriting questions, suggested subjectivity candidates, citations/context references, limitations, and an advisory disclaimer. Suggested subjectivities are only candidates for a human underwriter to consider.
+
+The `ai_underwriting_reviews` table stores:
+
+```text
+ai_underwriting_reviews
+  id
+  quote_id
+  requested_by_user_id
+  provider_name
+  status
+  prompt_version
+  output_schema_version
+  input_snapshot_hash
+  executive_summary
+  positive_risk_signals jsonb
+  negative_risk_signals jsonb
+  control_gaps jsonb
+  suggested_underwriting_questions jsonb
+  suggested_subjectivity_candidates jsonb
+  citations jsonb
+  limitations jsonb
+  advisory_disclaimer
+  failure_reason
+  feedback
+  created_at_utc
+  completed_at_utc
+```
+
+This table lives in PostgreSQL because AI review output is underwriting audit evidence. It is not cache data. The input snapshot hash, prompt version, and output schema version make later governance and troubleshooting possible without adding real model credentials or prompt-management UI yet.
+
+AI output must never call `Quote.ApproveReferral(...)`, `Quote.DeclineReferral(...)`, `Quote.AdjustReferral(...)`, `Quote.Accept(...)`, `Quote.MarkBound(...)`, or policy binding behavior. Human underwriting commands remain the only path that can approve, decline, adjust, accept, or bind insurance state.
+
 Milestone 20 - Quote Acceptance And Policy Binding Foundation adds the first safe path from quote to bound policy:
 
 ```text

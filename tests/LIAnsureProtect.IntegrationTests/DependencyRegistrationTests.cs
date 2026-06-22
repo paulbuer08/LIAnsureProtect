@@ -5,6 +5,7 @@ using LIAnsureProtect.Application.Notifications;
 using LIAnsureProtect.Application.Policies;
 using LIAnsureProtect.Application.Policies.Binding;
 using LIAnsureProtect.Application.Quotes;
+using LIAnsureProtect.Application.Quotes.Ai;
 using LIAnsureProtect.Application.Quotes.RatingProviders;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure;
@@ -58,6 +59,7 @@ public sealed class DependencyRegistrationTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IRatingProviderClient>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<INotificationPublisher>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IAiReviewService>());
     }
 
     [Fact]
@@ -98,5 +100,8 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("ix_policies_owner_user_id_bound_at_utc", script);
         Assert.Contains("CREATE TABLE policy_binding_attempts", script);
         Assert.Contains("ix_policy_binding_attempts_policy_id_created_at_utc", script);
+        Assert.Contains("CREATE TABLE ai_underwriting_reviews", script);
+        Assert.Contains("ix_ai_underwriting_reviews_quote_id_created_at_utc", script);
+        Assert.Contains("ix_ai_underwriting_reviews_status_created_at_utc", script);
     }
 }

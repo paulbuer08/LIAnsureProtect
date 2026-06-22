@@ -61,7 +61,7 @@ Milestone 20 is complete as `Milestone 20 - Quote Acceptance And Policy Binding 
 
 Milestone 21 is complete as `Milestone 21 - Notification And Outbox Publishing Foundation`. It puts the existing transactional outbox to practical use through an Application-owned notification publisher boundary, provider-shaped local publishing for important quote and policy workflow events, explicit publish retry/failure metadata on outbox rows, and `QuoteAcceptedDomainEvent` capture while keeping production SNS/SQS, email/SMS delivery, inboxes, preferences, webhooks, and notification templates out of scope.
 
-Milestone 22 has started as `Milestone 22 - AI Underwriting Assistant Foundation`. The planned slice is advisory-only AI support for underwriting review, with stored prompt/input and output audit evidence, explicit human authority boundaries, and failure-safe behavior that never lets AI approve, decline, price, bind, issue, or otherwise make insurance decisions.
+Milestone 22 is implemented as `Milestone 22 - AI Underwriting Assistant Foundation`. It adds an underwriter-only advisory AI review endpoint for referred cyber quotes, an Application-owned AI review boundary, a local simulated AI review provider, PostgreSQL `ai_underwriting_reviews` audit persistence, structured cyber underwriting review packets, prompt/schema/input hash audit fields, and tests proving AI output remains advisory and cannot change quote, policy, premium, underwriting decision, acceptance, or binding state.
 
 ## Local Run
 

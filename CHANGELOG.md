@@ -227,3 +227,10 @@ The format follows simple milestone-based entries.
 - Milestone 21 verification passed with local CI artifact `TestResults\local-ci-20260621-214045.zip`.
 - Milestone 21 closeout notes after implementation commit `ed0d073 feat: add notification and outbox publishing foundation`.
 - Milestone 22 starter continuity notes for `Milestone 22 - AI Underwriting Assistant Foundation`.
+- Milestone 22 - AI Underwriting Assistant Foundation implementation.
+- Application-owned `IAiReviewService` boundary and provider-shaped advisory underwriting review request/result DTOs.
+- Underwriter-only `POST /api/v1/underwriting/quote-referrals/{quoteId}/ai-review` endpoint for referred quote AI review.
+- Infrastructure local simulated AI review provider that returns deterministic structured cyber underwriting review packets without real model credentials.
+- PostgreSQL-backed `ai_underwriting_reviews` audit table for prompt version, output schema version, input snapshot hash, advisory output, citations, limitations, status, failure reason, feedback, requester, and timestamps.
+- Focused backend tests proving AI review authorization, advisory output persistence, quote state immutability, manual underwriting after AI failure, provider output shape, dependency registration, and migration shape.
+- Milestone 22 verification passed with local CI artifact `TestResults\local-ci-20260622-104016.zip`.

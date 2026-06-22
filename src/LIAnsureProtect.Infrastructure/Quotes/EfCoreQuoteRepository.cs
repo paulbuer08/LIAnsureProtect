@@ -35,6 +35,17 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
             cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<QuoteUnderwritingReview>> ListUnderwritingReviewsAsync(
+        Guid quoteId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.QuoteUnderwritingReviews
+            .AsNoTracking()
+            .Where(review => review.QuoteId == quoteId)
+            .OrderBy(review => review.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<Quote?> GetOwnedForAcceptanceAsync(
         Guid quoteId,
         string ownerUserId,
@@ -60,5 +71,12 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         CancellationToken cancellationToken)
     {
         await dbContext.QuoteUnderwritingReviews.AddAsync(review, cancellationToken);
+    }
+
+    public async Task AddAiUnderwritingReviewAsync(
+        AiUnderwritingReview review,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.AiUnderwritingReviews.AddAsync(review, cancellationToken);
     }
 }

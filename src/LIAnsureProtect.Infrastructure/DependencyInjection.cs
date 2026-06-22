@@ -4,6 +4,7 @@ using LIAnsureProtect.Application.Notifications;
 using LIAnsureProtect.Application.Policies;
 using LIAnsureProtect.Application.Policies.Binding;
 using LIAnsureProtect.Application.Quotes;
+using LIAnsureProtect.Application.Quotes.Ai;
 using LIAnsureProtect.Application.Quotes.RatingProviders;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
@@ -12,6 +13,7 @@ using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.Infrastructure.Policies;
 using LIAnsureProtect.Infrastructure.Notifications;
 using LIAnsureProtect.Infrastructure.Quotes;
+using LIAnsureProtect.Infrastructure.Quotes.Ai;
 using LIAnsureProtect.Infrastructure.Quotes.RatingProviders;
 using LIAnsureProtect.Infrastructure.Submissions;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
         services.AddScoped<INotificationPublisher, LocalNotificationPublisher>();
         services.AddScoped<IPolicyBindingProviderClient, SimulatedPolicyBindingProviderClient>();
+        services.AddScoped<IAiReviewService, LocalSimulatedAiReviewService>();
         services.AddTransient<RatingProviderAttemptCountingHandler>();
         services.AddTransient<SimulatedRatingProviderHttpMessageHandler>();
         var ratingProviderClientBuilder = services
