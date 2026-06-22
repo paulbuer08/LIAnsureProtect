@@ -667,4 +667,6 @@ Out of scope:
 
 ## Current Recommendation
 
-Continue milestone by milestone. Milestone 23 now gives underwriters a protected frontend workbench for the existing referral queue, advisory AI review, and manual underwriting decisions. The next highest-value step should enrich the underwriting workflow with a backend read model or operational workflow only when the milestone explicitly needs richer account context, assignment, persisted work notes, document review, notifications, or SLA tracking.
+Continue milestone by milestone. Milestone 23 now gives underwriters a protected frontend workbench for the existing referral queue, advisory AI review, and manual underwriting decisions.
+
+The recommended next milestone is `Milestone 24 - Underwriting Referral Operations Foundation`. The likely useful slice is backend-owned referral workflow enrichment for realistic underwriter operations: assignment, priority, due date/SLA, persisted work notes, and an audit timeline. Keep that scope separate from document upload, RAG, autonomous AI decisions, and production model credentials.
