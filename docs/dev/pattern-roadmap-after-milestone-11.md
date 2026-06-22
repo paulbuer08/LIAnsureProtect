@@ -627,6 +627,12 @@ dotnet test LIAnsureProtect.slnx --no-restore
 
 ### Milestone 23 - Underwriting Workbench UI Foundation
 
+Status:
+
+```text
+Implemented locally as the first protected underwriter workbench on top of the existing referral and advisory AI backend endpoints.
+```
+
 Goal:
 
 ```text
@@ -641,13 +647,16 @@ Why this comes after Milestone 22:
 
 Planned scope:
 
-- Add a protected `/underwriting/quote-referrals` route.
-- Add a frontend `features/underwriting` slice.
-- Use the existing Auth0 access-token flow and TanStack Query patterns.
-- List referred quotes with referral reasons, subjectivities, risk tier, premium, limit, and retention.
-- Allow an underwriter to request advisory AI review and see the advisory disclaimer.
-- Allow manual approve, decline, and adjust actions through the existing backend endpoints.
-- Add focused frontend tests for list states, AI review display, advisory wording, and mutation calls.
+Implemented scope:
+
+- Added a protected `/underwriting/quote-referrals` route.
+- Added a frontend `features/underwriting` slice with typed API functions and TanStack Query hooks.
+- Used the existing Auth0 access-token flow and guarded route pattern.
+- Added a queue-style workbench that lists referred quotes with risk tier, expiry urgency, premium, limit, retention, referral reasons, and subjectivities.
+- Added client-side triage filters for all referrals, high/severe risk referrals, and referrals expiring within seven days.
+- Added an advisory AI review panel that shows the executive summary, risk signals, control gaps, suggested underwriting questions, suggested subjectivity candidates, citations, limitations, prompt/schema/hash metadata, and advisory disclaimer.
+- Added manual approve, decline, and adjust forms that call the existing backend endpoints and refetch the referral queue after a successful manual action.
+- Added focused frontend tests for route registration, list states, triage display, AI review display, advisory wording, mutation payloads, dashboard navigation, and queue refetch behavior.
 
 Out of scope:
 
@@ -658,4 +667,4 @@ Out of scope:
 
 ## Current Recommendation
 
-Continue milestone by milestone. Milestone 22 now gives the product an advisory-only AI underwriting review foundation behind existing underwriter authority. The next highest-value step is `Milestone 23 - Underwriting Workbench UI Foundation`, focused on making the referral queue, advisory AI review, and manual underwriting decisions usable from the React app.
+Continue milestone by milestone. Milestone 23 now gives underwriters a protected frontend workbench for the existing referral queue, advisory AI review, and manual underwriting decisions. The next highest-value step should enrich the underwriting workflow with a backend read model or operational workflow only when the milestone explicitly needs richer account context, assignment, persisted work notes, document review, notifications, or SLA tracking.

@@ -236,3 +236,11 @@ The format follows simple milestone-based entries.
 - Milestone 22 verification passed with local CI artifact `TestResults\local-ci-20260622-104016.zip`.
 - Milestone 22 closeout notes after implementation commit `832aa95 feat: add AI underwriting assistant foundation`.
 - Milestone 23 starter continuity notes for `Milestone 23 - Underwriting Workbench UI Foundation`.
+- Milestone 23 - Underwriting Workbench UI Foundation implementation.
+- Protected frontend `/underwriting/quote-referrals` route for underwriter referral triage.
+- Frontend underwriting feature slice with API functions, TanStack Query hooks, and typed contracts for referred quote lists, advisory AI reviews, and manual underwriting actions.
+- Queue-style underwriting workbench showing risk tier, expiry urgency, premium, limit, retention, referral reasons, subjectivities, and client-side triage filters.
+- Advisory AI review UI that displays executive summary, risk signals, control gaps, suggested questions, suggested subjectivity candidates, citations, limitations, prompt/schema/hash metadata, and advisory-only disclaimer.
+- Manual approve, decline, and adjust forms that call the existing backend endpoints while keeping AI output separate from decision submission.
+- Dashboard navigation to the underwriting workbench plus focused frontend tests for route registration, list states, triage display, AI review display, advisory wording, manual action payloads, and queue refetch behavior.
+- Milestone 23 verification passed with local CI artifact `TestResults\local-ci-20260622-120530.zip`.

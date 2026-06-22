@@ -40,6 +40,14 @@ const SubmissionDetailPage = lazy(() =>
   ),
 );
 
+const UnderwritingQuoteReferralsPage = lazy(() =>
+  import("./features/underwriting/pages/UnderwritingQuoteReferralsPage").then(
+    (module) => ({
+      default: module.UnderwritingQuoteReferralsPage,
+    }),
+  ),
+);
+
 function RouteLoadingFallback() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-sm font-medium text-slate-300">
@@ -83,6 +91,14 @@ function App() {
           element={
             <RequireAuth>
               <SubmissionDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/underwriting/quote-referrals"
+          element={
+            <RequireAuth>
+              <UnderwritingQuoteReferralsPage />
             </RequireAuth>
           }
         />

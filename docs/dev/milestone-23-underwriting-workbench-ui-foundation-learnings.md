@@ -56,6 +56,124 @@ Milestone 23 should stay focused on UI consumption of existing backend capabilit
 - Keep the existing Auth0 access-token flow and guarded route pattern.
 - Add focused frontend tests for route rendering, list states, AI review display, advisory wording, and manual action mutation calls.
 
+## Implemented Shape
+
+Milestone 23 adds the first underwriter-facing React workbench:
+
+```text
+/underwriting/quote-referrals
+  -> RequireAuth
+  -> UnderwritingQuoteReferralsPage
+  -> useQuoteReferrals
+  -> GET /api/v1/underwriting/quote-referrals
+```
+
+The workbench is intentionally feature-owned:
+
+```text
+src/LIAnsureProtect.Web/src/features/underwriting
+  api/underwritingApi.ts
+  hooks/useQuoteReferrals.ts
+  hooks/useUnderwritingActions.ts
+  pages/UnderwritingQuoteReferralsPage.tsx
+  pages/UnderwritingQuoteReferralsPage.test.tsx
+  types.ts
+```
+
+That matches the existing frontend pattern from the submissions feature. The page does not introduce a shared API client yet because the current repo pattern keeps each feature slice responsible for its own typed API calls.
+
+## Realistic Workbench Behavior
+
+The first plan was a straightforward list plus action screen. The implemented version is slightly more realistic for specialty underwriting while still staying inside the existing backend surface.
+
+It includes:
+
+- a queue-style list of referred quotes;
+- risk tier badges;
+- quote expiry urgency;
+- premium, requested limit, and retention;
+- referral reasons;
+- subjectivities;
+- client-side queue filters for all referrals, high/severe risk referrals, and referrals expiring within seven days;
+- a selected-quote side panel for decision work;
+- separate advisory AI and manual decision areas.
+
+This mirrors the real-life idea that underwriters do not only click "approve" or "decline." They first triage which risks need attention, review the reason for referral, compare quoted terms, inspect subjectivities, and then record a reasoned decision.
+
+## Advisory AI UI
+
+The UI can request an advisory review through:
+
+```text
+POST /api/v1/underwriting/quote-referrals/{quoteId}/ai-review
+```
+
+It displays:
+
+- executive summary;
+- positive and negative risk signals;
+- control gaps;
+- suggested underwriting questions;
+- suggested subjectivity candidates;
+- citations;
+- limitations;
+- provider name;
+- prompt version;
+- output schema version;
+- input snapshot hash;
+- advisory disclaimer.
+
+The disclaimer is shown next to the AI output because the UI must teach the same boundary enforced by the backend: AI is decision support only.
+
+The manual approve, decline, and adjust forms are visually separate from the AI review panel. This matters because a real underwriter should be able to read AI support without confusing it for a binding underwriting decision.
+
+## Manual Decision UI
+
+The workbench calls the existing human underwriting endpoints:
+
+```text
+POST /api/v1/underwriting/quote-referrals/{quoteId}/approve
+POST /api/v1/underwriting/quote-referrals/{quoteId}/decline
+POST /api/v1/underwriting/quote-referrals/{quoteId}/adjust
+```
+
+Approve and decline collect:
+
+```text
+reason
+notes
+```
+
+Adjust collects:
+
+```text
+adjusted premium
+adjusted retention
+updated subjectivities
+reason
+notes
+```
+
+After a successful manual action, the TanStack Query mutation invalidates the referral queue query. If the backend no longer returns the reviewed quote, it disappears from the queue on refetch.
+
+## Why No Backend Expansion Was Added
+
+During planning, a more advanced real-life workbench was considered. Real specialty underwriting systems often include:
+
+- assignment to a named underwriter;
+- SLA or due-date tracking;
+- persisted work notes;
+- audit timelines;
+- account/company context;
+- broker details;
+- document review;
+- appetite and guideline checks;
+- notification inboxes.
+
+Those are realistic, but most require new backend state, new read models, or new domain rules. Milestone 23 deliberately stays frontend-focused and consumes the backend endpoints already built in Milestones 18 and 22.
+
+The next backend enrichment milestone can add richer referral context, assignment, work notes, or document review when the project is ready to change the system of record.
+
 ## Important Boundaries
 
 Milestone 23 should not change the backend underwriting authority model.
@@ -113,4 +231,65 @@ dotnet ef migrations has-pending-model-changes --project src\LIAnsureProtect.Inf
 
 ## Closeout
 
-Not started yet.
+Implementation is complete locally.
+
+Implemented:
+
+- Protected `/underwriting/quote-referrals` route.
+- Dashboard navigation to the underwriting workbench.
+- Frontend underwriting feature slice with API calls, hooks, and typed contracts.
+- Queue-style referral list with risk/expiry triage.
+- Advisory AI review request and display.
+- Manual approve, decline, and adjust forms.
+- Queue invalidation after successful manual action.
+- Focused frontend tests for route registration, loading, empty, error, list rendering, triage display, AI output, advisory wording, mutation payloads, and dashboard navigation.
+
+Verification:
+
+```text
+Focused frontend tests:
+  App route, Dashboard navigation, Underwriting workbench page
+  3 files passed, 10 tests passed
+
+Full frontend Vitest:
+  7 files passed, 24 tests passed
+
+Frontend TypeScript build:
+  tsc -b passed
+
+Frontend ESLint:
+  eslint . passed
+
+Frontend production build:
+  vite build passed
+
+Direct solution build:
+  succeeded with 0 warnings and 0 errors
+
+Direct solution test run:
+  UnitTests: 38 passed
+  IntegrationTests: 64 passed, 1 skipped PostgreSQL opt-in test
+
+EF Core pending model check:
+  no pending model changes
+
+Full local CI:
+  passed
+  UnitTests: 38 passed
+  IntegrationTests: 65 passed, including the PostgreSQL opt-in persistence test
+  Frontend Vitest: 7 files passed, 24 tests passed
+  Artifact zip: TestResults\local-ci-20260622-120530.zip
+```
+
+What the CI run verified:
+
+- Docker-backed PostgreSQL/pgvector started successfully.
+- All committed migrations applied through `20260622002934_AddAiUnderwritingReviews`.
+- Backend build passed with 0 warnings and 0 errors.
+- Backend unit and integration tests passed.
+- Docker Compose config validation passed.
+- Frontend production build passed.
+- Frontend ESLint passed.
+- Frontend Vitest passed.
+- CI artifact zip was created.
+- The PostgreSQL container, volume, and network were cleaned up.

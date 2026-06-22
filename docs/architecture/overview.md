@@ -686,6 +686,22 @@ This table lives in PostgreSQL because AI review output is underwriting audit ev
 
 AI output must never call `Quote.ApproveReferral(...)`, `Quote.DeclineReferral(...)`, `Quote.AdjustReferral(...)`, `Quote.Accept(...)`, `Quote.MarkBound(...)`, or policy binding behavior. Human underwriting commands remain the only path that can approve, decline, adjust, accept, or bind insurance state.
 
+Milestone 23 - Underwriting Workbench UI Foundation adds the first protected underwriter-facing React workflow on top of the existing referral and advisory AI endpoints.
+
+The current frontend underwriting flow is:
+
+```text
+/underwriting/quote-referrals
+  -> RequireAuth
+  -> Auth0 access token
+  -> GET /api/v1/underwriting/quote-referrals
+  -> underwriter triage queue
+  -> optional POST /ai-review for advisory support
+  -> manual POST /approve, /decline, or /adjust for human decision
+```
+
+This is a UI and API-consumption milestone, not a backend authority change. The workbench helps an underwriter triage by risk tier and quote expiry, inspect referral reasons and subjectivities, view advisory AI output, and submit a manual decision. The backend still owns authorization, validation, persistence, quote state changes, underwriting audit rows, outbox capture, and the rule that AI cannot make insurance decisions.
+
 Milestone 20 - Quote Acceptance And Policy Binding Foundation adds the first safe path from quote to bound policy:
 
 ```text

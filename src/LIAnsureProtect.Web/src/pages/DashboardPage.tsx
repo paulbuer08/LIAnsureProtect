@@ -120,6 +120,24 @@ export function DashboardPage() {
           </div>
         </div>
 
+        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
+          <h2 className="text-base font-semibold text-white">Underwriting</h2>
+
+          <p className="mt-2 text-slate-300">
+            Review referred quotes, request advisory AI support, and record
+            manual underwriter decisions through the protected API.
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              to="/underwriting/quote-referrals"
+              className="inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
+            >
+              Open underwriting workbench
+            </Link>
+          </div>
+        </div>
+
         <div className="mt-8 flex flex-wrap gap-4">
           <Link
             to="/"

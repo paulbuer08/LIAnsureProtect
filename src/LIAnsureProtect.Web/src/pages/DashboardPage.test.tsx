@@ -65,4 +65,16 @@ describe("DashboardPage", () => {
       screen.queryByRole("button", { name: "Create draft submission" }),
     ).not.toBeInTheDocument();
   });
+
+  it("links underwriters to the underwriting referral workbench", () => {
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Open underwriting workbench" }),
+    ).toHaveAttribute("href", "/underwriting/quote-referrals");
+  });
 });

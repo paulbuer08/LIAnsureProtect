@@ -63,7 +63,7 @@ Milestone 21 is complete as `Milestone 21 - Notification And Outbox Publishing F
 
 Milestone 22 is complete as `Milestone 22 - AI Underwriting Assistant Foundation`. It adds an underwriter-only advisory AI review endpoint for referred cyber quotes, an Application-owned AI review boundary, a local simulated AI review provider, PostgreSQL `ai_underwriting_reviews` audit persistence, structured cyber underwriting review packets, prompt/schema/input hash audit fields, and tests proving AI output remains advisory and cannot change quote, policy, premium, underwriting decision, acceptance, or binding state.
 
-Milestone 23 has started as `Milestone 23 - Underwriting Workbench UI Foundation`. The planned slice is a protected frontend workbench for underwriters to list referred quotes, inspect referral context, request advisory AI review, and record manual approve/decline/adjust decisions through the existing backend endpoints without changing underwriting authority rules.
+Milestone 23 is implemented as `Milestone 23 - Underwriting Workbench UI Foundation`. It adds a protected `/underwriting/quote-referrals` React workbench for underwriters to triage referred quotes, inspect referral reasons and subjectivities, request advisory AI review, and record manual approve/decline/adjust decisions through the existing backend endpoints without changing underwriting authority rules.
 
 ## Local Run
 
