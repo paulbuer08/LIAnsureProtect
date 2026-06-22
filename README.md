@@ -71,6 +71,8 @@ Milestone 25 is implemented as `Milestone 25 - Underwriting Evidence Request Fou
 
 Milestone 26 is implemented as `Milestone 26 - Evidence Request Notification and Follow-up Foundation`. It adds evidence request lifecycle domain events, local outbox-backed notification messages for evidence created/responded/accepted/cancelled/follow-up activity, a manual underwriter follow-up reminder action, and due/overdue evidence indicators in both the underwriting workbench and owner evidence page without adding production email/SMS delivery, notification inboxes, document storage, OCR, RAG, scheduled reminder automation, or messaging threads yet.
 
+Milestone 27 is started as `Milestone 27 - Evidence Document Storage Foundation`. The recommended planning target is to replace evidence response attachment metadata placeholders with a narrow local document-storage boundary for uploaded evidence files, private download/read access, and audit-friendly storage metadata while keeping production S3, virus scanning, OCR, embeddings, RAG, and autonomous AI document review out of scope for the first storage slice.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -134,6 +136,8 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 23 Underwriting Workbench UI Foundation Learnings](docs/dev/milestone-23-underwriting-workbench-ui-foundation-learnings.md)
 - [Milestone 24 Underwriting Referral Operations Foundation Learnings](docs/dev/milestone-24-underwriting-referral-operations-foundation-learnings.md)
 - [Milestone 25 Underwriting Evidence Request Foundation Learnings](docs/dev/milestone-25-underwriting-evidence-request-foundation-learnings.md)
+- [Milestone 26 Evidence Request Notification and Follow-up Foundation Learnings](docs/dev/milestone-26-evidence-request-notification-follow-up-foundation-learnings.md)
+- [Milestone 27 Evidence Document Storage Foundation Learnings](docs/dev/milestone-27-evidence-document-storage-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)

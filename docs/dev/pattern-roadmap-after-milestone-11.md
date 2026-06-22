@@ -671,6 +671,8 @@ Continue milestone by milestone. Milestone 24 now gives referred quotes durable 
 
 Milestone 25 implements the recommended evidence-request foundation. Milestone 26 implements evidence request notifications and a manual follow-up reminder foundation through the existing local notification/outbox boundary while keeping production email delivery, inboxes, scheduled reminder automation, full document storage, OCR, RAG, and messaging threads out of scope.
 
+The recommended next milestone is `Milestone 27 - Evidence Document Storage Foundation`: replace evidence response attachment metadata placeholders with a narrow local document-storage boundary, private upload/download behavior, and audit-friendly storage metadata while keeping production S3, virus scanning, OCR, RAG, autonomous AI review, and full document management out of scope.
+
 ### Milestone 24 - Underwriting Referral Operations Foundation
 
 Status:
@@ -797,3 +799,41 @@ Out of scope unless explicitly expanded:
 - File upload/download or document storage.
 - Virus scanning, OCR, embeddings, RAG, or autonomous document review.
 - Automatic approve/decline/adjust decisions.
+
+### Milestone 27 - Evidence Document Storage Foundation
+
+Status:
+
+```text
+Started as the recommended next milestone after Milestone 26 closeout.
+```
+
+Goal:
+
+```text
+Replace evidence attachment metadata placeholders with a narrow local document-storage foundation for uploaded underwriting evidence.
+```
+
+Why this comes after Milestone 26:
+
+- Milestone 25 created the evidence request and response workflow.
+- Milestone 26 added notifications, follow-up reminders, and due/overdue operational visibility.
+- Real cyber underwriting evidence now needs a controlled way to store and retrieve actual supporting files.
+
+Recommended first slice:
+
+- Add an Application-owned document storage boundary.
+- Add an Infrastructure local filesystem implementation for development and tests.
+- Store safe document metadata in PostgreSQL while keeping file bytes outside the database.
+- Allow owner customer/broker upload during evidence response.
+- Allow authorized owner and underwriter access to retrieve evidence documents.
+
+Out of scope unless explicitly expanded:
+
+- Production S3 provisioning.
+- Public file URLs.
+- Virus scanning.
+- OCR/document extraction.
+- Embeddings, RAG, or autonomous AI document review.
+- Legal hold or retention-policy automation.
+- Full document management.

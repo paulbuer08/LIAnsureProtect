@@ -279,3 +279,5 @@ The format follows simple milestone-based entries.
 - React underwriting workbench overdue evidence counts, next evidence due date display, and follow-up reminder action.
 - React owner evidence request page due and overdue indicators.
 - Milestone 26 implementation commit `1f790e0 feat: add evidence request notification follow-up foundation`.
+- Milestone 26 closeout commit `5ca941d docs: close evidence request notification follow-up milestone`.
+- Milestone 27 starter continuity notes for `Milestone 27 - Evidence Document Storage Foundation`.
