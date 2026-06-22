@@ -65,6 +65,8 @@ Milestone 22 is complete as `Milestone 22 - AI Underwriting Assistant Foundation
 
 Milestone 23 is implemented as `Milestone 23 - Underwriting Workbench UI Foundation`. It adds a protected `/underwriting/quote-referrals` React workbench for underwriters to triage referred quotes, inspect referral reasons and subjectivities, request advisory AI review, and record manual approve/decline/adjust decisions through the existing backend endpoints without changing underwriting authority rules.
 
+Milestone 24 is started as `Milestone 24 - Underwriting Referral Operations Foundation`. The recommended planning target is backend-owned referral workflow enrichment for realistic underwriting operations: assignment, priority, due date/SLA, persisted work notes, and audit timeline foundations while keeping AI advisory-only and decision authority human-owned.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -126,6 +128,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 21 Notification And Outbox Publishing Foundation Learnings](docs/dev/milestone-21-notification-and-outbox-publishing-foundation-learnings.md)
 - [Milestone 22 AI Underwriting Assistant Foundation Learnings](docs/dev/milestone-22-ai-underwriting-assistant-foundation-learnings.md)
 - [Milestone 23 Underwriting Workbench UI Foundation Learnings](docs/dev/milestone-23-underwriting-workbench-ui-foundation-learnings.md)
+- [Milestone 24 Underwriting Referral Operations Foundation Learnings](docs/dev/milestone-24-underwriting-referral-operations-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)

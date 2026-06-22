@@ -245,3 +245,4 @@ The format follows simple milestone-based entries.
 - Dashboard navigation to the underwriting workbench plus focused frontend tests for route registration, list states, triage display, AI review display, advisory wording, manual action payloads, and queue refetch behavior.
 - Milestone 23 verification passed with local CI artifact `TestResults\local-ci-20260622-120530.zip`.
 - Milestone 23 closeout notes after implementation commit `cc7735a feat: add underwriting workbench UI foundation`.
+- Milestone 24 starter continuity notes for `Milestone 24 - Underwriting Referral Operations Foundation`.

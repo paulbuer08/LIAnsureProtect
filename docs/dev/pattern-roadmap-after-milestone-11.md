@@ -670,3 +670,38 @@ Out of scope:
 Continue milestone by milestone. Milestone 23 now gives underwriters a protected frontend workbench for the existing referral queue, advisory AI review, and manual underwriting decisions.
 
 The recommended next milestone is `Milestone 24 - Underwriting Referral Operations Foundation`. The likely useful slice is backend-owned referral workflow enrichment for realistic underwriter operations: assignment, priority, due date/SLA, persisted work notes, and an audit timeline. Keep that scope separate from document upload, RAG, autonomous AI decisions, and production model credentials.
+
+### Milestone 24 - Underwriting Referral Operations Foundation
+
+Status:
+
+```text
+Started as the next backend-focused milestone after the frontend workbench.
+```
+
+Goal:
+
+```text
+Make referred quote handling more like a real underwriting operation by adding backend-owned assignment, priority, SLA/due date, work notes, and audit timeline foundations.
+```
+
+Why this comes after Milestone 23:
+
+- The workbench now exposes the referral workflow to underwriters.
+- Real underwriting teams need operational state around who owns a referral, how urgent it is, what notes were recorded, and what happened over time.
+- These concepts need durable backend state and read-model/API changes rather than more frontend-only UI.
+
+Recommended first slice:
+
+- Add assignment fields for referred quotes or referral review state.
+- Add priority and due date/SLA fields that can be shown in the workbench queue.
+- Add persisted underwriter work notes that remain separate from final approve/decline/adjust decisions.
+- Add a lightweight audit timeline for assignment, priority, note, and manual decision events.
+
+Out of scope:
+
+- Document upload and review.
+- RAG and embeddings.
+- Autonomous AI underwriting decisions.
+- Production AI credentials.
+- Full analytics dashboards.
