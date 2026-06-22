@@ -270,3 +270,12 @@ The format follows simple milestone-based entries.
 - Milestone 25 closeout notes after implementation commit `77cad37 feat: add underwriting evidence request foundation`.
 - Recommended Milestone 26 direction: evidence request notification and follow-up foundation, so customer/broker evidence requests and underwriter response activity can flow through the existing local notification/outbox boundary before full document storage or messaging threads are introduced.
 - Milestone 26 starter continuity notes for `Milestone 26 - Evidence Request Notification and Follow-up Foundation`.
+- Milestone 26 - Evidence Request Notification and Follow-up Foundation implementation.
+- Evidence request lifecycle domain events for created, responded, accepted, cancelled, and follow-up reminder activity.
+- Local notification/outbox mapping for evidence request created, responded, accepted, cancelled, and follow-up reminder events.
+- Underwriter-only manual evidence follow-up endpoint for open evidence requests under the existing underwriting referral route.
+- Referral timeline audit entries when an evidence follow-up reminder is sent.
+- Computed due/overdue evidence fields for owner evidence request reads and underwriting queue summaries.
+- React underwriting workbench overdue evidence counts, next evidence due date display, and follow-up reminder action.
+- React owner evidence request page due and overdue indicators.
+- Milestone 26 implementation commit `1f790e0 feat: add evidence request notification follow-up foundation`.

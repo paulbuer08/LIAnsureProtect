@@ -669,7 +669,7 @@ Out of scope:
 
 Continue milestone by milestone. Milestone 24 now gives referred quotes durable operational workflow state around the existing underwriting workbench.
 
-Milestone 25 implements the recommended evidence-request foundation. The recommended next milestone is `Milestone 26 - Evidence Request Notification and Follow-up Foundation`: publish and track evidence request notifications through the existing local notification/outbox boundary, add a narrow reminder/follow-up model for overdue evidence, and keep production email delivery, inboxes, full document storage, OCR, RAG, and messaging threads out of scope.
+Milestone 25 implements the recommended evidence-request foundation. Milestone 26 implements evidence request notifications and a manual follow-up reminder foundation through the existing local notification/outbox boundary while keeping production email delivery, inboxes, scheduled reminder automation, full document storage, OCR, RAG, and messaging threads out of scope.
 
 ### Milestone 24 - Underwriting Referral Operations Foundation
 
@@ -763,7 +763,7 @@ Out of scope unless explicitly expanded:
 Status:
 
 ```text
-Recommended next milestone after Milestone 25 closeout.
+Implemented locally as the first evidence request notification and manual follow-up foundation.
 ```
 
 Goal:
@@ -780,11 +780,14 @@ Why this comes after Milestone 25:
 
 Recommended first slice:
 
-- Publish local notification messages when an evidence request is created, responded to, accepted, or cancelled.
-- Route requester and owner notification audiences through the existing Application notification boundary.
-- Add a small due/overdue evidence follow-up query or marker that lets underwriters see requests needing attention.
-- Add timeline entries or notification metadata that prove reminders/follow-ups were attempted.
-- Add owner-facing and underwriter-facing UI indicators for notification/follow-up state only where useful.
+Implemented scope:
+
+- Published local notification messages when an evidence request is created, responded to, accepted, cancelled, or manually followed up.
+- Routed owner notifications to the customer/broker audience and response notifications to underwriting operations through the existing Application notification boundary.
+- Added a manual underwriter follow-up action for open evidence requests.
+- Recorded follow-up reminder activity in the referral operations timeline.
+- Added computed due/overdue fields for owner evidence request reads and underwriting queue summaries.
+- Added owner-facing and underwriter-facing UI indicators for overdue evidence and next open evidence due dates.
 
 Out of scope unless explicitly expanded:
 

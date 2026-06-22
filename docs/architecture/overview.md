@@ -369,6 +369,10 @@ Current notification event coverage:
 - `QuoteUnderwritingDecisionRecordedDomainEvent` maps to a customer/broker underwriting decision notification.
 - `QuoteAcceptedDomainEvent` maps to a binding-operations notification.
 - `PolicyBoundDomainEvent` maps to a customer/broker policy-bound notification that includes the policy number.
+- `QuoteEvidenceRequestCreatedDomainEvent` maps to a customer/broker evidence-request notification.
+- `QuoteEvidenceRequestRespondedDomainEvent` maps to an underwriting-operations evidence-response notification.
+- `QuoteEvidenceRequestAcceptedDomainEvent` and `QuoteEvidenceRequestCancelledDomainEvent` map to customer/broker evidence-review outcome notifications.
+- `QuoteEvidenceRequestFollowUpSentDomainEvent` maps to a customer/broker evidence follow-up reminder notification.
 
 The Worker flow is:
 
@@ -790,6 +794,29 @@ Underwriter accepts or cancels request
   -> referral timeline records the review outcome
 ```
 
+Milestone 26 - Evidence Request Notification and Follow-up Foundation makes that evidence workflow more operational:
+
+```text
+Evidence request lifecycle action
+  -> QuoteEvidenceRequest records a domain event
+  -> SubmissionDbContext captures the event as an outbox_messages row
+  -> OutboxDispatcher maps the row to a provider-shaped local notification
+  -> local notification publisher records the provider receipt metadata
+```
+
+Underwriters can also send a manual follow-up reminder for an open evidence request:
+
+```text
+POST /api/v1/underwriting/quote-referrals/{quoteId}/evidence-requests/{evidenceRequestId}/follow-up
+  -> Quotes.Underwrite authorization policy
+  -> only open evidence requests can receive follow-up
+  -> referral timeline records EvidenceRequestFollowUpSent
+  -> QuoteEvidenceRequestFollowUpSentDomainEvent enters the transactional outbox
+  -> local notification message targets the customer/broker owner
+```
+
+Overdue evidence state is computed at read time from open evidence requests whose `due_at_utc` is in the past. It is not stored as a separate column. This keeps the first follow-up slice simple while still giving underwriters overdue counts and next open due dates in the workbench, and giving owners clear due/overdue labels on their evidence request page.
+
 The `quote_evidence_requests` table is still not document storage. It stores workflow and audit metadata:
 
 ```text
@@ -822,7 +849,7 @@ quote_evidence_requests
   updated_at_utc
 ```
 
-This keeps the workflow realistic for cyber underwriting while deferring S3 storage, upload/download audit, virus scanning, OCR, embeddings, RAG, notification inboxes, and autonomous AI document review to separate milestones.
+This keeps the workflow realistic for cyber underwriting while deferring S3 storage, upload/download audit, virus scanning, OCR, embeddings, RAG, notification inboxes, scheduled reminder automation, and autonomous AI document review to separate milestones.
 
 These tables are separate from `quotes` because they answer operational questions instead of quote-term questions:
 
