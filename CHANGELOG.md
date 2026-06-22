@@ -234,3 +234,4 @@ The format follows simple milestone-based entries.
 - PostgreSQL-backed `ai_underwriting_reviews` audit table for prompt version, output schema version, input snapshot hash, advisory output, citations, limitations, status, failure reason, feedback, requester, and timestamps.
 - Focused backend tests proving AI review authorization, advisory output persistence, quote state immutability, manual underwriting after AI failure, provider output shape, dependency registration, and migration shape.
 - Milestone 22 verification passed with local CI artifact `TestResults\local-ci-20260622-104016.zip`.
+- Milestone 22 closeout notes after implementation commit `832aa95 feat: add AI underwriting assistant foundation`.

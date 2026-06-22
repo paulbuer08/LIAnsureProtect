@@ -242,9 +242,15 @@ dotnet ef migrations has-pending-model-changes --project src\LIAnsureProtect.Inf
 
 ## Closeout
 
-Implementation is in progress.
+Milestone 22 is complete.
 
-Current focused verification:
+Implementation commit:
+
+```text
+832aa95 feat: add AI underwriting assistant foundation
+```
+
+Verification:
 
 ```text
 AI command handler unit test: 1 passed
@@ -273,3 +279,11 @@ What the CI run verified:
 - Frontend Vitest passed.
 - CI artifact zip was created.
 - The PostgreSQL container, volume, and network were cleaned up.
+
+Recommended next milestone:
+
+```text
+Milestone 23 - Underwriting Workbench UI Foundation
+```
+
+The next milestone should put the existing underwriter referral queue, manual review actions, and advisory AI review into a protected frontend workbench. It should stay UI/API-consumption focused and avoid changing the underwriting decision rules or adding real AI model credentials.
