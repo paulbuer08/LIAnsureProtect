@@ -63,6 +63,8 @@ Milestone 21 is complete as `Milestone 21 - Notification And Outbox Publishing F
 
 Milestone 22 is complete as `Milestone 22 - AI Underwriting Assistant Foundation`. It adds an underwriter-only advisory AI review endpoint for referred cyber quotes, an Application-owned AI review boundary, a local simulated AI review provider, PostgreSQL `ai_underwriting_reviews` audit persistence, structured cyber underwriting review packets, prompt/schema/input hash audit fields, and tests proving AI output remains advisory and cannot change quote, policy, premium, underwriting decision, acceptance, or binding state.
 
+Milestone 23 has started as `Milestone 23 - Underwriting Workbench UI Foundation`. The planned slice is a protected frontend workbench for underwriters to list referred quotes, inspect referral context, request advisory AI review, and record manual approve/decline/adjust decisions through the existing backend endpoints without changing underwriting authority rules.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -123,6 +125,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 20 Quote Acceptance And Policy Binding Foundation Learnings](docs/dev/milestone-20-quote-acceptance-and-policy-binding-foundation-learnings.md)
 - [Milestone 21 Notification And Outbox Publishing Foundation Learnings](docs/dev/milestone-21-notification-and-outbox-publishing-foundation-learnings.md)
 - [Milestone 22 AI Underwriting Assistant Foundation Learnings](docs/dev/milestone-22-ai-underwriting-assistant-foundation-learnings.md)
+- [Milestone 23 Underwriting Workbench UI Foundation Learnings](docs/dev/milestone-23-underwriting-workbench-ui-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)

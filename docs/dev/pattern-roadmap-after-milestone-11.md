@@ -625,6 +625,37 @@ dotnet test LIAnsureProtect.slnx --no-restore
 .\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
 ```
 
+### Milestone 23 - Underwriting Workbench UI Foundation
+
+Goal:
+
+```text
+Add the first protected frontend workbench for underwriters to review referred quotes, request advisory AI review, and record manual underwriting decisions.
+```
+
+Why this comes after Milestone 22:
+
+- The backend already has a referral queue, manual approve/decline/adjust endpoints, and advisory AI review.
+- The workflow is currently API-only, so the next useful product step is making it usable through the React app.
+- Keeping this milestone frontend-focused avoids mixing UI work with new underwriting state-machine rules.
+
+Planned scope:
+
+- Add a protected `/underwriting/quote-referrals` route.
+- Add a frontend `features/underwriting` slice.
+- Use the existing Auth0 access-token flow and TanStack Query patterns.
+- List referred quotes with referral reasons, subjectivities, risk tier, premium, limit, and retention.
+- Allow an underwriter to request advisory AI review and see the advisory disclaimer.
+- Allow manual approve, decline, and adjust actions through the existing backend endpoints.
+- Add focused frontend tests for list states, AI review display, advisory wording, and mutation calls.
+
+Out of scope:
+
+- New backend underwriting decision rules.
+- AI autonomous decisions.
+- Real model credentials.
+- RAG, uploaded documents, embeddings, and prompt-management UI.
+
 ## Current Recommendation
 
-Continue milestone by milestone. Milestone 21 now gives the product a provider-shaped local notification publishing foundation on top of the transactional outbox. The next highest-value step is `Milestone 22 - AI Underwriting Assistant Foundation`, kept advisory-only with human underwriting authority preserved.
+Continue milestone by milestone. Milestone 22 now gives the product an advisory-only AI underwriting review foundation behind existing underwriter authority. The next highest-value step is `Milestone 23 - Underwriting Workbench UI Foundation`, focused on making the referral queue, advisory AI review, and manual underwriting decisions usable from the React app.
