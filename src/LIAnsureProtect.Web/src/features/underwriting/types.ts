@@ -32,6 +32,8 @@ export type QuoteReferralOperationsSummary = {
 export type QuoteReferralEvidenceSummary = {
   openRequestCount: number;
   respondedRequestCount: number;
+  overdueRequestCount: number;
+  nextOpenDueAtUtc: string | null;
   isWaitingForInformation: boolean;
   latestEvidenceActivityAtUtc: string | null;
 };
@@ -96,6 +98,8 @@ export type QuoteEvidenceRequest = {
   description: string;
   dueAtUtc: string;
   status: string;
+  isOverdue: boolean;
+  daysUntilDue: number;
   requestedByUserId: string;
   requestedAtUtc: string;
   respondedByUserId: string | null;

@@ -14,5 +14,6 @@ public enum ReferralTimelineEntryType
     EvidenceRequestResponded,
     EvidenceRequestAccepted,
     EvidenceRequestCancelled,
+    EvidenceRequestFollowUpSent,
     DecisionRecorded
 }

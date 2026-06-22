@@ -15,6 +15,11 @@ internal static class OutboxNotificationMapper
             nameof(QuoteUnderwritingDecisionRecordedDomainEvent) => MapUnderwritingDecision(outboxMessage),
             nameof(QuoteAcceptedDomainEvent) => MapQuoteAccepted(outboxMessage),
             nameof(PolicyBoundDomainEvent) => MapPolicyBound(outboxMessage),
+            nameof(QuoteEvidenceRequestCreatedDomainEvent) => MapEvidenceRequestCreated(outboxMessage),
+            nameof(QuoteEvidenceRequestRespondedDomainEvent) => MapEvidenceRequestResponded(outboxMessage),
+            nameof(QuoteEvidenceRequestAcceptedDomainEvent) => MapEvidenceRequestAccepted(outboxMessage),
+            nameof(QuoteEvidenceRequestCancelledDomainEvent) => MapEvidenceRequestCancelled(outboxMessage),
+            nameof(QuoteEvidenceRequestFollowUpSentDomainEvent) => MapEvidenceRequestFollowUpSent(outboxMessage),
             _ => null
         };
     }
@@ -105,6 +110,160 @@ internal static class OutboxNotificationMapper
                 ["submissionId"] = domainEvent.SubmissionId.ToString(),
                 ["boundByUserId"] = domainEvent.BoundByUserId
             });
+    }
+
+    private static NotificationMessage MapEvidenceRequestCreated(OutboxMessage outboxMessage)
+    {
+        var domainEvent = Deserialize<QuoteEvidenceRequestCreatedDomainEvent>(outboxMessage);
+
+        return CreateEvidenceMessage(
+            outboxMessage,
+            NotificationMessageTypes.EvidenceRequestCreated,
+            NotificationAudiences.CustomerOrBroker,
+            domainEvent.OwnerUserId,
+            domainEvent.EvidenceRequestId,
+            domainEvent.QuoteId,
+            domainEvent.SubmissionId,
+            domainEvent.RequestedByUserId,
+            domainEvent.Category,
+            domainEvent.DueAtUtc,
+            domainEvent.OccurredAtUtc,
+            new Dictionary<string, string>());
+    }
+
+    private static NotificationMessage MapEvidenceRequestResponded(OutboxMessage outboxMessage)
+    {
+        var domainEvent = Deserialize<QuoteEvidenceRequestRespondedDomainEvent>(outboxMessage);
+
+        return CreateEvidenceMessage(
+            outboxMessage,
+            NotificationMessageTypes.EvidenceRequestResponded,
+            NotificationAudiences.UnderwritingOperations,
+            domainEvent.OwnerUserId,
+            domainEvent.EvidenceRequestId,
+            domainEvent.QuoteId,
+            domainEvent.SubmissionId,
+            domainEvent.RequestedByUserId,
+            domainEvent.Category,
+            domainEvent.DueAtUtc,
+            domainEvent.OccurredAtUtc,
+            new Dictionary<string, string>
+            {
+                ["respondedByUserId"] = domainEvent.RespondedByUserId
+            });
+    }
+
+    private static NotificationMessage MapEvidenceRequestAccepted(OutboxMessage outboxMessage)
+    {
+        var domainEvent = Deserialize<QuoteEvidenceRequestAcceptedDomainEvent>(outboxMessage);
+
+        return CreateEvidenceMessage(
+            outboxMessage,
+            NotificationMessageTypes.EvidenceRequestAccepted,
+            NotificationAudiences.CustomerOrBroker,
+            domainEvent.OwnerUserId,
+            domainEvent.EvidenceRequestId,
+            domainEvent.QuoteId,
+            domainEvent.SubmissionId,
+            domainEvent.RequestedByUserId,
+            domainEvent.Category,
+            domainEvent.DueAtUtc,
+            domainEvent.OccurredAtUtc,
+            new Dictionary<string, string>
+            {
+                ["acceptedByUserId"] = domainEvent.AcceptedByUserId
+            });
+    }
+
+    private static NotificationMessage MapEvidenceRequestCancelled(OutboxMessage outboxMessage)
+    {
+        var domainEvent = Deserialize<QuoteEvidenceRequestCancelledDomainEvent>(outboxMessage);
+
+        return CreateEvidenceMessage(
+            outboxMessage,
+            NotificationMessageTypes.EvidenceRequestCancelled,
+            NotificationAudiences.CustomerOrBroker,
+            domainEvent.OwnerUserId,
+            domainEvent.EvidenceRequestId,
+            domainEvent.QuoteId,
+            domainEvent.SubmissionId,
+            domainEvent.RequestedByUserId,
+            domainEvent.Category,
+            domainEvent.DueAtUtc,
+            domainEvent.OccurredAtUtc,
+            new Dictionary<string, string>
+            {
+                ["cancelledByUserId"] = domainEvent.CancelledByUserId
+            });
+    }
+
+    private static NotificationMessage MapEvidenceRequestFollowUpSent(OutboxMessage outboxMessage)
+    {
+        var domainEvent = Deserialize<QuoteEvidenceRequestFollowUpSentDomainEvent>(outboxMessage);
+
+        return CreateEvidenceMessage(
+            outboxMessage,
+            NotificationMessageTypes.EvidenceRequestFollowUpSent,
+            NotificationAudiences.CustomerOrBroker,
+            domainEvent.OwnerUserId,
+            domainEvent.EvidenceRequestId,
+            domainEvent.QuoteId,
+            domainEvent.SubmissionId,
+            domainEvent.RequestedByUserId,
+            domainEvent.Category,
+            domainEvent.DueAtUtc,
+            domainEvent.OccurredAtUtc,
+            new Dictionary<string, string>
+            {
+                ["followedUpByUserId"] = domainEvent.FollowedUpByUserId
+            });
+    }
+
+    private static NotificationMessage CreateEvidenceMessage(
+        OutboxMessage outboxMessage,
+        string type,
+        string audience,
+        string ownerUserId,
+        Guid evidenceRequestId,
+        Guid quoteId,
+        Guid submissionId,
+        string requestedByUserId,
+        EvidenceRequestCategory category,
+        DateTime dueAtUtc,
+        DateTime occurredAtUtc,
+        Dictionary<string, string> extraAttributes)
+    {
+        var attributes = new Dictionary<string, string>
+        {
+            ["evidenceRequestId"] = evidenceRequestId.ToString(),
+            ["quoteId"] = quoteId.ToString(),
+            ["submissionId"] = submissionId.ToString(),
+            ["requestedByUserId"] = requestedByUserId,
+            ["category"] = category.ToString(),
+            ["status"] = type switch
+            {
+                NotificationMessageTypes.EvidenceRequestResponded => EvidenceRequestStatus.Responded.ToString(),
+                NotificationMessageTypes.EvidenceRequestAccepted => EvidenceRequestStatus.Accepted.ToString(),
+                NotificationMessageTypes.EvidenceRequestCancelled => EvidenceRequestStatus.Cancelled.ToString(),
+                _ => EvidenceRequestStatus.Open.ToString()
+            },
+            ["dueAtUtc"] = dueAtUtc.ToString("O")
+        };
+
+        foreach (var attribute in extraAttributes)
+        {
+            attributes[attribute.Key] = attribute.Value;
+        }
+
+        return CreateMessage(
+            outboxMessage,
+            type,
+            audience,
+            ownerUserId,
+            "evidence-request",
+            evidenceRequestId,
+            occurredAtUtc,
+            attributes);
     }
 
     private static NotificationMessage CreateMessage(

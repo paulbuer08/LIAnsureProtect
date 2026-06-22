@@ -12,6 +12,7 @@ import {
   completeQuoteReferralTask,
   createQuoteEvidenceRequest,
   declineQuoteReferral,
+  followUpQuoteEvidenceRequest,
   generateAiUnderwritingReview,
   listQuoteReferralTimeline,
   releaseQuoteReferralAssignment,
@@ -306,6 +307,31 @@ export function useCancelQuoteEvidenceRequest() {
         quoteId,
         evidenceRequestId,
         request,
+      );
+    },
+    onSuccess: (_result, variables) =>
+      invalidateOperationsQueries(queryClient, variables.quoteId),
+  });
+}
+
+export function useFollowUpQuoteEvidenceRequest() {
+  const { getAccessTokenSilently } = useAuth0();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      quoteId,
+      evidenceRequestId,
+    }: {
+      quoteId: string;
+      evidenceRequestId: string;
+    }) => {
+      const accessToken = await getAccessTokenSilently();
+
+      return followUpQuoteEvidenceRequest(
+        accessToken,
+        quoteId,
+        evidenceRequestId,
       );
     },
     onSuccess: (_result, variables) =>

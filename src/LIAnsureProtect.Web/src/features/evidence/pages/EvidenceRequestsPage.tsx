@@ -22,6 +22,21 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function formatEvidenceDueLabel(request: QuoteEvidenceRequest) {
+  if (request.isOverdue) {
+    const overdueDays = Math.abs(request.daysUntilDue);
+
+    return overdueDays === 1
+      ? "Overdue by 1 day"
+      : `Overdue by ${overdueDays} days`;
+  }
+
+  if (request.daysUntilDue === 0) return "Due today";
+  if (request.daysUntilDue === 1) return "Due in 1 day";
+
+  return `Due in ${request.daysUntilDue} days`;
+}
+
 function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
   const respondToEvidenceRequest = useRespondToEvidenceRequest();
   const [respondentName, setRespondentName] = useState("");
@@ -62,6 +77,15 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
         </div>
         <span className="w-fit rounded-md border border-amber-700 px-3 py-1 text-xs font-semibold text-amber-200">
           {request.status}
+        </span>
+        <span
+          className={`w-fit rounded-md border px-3 py-1 text-xs font-semibold ${
+            request.isOverdue
+              ? "border-red-700 text-red-200"
+              : "border-emerald-700 text-emerald-200"
+          }`}
+        >
+          {formatEvidenceDueLabel(request)}
         </span>
       </div>
 

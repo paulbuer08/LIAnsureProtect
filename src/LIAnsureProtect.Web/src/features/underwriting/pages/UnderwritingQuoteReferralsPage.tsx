@@ -13,6 +13,7 @@ import {
   useCompleteQuoteReferralTask,
   useCreateQuoteEvidenceRequest,
   useDeclineQuoteReferral,
+  useFollowUpQuoteEvidenceRequest,
   useGenerateAiUnderwritingReview,
   useQuoteReferralTimeline,
   useReleaseQuoteReferralAssignment,
@@ -97,6 +98,21 @@ function getExpiryLabel(referral: QuoteReferral) {
   if (days === 1) return "Expires in 1 day";
 
   return `Expires in ${days} days`;
+}
+
+function formatEvidenceDueLabel(daysUntilDue: number) {
+  if (daysUntilDue < 0) {
+    const overdueDays = Math.abs(daysUntilDue);
+
+    return overdueDays === 1
+      ? "Overdue by 1 day"
+      : `Overdue by ${overdueDays} days`;
+  }
+
+  if (daysUntilDue === 0) return "Due today";
+  if (daysUntilDue === 1) return "Due in 1 day";
+
+  return `Due in ${daysUntilDue} days`;
 }
 
 function getUrgencyRank(referral: QuoteReferral) {
@@ -240,6 +256,22 @@ function EvidenceSummary({ quote }: { quote: QuoteReferral }) {
         </dd>
       </div>
       <div>
+        <dt className="text-slate-400">Overdue evidence</dt>
+        <dd className={evidence.overdueRequestCount > 0 ? "font-medium text-red-200" : "font-medium text-emerald-200"}>
+          {evidence.overdueRequestCount === 1
+            ? "1 overdue evidence request"
+            : `${evidence.overdueRequestCount} overdue evidence requests`}
+        </dd>
+      </div>
+      <div>
+        <dt className="text-slate-400">Next open due date</dt>
+        <dd className="font-medium text-white">
+          {evidence.nextOpenDueAtUtc
+            ? `Next evidence due ${formatDate(evidence.nextOpenDueAtUtc)}`
+            : "No open evidence due"}
+        </dd>
+      </div>
+      <div>
         <dt className="text-slate-400">Information state</dt>
         <dd className={evidence.isWaitingForInformation ? "font-medium text-amber-200" : "font-medium text-emerald-200"}>
           {evidence.isWaitingForInformation ? "Waiting for information" : "No evidence blocker"}
@@ -261,6 +293,7 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
   const createEvidenceRequest = useCreateQuoteEvidenceRequest();
   const acceptEvidenceRequest = useAcceptQuoteEvidenceRequest();
   const cancelEvidenceRequest = useCancelQuoteEvidenceRequest();
+  const followUpEvidenceRequest = useFollowUpQuoteEvidenceRequest();
   const [category, setCategory] = useState("MultiFactorAuthentication");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -273,7 +306,8 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
   const evidenceError =
     createEvidenceRequest.error ??
     acceptEvidenceRequest.error ??
-    cancelEvidenceRequest.error;
+    cancelEvidenceRequest.error ??
+    followUpEvidenceRequest.error;
 
   async function handleCreateEvidenceRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -310,6 +344,14 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
     setLastEvidenceResult(result);
   }
 
+  async function handleFollowUpEvidence() {
+    const result = await followUpEvidenceRequest.mutateAsync({
+      quoteId: quote.quoteId,
+      evidenceRequestId: evidenceRequestId.trim(),
+    });
+    setLastEvidenceResult(result);
+  }
+
   return (
     <section className="rounded-lg border border-amber-900 bg-amber-950/25 p-5">
       <p className="text-sm font-semibold uppercase tracking-wide text-amber-300">
@@ -326,9 +368,10 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
       <EvidenceSummary quote={quote} />
 
       {lastEvidenceResult && (
-        <p className="mt-4 rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm font-semibold text-emerald-100">
-          Evidence request saved: {lastEvidenceResult.status}
-        </p>
+        <div className="mt-4 rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm text-emerald-100">
+          <p className="font-semibold">Evidence request saved: {lastEvidenceResult.status}</p>
+          <p className="mt-1">{formatEvidenceDueLabel(lastEvidenceResult.daysUntilDue)}</p>
+        </div>
       )}
 
       {evidenceError !== null && evidenceError !== undefined && (
@@ -415,6 +458,13 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
             className="rounded-lg border border-amber-400 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-950"
           >
             Cancel evidence
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleFollowUpEvidence()}
+            className="rounded-lg border border-cyan-400 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-950"
+          >
+            Send evidence follow-up
           </button>
         </div>
       </form>

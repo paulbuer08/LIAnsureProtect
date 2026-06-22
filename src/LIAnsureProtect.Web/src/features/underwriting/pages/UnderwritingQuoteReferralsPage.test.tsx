@@ -14,6 +14,7 @@ import {
   completeQuoteReferralTask,
   createQuoteEvidenceRequest,
   declineQuoteReferral,
+  followUpQuoteEvidenceRequest,
   generateAiUnderwritingReview,
   listQuoteReferralTimeline,
   listQuoteReferrals,
@@ -45,6 +46,7 @@ vi.mock("../api/underwritingApi", () => ({
   completeQuoteReferralTask: vi.fn(),
   listQuoteReferralTimeline: vi.fn(),
   listQuoteReferrals: vi.fn(),
+  followUpQuoteEvidenceRequest: vi.fn(),
   releaseQuoteReferralAssignment: vi.fn(),
   triageQuoteReferralOperation: vi.fn(),
 }));
@@ -95,6 +97,8 @@ const severeReferral = {
   evidence: {
     openRequestCount: 1,
     respondedRequestCount: 1,
+    overdueRequestCount: 1,
+    nextOpenDueAtUtc: "2026-06-20T09:00:00Z",
     isWaitingForInformation: true,
     latestEvidenceActivityAtUtc: "2026-06-22T12:00:00Z",
   },
@@ -125,6 +129,8 @@ const moderateReferral = {
   evidence: {
     openRequestCount: 0,
     respondedRequestCount: 0,
+    overdueRequestCount: 0,
+    nextOpenDueAtUtc: null,
     isWaitingForInformation: false,
     latestEvidenceActivityAtUtc: null,
   },
@@ -141,6 +147,7 @@ describe("UnderwritingQuoteReferralsPage", () => {
     vi.mocked(createQuoteEvidenceRequest).mockReset();
     vi.mocked(declineQuoteReferral).mockReset();
     vi.mocked(generateAiUnderwritingReview).mockReset();
+    vi.mocked(followUpQuoteEvidenceRequest).mockReset();
     vi.mocked(addQuoteReferralNote).mockReset();
     vi.mocked(addQuoteReferralTask).mockReset();
     vi.mocked(assignQuoteReferralToMe).mockReset();
@@ -359,6 +366,8 @@ describe("UnderwritingQuoteReferralsPage", () => {
       description: "Please provide current MFA rollout evidence.",
       dueAtUtc: "2026-06-25T09:00:00Z",
       status: "Open",
+      isOverdue: false,
+      daysUntilDue: 3,
       requestedByUserId: "auth0|underwriter",
       requestedAtUtc: "2026-06-22T09:00:00Z",
       respondedByUserId: null,
@@ -385,6 +394,8 @@ describe("UnderwritingQuoteReferralsPage", () => {
       description: "Please provide current MFA rollout evidence.",
       dueAtUtc: "2026-06-25T09:00:00Z",
       status: "Accepted",
+      isOverdue: false,
+      daysUntilDue: 3,
       requestedByUserId: "auth0|underwriter",
       requestedAtUtc: "2026-06-22T09:00:00Z",
       respondedByUserId: "auth0|customer",
@@ -402,10 +413,40 @@ describe("UnderwritingQuoteReferralsPage", () => {
       reviewNotes: "MFA evidence is sufficient.",
       updatedAtUtc: "2026-06-22T13:00:00Z",
     });
+    vi.mocked(followUpQuoteEvidenceRequest).mockResolvedValue({
+      evidenceRequestId: "evidence-1",
+      quoteId: "quote-severe",
+      submissionId: "submission-severe",
+      category: "MultiFactorAuthentication",
+      title: "Confirm MFA rollout",
+      description: "Please provide current MFA rollout evidence.",
+      dueAtUtc: "2026-06-20T09:00:00Z",
+      status: "Open",
+      isOverdue: true,
+      daysUntilDue: -2,
+      requestedByUserId: "auth0|underwriter",
+      requestedAtUtc: "2026-06-18T09:00:00Z",
+      respondedByUserId: null,
+      respondentName: null,
+      respondentTitle: null,
+      responseText: null,
+      attachmentFileName: null,
+      attachmentContentType: null,
+      attachmentSizeBytes: null,
+      respondedAtUtc: null,
+      acceptedByUserId: null,
+      acceptedAtUtc: null,
+      cancelledByUserId: null,
+      cancelledAtUtc: null,
+      reviewNotes: null,
+      updatedAtUtc: "2026-06-22T09:00:00Z",
+    });
     renderWorkbench();
 
     expect(await screen.findAllByText("1 open evidence request")).toHaveLength(2);
     expect(screen.getAllByText("1 response awaiting review")).toHaveLength(2);
+    expect(screen.getAllByText("1 overdue evidence request")).toHaveLength(2);
+    expect(screen.getAllByText("Next evidence due Jun 20, 2026")).toHaveLength(2);
     expect(screen.getAllByText("Waiting for information")).not.toHaveLength(0);
 
     await user.selectOptions(screen.getByLabelText("Evidence category"), "MultiFactorAuthentication");
@@ -440,6 +481,15 @@ describe("UnderwritingQuoteReferralsPage", () => {
       "evidence-1",
       { reviewNotes: "MFA evidence is sufficient." },
     );
+
+    await user.click(screen.getByRole("button", { name: "Send evidence follow-up" }));
+
+    expect(followUpQuoteEvidenceRequest).toHaveBeenCalledWith(
+      "underwriter-token",
+      "quote-severe",
+      "evidence-1",
+    );
+    expect(await screen.findByText("Evidence request saved: Open")).toBeInTheDocument();
   });
 
   it("requests advisory AI review and displays advisory-only output", async () => {

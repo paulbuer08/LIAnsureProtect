@@ -310,6 +310,22 @@ public sealed class QuoteReferralOperation
             cancelledAtUtc);
     }
 
+    public void RecordEvidenceRequestFollowUpSent(
+        Guid evidenceRequestId,
+        string followedUpByUserId,
+        DateTime followedUpAtUtc)
+    {
+        EnsureOpen();
+        ValidateRequiredUserId(followedUpByUserId, nameof(followedUpByUserId));
+
+        UpdatedAtUtc = followedUpAtUtc;
+        RecordTimeline(
+            ReferralTimelineEntryType.EvidenceRequestFollowUpSent,
+            $"Evidence request {evidenceRequestId} follow-up reminder sent.",
+            followedUpByUserId,
+            followedUpAtUtc);
+    }
+
     private void RecordTimeline(
         ReferralTimelineEntryType entryType,
         string summary,

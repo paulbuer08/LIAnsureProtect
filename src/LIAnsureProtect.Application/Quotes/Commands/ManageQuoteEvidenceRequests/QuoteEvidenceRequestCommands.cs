@@ -31,6 +31,10 @@ public sealed record CancelQuoteEvidenceRequestCommand(
     Guid EvidenceRequestId,
     string? ReviewNotes) : IRequest<QuoteEvidenceRequestResult?>;
 
+public sealed record FollowUpQuoteEvidenceRequestCommand(
+    Guid QuoteId,
+    Guid EvidenceRequestId) : IRequest<QuoteEvidenceRequestResult?>;
+
 public sealed record ListOwnerEvidenceRequestsQuery : IRequest<ListOwnerEvidenceRequestsResult>;
 
 public sealed record ListOwnerEvidenceRequestsResult(
@@ -45,6 +49,8 @@ public sealed record QuoteEvidenceRequestResult(
     string Description,
     DateTime DueAtUtc,
     string Status,
+    bool IsOverdue,
+    int DaysUntilDue,
     string RequestedByUserId,
     DateTime RequestedAtUtc,
     string? RespondedByUserId,
@@ -221,6 +227,40 @@ public sealed class CancelQuoteEvidenceRequestCommandHandler(
     }
 }
 
+public sealed class FollowUpQuoteEvidenceRequestCommandHandler(
+    IQuoteRepository quoteRepository,
+    IUnitOfWork unitOfWork,
+    ICurrentUser currentUser)
+    : IRequestHandler<FollowUpQuoteEvidenceRequestCommand, QuoteEvidenceRequestResult?>
+{
+    public async Task<QuoteEvidenceRequestResult?> Handle(
+        FollowUpQuoteEvidenceRequestCommand request,
+        CancellationToken cancellationToken)
+    {
+        var evidenceRequest = await quoteRepository.GetEvidenceRequestForUnderwritingAsync(
+            request.QuoteId,
+            request.EvidenceRequestId,
+            cancellationToken);
+        if (evidenceRequest is null)
+            return null;
+
+        var operation = await quoteRepository.GetReferralOperationForUpdateAsync(
+            request.QuoteId,
+            cancellationToken)
+            ?? throw new InvalidOperationException("Referral operations must exist before evidence can receive follow-up.");
+        var underwriterUserId = CurrentUserId.GetRequired(
+            currentUser,
+            "An authenticated underwriter user id is required to follow up evidence.");
+        var followedUpAtUtc = DateTime.UtcNow;
+
+        evidenceRequest.RecordFollowUpSent(underwriterUserId, followedUpAtUtc);
+        operation.RecordEvidenceRequestFollowUpSent(evidenceRequest.Id, underwriterUserId, followedUpAtUtc);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return QuoteEvidenceRequestResultFactory.FromRequest(evidenceRequest);
+    }
+}
+
 public sealed class ListOwnerEvidenceRequestsQueryHandler(
     IQuoteRepository quoteRepository,
     ICurrentUser currentUser)
@@ -257,6 +297,8 @@ public static class QuoteEvidenceRequestResultFactory
             request.Description,
             request.DueAtUtc,
             request.Status.ToString(),
+            request.Status == EvidenceRequestStatus.Open && request.DueAtUtc < DateTime.UtcNow,
+            (request.DueAtUtc.Date - DateTime.UtcNow.Date).Days,
             request.RequestedByUserId,
             request.RequestedAtUtc,
             request.RespondedByUserId,

@@ -13,6 +13,8 @@ public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration
 
         builder.HasKey(request => request.Id);
 
+        builder.Ignore(request => request.DomainEvents);
+
         builder.Property(request => request.Id)
             .HasColumnName("id")
             .ValueGeneratedNever();

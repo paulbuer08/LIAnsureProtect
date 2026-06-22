@@ -102,6 +102,22 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
             cancellationToken);
     }
 
+    [HttpPost("{quoteId:guid}/evidence-requests/{evidenceRequestId:guid}/follow-up")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<QuoteEvidenceRequestResult>> FollowUpEvidenceRequest(
+        Guid quoteId,
+        Guid evidenceRequestId,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteEvidenceReviewAsync(
+            new FollowUpQuoteEvidenceRequestCommand(quoteId, evidenceRequestId),
+            cancellationToken);
+    }
+
     [HttpPost("{quoteId:guid}/ai-review")]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

@@ -331,6 +331,93 @@ public sealed class UnderwritingReferralEndpointTests
     }
 
     [Fact]
+    public async Task Evidence_Request_Follow_Up_Creates_Timeline_Entry_And_Outbox_Event()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        var operation = QuoteReferralOperation.CreateDefault(
+            quote.Id,
+            quote.Quote.RiskTier,
+            quote.Quote.CreatedAtUtc,
+            quote.Quote.ExpiresAtUtc);
+        var evidenceRequest = QuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            operation.Id,
+            "customer-1",
+            "underwriter-1",
+            EvidenceRequestCategory.MultiFactorAuthentication,
+            "Confirm MFA rollout",
+            "Please provide current MFA rollout evidence for privileged and email access.",
+            new DateTime(2026, 6, 20, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 18, 9, 0, 0, DateTimeKind.Utc));
+        await SaveQuotesAsync(quote);
+        await SaveOperationsAsync(operation);
+        await SaveEvidenceRequestsAsync(evidenceRequest);
+
+        using var followUpRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/evidence-requests/{evidenceRequest.Id}/follow-up",
+            "Underwriter",
+            "underwriter-2");
+        using var followUpResponse = await httpClient.SendAsync(followUpRequest, TestContext.Current.CancellationToken);
+
+        using var timelineRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"{QueueEndpointPath}/{quote.Id}/operations/timeline",
+            "Underwriter",
+            "underwriter-2");
+        using var timelineResponse = await httpClient.SendAsync(timelineRequest, TestContext.Current.CancellationToken);
+        var timelineContent = await timelineResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, followUpResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, timelineResponse.StatusCode);
+        Assert.Contains("EvidenceRequestFollowUpSent", timelineContent);
+
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var outboxMessage = await dbContext.Set<OutboxMessage>().SingleAsync(
+            message => message.Type == nameof(QuoteEvidenceRequestFollowUpSentDomainEvent),
+            TestContext.Current.CancellationToken);
+
+        Assert.Contains(evidenceRequest.Id.ToString(), outboxMessage.Payload);
+        Assert.Contains("underwriter-2", outboxMessage.Payload);
+    }
+
+    [Fact]
+    public async Task Evidence_Request_Follow_Up_Returns_Forbidden_For_Customer()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        var operation = QuoteReferralOperation.CreateDefault(
+            quote.Id,
+            quote.Quote.RiskTier,
+            quote.Quote.CreatedAtUtc,
+            quote.Quote.ExpiresAtUtc);
+        var evidenceRequest = QuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            operation.Id,
+            "customer-1",
+            "underwriter-1",
+            EvidenceRequestCategory.MultiFactorAuthentication,
+            "Confirm MFA rollout",
+            "Please provide current MFA rollout evidence for privileged and email access.",
+            new DateTime(2026, 6, 20, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 18, 9, 0, 0, DateTimeKind.Utc));
+        await SaveQuotesAsync(quote);
+        await SaveOperationsAsync(operation);
+        await SaveEvidenceRequestsAsync(evidenceRequest);
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/evidence-requests/{evidenceRequest.Id}/follow-up",
+            "Customer",
+            "customer-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Evidence_Request_Response_Returns_NotFound_For_Different_Owner()
     {
         var quote = CreateReferredQuote("customer-1");
@@ -430,6 +517,110 @@ public sealed class UnderwritingReferralEndpointTests
         Assert.Equal(
             new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc),
             evidence.GetProperty("latestEvidenceActivityAtUtc").GetDateTime());
+        Assert.Equal(0, evidence.GetProperty("overdueRequestCount").GetInt32());
+        Assert.Equal(
+            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            evidence.GetProperty("nextOpenDueAtUtc").GetDateTime());
+    }
+
+    [Fact]
+    public async Task List_Quote_Referrals_Counts_Only_Open_Overdue_Evidence_Requests()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        var operation = QuoteReferralOperation.CreateDefault(
+            quote.Id,
+            quote.Quote.RiskTier,
+            quote.Quote.CreatedAtUtc,
+            quote.Quote.ExpiresAtUtc);
+        var overdueOpenRequest = QuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            operation.Id,
+            "customer-1",
+            "underwriter-1",
+            EvidenceRequestCategory.BackupRecovery,
+            "Confirm backup testing",
+            "Please provide latest backup test date.",
+            new DateTime(2020, 6, 20, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2020, 6, 18, 9, 0, 0, DateTimeKind.Utc));
+        var overdueRespondedRequest = QuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            operation.Id,
+            "customer-1",
+            "underwriter-1",
+            EvidenceRequestCategory.IncidentResponsePlan,
+            "Confirm incident response plan",
+            "Please provide the latest tabletop exercise notes.",
+            new DateTime(2020, 6, 20, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2020, 6, 18, 10, 0, 0, DateTimeKind.Utc));
+        overdueRespondedRequest.Respond(
+            "customer-1",
+            "Jane Applicant",
+            "CISO",
+            "The latest tabletop exercise was completed in May.",
+            null,
+            null,
+            null,
+            new DateTime(2020, 6, 19, 12, 0, 0, DateTimeKind.Utc));
+        await SaveQuotesAsync(quote);
+        await SaveOperationsAsync(operation);
+        await SaveEvidenceRequestsAsync(overdueOpenRequest, overdueRespondedRequest);
+
+        using var request = CreateAuthenticatedRequest(HttpMethod.Get, QueueEndpointPath, "Underwriter", "underwriter-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(content);
+        var evidence = payload.RootElement
+            .GetProperty("quoteReferrals")[0]
+            .GetProperty("evidence");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, evidence.GetProperty("overdueRequestCount").GetInt32());
+        Assert.Equal(
+            new DateTime(2020, 6, 20, 9, 0, 0, DateTimeKind.Utc),
+            evidence.GetProperty("nextOpenDueAtUtc").GetDateTime());
+    }
+
+    [Fact]
+    public async Task List_Owner_Evidence_Requests_Returns_Overdue_And_Days_Until_Due()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        var operation = QuoteReferralOperation.CreateDefault(
+            quote.Id,
+            quote.Quote.RiskTier,
+            quote.Quote.CreatedAtUtc,
+            quote.Quote.ExpiresAtUtc);
+        var evidenceRequest = QuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            operation.Id,
+            "customer-1",
+            "underwriter-1",
+            EvidenceRequestCategory.BackupRecovery,
+            "Confirm backup testing",
+            "Please provide latest backup test date.",
+            new DateTime(2020, 6, 20, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2020, 6, 18, 9, 0, 0, DateTimeKind.Utc));
+        await SaveQuotesAsync(quote);
+        await SaveOperationsAsync(operation);
+        await SaveEvidenceRequestsAsync(evidenceRequest);
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            "/api/v1/evidence-requests",
+            "Customer",
+            "customer-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(content);
+        var evidence = payload.RootElement.GetProperty("evidenceRequests")[0];
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(evidence.GetProperty("isOverdue").GetBoolean());
+        Assert.True(evidence.GetProperty("daysUntilDue").GetInt32() < 0);
     }
 
     [Fact]

@@ -51,9 +51,18 @@ public sealed class ListQuoteReferralsQueryHandler(IQuoteRepository quoteReposit
     private static QuoteReferralEvidenceSummaryResult CreateEvidenceSummary(
         IReadOnlyCollection<QuoteEvidenceRequest> evidenceRequests)
     {
+        var openRequests = evidenceRequests
+            .Where(request => request.Status == EvidenceRequestStatus.Open)
+            .ToList();
+
         return new QuoteReferralEvidenceSummaryResult(
-            evidenceRequests.Count(request => request.Status == EvidenceRequestStatus.Open),
+            openRequests.Count,
             evidenceRequests.Count(request => request.Status == EvidenceRequestStatus.Responded),
+            openRequests.Count(request => request.DueAtUtc < DateTime.UtcNow),
+            openRequests
+                .OrderBy(request => request.DueAtUtc)
+                .Select(request => (DateTime?)request.DueAtUtc)
+                .FirstOrDefault(),
             evidenceRequests.Any(request => request.Status is EvidenceRequestStatus.Open or EvidenceRequestStatus.Responded),
             evidenceRequests
                 .OrderByDescending(request => request.UpdatedAtUtc)

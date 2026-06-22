@@ -1,7 +1,11 @@
+using LIAnsureProtect.Domain.Common;
+
 namespace LIAnsureProtect.Domain.Quotes;
 
-public sealed class QuoteEvidenceRequest
+public sealed class QuoteEvidenceRequest : IHasDomainEvents
 {
+    private readonly List<IDomainEvent> domainEvents = [];
+
     private QuoteEvidenceRequest(
         Guid id,
         Guid quoteId,
@@ -86,6 +90,8 @@ public sealed class QuoteEvidenceRequest
 
     public DateTime UpdatedAtUtc { get; private set; }
 
+    public IReadOnlyCollection<IDomainEvent> DomainEvents => domainEvents.AsReadOnly();
+
     public static QuoteEvidenceRequest Create(
         Guid quoteId,
         Guid submissionId,
@@ -109,7 +115,7 @@ public sealed class QuoteEvidenceRequest
         if (dueAtUtc < requestedAtUtc)
             throw new InvalidOperationException("Evidence request due date cannot be before request creation.");
 
-        return new QuoteEvidenceRequest(
+        var evidenceRequest = new QuoteEvidenceRequest(
             Guid.NewGuid(),
             quoteId,
             submissionId,
@@ -121,6 +127,18 @@ public sealed class QuoteEvidenceRequest
             trimmedDescription,
             dueAtUtc,
             requestedAtUtc);
+
+        evidenceRequest.domainEvents.Add(new QuoteEvidenceRequestCreatedDomainEvent(
+            evidenceRequest.Id,
+            evidenceRequest.QuoteId,
+            evidenceRequest.SubmissionId,
+            evidenceRequest.OwnerUserId,
+            evidenceRequest.RequestedByUserId,
+            evidenceRequest.Category,
+            evidenceRequest.DueAtUtc,
+            requestedAtUtc));
+
+        return evidenceRequest;
     }
 
     public void Respond(
@@ -149,6 +167,17 @@ public sealed class QuoteEvidenceRequest
         RespondedAtUtc = respondedAtUtc;
         UpdatedAtUtc = respondedAtUtc;
         Status = EvidenceRequestStatus.Responded;
+
+        domainEvents.Add(new QuoteEvidenceRequestRespondedDomainEvent(
+            Id,
+            QuoteId,
+            SubmissionId,
+            OwnerUserId,
+            RequestedByUserId,
+            RespondedByUserId,
+            Category,
+            DueAtUtc,
+            respondedAtUtc));
     }
 
     public void Accept(string acceptedByUserId, string? reviewNotes, DateTime acceptedAtUtc)
@@ -161,6 +190,17 @@ public sealed class QuoteEvidenceRequest
         AcceptedAtUtc = acceptedAtUtc;
         UpdatedAtUtc = acceptedAtUtc;
         Status = EvidenceRequestStatus.Accepted;
+
+        domainEvents.Add(new QuoteEvidenceRequestAcceptedDomainEvent(
+            Id,
+            QuoteId,
+            SubmissionId,
+            OwnerUserId,
+            RequestedByUserId,
+            AcceptedByUserId,
+            Category,
+            DueAtUtc,
+            acceptedAtUtc));
     }
 
     public void Cancel(string cancelledByUserId, string? reviewNotes, DateTime cancelledAtUtc)
@@ -172,6 +212,45 @@ public sealed class QuoteEvidenceRequest
         CancelledAtUtc = cancelledAtUtc;
         UpdatedAtUtc = cancelledAtUtc;
         Status = EvidenceRequestStatus.Cancelled;
+
+        domainEvents.Add(new QuoteEvidenceRequestCancelledDomainEvent(
+            Id,
+            QuoteId,
+            SubmissionId,
+            OwnerUserId,
+            RequestedByUserId,
+            CancelledByUserId,
+            Category,
+            DueAtUtc,
+            cancelledAtUtc));
+    }
+
+    public void RecordFollowUpSent(string followedUpByUserId, DateTime followedUpAtUtc)
+    {
+        if (Status != EvidenceRequestStatus.Open)
+            throw new InvalidOperationException("Only open evidence requests can receive follow-up reminders.");
+
+        var trimmedFollowedUpByUserId = ValidateRequired(
+            followedUpByUserId,
+            nameof(followedUpByUserId),
+            "Followed-up-by user id is required.");
+
+        UpdatedAtUtc = followedUpAtUtc;
+        domainEvents.Add(new QuoteEvidenceRequestFollowUpSentDomainEvent(
+            Id,
+            QuoteId,
+            SubmissionId,
+            OwnerUserId,
+            RequestedByUserId,
+            trimmedFollowedUpByUserId,
+            Category,
+            DueAtUtc,
+            followedUpAtUtc));
+    }
+
+    public void ClearDomainEvents()
+    {
+        domainEvents.Clear();
     }
 
     private void EnsureOpen()

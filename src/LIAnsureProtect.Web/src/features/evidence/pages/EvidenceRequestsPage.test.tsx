@@ -65,6 +65,8 @@ describe("EvidenceRequestsPage", () => {
           description: "Please provide current MFA rollout evidence.",
           dueAtUtc: "2026-06-25T09:00:00Z",
           status: "Open",
+          isOverdue: false,
+          daysUntilDue: 3,
           requestedByUserId: "auth0|underwriter",
           requestedAtUtc: "2026-06-22T09:00:00Z",
           respondedByUserId: null,
@@ -93,6 +95,8 @@ describe("EvidenceRequestsPage", () => {
       description: "Please provide current MFA rollout evidence.",
       dueAtUtc: "2026-06-25T09:00:00Z",
       status: "Responded",
+      isOverdue: false,
+      daysUntilDue: 3,
       requestedByUserId: "auth0|underwriter",
       requestedAtUtc: "2026-06-22T09:00:00Z",
       respondedByUserId: "auth0|customer",
@@ -115,6 +119,7 @@ describe("EvidenceRequestsPage", () => {
 
     expect(await screen.findByText("Confirm MFA rollout")).toBeInTheDocument();
     expect(screen.getByText("MultiFactorAuthentication")).toBeInTheDocument();
+    expect(screen.getByText("Due in 3 days")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Respondent name"), "Jane Applicant");
     await user.type(screen.getByLabelText("Respondent title"), "CISO");
@@ -140,5 +145,45 @@ describe("EvidenceRequestsPage", () => {
       },
     );
     expect(await screen.findByText("Evidence response saved: Responded")).toBeInTheDocument();
+  });
+
+  it("shows overdue evidence requests clearly for the owner", async () => {
+    vi.mocked(listEvidenceRequests).mockResolvedValue({
+      evidenceRequests: [
+        {
+          evidenceRequestId: "evidence-overdue",
+          quoteId: "quote-severe",
+          submissionId: "submission-severe",
+          category: "BackupRecovery",
+          title: "Confirm backup testing",
+          description: "Please provide latest backup test date.",
+          dueAtUtc: "2020-06-20T09:00:00Z",
+          status: "Open",
+          isOverdue: true,
+          daysUntilDue: -3,
+          requestedByUserId: "auth0|underwriter",
+          requestedAtUtc: "2020-06-18T09:00:00Z",
+          respondedByUserId: null,
+          respondentName: null,
+          respondentTitle: null,
+          responseText: null,
+          attachmentFileName: null,
+          attachmentContentType: null,
+          attachmentSizeBytes: null,
+          respondedAtUtc: null,
+          acceptedByUserId: null,
+          acceptedAtUtc: null,
+          cancelledByUserId: null,
+          cancelledAtUtc: null,
+          reviewNotes: null,
+          updatedAtUtc: "2020-06-18T09:00:00Z",
+        },
+      ],
+    });
+
+    renderEvidenceRequestsPage();
+
+    expect(await screen.findByText("Confirm backup testing")).toBeInTheDocument();
+    expect(screen.getByText("Overdue by 3 days")).toBeInTheDocument();
   });
 });

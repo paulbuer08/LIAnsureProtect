@@ -169,6 +169,101 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Equal("notification payload is not accepted by provider", savedMessage.Error);
     }
 
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Publishes_Evidence_Request_Created_Notification_To_Owner()
+    {
+        var domainEvent = new QuoteEvidenceRequestCreatedDomainEvent(
+            Guid.Parse("c3d23aa4-c01f-4ff4-851c-bd4c26ce1635"),
+            Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
+            Guid.Parse("6d3f563f-595c-4ad6-90ef-5d7d75066763"),
+            "customer-1",
+            "underwriter-1",
+            EvidenceRequestCategory.MultiFactorAuthentication,
+            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            domainEvent,
+            new DateTime(2026, 6, 22, 9, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+
+        await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        var publishedMessage = Assert.Single(publisher.PublishedMessages);
+        Assert.Equal(NotificationMessageTypes.EvidenceRequestCreated, publishedMessage.Type);
+        Assert.Equal(NotificationAudiences.CustomerOrBroker, publishedMessage.Audience);
+        Assert.Equal("customer-1", publishedMessage.OwnerUserId);
+        Assert.Equal("evidence-request", publishedMessage.SubjectReferenceType);
+        Assert.Equal(domainEvent.EvidenceRequestId.ToString(), publishedMessage.SubjectReferenceId);
+        Assert.Equal("underwriter-1", publishedMessage.Attributes["requestedByUserId"]);
+        Assert.Equal("MultiFactorAuthentication", publishedMessage.Attributes["category"]);
+    }
+
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Publishes_Evidence_Response_Notification_To_Underwriting()
+    {
+        var domainEvent = new QuoteEvidenceRequestRespondedDomainEvent(
+            Guid.Parse("c3d23aa4-c01f-4ff4-851c-bd4c26ce1635"),
+            Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
+            Guid.Parse("6d3f563f-595c-4ad6-90ef-5d7d75066763"),
+            "customer-1",
+            "underwriter-1",
+            "customer-1",
+            EvidenceRequestCategory.MultiFactorAuthentication,
+            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            domainEvent,
+            new DateTime(2026, 6, 22, 12, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+
+        await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        var publishedMessage = Assert.Single(publisher.PublishedMessages);
+        Assert.Equal(NotificationMessageTypes.EvidenceRequestResponded, publishedMessage.Type);
+        Assert.Equal(NotificationAudiences.UnderwritingOperations, publishedMessage.Audience);
+        Assert.Equal("customer-1", publishedMessage.OwnerUserId);
+        Assert.Equal("underwriter-1", publishedMessage.Attributes["requestedByUserId"]);
+        Assert.Equal("customer-1", publishedMessage.Attributes["respondedByUserId"]);
+    }
+
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Publishes_Evidence_Follow_Up_Notification_To_Owner()
+    {
+        var domainEvent = new QuoteEvidenceRequestFollowUpSentDomainEvent(
+            Guid.Parse("c3d23aa4-c01f-4ff4-851c-bd4c26ce1635"),
+            Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
+            Guid.Parse("6d3f563f-595c-4ad6-90ef-5d7d75066763"),
+            "customer-1",
+            "underwriter-1",
+            "underwriter-2",
+            EvidenceRequestCategory.MultiFactorAuthentication,
+            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 26, 9, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            domainEvent,
+            new DateTime(2026, 6, 26, 9, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+
+        await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        var publishedMessage = Assert.Single(publisher.PublishedMessages);
+        Assert.Equal(NotificationMessageTypes.EvidenceRequestFollowUpSent, publishedMessage.Type);
+        Assert.Equal(NotificationAudiences.CustomerOrBroker, publishedMessage.Audience);
+        Assert.Equal("underwriter-2", publishedMessage.Attributes["followedUpByUserId"]);
+    }
+
     public void Dispose()
     {
         dbContext.Dispose();

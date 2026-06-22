@@ -29,6 +29,16 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Equal("underwriter-1", request.RequestedByUserId);
         Assert.Equal(requestedAtUtc, request.RequestedAtUtc);
         Assert.Equal(dueAtUtc, request.DueAtUtc);
+
+        var domainEvent = Assert.IsType<QuoteEvidenceRequestCreatedDomainEvent>(
+            Assert.Single(request.DomainEvents));
+        Assert.Equal(request.Id, domainEvent.EvidenceRequestId);
+        Assert.Equal(request.QuoteId, domainEvent.QuoteId);
+        Assert.Equal(request.SubmissionId, domainEvent.SubmissionId);
+        Assert.Equal("customer-1", domainEvent.OwnerUserId);
+        Assert.Equal("underwriter-1", domainEvent.RequestedByUserId);
+        Assert.Equal(EvidenceRequestCategory.MultiFactorAuthentication, domainEvent.Category);
+        Assert.Equal(dueAtUtc, domainEvent.DueAtUtc);
     }
 
     [Fact]
@@ -57,6 +67,13 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Equal(124_000, request.AttachmentSizeBytes);
         Assert.Equal(respondedAtUtc, request.RespondedAtUtc);
         Assert.Null(request.AcceptedAtUtc);
+
+        var domainEvent = Assert.IsType<QuoteEvidenceRequestRespondedDomainEvent>(
+            request.DomainEvents.Last());
+        Assert.Equal(request.Id, domainEvent.EvidenceRequestId);
+        Assert.Equal("customer-1", domainEvent.OwnerUserId);
+        Assert.Equal("underwriter-1", domainEvent.RequestedByUserId);
+        Assert.Equal("customer-1", domainEvent.RespondedByUserId);
     }
 
     [Fact]
@@ -80,6 +97,12 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Equal("underwriter-1", request.AcceptedByUserId);
         Assert.Equal("Evidence is sufficient for MFA review.", request.ReviewNotes);
         Assert.Equal(acceptedAtUtc, request.AcceptedAtUtc);
+
+        var domainEvent = Assert.IsType<QuoteEvidenceRequestAcceptedDomainEvent>(
+            request.DomainEvents.Last());
+        Assert.Equal(request.Id, domainEvent.EvidenceRequestId);
+        Assert.Equal("customer-1", domainEvent.OwnerUserId);
+        Assert.Equal("underwriter-1", domainEvent.AcceptedByUserId);
     }
 
     [Fact]
@@ -104,6 +127,45 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Equal(EvidenceRequestStatus.Cancelled, request.Status);
         Assert.Equal("underwriter-1", request.CancelledByUserId);
         Assert.Equal("Evidence request is already closed.", exception.Message);
+
+        var domainEvent = Assert.IsType<QuoteEvidenceRequestCancelledDomainEvent>(
+            request.DomainEvents.Last());
+        Assert.Equal(request.Id, domainEvent.EvidenceRequestId);
+        Assert.Equal("customer-1", domainEvent.OwnerUserId);
+        Assert.Equal("underwriter-1", domainEvent.CancelledByUserId);
+    }
+
+    [Fact]
+    public void RecordFollowUpSent_requires_open_request_and_records_notification_event()
+    {
+        var request = CreateRequest();
+        var followedUpAtUtc = new DateTime(2026, 6, 26, 9, 0, 0, DateTimeKind.Utc);
+
+        request.RecordFollowUpSent("underwriter-1", followedUpAtUtc);
+
+        var domainEvent = Assert.IsType<QuoteEvidenceRequestFollowUpSentDomainEvent>(
+            request.DomainEvents.Last());
+        Assert.Equal(request.Id, domainEvent.EvidenceRequestId);
+        Assert.Equal("customer-1", domainEvent.OwnerUserId);
+        Assert.Equal("underwriter-1", domainEvent.FollowedUpByUserId);
+        Assert.Equal(followedUpAtUtc, request.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void RecordFollowUpSent_blocks_closed_request()
+    {
+        var request = CreateRequest();
+        request.Cancel(
+            "underwriter-1",
+            "No longer needed.",
+            new DateTime(2026, 6, 22, 10, 0, 0, DateTimeKind.Utc));
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            request.RecordFollowUpSent(
+                "underwriter-1",
+                new DateTime(2026, 6, 26, 9, 0, 0, DateTimeKind.Utc)));
+
+        Assert.Equal("Only open evidence requests can receive follow-up reminders.", exception.Message);
     }
 
     private static QuoteEvidenceRequest CreateRequest()
