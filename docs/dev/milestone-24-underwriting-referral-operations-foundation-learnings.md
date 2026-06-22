@@ -327,6 +327,35 @@ dotnet ef migrations has-pending-model-changes --project src\LIAnsureProtect.Inf
 
 During implementation, the frontend dependency directory had to be restored with the repository's `package-lock.json` path because a direct `pnpm exec vitest` attempt left `node_modules` in a partial pnpm-managed state. The safe recovery was to run the package-lock based install for the web project and then run Vitest from `src\LIAnsureProtect.Web` so the web project's jsdom test configuration was used.
 
+## Closeout
+
+Implementation commit:
+
+```text
+b57d304 feat: add underwriting referral operations foundation
+```
+
+Final verification:
+
+```text
+dotnet build LIAnsureProtect.slnx --no-restore
+dotnet test LIAnsureProtect.slnx --no-restore
+dotnet ef migrations has-pending-model-changes --project src\LIAnsureProtect.Infrastructure\LIAnsureProtect.Infrastructure.csproj --startup-project src\LIAnsureProtect.Api\LIAnsureProtect.Api.csproj --context SubmissionDbContext --no-build
+.\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
+```
+
+Final local CI artifact:
+
+```text
+TestResults\local-ci-20260622-164823.zip
+```
+
+Review note:
+
+- The final review tightened timeline semantics so final underwriting decisions are not duplicated as two formal decision entries. Closing an operation records an operational status-change timeline entry, while the formal decision entry is projected from `quote_underwriting_reviews`.
+- `git diff --check` passed; the only output was the normal Windows CRLF warning.
+- No `pnpm-lock.yaml` or `pnpm-workspace.yaml` files were left behind, and `package.json` / `package-lock.json` were unchanged.
+
 ## Practical Takeaway
 
 This milestone is more advanced than a basic assignment field, but still bounded.

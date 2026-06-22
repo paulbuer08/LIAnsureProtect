@@ -669,7 +669,7 @@ Out of scope:
 
 Continue milestone by milestone. Milestone 24 now gives referred quotes durable operational workflow state around the existing underwriting workbench.
 
-The next useful direction is likely a narrow post-decision or document-related slice, but it should be planned separately. Do not fold document upload, RAG, broker/customer messaging, notification inboxes, or authority-matrix enforcement into Milestone 24.
+The recommended next milestone is `Milestone 25 - Underwriting Evidence Request Foundation`. The likely useful slice is a narrow, realistic evidence-request workflow for referred quotes: underwriters can create evidence requests tied to referral operations, customers/brokers can see and respond to their own requested evidence, and the workbench can track request status. Keep production document storage, OCR, RAG, autonomous AI review, notification inboxes, and authority-matrix enforcement separate unless Milestone 25 planning explicitly expands the slice.
 
 ### Milestone 24 - Underwriting Referral Operations Foundation
 
@@ -715,3 +715,42 @@ Out of scope:
 - Production AI credentials.
 - Full analytics dashboards.
 - Authority-matrix enforcement.
+
+### Milestone 25 - Underwriting Evidence Request Foundation
+
+Status:
+
+```text
+Recommended next milestone after referral operations closeout.
+```
+
+Goal:
+
+```text
+Add the first broker/customer-facing evidence request workflow for referred quotes without turning it into full document management or AI document review.
+```
+
+Why this comes after Milestone 24:
+
+- Referral operations now have assignment, status, notes, tasks, SLA, and timeline state.
+- Real underwriting teams often need supporting evidence before a final decision.
+- `WaitingForInformation` is currently only an internal operations status; Milestone 25 can give that status a concrete, user-facing workflow.
+
+Recommended first slice:
+
+- Add underwriting evidence request records tied to referred quotes and referral operations.
+- Let underwriters create requests with title, description, due date, and status.
+- Let the owner customer/broker list requests for their own quote or submission context.
+- Let the owner customer/broker submit a simple text response or safe placeholder attachment metadata.
+- Reflect request status back in the underwriting workbench.
+- Add timeline entries when requests are created and responded to.
+
+Out of scope unless explicitly expanded:
+
+- Real file storage in S3.
+- Virus scanning.
+- OCR and document extraction.
+- Embeddings and RAG.
+- Autonomous AI document review.
+- Notification inboxes.
+- Full broker/customer messaging threads.
