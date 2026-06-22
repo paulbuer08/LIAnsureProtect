@@ -69,6 +69,8 @@ Milestone 24 is implemented as `Milestone 24 - Underwriting Referral Operations 
 
 Milestone 25 is implemented as `Milestone 25 - Underwriting Evidence Request Foundation`. It adds PostgreSQL-backed evidence requests for referred quotes: underwriters can request cyber-control evidence by category, customer/broker owners can respond with text and safe placeholder attachment metadata, underwriters can accept or cancel requests, and the workbench tracks open/responded evidence activity without adding full document storage, OCR, RAG, notification inboxes, or autonomous AI review.
 
+Milestone 26 is started as `Milestone 26 - Evidence Request Notification and Follow-up Foundation`. The recommended planning target is to make the evidence workflow more operationally real by publishing local notification messages when evidence is requested or responded to, surfacing overdue/follow-up state for underwriters, and reusing the existing outbox/notification boundary without adding production email/SMS delivery, notification inboxes, document storage, OCR, RAG, or messaging threads yet.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:

@@ -269,3 +269,4 @@ The format follows simple milestone-based entries.
 - Milestone 25 verification passed with local CI artifact `TestResults\local-ci-20260622-225547.zip`.
 - Milestone 25 closeout notes after implementation commit `77cad37 feat: add underwriting evidence request foundation`.
 - Recommended Milestone 26 direction: evidence request notification and follow-up foundation, so customer/broker evidence requests and underwriter response activity can flow through the existing local notification/outbox boundary before full document storage or messaging threads are introduced.
+- Milestone 26 starter continuity notes for `Milestone 26 - Evidence Request Notification and Follow-up Foundation`.
