@@ -15,4 +15,14 @@ public sealed record QuoteReferralResult(
     IReadOnlyCollection<string> Subjectivities,
     IReadOnlyCollection<string> ReferralReasons,
     DateTime CreatedAtUtc,
-    DateTime ExpiresAtUtc);
+    DateTime ExpiresAtUtc,
+    QuoteReferralOperationsSummaryResult? Operations);
+
+public sealed record QuoteReferralOperationsSummaryResult(
+    string? AssignedUnderwriterUserId,
+    string Priority,
+    DateTime DueAtUtc,
+    bool IsSlaBreached,
+    string Status,
+    int OpenTaskCount,
+    DateTime? LatestTimelineAtUtc);

@@ -3,15 +3,23 @@ import type { FormEvent } from "react";
 import { Link } from "react-router";
 
 import {
+  useAddQuoteReferralNote,
+  useAddQuoteReferralTask,
   useAdjustQuoteReferral,
   useApproveQuoteReferral,
+  useAssignQuoteReferralToMe,
+  useCompleteQuoteReferralTask,
   useDeclineQuoteReferral,
   useGenerateAiUnderwritingReview,
+  useQuoteReferralTimeline,
+  useReleaseQuoteReferralAssignment,
+  useTriageQuoteReferralOperation,
 } from "../hooks/useUnderwritingActions";
 import { useQuoteReferrals } from "../hooks/useQuoteReferrals";
 import type {
   AiUnderwritingReviewResponse,
   QuoteReferral,
+  QuoteReferralOperationsSummary,
   UnderwriteQuoteReferralResult,
 } from "../types";
 
@@ -46,6 +54,18 @@ function formatCurrency(value: number) {
 
 function formatDate(value: string) {
   return dateFormatter.format(new Date(value));
+}
+
+function formatDateTimeLocal(value: string) {
+  return value.slice(0, 16);
+}
+
+function toUtcIsoFromLocal(value: string) {
+  if (value.length === 16) {
+    return `${value}:00.000Z`;
+  }
+
+  return new Date(value).toISOString();
 }
 
 function getDaysUntilExpiry(expiresAtUtc: string) {
@@ -137,6 +157,303 @@ function TextList({
         </li>
       ))}
     </ul>
+  );
+}
+
+function OperationsSummary({ operations }: { operations: QuoteReferralOperationsSummary | null }) {
+  if (!operations) {
+    return (
+      <p className="mt-4 rounded-md border border-slate-800 bg-slate-950 p-3 text-sm text-slate-400">
+        Referral operations have not been initialized for this quote.
+      </p>
+    );
+  }
+
+  return (
+    <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+      <div>
+        <dt className="text-slate-400">Assignment</dt>
+        <dd className="break-all font-medium text-white">
+          {operations.assignedUnderwriterUserId
+            ? `Assigned to ${operations.assignedUnderwriterUserId}`
+            : "Unassigned"}
+        </dd>
+      </div>
+      <div>
+        <dt className="text-slate-400">Priority</dt>
+        <dd className="font-medium text-white">{operations.priority} priority</dd>
+      </div>
+      <div>
+        <dt className="text-slate-400">Operations status</dt>
+        <dd className="font-medium text-white">{operations.status}</dd>
+      </div>
+      <div>
+        <dt className="text-slate-400">SLA</dt>
+        <dd className={operations.isSlaBreached ? "font-medium text-red-200" : "font-medium text-emerald-200"}>
+          {operations.isSlaBreached ? "SLA breached" : "SLA on track"} by{" "}
+          {formatDate(operations.dueAtUtc)}
+        </dd>
+      </div>
+      <div>
+        <dt className="text-slate-400">Follow-up tasks</dt>
+        <dd className="font-medium text-white">
+          {operations.openTaskCount === 1
+            ? "1 open task"
+            : `${operations.openTaskCount} open tasks`}
+        </dd>
+      </div>
+      <div>
+        <dt className="text-slate-400">Latest timeline</dt>
+        <dd className="font-medium text-white">
+          {operations.latestTimelineAtUtc
+            ? formatDate(operations.latestTimelineAtUtc)
+            : "No timeline yet"}
+        </dd>
+      </div>
+    </dl>
+  );
+}
+
+function OperationsPanel({ quote }: { quote: QuoteReferral }) {
+  const timelineQuery = useQuoteReferralTimeline(quote.quoteId);
+  const assignToMe = useAssignQuoteReferralToMe();
+  const releaseAssignment = useReleaseQuoteReferralAssignment();
+  const triageOperation = useTriageQuoteReferralOperation();
+  const addNote = useAddQuoteReferralNote();
+  const addTask = useAddQuoteReferralTask();
+  const completeTask = useCompleteQuoteReferralTask();
+  const operations = quote.operations;
+  const [priority, setPriority] = useState(operations?.priority ?? "Normal");
+  const [status, setStatus] = useState(operations?.status ?? "New");
+  const [dueAtUtc, setDueAtUtc] = useState(
+    operations?.dueAtUtc ? formatDateTimeLocal(operations.dueAtUtc) : "",
+  );
+  const [note, setNote] = useState("");
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDueAtUtc, setTaskDueAtUtc] = useState(
+    operations?.dueAtUtc ? formatDateTimeLocal(operations.dueAtUtc) : "",
+  );
+  const [completeTaskId, setCompleteTaskId] = useState("");
+  const operationError =
+    assignToMe.error ??
+    releaseAssignment.error ??
+    triageOperation.error ??
+    addNote.error ??
+    addTask.error ??
+    completeTask.error ??
+    timelineQuery.error;
+
+  async function handleTriage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await triageOperation.mutateAsync({
+      quoteId: quote.quoteId,
+      request: {
+        priority,
+        status,
+        dueAtUtc: toUtcIsoFromLocal(dueAtUtc),
+      },
+    });
+  }
+
+  async function handleAddNote(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await addNote.mutateAsync({
+      quoteId: quote.quoteId,
+      request: { note: note.trim() },
+    });
+    setNote("");
+  }
+
+  async function handleAddTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await addTask.mutateAsync({
+      quoteId: quote.quoteId,
+      request: {
+        title: taskTitle.trim(),
+        dueAtUtc: toUtcIsoFromLocal(taskDueAtUtc),
+      },
+    });
+    setTaskTitle("");
+  }
+
+  async function handleCompleteTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await completeTask.mutateAsync({
+      quoteId: quote.quoteId,
+      taskId: completeTaskId.trim(),
+    });
+    setCompleteTaskId("");
+  }
+
+  return (
+    <section className="rounded-lg border border-blue-900 bg-blue-950/30 p-5">
+      <p className="text-sm font-semibold uppercase tracking-wide text-blue-300">
+        Referral operations
+      </p>
+      <h2 className="mt-2 text-xl font-semibold text-white">
+        Internal workflow tracking
+      </h2>
+      <p className="mt-2 text-sm text-blue-100">
+        Assignment, SLA, notes, and follow-up tasks support the underwriter;
+        they do not replace the final manual decision controls.
+      </p>
+
+      <OperationsSummary operations={operations} />
+
+      {operationError !== null && operationError !== undefined && (
+        <p className="mt-4 whitespace-pre-wrap rounded-md border border-red-900 bg-red-950 p-3 text-sm text-red-200">
+          {getErrorMessage(operationError, "Unable to update referral operations.")}
+        </p>
+      )}
+
+      <div className="mt-5 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => void assignToMe.mutateAsync(quote.quoteId)}
+          className="rounded-lg bg-blue-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-blue-200"
+        >
+          Assign to me
+        </button>
+        <button
+          type="button"
+          onClick={() => void releaseAssignment.mutateAsync(quote.quoteId)}
+          className="rounded-lg border border-blue-400 px-4 py-2 text-sm font-semibold text-blue-100 hover:bg-blue-950"
+        >
+          Release assignment
+        </button>
+      </div>
+
+      <form className="mt-5 grid gap-4 md:grid-cols-3" onSubmit={handleTriage}>
+        <label className="text-sm font-medium text-slate-200">
+          Operations priority
+          <select
+            value={priority}
+            onChange={(event) => setPriority(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-300"
+          >
+            <option value="Normal">Normal</option>
+            <option value="High">High</option>
+            <option value="Urgent">Urgent</option>
+          </select>
+        </label>
+        <label className="text-sm font-medium text-slate-200">
+          Operations status
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-300"
+          >
+            <option value="New">New</option>
+            <option value="InReview">In review</option>
+            <option value="WaitingForInformation">Waiting for information</option>
+            <option value="Escalated">Escalated</option>
+            <option value="ReadyForDecision">Ready for decision</option>
+          </select>
+        </label>
+        <label className="text-sm font-medium text-slate-200">
+          Operations due date
+          <input
+            required
+            type="datetime-local"
+            value={dueAtUtc}
+            onChange={(event) => setDueAtUtc(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-300"
+          />
+        </label>
+        <button
+          type="submit"
+          className="rounded-lg bg-blue-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-blue-200 md:col-span-3 md:w-fit"
+        >
+          Save triage
+        </button>
+      </form>
+
+      <form className="mt-5 space-y-3" onSubmit={handleAddNote}>
+        <ReviewTextField
+          label="Internal work note"
+          required
+          value={note}
+          onChange={setNote}
+        />
+        <button
+          type="submit"
+          className="rounded-lg bg-blue-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-blue-200"
+        >
+          Add note
+        </button>
+      </form>
+
+      <form className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_auto]" onSubmit={handleAddTask}>
+        <label className="text-sm font-medium text-slate-200">
+          Follow-up task title
+          <input
+            required
+            value={taskTitle}
+            onChange={(event) => setTaskTitle(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-300"
+          />
+        </label>
+        <label className="text-sm font-medium text-slate-200">
+          Follow-up task due date
+          <input
+            required
+            type="datetime-local"
+            value={taskDueAtUtc}
+            onChange={(event) => setTaskDueAtUtc(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-300"
+          />
+        </label>
+        <button
+          type="submit"
+          className="self-end rounded-lg bg-blue-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-blue-200"
+        >
+          Add task
+        </button>
+      </form>
+
+      <form className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]" onSubmit={handleCompleteTask}>
+        <label className="text-sm font-medium text-slate-200">
+          Complete task id
+          <input
+            required
+            value={completeTaskId}
+            onChange={(event) => setCompleteTaskId(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-300"
+          />
+        </label>
+        <button
+          type="submit"
+          className="self-end rounded-lg border border-blue-400 px-4 py-2 text-sm font-semibold text-blue-100 hover:bg-blue-950"
+        >
+          Complete task
+        </button>
+      </form>
+
+      <section className="mt-5">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-blue-200">
+          Timeline
+        </h3>
+        {timelineQuery.isPending && (
+          <p className="mt-2 text-sm text-slate-300">Loading timeline...</p>
+        )}
+        {timelineQuery.data && (
+          <ol className="mt-3 space-y-2 text-sm text-slate-200">
+            {timelineQuery.data.entries.map((entry) => (
+              <li
+                className="rounded-md border border-slate-800 bg-slate-950 p-3"
+                key={`${entry.entryType}-${entry.createdAtUtc}-${entry.summary}`}
+              >
+                <p className="font-semibold text-white">{entry.entryType}</p>
+                <p className="mt-1">{entry.summary}</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {entry.createdByUserId} on {formatDate(entry.createdAtUtc)}
+                </p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    </section>
   );
 }
 
@@ -560,6 +877,8 @@ function ReferralCard({
         </div>
       </dl>
 
+      <OperationsSummary operations={referral.operations} />
+
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <section>
           <h3 className="text-sm font-semibold text-white">Referral reasons</h3>
@@ -781,6 +1100,8 @@ export function UnderwritingQuoteReferralsPage() {
                   isPending={generateAiReview.isPending}
                   onGenerate={handleGenerateAiReview}
                 />
+
+                <OperationsPanel key={`${selectedReferral.quoteId}-operations`} quote={selectedReferral} />
 
                 <ManualActionsPanel
                   key={selectedReferral.quoteId}

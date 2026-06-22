@@ -5,11 +5,18 @@ import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  addQuoteReferralNote,
+  addQuoteReferralTask,
   adjustQuoteReferral,
+  assignQuoteReferralToMe,
   approveQuoteReferral,
+  completeQuoteReferralTask,
   declineQuoteReferral,
   generateAiUnderwritingReview,
+  listQuoteReferralTimeline,
   listQuoteReferrals,
+  releaseQuoteReferralAssignment,
+  triageQuoteReferralOperation,
 } from "../api/underwritingApi";
 import { UnderwritingQuoteReferralsPage } from "./UnderwritingQuoteReferralsPage";
 
@@ -26,7 +33,14 @@ vi.mock("../api/underwritingApi", () => ({
   approveQuoteReferral: vi.fn(),
   declineQuoteReferral: vi.fn(),
   generateAiUnderwritingReview: vi.fn(),
+  addQuoteReferralNote: vi.fn(),
+  addQuoteReferralTask: vi.fn(),
+  assignQuoteReferralToMe: vi.fn(),
+  completeQuoteReferralTask: vi.fn(),
+  listQuoteReferralTimeline: vi.fn(),
   listQuoteReferrals: vi.fn(),
+  releaseQuoteReferralAssignment: vi.fn(),
+  triageQuoteReferralOperation: vi.fn(),
 }));
 
 function renderWorkbench() {
@@ -63,6 +77,15 @@ const severeReferral = {
   referralReasons: ["Severe cyber risk tier.", "Requested limit is high."],
   createdAtUtc: "2026-06-20T08:00:00Z",
   expiresAtUtc: "2026-06-24T08:00:00Z",
+  operations: {
+    assignedUnderwriterUserId: "auth0|underwriter",
+    priority: "High",
+    dueAtUtc: "2026-06-24T08:00:00Z",
+    isSlaBreached: false,
+    status: "InReview",
+    openTaskCount: 1,
+    latestTimelineAtUtc: "2026-06-22T09:00:00Z",
+  },
 };
 
 const moderateReferral = {
@@ -78,6 +101,15 @@ const moderateReferral = {
   referralReasons: ["Prior incident requires review."],
   createdAtUtc: "2026-06-21T08:00:00Z",
   expiresAtUtc: "2026-07-20T08:00:00Z",
+  operations: {
+    assignedUnderwriterUserId: null,
+    priority: "Normal",
+    dueAtUtc: "2026-06-26T08:00:00Z",
+    isSlaBreached: false,
+    status: "New",
+    openTaskCount: 0,
+    latestTimelineAtUtc: "2026-06-21T08:00:00Z",
+  },
 };
 
 describe("UnderwritingQuoteReferralsPage", () => {
@@ -88,7 +120,14 @@ describe("UnderwritingQuoteReferralsPage", () => {
     vi.mocked(approveQuoteReferral).mockReset();
     vi.mocked(declineQuoteReferral).mockReset();
     vi.mocked(generateAiUnderwritingReview).mockReset();
+    vi.mocked(addQuoteReferralNote).mockReset();
+    vi.mocked(addQuoteReferralTask).mockReset();
+    vi.mocked(assignQuoteReferralToMe).mockReset();
+    vi.mocked(completeQuoteReferralTask).mockReset();
+    vi.mocked(listQuoteReferralTimeline).mockReset();
     vi.mocked(listQuoteReferrals).mockReset();
+    vi.mocked(releaseQuoteReferralAssignment).mockReset();
+    vi.mocked(triageQuoteReferralOperation).mockReset();
   });
 
   it("shows a loading state while referrals are loading", () => {
@@ -135,6 +174,10 @@ describe("UnderwritingQuoteReferralsPage", () => {
     expect(screen.getByText("Expires in 2 days")).toBeInTheDocument();
     expect(screen.getByText("$42,000")).toBeInTheDocument();
     expect(screen.getByText("$5,000,000")).toBeInTheDocument();
+    expect(screen.getAllByText("High priority")).toHaveLength(2);
+    expect(screen.getAllByText("InReview")).toHaveLength(2);
+    expect(screen.getAllByText("Assigned to auth0|underwriter")).toHaveLength(2);
+    expect(screen.getAllByText("1 open task")).toHaveLength(2);
     expect(screen.getByText("Severe cyber risk tier.")).toBeInTheDocument();
     expect(screen.getByText("MFA evidence required.")).toBeInTheDocument();
 
@@ -143,6 +186,131 @@ describe("UnderwritingQuoteReferralsPage", () => {
 
     expect(screen.queryByText("quote-moderate")).not.toBeInTheDocument();
     expect(screen.getAllByText("quote-severe")).toHaveLength(2);
+  });
+
+  it("submits operations updates and displays the referral timeline", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listQuoteReferrals).mockResolvedValue({
+      quoteReferrals: [severeReferral],
+    });
+    vi.mocked(listQuoteReferralTimeline).mockResolvedValue({
+      quoteId: "quote-severe",
+      entries: [
+        {
+          entryType: "OperationCreated",
+          summary: "Referral operations created with High priority.",
+          createdByUserId: "system",
+          createdAtUtc: "2026-06-20T08:00:00Z",
+        },
+      ],
+    });
+    vi.mocked(assignQuoteReferralToMe).mockResolvedValue({
+      quoteId: "quote-severe",
+      assignedUnderwriterUserId: "auth0|underwriter",
+      priority: "High",
+      dueAtUtc: "2026-06-24T08:00:00Z",
+      isSlaBreached: false,
+      status: "InReview",
+      openTaskCount: 1,
+      latestTimelineAtUtc: "2026-06-22T09:00:00Z",
+    });
+    vi.mocked(triageQuoteReferralOperation).mockResolvedValue({
+      quoteId: "quote-severe",
+      assignedUnderwriterUserId: "auth0|underwriter",
+      priority: "Urgent",
+      dueAtUtc: "2026-06-23T08:00:00Z",
+      isSlaBreached: false,
+      status: "WaitingForInformation",
+      openTaskCount: 1,
+      latestTimelineAtUtc: "2026-06-22T09:10:00Z",
+    });
+    vi.mocked(addQuoteReferralNote).mockResolvedValue({
+      noteId: "note-1",
+      quoteId: "quote-severe",
+      note: "Asked broker team to confirm MFA rollout evidence.",
+      createdByUserId: "auth0|underwriter",
+      createdAtUtc: "2026-06-22T09:15:00Z",
+    });
+    vi.mocked(addQuoteReferralTask).mockResolvedValue({
+      taskId: "task-1",
+      quoteId: "quote-severe",
+      title: "Verify MFA evidence.",
+      dueAtUtc: "2026-06-23T12:00:00Z",
+      isCompleted: false,
+      createdByUserId: "auth0|underwriter",
+      createdAtUtc: "2026-06-22T09:20:00Z",
+      completedByUserId: null,
+      completedAtUtc: null,
+    });
+    vi.mocked(completeQuoteReferralTask).mockResolvedValue({
+      taskId: "task-1",
+      quoteId: "quote-severe",
+      title: "Verify MFA evidence.",
+      dueAtUtc: "2026-06-23T12:00:00Z",
+      isCompleted: true,
+      createdByUserId: "auth0|underwriter",
+      createdAtUtc: "2026-06-22T09:20:00Z",
+      completedByUserId: "auth0|underwriter",
+      completedAtUtc: "2026-06-22T09:30:00Z",
+    });
+
+    renderWorkbench();
+
+    await screen.findAllByText("quote-severe");
+    expect(await screen.findByText("Referral operations created with High priority.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Assign to me" }));
+    expect(assignQuoteReferralToMe).toHaveBeenCalledWith(
+      "underwriter-token",
+      "quote-severe",
+    );
+
+    await user.selectOptions(screen.getByLabelText("Operations priority"), "Urgent");
+    await user.selectOptions(screen.getByLabelText("Operations status"), "WaitingForInformation");
+    await user.clear(screen.getByLabelText("Operations due date"));
+    await user.type(screen.getByLabelText("Operations due date"), "2026-06-23T08:00");
+    await user.click(screen.getByRole("button", { name: "Save triage" }));
+    expect(triageQuoteReferralOperation).toHaveBeenCalledWith(
+      "underwriter-token",
+      "quote-severe",
+      {
+        priority: "Urgent",
+        status: "WaitingForInformation",
+        dueAtUtc: "2026-06-23T08:00:00.000Z",
+      },
+    );
+
+    await user.type(
+      screen.getByLabelText("Internal work note"),
+      "Asked broker team to confirm MFA rollout evidence.",
+    );
+    await user.click(screen.getByRole("button", { name: "Add note" }));
+    expect(addQuoteReferralNote).toHaveBeenCalledWith(
+      "underwriter-token",
+      "quote-severe",
+      { note: "Asked broker team to confirm MFA rollout evidence." },
+    );
+
+    await user.type(screen.getByLabelText("Follow-up task title"), "Verify MFA evidence.");
+    await user.clear(screen.getByLabelText("Follow-up task due date"));
+    await user.type(screen.getByLabelText("Follow-up task due date"), "2026-06-23T12:00");
+    await user.click(screen.getByRole("button", { name: "Add task" }));
+    expect(addQuoteReferralTask).toHaveBeenCalledWith(
+      "underwriter-token",
+      "quote-severe",
+      {
+        title: "Verify MFA evidence.",
+        dueAtUtc: "2026-06-23T12:00:00.000Z",
+      },
+    );
+
+    await user.type(screen.getByLabelText("Complete task id"), "task-1");
+    await user.click(screen.getByRole("button", { name: "Complete task" }));
+    expect(completeQuoteReferralTask).toHaveBeenCalledWith(
+      "underwriter-token",
+      "quote-severe",
+      "task-1",
+    );
   });
 
   it("requests advisory AI review and displays advisory-only output", async () => {

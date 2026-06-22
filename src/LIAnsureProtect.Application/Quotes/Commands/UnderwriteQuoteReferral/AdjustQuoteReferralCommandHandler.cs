@@ -19,14 +19,17 @@ public sealed class AdjustQuoteReferralCommandHandler(
             return null;
 
         var reviewedAtUtc = DateTime.UtcNow;
+        var reviewedByUserId = GetRequiredCurrentUserId();
         var review = quote.AdjustReferral(
-            GetRequiredCurrentUserId(),
+            reviewedByUserId,
             request.AdjustedPremium,
             request.AdjustedRetention,
             request.UpdatedSubjectivities,
             request.Reason,
             request.Notes,
             reviewedAtUtc);
+        var operation = await quoteRepository.GetReferralOperationForUpdateAsync(request.QuoteId, cancellationToken);
+        operation?.CloseForDecision(reviewedByUserId, review.Decision, reviewedAtUtc);
 
         await quoteRepository.AddUnderwritingReviewAsync(review, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);

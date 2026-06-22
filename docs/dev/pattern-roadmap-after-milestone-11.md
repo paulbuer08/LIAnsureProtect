@@ -667,16 +667,16 @@ Out of scope:
 
 ## Current Recommendation
 
-Continue milestone by milestone. Milestone 23 now gives underwriters a protected frontend workbench for the existing referral queue, advisory AI review, and manual underwriting decisions.
+Continue milestone by milestone. Milestone 24 now gives referred quotes durable operational workflow state around the existing underwriting workbench.
 
-The recommended next milestone is `Milestone 24 - Underwriting Referral Operations Foundation`. The likely useful slice is backend-owned referral workflow enrichment for realistic underwriter operations: assignment, priority, due date/SLA, persisted work notes, and an audit timeline. Keep that scope separate from document upload, RAG, autonomous AI decisions, and production model credentials.
+The next useful direction is likely a narrow post-decision or document-related slice, but it should be planned separately. Do not fold document upload, RAG, broker/customer messaging, notification inboxes, or authority-matrix enforcement into Milestone 24.
 
 ### Milestone 24 - Underwriting Referral Operations Foundation
 
 Status:
 
 ```text
-Started as the next backend-focused milestone after the frontend workbench.
+Implemented locally as the first durable underwriting referral operations foundation.
 ```
 
 Goal:
@@ -691,17 +691,27 @@ Why this comes after Milestone 23:
 - Real underwriting teams need operational state around who owns a referral, how urgent it is, what notes were recorded, and what happened over time.
 - These concepts need durable backend state and read-model/API changes rather than more frontend-only UI.
 
-Recommended first slice:
+Implemented scope:
 
-- Add assignment fields for referred quotes or referral review state.
-- Add priority and due date/SLA fields that can be shown in the workbench queue.
-- Add persisted underwriter work notes that remain separate from final approve/decline/adjust decisions.
-- Add a lightweight audit timeline for assignment, priority, note, and manual decision events.
+- Added one-to-one `quote_referral_operations` records for referred quotes.
+- Added risk-based default operations creation when quotes become `Referred`.
+- Added priority, SLA due date, workflow status, self-assignment, assignment release, and triage update behavior.
+- Added append-only internal work notes. Notes are not editable or deletable in this milestone.
+- Added internal follow-up tasks with due date, open/completed state, and created/completed audit fields.
+- Added `quote_referral_timeline_entries` for operations-created, assignment, priority, due-date, status, note, task, and closure-status evidence.
+- Kept final underwriting decisions in `quote_underwriting_reviews`, then merged those decisions into the operations timeline read model.
+- Added protected operations endpoints under `/api/v1/underwriting/quote-referrals/{quoteId}/operations`.
+- Enriched `GET /api/v1/underwriting/quote-referrals` with assignment, priority, SLA, workflow status, open-task count, and latest timeline fields.
+- Updated the React underwriting workbench with a minimal operations panel for assignment, triage, notes, tasks, and timeline.
+- Kept advisory AI and final manual decision controls visually separate from operations notes and tasks.
 
 Out of scope:
 
 - Document upload and review.
+- Broker/customer messaging.
+- Notification inboxes.
 - RAG and embeddings.
 - Autonomous AI underwriting decisions.
 - Production AI credentials.
 - Full analytics dashboards.
+- Authority-matrix enforcement.

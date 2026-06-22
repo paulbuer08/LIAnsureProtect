@@ -11,10 +11,72 @@ export type QuoteReferral = {
   referralReasons: string[];
   createdAtUtc: string;
   expiresAtUtc: string;
+  operations: QuoteReferralOperationsSummary | null;
 };
 
 export type ListQuoteReferralsResponse = {
   quoteReferrals: QuoteReferral[];
+};
+
+export type QuoteReferralOperationsSummary = {
+  assignedUnderwriterUserId: string | null;
+  priority: string;
+  dueAtUtc: string;
+  isSlaBreached: boolean;
+  status: string;
+  openTaskCount: number;
+  latestTimelineAtUtc: string | null;
+};
+
+export type QuoteReferralOperationResult = QuoteReferralOperationsSummary & {
+  quoteId: string;
+};
+
+export type QuoteReferralTimelineEntry = {
+  entryType: string;
+  summary: string;
+  createdByUserId: string;
+  createdAtUtc: string;
+};
+
+export type QuoteReferralTimelineResponse = {
+  quoteId: string;
+  entries: QuoteReferralTimelineEntry[];
+};
+
+export type QuoteReferralTriageRequest = {
+  priority: string;
+  status: string;
+  dueAtUtc: string;
+};
+
+export type QuoteReferralNoteRequest = {
+  note: string;
+};
+
+export type QuoteReferralNoteResult = {
+  noteId: string;
+  quoteId: string;
+  note: string;
+  createdByUserId: string;
+  createdAtUtc: string;
+};
+
+export type QuoteReferralTaskRequest = {
+  title: string;
+  dueAtUtc: string;
+};
+
+export type QuoteReferralTaskResult = {
+  taskId: string;
+  quoteId: string;
+  title: string;
+  dueAtUtc: string;
+  isCompleted: boolean;
+  createdByUserId: string;
+  createdAtUtc: string;
+  completedByUserId: string | null;
+  completedAtUtc: string | null;
 };
 
 export type AiUnderwritingReviewResponse = {

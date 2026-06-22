@@ -65,7 +65,7 @@ Milestone 22 is complete as `Milestone 22 - AI Underwriting Assistant Foundation
 
 Milestone 23 is implemented as `Milestone 23 - Underwriting Workbench UI Foundation`. It adds a protected `/underwriting/quote-referrals` React workbench for underwriters to triage referred quotes, inspect referral reasons and subjectivities, request advisory AI review, and record manual approve/decline/adjust decisions through the existing backend endpoints without changing underwriting authority rules.
 
-Milestone 24 is started as `Milestone 24 - Underwriting Referral Operations Foundation`. The recommended planning target is backend-owned referral workflow enrichment for realistic underwriting operations: assignment, priority, due date/SLA, persisted work notes, and audit timeline foundations while keeping AI advisory-only and decision authority human-owned.
+Milestone 24 is implemented as `Milestone 24 - Underwriting Referral Operations Foundation`. It adds durable referral operations state for referred quotes: self-assignment, priority, SLA due dates, workflow status, append-only work notes, internal follow-up tasks, and an audit timeline exposed in the existing underwriting workbench. AI remains advisory-only and final approve/decline/adjust authority remains human-owned.
 
 ## Local Run
 

@@ -18,6 +18,14 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
 
     public DbSet<QuoteUnderwritingReview> QuoteUnderwritingReviews => Set<QuoteUnderwritingReview>();
 
+    public DbSet<QuoteReferralOperation> QuoteReferralOperations => Set<QuoteReferralOperation>();
+
+    public DbSet<QuoteReferralWorkNote> QuoteReferralWorkNotes => Set<QuoteReferralWorkNote>();
+
+    public DbSet<QuoteReferralFollowUpTask> QuoteReferralFollowUpTasks => Set<QuoteReferralFollowUpTask>();
+
+    public DbSet<QuoteReferralTimelineEntry> QuoteReferralTimelineEntries => Set<QuoteReferralTimelineEntry>();
+
     public DbSet<AiUnderwritingReview> AiUnderwritingReviews => Set<AiUnderwritingReview>();
 
     public DbSet<Policy> Policies => Set<Policy>();

@@ -104,6 +104,16 @@ public sealed class CreateQuoteCommandHandler(
             providerResult.CompletedAtUtc);
 
         await quoteRepository.AddAsync(quote, cancellationToken);
+        if (quote.Status == QuoteStatus.Referred)
+        {
+            var operation = QuoteReferralOperation.CreateDefault(
+                quote.Id,
+                quote.RiskTier,
+                quote.CreatedAtUtc,
+                quote.ExpiresAtUtc);
+            await quoteRepository.AddReferralOperationAsync(operation, cancellationToken);
+        }
+
         await quoteRepository.AddRatingProviderAttemptAsync(providerAttempt, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

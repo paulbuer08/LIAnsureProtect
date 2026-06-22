@@ -10,7 +10,19 @@ public interface IQuoteRepository
         QuoteRatingProviderAttempt attempt,
         CancellationToken cancellationToken);
 
+    Task AddReferralOperationAsync(
+        QuoteReferralOperation operation,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<QuoteReferralOperation>> ListReferralOperationsAsync(
+        IReadOnlyCollection<Guid> quoteIds,
+        CancellationToken cancellationToken);
+
+    Task<QuoteReferralOperation?> GetReferralOperationForUpdateAsync(
+        Guid quoteId,
+        CancellationToken cancellationToken);
 
     Task<Quote?> GetForUnderwritingReviewAsync(Guid quoteId, CancellationToken cancellationToken);
 

@@ -702,6 +702,87 @@ The current frontend underwriting flow is:
 
 This is a UI and API-consumption milestone, not a backend authority change. The workbench helps an underwriter triage by risk tier and quote expiry, inspect referral reasons and subjectivities, view advisory AI output, and submit a manual decision. The backend still owns authorization, validation, persistence, quote state changes, underwriting audit rows, outbox capture, and the rule that AI cannot make insurance decisions.
 
+Milestone 24 - Underwriting Referral Operations Foundation adds durable operational workflow state around referred quotes.
+
+The referral operations flow is:
+
+```text
+New quote is generated with Referred status
+  -> QuoteReferralOperation.CreateDefault(...)
+  -> priority is High for high/severe risk, otherwise Normal
+  -> SLA due date is 2 days for high priority, 5 days otherwise
+  -> due date is capped by quote expiry
+  -> quote_referral_operations row is persisted
+  -> quote_referral_timeline_entries records the operations start
+```
+
+Underwriters and admins can then use the existing `Quotes.Underwrite` policy for operational actions:
+
+```text
+POST /api/v1/underwriting/quote-referrals/{quoteId}/operations/assign-to-me
+POST /api/v1/underwriting/quote-referrals/{quoteId}/operations/release-assignment
+POST /api/v1/underwriting/quote-referrals/{quoteId}/operations/triage
+POST /api/v1/underwriting/quote-referrals/{quoteId}/operations/notes
+POST /api/v1/underwriting/quote-referrals/{quoteId}/operations/tasks
+POST /api/v1/underwriting/quote-referrals/{quoteId}/operations/tasks/{taskId}/complete
+GET  /api/v1/underwriting/quote-referrals/{quoteId}/operations/timeline
+```
+
+The operations tables are:
+
+```text
+quote_referral_operations
+  id
+  quote_id
+  assigned_underwriter_user_id
+  priority
+  status
+  due_at_utc
+  created_at_utc
+  updated_at_utc
+  closed_at_utc
+
+quote_referral_work_notes
+  id
+  quote_referral_operation_id
+  quote_id
+  note
+  created_by_user_id
+  created_at_utc
+
+quote_referral_follow_up_tasks
+  id
+  quote_referral_operation_id
+  quote_id
+  title
+  due_at_utc
+  is_completed
+  created_by_user_id
+  created_at_utc
+  completed_by_user_id
+  completed_at_utc
+
+quote_referral_timeline_entries
+  id
+  quote_referral_operation_id
+  quote_id
+  entry_type
+  description
+  created_by_user_id
+  created_at_utc
+```
+
+These tables are separate from `quotes` because they answer operational questions instead of quote-term questions:
+
+- `quotes` answers: "What are the current quoted terms and underwriting decision state?"
+- `quote_underwriting_reviews` answers: "What final underwriting decisions were recorded?"
+- `quote_referral_operations` answers: "Who is working this referral, how urgent is it, what internal workflow state is it in, and what follow-up is open?"
+- `quote_referral_timeline_entries` answers: "What operational evidence changed over time?"
+
+Operations mutations are allowed only while the quote is still `Referred`. Final approve, decline, or adjust actions close the operation and add operational status-change evidence; the formal final decision entry shown in the timeline is projected from `quote_underwriting_reviews`. Reviewed quotes can still expose their timeline history. `Escalated` and `WaitingForInformation` are internal workflow statuses only in this milestone. They do not enforce underwriting authority, send broker/customer notifications, or request documents.
+
+The React workbench now shows assignment, priority, SLA status, operations status, open task count, and the latest operations timestamp in the queue. The selected referral detail keeps three concepts visually separate: advisory AI, referral operations notes/tasks/timeline, and final manual approve/decline/adjust actions.
+
 Milestone 20 - Quote Acceptance And Policy Binding Foundation adds the first safe path from quote to bound policy:
 
 ```text

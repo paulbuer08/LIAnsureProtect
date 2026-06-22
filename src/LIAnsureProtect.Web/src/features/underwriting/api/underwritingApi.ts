@@ -2,7 +2,14 @@ import type {
   AdjustQuoteReferralRequest,
   AiUnderwritingReviewResponse,
   ListQuoteReferralsResponse,
+  QuoteReferralNoteRequest,
+  QuoteReferralNoteResult,
+  QuoteReferralOperationResult,
   QuoteReferralReviewRequest,
+  QuoteReferralTaskRequest,
+  QuoteReferralTaskResult,
+  QuoteReferralTimelineResponse,
+  QuoteReferralTriageRequest,
   UnderwriteQuoteReferralResult,
 } from "../types";
 
@@ -106,6 +113,116 @@ export async function adjustQuoteReferral(
   return postUnderwritingAction(accessToken, quoteId, "adjust", request);
 }
 
+export async function assignQuoteReferralToMe(
+  accessToken: string,
+  quoteId: string,
+) {
+  return postOperationAction(accessToken, quoteId, "assign-to-me");
+}
+
+export async function releaseQuoteReferralAssignment(
+  accessToken: string,
+  quoteId: string,
+) {
+  return postOperationAction(accessToken, quoteId, "release-assignment");
+}
+
+export async function triageQuoteReferralOperation(
+  accessToken: string,
+  quoteId: string,
+  request: QuoteReferralTriageRequest,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/operations/triage`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(request),
+    },
+  );
+
+  return parseJsonResponse<QuoteReferralOperationResult>(
+    response,
+    "Quote referral operations were not found.",
+  );
+}
+
+export async function addQuoteReferralNote(
+  accessToken: string,
+  quoteId: string,
+  request: QuoteReferralNoteRequest,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/operations/notes`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(request),
+    },
+  );
+
+  return parseJsonResponse<QuoteReferralNoteResult>(
+    response,
+    "Quote referral operations were not found.",
+  );
+}
+
+export async function listQuoteReferralTimeline(
+  accessToken: string,
+  quoteId: string,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/operations/timeline`,
+    {
+      headers: authHeaders(accessToken),
+    },
+  );
+
+  return parseJsonResponse<QuoteReferralTimelineResponse>(
+    response,
+    "Quote referral operations were not found.",
+  );
+}
+
+export async function addQuoteReferralTask(
+  accessToken: string,
+  quoteId: string,
+  request: QuoteReferralTaskRequest,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/operations/tasks`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(request),
+    },
+  );
+
+  return parseJsonResponse<QuoteReferralTaskResult>(
+    response,
+    "Quote referral operations were not found.",
+  );
+}
+
+export async function completeQuoteReferralTask(
+  accessToken: string,
+  quoteId: string,
+  taskId: string,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/operations/tasks/${taskId}/complete`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+    },
+  );
+
+  return parseJsonResponse<QuoteReferralTaskResult>(
+    response,
+    "Quote referral operations were not found.",
+  );
+}
+
 async function postUnderwritingAction(
   accessToken: string,
   quoteId: string,
@@ -124,5 +241,24 @@ async function postUnderwritingAction(
   return parseJsonResponse<UnderwriteQuoteReferralResult>(
     response,
     "Quote referral was not found.",
+  );
+}
+
+async function postOperationAction(
+  accessToken: string,
+  quoteId: string,
+  action: "assign-to-me" | "release-assignment",
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/operations/${action}`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+    },
+  );
+
+  return parseJsonResponse<QuoteReferralOperationResult>(
+    response,
+    "Quote referral operations were not found.",
   );
 }

@@ -101,6 +101,139 @@ public sealed class UnderwritingReferralEndpointTests
     }
 
     [Fact]
+    public async Task List_Quote_Referrals_Returns_Operations_Summary_For_Underwriter()
+    {
+        var quote = CreateReferredQuote(
+            "customer-1",
+            new DateTime(2026, 6, 22, 8, 0, 0, DateTimeKind.Utc));
+        var operation = QuoteReferralOperation.CreateDefault(
+            quote.Id,
+            CyberRiskTier.Severe,
+            quote.Quote.CreatedAtUtc,
+            quote.Quote.ExpiresAtUtc);
+        operation.AssignTo("underwriter-1", new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc));
+        operation.AddTask(
+            "underwriter-1",
+            "Verify MFA evidence.",
+            new DateTime(2026, 6, 23, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 22, 9, 5, 0, DateTimeKind.Utc));
+        await SaveQuotesAsync(quote);
+        await SaveOperationsAsync(operation);
+
+        using var request = CreateAuthenticatedRequest(HttpMethod.Get, QueueEndpointPath, "Underwriter", "underwriter-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(content);
+        var summary = payload.RootElement
+            .GetProperty("quoteReferrals")[0]
+            .GetProperty("operations");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("underwriter-1", summary.GetProperty("assignedUnderwriterUserId").GetString());
+        Assert.Equal("High", summary.GetProperty("priority").GetString());
+        Assert.Equal("InReview", summary.GetProperty("status").GetString());
+        Assert.Equal(1, summary.GetProperty("openTaskCount").GetInt32());
+        Assert.False(summary.GetProperty("isSlaBreached").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Operations_Actions_Update_Assignment_Triage_Notes_Tasks_And_Timeline()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        var operation = QuoteReferralOperation.CreateDefault(
+            quote.Id,
+            quote.Quote.RiskTier,
+            quote.Quote.CreatedAtUtc,
+            quote.Quote.ExpiresAtUtc);
+        await SaveQuotesAsync(quote);
+        await SaveOperationsAsync(operation);
+
+        using var assignRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/operations/assign-to-me",
+            "Underwriter",
+            "underwriter-1");
+        using var assignResponse = await httpClient.SendAsync(assignRequest, TestContext.Current.CancellationToken);
+
+        using var triageRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/operations/triage",
+            "Underwriter",
+            "underwriter-1",
+            new
+            {
+                priority = "Urgent",
+                status = "WaitingForInformation",
+                dueAtUtc = new DateTime(2026, 6, 23, 8, 0, 0, DateTimeKind.Utc)
+            });
+        using var triageResponse = await httpClient.SendAsync(triageRequest, TestContext.Current.CancellationToken);
+
+        using var noteRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/operations/notes",
+            "Underwriter",
+            "underwriter-1",
+            new
+            {
+                note = "Asked broker team to confirm MFA rollout evidence."
+            });
+        using var noteResponse = await httpClient.SendAsync(noteRequest, TestContext.Current.CancellationToken);
+
+        using var taskRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/operations/tasks",
+            "Underwriter",
+            "underwriter-1",
+            new
+            {
+                title = "Verify MFA evidence.",
+                dueAtUtc = new DateTime(2026, 6, 23, 12, 0, 0, DateTimeKind.Utc)
+            });
+        using var taskResponse = await httpClient.SendAsync(taskRequest, TestContext.Current.CancellationToken);
+        var taskContent = await taskResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var taskPayload = JsonDocument.Parse(taskContent);
+        var taskId = taskPayload.RootElement.GetProperty("taskId").GetGuid();
+
+        using var completeTaskRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/operations/tasks/{taskId}/complete",
+            "Underwriter",
+            "underwriter-1");
+        using var completeTaskResponse = await httpClient.SendAsync(completeTaskRequest, TestContext.Current.CancellationToken);
+
+        using var timelineRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"{QueueEndpointPath}/{quote.Id}/operations/timeline",
+            "Underwriter",
+            "underwriter-1");
+        using var timelineResponse = await httpClient.SendAsync(timelineRequest, TestContext.Current.CancellationToken);
+        var timelineContent = await timelineResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, assignResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, triageResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, noteResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, taskResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, completeTaskResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, timelineResponse.StatusCode);
+        Assert.Contains("AssignmentChanged", timelineContent);
+        Assert.Contains("PriorityChanged", timelineContent);
+        Assert.Contains("NoteAdded", timelineContent);
+        Assert.Contains("TaskAdded", timelineContent);
+        Assert.Contains("TaskCompleted", timelineContent);
+
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedOperation = await dbContext.Set<QuoteReferralOperation>().SingleAsync(
+            saved => saved.QuoteId == quote.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("underwriter-1", savedOperation.AssignedUnderwriterUserId);
+        Assert.Equal(ReferralPriority.Urgent, savedOperation.Priority);
+        Assert.Equal(ReferralOperationStatus.WaitingForInformation, savedOperation.Status);
+    }
+
+    [Fact]
     public async Task Approve_Quote_Referral_Returns_Forbidden_For_Customer()
     {
         var quote = CreateReferredQuote("customer-1");
@@ -116,6 +249,22 @@ public sealed class UnderwritingReferralEndpointTests
                 reason = "Trying to approve own referred quote.",
                 notes = "Should be forbidden."
             });
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Operations_Action_Returns_Forbidden_For_Customer()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        await SaveQuotesAsync(quote);
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/operations/assign-to-me",
+            "Customer",
+            "customer-1");
         using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -218,6 +367,55 @@ public sealed class UnderwritingReferralEndpointTests
     }
 
     [Fact]
+    public async Task Operations_Mutation_Returns_Conflict_After_Final_Underwriting_Decision()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        var operation = QuoteReferralOperation.CreateDefault(
+            quote.Id,
+            quote.Quote.RiskTier,
+            quote.Quote.CreatedAtUtc,
+            quote.Quote.ExpiresAtUtc);
+        await SaveQuotesAsync(quote);
+        await SaveOperationsAsync(operation);
+
+        using var approveRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/approve",
+            "Underwriter",
+            "underwriter-1",
+            new
+            {
+                reason = "Controls are acceptable after manual review.",
+                notes = "MFA evidence reviewed."
+            });
+        using var approveResponse = await httpClient.SendAsync(approveRequest, TestContext.Current.CancellationToken);
+
+        using var noteRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/operations/notes",
+            "Underwriter",
+            "underwriter-1",
+            new
+            {
+                note = "Trying to add note after approval."
+            });
+        using var noteResponse = await httpClient.SendAsync(noteRequest, TestContext.Current.CancellationToken);
+
+        using var timelineRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"{QueueEndpointPath}/{quote.Id}/operations/timeline",
+            "Underwriter",
+            "underwriter-1");
+        using var timelineResponse = await httpClient.SendAsync(timelineRequest, TestContext.Current.CancellationToken);
+        var timelineContent = await timelineResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, approveResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, noteResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, timelineResponse.StatusCode);
+        Assert.Contains("DecisionRecorded", timelineContent);
+    }
+
+    [Fact]
     public async Task Adjust_Quote_Referral_Updates_Terms_And_Stores_Audit_Before_And_After_Values()
     {
         var quote = CreateReferredQuote("customer-1");
@@ -308,6 +506,16 @@ public sealed class UnderwritingReferralEndpointTests
             TestContext.Current.CancellationToken);
         await dbContext.Quotes.AddRangeAsync(
             quotes.Select(quote => quote.Quote),
+            TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task SaveOperationsAsync(params QuoteReferralOperation[] operations)
+    {
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        await dbContext.Set<QuoteReferralOperation>().AddRangeAsync(
+            operations,
             TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }

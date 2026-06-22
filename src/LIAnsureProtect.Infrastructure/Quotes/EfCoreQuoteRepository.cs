@@ -19,6 +19,13 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         await dbContext.QuoteRatingProviderAttempts.AddAsync(attempt, cancellationToken);
     }
 
+    public async Task AddReferralOperationAsync(
+        QuoteReferralOperation operation,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.QuoteReferralOperations.AddAsync(operation, cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken)
     {
         return await dbContext.Quotes
@@ -26,6 +33,32 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
             .Where(quote => quote.Status == QuoteStatus.Referred)
             .OrderBy(quote => quote.CreatedAtUtc)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<QuoteReferralOperation>> ListReferralOperationsAsync(
+        IReadOnlyCollection<Guid> quoteIds,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.QuoteReferralOperations
+            .AsNoTracking()
+            .Include(operation => operation.Notes)
+            .Include(operation => operation.Tasks)
+            .Include(operation => operation.TimelineEntries)
+            .Where(operation => quoteIds.Contains(operation.QuoteId))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<QuoteReferralOperation?> GetReferralOperationForUpdateAsync(
+        Guid quoteId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.QuoteReferralOperations
+            .Include(operation => operation.Notes)
+            .Include(operation => operation.Tasks)
+            .Include(operation => operation.TimelineEntries)
+            .SingleOrDefaultAsync(
+                operation => operation.QuoteId == quoteId,
+                cancellationToken);
     }
 
     public async Task<Quote?> GetForUnderwritingReviewAsync(Guid quoteId, CancellationToken cancellationToken)

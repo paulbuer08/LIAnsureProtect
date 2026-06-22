@@ -103,5 +103,14 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("CREATE TABLE ai_underwriting_reviews", script);
         Assert.Contains("ix_ai_underwriting_reviews_quote_id_created_at_utc", script);
         Assert.Contains("ix_ai_underwriting_reviews_status_created_at_utc", script);
+        Assert.Contains("CREATE TABLE quote_referral_operations", script);
+        Assert.Contains("ux_quote_referral_operations_quote_id", script);
+        Assert.Contains("ix_quote_referral_operations_status_priority_due_at_utc", script);
+        Assert.Contains("CREATE TABLE quote_referral_work_notes", script);
+        Assert.Contains("ix_quote_referral_work_notes_quote_id_created_at_utc", script);
+        Assert.Contains("CREATE TABLE quote_referral_follow_up_tasks", script);
+        Assert.Contains("ix_quote_referral_follow_up_tasks_quote_id_completed_due_at_utc", script);
+        Assert.Contains("CREATE TABLE quote_referral_timeline_entries", script);
+        Assert.Contains("ix_quote_referral_timeline_entries_quote_id_created_at_utc", script);
     }
 }
