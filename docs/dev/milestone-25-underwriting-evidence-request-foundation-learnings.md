@@ -189,24 +189,41 @@ Docs:
 - `docs/dev/pattern-roadmap-after-milestone-11.md`
 - this learning note
 
-## Planning Questions For The Milestone 25 Session
+## Closeout
 
-- Should evidence requests live under the Quotes domain, referral operations, or a separate underwriting evidence area?
-- Should the first response be text-only, attachment-metadata-only, or both?
-- How should customer/broker ownership be checked from a quote back to the original submission owner?
-- Which evidence request statuses are enough for the first slice?
-- Should underwriters be able to close/cancel requests in this milestone?
-- Should responding to an evidence request automatically move referral operations out of `WaitingForInformation`, or only add timeline evidence?
-- Which workbench fields should be updated immediately?
-- Is a customer/broker UI needed in this milestone, or is API-first acceptable before adding a frontend route?
+Implementation commit:
 
-## Starter Verification Path
+```text
+77cad37 feat: add underwriting evidence request foundation
+```
 
-Use the standard local verification path:
+Final verification:
 
 ```powershell
 dotnet build LIAnsureProtect.slnx --no-restore
 dotnet test LIAnsureProtect.slnx --no-restore
 dotnet ef migrations has-pending-model-changes --project src\LIAnsureProtect.Infrastructure\LIAnsureProtect.Infrastructure.csproj --startup-project src\LIAnsureProtect.Api\LIAnsureProtect.Api.csproj --context SubmissionDbContext --no-build
-.\scripts\run-local-ci.ps1 -RunFrontendInstall:$false
+.\scripts\run-local-ci.ps1
 ```
+
+Final local CI artifact:
+
+```text
+TestResults\local-ci-20260622-225547.zip
+```
+
+Review note:
+
+- `git diff --check` passed; the only output was the normal Windows CRLF warning.
+- Full local CI passed after the project restored frontend dependencies through the repository `package-lock.json` path.
+- No `pnpm-lock.yaml` or `pnpm-workspace.yaml` files were left behind, and the evidence milestone did not change the web package manifest.
+
+## Recommended Next Milestone
+
+The strongest next step is `Milestone 26 - Evidence Request Notification and Follow-up Foundation`.
+
+Why this is the natural next slice:
+
+- Real evidence request workflows depend on timely customer/broker outreach and underwriter awareness when a response arrives.
+- The app already has a local notification/outbox foundation, so evidence activity can reuse that boundary without adding production email delivery or notification inboxes yet.
+- It keeps full document storage, malware scanning, OCR, RAG, and messaging threads separate while still making the evidence workflow feel more operationally real.

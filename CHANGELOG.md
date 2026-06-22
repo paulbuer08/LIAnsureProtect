@@ -266,3 +266,6 @@ The format follows simple milestone-based entries.
 - Referral operations timeline entries for evidence request creation, response, acceptance, and cancellation.
 - Referral queue evidence summary fields for open request count, responded request count, waiting-for-information state, and latest evidence activity.
 - React underwriting workbench evidence controls and a protected customer/broker evidence response page.
+- Milestone 25 verification passed with local CI artifact `TestResults\local-ci-20260622-225547.zip`.
+- Milestone 25 closeout notes after implementation commit `77cad37 feat: add underwriting evidence request foundation`.
+- Recommended Milestone 26 direction: evidence request notification and follow-up foundation, so customer/broker evidence requests and underwriter response activity can flow through the existing local notification/outbox boundary before full document storage or messaging threads are introduced.

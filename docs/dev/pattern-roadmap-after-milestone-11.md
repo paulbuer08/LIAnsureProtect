@@ -669,7 +669,7 @@ Out of scope:
 
 Continue milestone by milestone. Milestone 24 now gives referred quotes durable operational workflow state around the existing underwriting workbench.
 
-Milestone 25 implements the recommended evidence-request foundation. The next useful direction after this is either notification delivery for evidence request activity, real document storage behind a document-storage abstraction, or richer customer/broker messaging, depending on which product workflow should come next.
+Milestone 25 implements the recommended evidence-request foundation. The recommended next milestone is `Milestone 26 - Evidence Request Notification and Follow-up Foundation`: publish and track evidence request notifications through the existing local notification/outbox boundary, add a narrow reminder/follow-up model for overdue evidence, and keep production email delivery, inboxes, full document storage, OCR, RAG, and messaging threads out of scope.
 
 ### Milestone 24 - Underwriting Referral Operations Foundation
 
@@ -722,6 +722,8 @@ Status:
 
 ```text
 Implemented locally as the first customer/broker-facing evidence request workflow for referred quotes.
+Implementation commit: 77cad37 feat: add underwriting evidence request foundation
+Final local CI artifact: TestResults\local-ci-20260622-225547.zip
 ```
 
 Goal:
@@ -755,3 +757,40 @@ Out of scope unless explicitly expanded:
 - Autonomous AI document review.
 - Notification inboxes.
 - Full broker/customer messaging threads.
+
+### Milestone 26 - Evidence Request Notification and Follow-up Foundation
+
+Status:
+
+```text
+Recommended next milestone after Milestone 25 closeout.
+```
+
+Goal:
+
+```text
+Make the evidence request workflow operationally realistic by notifying the right party when evidence is requested or responded to, and by giving underwriters a small follow-up/reminder workflow for overdue evidence.
+```
+
+Why this comes after Milestone 25:
+
+- Milestone 25 creates durable evidence request state.
+- Real customer/broker evidence workflows need outreach when requests are opened and underwriter visibility when responses arrive.
+- Milestone 21 already introduced local notification publishing and outbox retry metadata, so this slice can reuse existing infrastructure without introducing production email or SMS delivery yet.
+
+Recommended first slice:
+
+- Publish local notification messages when an evidence request is created, responded to, accepted, or cancelled.
+- Route requester and owner notification audiences through the existing Application notification boundary.
+- Add a small due/overdue evidence follow-up query or marker that lets underwriters see requests needing attention.
+- Add timeline entries or notification metadata that prove reminders/follow-ups were attempted.
+- Add owner-facing and underwriter-facing UI indicators for notification/follow-up state only where useful.
+
+Out of scope unless explicitly expanded:
+
+- Production email/SMS delivery providers.
+- Notification inboxes.
+- Full broker/customer messaging threads.
+- File upload/download or document storage.
+- Virus scanning, OCR, embeddings, RAG, or autonomous document review.
+- Automatic approve/decline/adjust decisions.
