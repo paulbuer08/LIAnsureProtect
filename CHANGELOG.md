@@ -256,3 +256,4 @@ The format follows simple milestone-based entries.
 - Focused unit, integration, migration-shape, and frontend tests covering referral operations defaults, mutations, timeline evidence, authorization, closed-referral conflicts, and workbench operations interactions.
 - Milestone 24 verification passed with local CI artifact `TestResults\local-ci-20260622-164823.zip`.
 - Milestone 24 closeout notes after implementation commit `b57d304 feat: add underwriting referral operations foundation`.
+- Milestone 25 starter continuity notes for `Milestone 25 - Underwriting Evidence Request Foundation`.

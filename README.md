@@ -67,6 +67,8 @@ Milestone 23 is implemented as `Milestone 23 - Underwriting Workbench UI Foundat
 
 Milestone 24 is implemented as `Milestone 24 - Underwriting Referral Operations Foundation`. It adds durable referral operations state for referred quotes: self-assignment, priority, SLA due dates, workflow status, append-only work notes, internal follow-up tasks, and an audit timeline exposed in the existing underwriting workbench. AI remains advisory-only and final approve/decline/adjust authority remains human-owned.
 
+Milestone 25 is started as `Milestone 25 - Underwriting Evidence Request Foundation`. The recommended planning target is a narrow evidence-request workflow for referred quotes: underwriters can request supporting evidence, customers or brokers can see and respond to their own requests, and the underwriting workbench can track request status without adding full document management, OCR, RAG, notification inboxes, or autonomous AI review yet.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -129,6 +131,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 22 AI Underwriting Assistant Foundation Learnings](docs/dev/milestone-22-ai-underwriting-assistant-foundation-learnings.md)
 - [Milestone 23 Underwriting Workbench UI Foundation Learnings](docs/dev/milestone-23-underwriting-workbench-ui-foundation-learnings.md)
 - [Milestone 24 Underwriting Referral Operations Foundation Learnings](docs/dev/milestone-24-underwriting-referral-operations-foundation-learnings.md)
+- [Milestone 25 Underwriting Evidence Request Foundation Learnings](docs/dev/milestone-25-underwriting-evidence-request-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)
