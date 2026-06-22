@@ -7,7 +7,10 @@ import {
   adjustQuoteReferral,
   assignQuoteReferralToMe,
   approveQuoteReferral,
+  acceptQuoteEvidenceRequest,
+  cancelQuoteEvidenceRequest,
   completeQuoteReferralTask,
+  createQuoteEvidenceRequest,
   declineQuoteReferral,
   generateAiUnderwritingReview,
   listQuoteReferralTimeline,
@@ -16,10 +19,12 @@ import {
 } from "../api/underwritingApi";
 import type {
   AdjustQuoteReferralRequest,
+  CreateQuoteEvidenceRequest,
   QuoteReferralNoteRequest,
   QuoteReferralReviewRequest,
   QuoteReferralTaskRequest,
   QuoteReferralTriageRequest,
+  ReviewQuoteEvidenceRequest,
 } from "../types";
 import { quoteReferralsQueryKey } from "./useQuoteReferrals";
 
@@ -225,6 +230,83 @@ export function useCompleteQuoteReferralTask() {
       const accessToken = await getAccessTokenSilently();
 
       return completeQuoteReferralTask(accessToken, quoteId, taskId);
+    },
+    onSuccess: (_result, variables) =>
+      invalidateOperationsQueries(queryClient, variables.quoteId),
+  });
+}
+
+export function useCreateQuoteEvidenceRequest() {
+  const { getAccessTokenSilently } = useAuth0();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      quoteId,
+      request,
+    }: {
+      quoteId: string;
+      request: CreateQuoteEvidenceRequest;
+    }) => {
+      const accessToken = await getAccessTokenSilently();
+
+      return createQuoteEvidenceRequest(accessToken, quoteId, request);
+    },
+    onSuccess: (_result, variables) =>
+      invalidateOperationsQueries(queryClient, variables.quoteId),
+  });
+}
+
+export function useAcceptQuoteEvidenceRequest() {
+  const { getAccessTokenSilently } = useAuth0();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      quoteId,
+      evidenceRequestId,
+      request,
+    }: {
+      quoteId: string;
+      evidenceRequestId: string;
+      request: ReviewQuoteEvidenceRequest;
+    }) => {
+      const accessToken = await getAccessTokenSilently();
+
+      return acceptQuoteEvidenceRequest(
+        accessToken,
+        quoteId,
+        evidenceRequestId,
+        request,
+      );
+    },
+    onSuccess: (_result, variables) =>
+      invalidateOperationsQueries(queryClient, variables.quoteId),
+  });
+}
+
+export function useCancelQuoteEvidenceRequest() {
+  const { getAccessTokenSilently } = useAuth0();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      quoteId,
+      evidenceRequestId,
+      request,
+    }: {
+      quoteId: string;
+      evidenceRequestId: string;
+      request: ReviewQuoteEvidenceRequest;
+    }) => {
+      const accessToken = await getAccessTokenSilently();
+
+      return cancelQuoteEvidenceRequest(
+        accessToken,
+        quoteId,
+        evidenceRequestId,
+        request,
+      );
     },
     onSuccess: (_result, variables) =>
       invalidateOperationsQueries(queryClient, variables.quoteId),

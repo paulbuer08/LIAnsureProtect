@@ -55,6 +55,14 @@ public static class AuthorizationPolicies
             )
         );
 
+        options.AddPolicy(ApplicationPolicies.RespondToEvidenceRequest,
+            policy => policy.RequireRole(
+                ApplicationRoles.Customer,
+                ApplicationRoles.Broker,
+                ApplicationRoles.Admin
+            )
+        );
+
         options.AddPolicy(ApplicationPolicies.BindPolicy,
             policy => policy.RequireRole(
                 ApplicationRoles.Customer,

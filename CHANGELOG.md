@@ -257,3 +257,12 @@ The format follows simple milestone-based entries.
 - Milestone 24 verification passed with local CI artifact `TestResults\local-ci-20260622-164823.zip`.
 - Milestone 24 closeout notes after implementation commit `b57d304 feat: add underwriting referral operations foundation`.
 - Milestone 25 starter continuity notes for `Milestone 25 - Underwriting Evidence Request Foundation`.
+- Milestone 25 - Underwriting Evidence Request Foundation implementation.
+- PostgreSQL-backed `quote_evidence_requests` for underwriter evidence requests tied to referred quotes, submissions, owners, and referral operations.
+- Evidence request categories for MFA, EDR, backup recovery, incident response plans, prior loss details, questionnaire clarification, and other underwriting needs.
+- Underwriter evidence request create, accept, and cancel endpoints under the existing underwriting referral route.
+- Customer/broker owner evidence request list and response endpoints with owner scoping.
+- Evidence responses with text, respondent audit fields, and safe placeholder attachment metadata without real file upload or storage.
+- Referral operations timeline entries for evidence request creation, response, acceptance, and cancellation.
+- Referral queue evidence summary fields for open request count, responded request count, waiting-for-information state, and latest evidence activity.
+- React underwriting workbench evidence controls and a protected customer/broker evidence response page.

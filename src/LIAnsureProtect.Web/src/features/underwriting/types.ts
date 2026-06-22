@@ -12,6 +12,7 @@ export type QuoteReferral = {
   createdAtUtc: string;
   expiresAtUtc: string;
   operations: QuoteReferralOperationsSummary | null;
+  evidence: QuoteReferralEvidenceSummary;
 };
 
 export type ListQuoteReferralsResponse = {
@@ -26,6 +27,13 @@ export type QuoteReferralOperationsSummary = {
   status: string;
   openTaskCount: number;
   latestTimelineAtUtc: string | null;
+};
+
+export type QuoteReferralEvidenceSummary = {
+  openRequestCount: number;
+  respondedRequestCount: number;
+  isWaitingForInformation: boolean;
+  latestEvidenceActivityAtUtc: string | null;
 };
 
 export type QuoteReferralOperationResult = QuoteReferralOperationsSummary & {
@@ -77,6 +85,44 @@ export type QuoteReferralTaskResult = {
   createdAtUtc: string;
   completedByUserId: string | null;
   completedAtUtc: string | null;
+};
+
+export type QuoteEvidenceRequest = {
+  evidenceRequestId: string;
+  quoteId: string;
+  submissionId: string;
+  category: string;
+  title: string;
+  description: string;
+  dueAtUtc: string;
+  status: string;
+  requestedByUserId: string;
+  requestedAtUtc: string;
+  respondedByUserId: string | null;
+  respondentName: string | null;
+  respondentTitle: string | null;
+  responseText: string | null;
+  attachmentFileName: string | null;
+  attachmentContentType: string | null;
+  attachmentSizeBytes: number | null;
+  respondedAtUtc: string | null;
+  acceptedByUserId: string | null;
+  acceptedAtUtc: string | null;
+  cancelledByUserId: string | null;
+  cancelledAtUtc: string | null;
+  reviewNotes: string | null;
+  updatedAtUtc: string;
+};
+
+export type CreateQuoteEvidenceRequest = {
+  category: string;
+  title: string;
+  description: string;
+  dueAtUtc: string;
+};
+
+export type ReviewQuoteEvidenceRequest = {
+  reviewNotes?: string | null;
 };
 
 export type AiUnderwritingReviewResponse = {

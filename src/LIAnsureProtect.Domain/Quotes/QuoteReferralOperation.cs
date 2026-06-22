@@ -237,6 +237,79 @@ public sealed class QuoteReferralOperation
             closedAtUtc);
     }
 
+    public void RecordEvidenceRequestCreated(
+        Guid evidenceRequestId,
+        string createdByUserId,
+        DateTime createdAtUtc)
+    {
+        EnsureOpen();
+        ValidateRequiredUserId(createdByUserId, nameof(createdByUserId));
+
+        var oldStatus = Status;
+        Status = ReferralOperationStatus.WaitingForInformation;
+        UpdatedAtUtc = createdAtUtc;
+        RecordTimeline(
+            ReferralTimelineEntryType.EvidenceRequestCreated,
+            $"Evidence request {evidenceRequestId} created; referral is waiting for information.",
+            createdByUserId,
+            createdAtUtc);
+
+        if (oldStatus != Status)
+            RecordTimeline(
+                ReferralTimelineEntryType.StatusChanged,
+                $"Status changed from {oldStatus} to {Status} because evidence was requested.",
+                createdByUserId,
+                createdAtUtc);
+    }
+
+    public void RecordEvidenceRequestResponded(
+        Guid evidenceRequestId,
+        string respondedByUserId,
+        DateTime respondedAtUtc)
+    {
+        EnsureOpen();
+        ValidateRequiredUserId(respondedByUserId, nameof(respondedByUserId));
+
+        UpdatedAtUtc = respondedAtUtc;
+        RecordTimeline(
+            ReferralTimelineEntryType.EvidenceRequestResponded,
+            $"Evidence request {evidenceRequestId} received a customer or broker response.",
+            respondedByUserId,
+            respondedAtUtc);
+    }
+
+    public void RecordEvidenceRequestAccepted(
+        Guid evidenceRequestId,
+        string acceptedByUserId,
+        DateTime acceptedAtUtc)
+    {
+        EnsureOpen();
+        ValidateRequiredUserId(acceptedByUserId, nameof(acceptedByUserId));
+
+        UpdatedAtUtc = acceptedAtUtc;
+        RecordTimeline(
+            ReferralTimelineEntryType.EvidenceRequestAccepted,
+            $"Evidence request {evidenceRequestId} accepted by underwriting.",
+            acceptedByUserId,
+            acceptedAtUtc);
+    }
+
+    public void RecordEvidenceRequestCancelled(
+        Guid evidenceRequestId,
+        string cancelledByUserId,
+        DateTime cancelledAtUtc)
+    {
+        EnsureOpen();
+        ValidateRequiredUserId(cancelledByUserId, nameof(cancelledByUserId));
+
+        UpdatedAtUtc = cancelledAtUtc;
+        RecordTimeline(
+            ReferralTimelineEntryType.EvidenceRequestCancelled,
+            $"Evidence request {evidenceRequestId} cancelled by underwriting.",
+            cancelledByUserId,
+            cancelledAtUtc);
+    }
+
     private void RecordTimeline(
         ReferralTimelineEntryType entryType,
         string summary,

@@ -1,6 +1,6 @@
 # Milestone 25 - Underwriting Evidence Request Foundation Learnings
 
-This document starts the planning and learning notes for `Milestone 25 - Underwriting Evidence Request Foundation`.
+This document records the planning and implementation notes for `Milestone 25 - Underwriting Evidence Request Foundation`.
 
 ## Starting Point
 
@@ -18,19 +18,20 @@ codex/milestone-25-underwriting-evidence-request-foundation
 
 Milestone 24 added durable referral operations state for referred quotes: assignment, priority, SLA due dates, workflow status, append-only notes, internal follow-up tasks, and an operational timeline in the underwriting workbench.
 
-## Recommended Scope
+## Implemented Scope
 
-Add the first realistic evidence-request workflow around referred quotes.
+Milestone 25 adds the first realistic evidence-request workflow around referred quotes.
 
-Good candidates for this milestone:
+Implemented:
 
 - Underwriter-created evidence requests tied to referred quotes and referral operations.
-- Request fields such as title, description, due date, status, requested-by user id, and timestamps.
+- Request fields for category, title, description, due date, status, requested-by user id, and timestamps.
 - Owner customer/broker read access to evidence requests for their own quote/submission context.
-- Owner customer/broker response with text evidence or placeholder attachment metadata.
+- Owner customer/broker response with text evidence, respondent name/title, and placeholder attachment metadata.
+- Underwriter accept and cancel actions for evidence requests.
 - Underwriter workbench visibility into open/responded evidence requests.
-- Timeline entries when evidence requests are created and responded to.
-- Minimal API/read-model changes needed to support the workflow safely.
+- Timeline entries when evidence requests are created, responded to, accepted, or cancelled.
+- A protected customer/broker evidence response page in the React app.
 
 ## Why This Is Realistic Specialty Insurance
 
@@ -55,6 +56,113 @@ Milestone 25 should not become:
 - authority-matrix enforcement.
 
 AI remains advisory-only. Evidence responses should support human underwriting, not trigger automated approve, decline, adjust, accept, bind, or issue decisions.
+
+## Storage Decision
+
+Evidence requests are stored in PostgreSQL in `quote_evidence_requests`.
+
+The table stores workflow and audit facts:
+
+- quote id,
+- submission id,
+- referral operation id,
+- owner user id,
+- evidence category,
+- title and description,
+- due date,
+- status,
+- requester/respondent/reviewer audit fields,
+- response text,
+- safe attachment metadata.
+
+It deliberately does not store file bytes. Attachment fields are placeholders only:
+
+```text
+attachment_file_name
+attachment_content_type
+attachment_size_bytes
+```
+
+That makes the workflow realistic enough for underwriting while keeping S3, private object permissions, download audit, virus scanning, OCR, retention, and legal-hold decisions out of this milestone.
+
+## Status Model
+
+The first status set is intentionally small:
+
+```text
+Open
+Responded
+Accepted
+Cancelled
+```
+
+`Accepted` means the underwriter accepted the evidence response as adequate for review. It does not mean the quote is approved. The final approve, decline, or adjust actions still own underwriting authority.
+
+If more information is needed after a response, the underwriter creates another evidence request instead of reopening the old one.
+
+## API Shape
+
+Underwriter endpoints:
+
+```text
+POST /api/v1/underwriting/quote-referrals/{quoteId}/evidence-requests
+POST /api/v1/underwriting/quote-referrals/{quoteId}/evidence-requests/{evidenceRequestId}/accept
+POST /api/v1/underwriting/quote-referrals/{quoteId}/evidence-requests/{evidenceRequestId}/cancel
+```
+
+Customer/broker owner endpoints:
+
+```text
+GET  /api/v1/evidence-requests
+POST /api/v1/evidence-requests/{evidenceRequestId}/respond
+```
+
+Owner actions are scoped by the authenticated user id. A customer or broker cannot respond to another owner's evidence request.
+
+Creating an evidence request moves referral operations to `WaitingForInformation`. Responding adds timeline evidence but does not automatically move the referral to `ReadyForDecision`, because a human underwriter still has to decide whether the evidence is good enough.
+
+## Frontend Shape
+
+The underwriting workbench now shows:
+
+- open evidence request count,
+- responded evidence request count,
+- waiting-for-information indicator,
+- latest evidence activity,
+- create evidence request form,
+- accept/cancel evidence controls.
+
+The customer/broker side has a protected `/evidence-requests` page. It lists owner-scoped evidence requests and lets the owner submit response text plus optional attachment metadata.
+
+## Verification Notes
+
+Focused checks during implementation:
+
+```powershell
+dotnet test tests\LIAnsureProtect.UnitTests\LIAnsureProtect.UnitTests.csproj --no-restore --filter QuoteEvidenceRequestTests
+dotnet test tests\LIAnsureProtect.IntegrationTests\LIAnsureProtect.IntegrationTests.csproj --no-restore --filter "FullyQualifiedName~UnderwritingReferralEndpointTests"
+dotnet build LIAnsureProtect.slnx --no-restore
+dotnet test LIAnsureProtect.slnx --no-restore
+dotnet ef migrations has-pending-model-changes --project src\LIAnsureProtect.Infrastructure\LIAnsureProtect.Infrastructure.csproj --startup-project src\LIAnsureProtect.Api\LIAnsureProtect.Api.csproj --context SubmissionDbContext --no-build
+```
+
+Frontend focused checks:
+
+```powershell
+.\node_modules\.bin\vitest.cmd run src\features\underwriting\pages\UnderwritingQuoteReferralsPage.test.tsx src\features\evidence\pages\EvidenceRequestsPage.test.tsx
+.\node_modules\.bin\vitest.cmd run
+.\node_modules\.bin\tsc.cmd -b
+.\node_modules\.bin\vite.cmd build
+.\node_modules\.bin\eslint.cmd .
+```
+
+Full local CI passed after restoring frontend dependencies through the project `package-lock.json` path:
+
+```text
+TestResults\local-ci-20260622-225547.zip
+```
+
+During verification, an accidental direct `pnpm exec vitest` run converted `node_modules` into a pnpm-managed layout and created temporary `pnpm-lock.yaml` / `pnpm-workspace.yaml` files. Those generated files were removed, and the reliable recovery was to run the standard local CI with frontend install enabled so `npm ci` rebuilt `node_modules` from `package-lock.json`. After that, frontend build, lint, and all 27 frontend tests passed inside local CI.
 
 ## Likely File Areas
 

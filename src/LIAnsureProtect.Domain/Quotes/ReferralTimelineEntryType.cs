@@ -10,5 +10,9 @@ public enum ReferralTimelineEntryType
     NoteAdded,
     TaskAdded,
     TaskCompleted,
+    EvidenceRequestCreated,
+    EvidenceRequestResponded,
+    EvidenceRequestAccepted,
+    EvidenceRequestCancelled,
     DecisionRecorded
 }

@@ -1,5 +1,6 @@
 using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Application.Quotes.Commands.GenerateAiUnderwritingReview;
+using LIAnsureProtect.Application.Quotes.Commands.ManageQuoteEvidenceRequests;
 using LIAnsureProtect.Application.Quotes.Commands.ManageQuoteReferralOperations;
 using LIAnsureProtect.Application.Quotes.Commands.UnderwriteQuoteReferral;
 using LIAnsureProtect.Application.Quotes.Queries.ListQuoteReferrals;
@@ -25,6 +26,80 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
         var result = await sender.Send(new ListQuoteReferralsQuery(), cancellationToken);
 
         return Ok(result);
+    }
+
+    [HttpPost("{quoteId:guid}/evidence-requests")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status201Created)]
+    public async Task<ActionResult<QuoteEvidenceRequestResult>> CreateEvidenceRequest(
+        Guid quoteId,
+        CreateQuoteEvidenceRequestRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse<EvidenceRequestCategory>(request.Category, ignoreCase: true, out var category))
+            return BadRequest(CreateProblemDetails(StatusCodes.Status400BadRequest, "Evidence request category is invalid."));
+
+        try
+        {
+            var result = await sender.Send(
+                new CreateQuoteEvidenceRequestCommand(
+                    quoteId,
+                    category,
+                    request.Title,
+                    request.Description,
+                    request.DueAtUtc),
+                cancellationToken);
+
+            return result is null
+                ? NotFound()
+                : Created($"{Request.Path}/{result.EvidenceRequestId}", result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(StatusCodes.Status400BadRequest, "Evidence request is invalid.", exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(StatusCodes.Status409Conflict, "Evidence request cannot be created.", exception.Message));
+        }
+    }
+
+    [HttpPost("{quoteId:guid}/evidence-requests/{evidenceRequestId:guid}/accept")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<QuoteEvidenceRequestResult>> AcceptEvidenceRequest(
+        Guid quoteId,
+        Guid evidenceRequestId,
+        ReviewQuoteEvidenceRequestRequest request,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteEvidenceReviewAsync(
+            new AcceptQuoteEvidenceRequestCommand(quoteId, evidenceRequestId, request.ReviewNotes),
+            cancellationToken);
+    }
+
+    [HttpPost("{quoteId:guid}/evidence-requests/{evidenceRequestId:guid}/cancel")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<QuoteEvidenceRequestResult>> CancelEvidenceRequest(
+        Guid quoteId,
+        Guid evidenceRequestId,
+        ReviewQuoteEvidenceRequestRequest request,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteEvidenceReviewAsync(
+            new CancelQuoteEvidenceRequestCommand(quoteId, evidenceRequestId, request.ReviewNotes),
+            cancellationToken);
     }
 
     [HttpPost("{quoteId:guid}/ai-review")]
@@ -329,6 +404,34 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
         }
     }
 
+    private async Task<ActionResult<QuoteEvidenceRequestResult>> ExecuteEvidenceReviewAsync(
+        IRequest<QuoteEvidenceRequestResult?> command,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(command, cancellationToken);
+
+            return result is null
+                ? NotFound()
+                : Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Evidence request review is invalid.",
+                exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Evidence request cannot be reviewed.",
+                exception.Message));
+        }
+    }
+
     private static ProblemDetails CreateProblemDetails(
         int status,
         string title,
@@ -377,3 +480,11 @@ public sealed record QuoteReferralNoteRequest(string Note);
 public sealed record QuoteReferralTaskRequest(
     string Title,
     DateTime DueAtUtc);
+
+public sealed record CreateQuoteEvidenceRequestRequest(
+    string Category,
+    string Title,
+    string Description,
+    DateTime DueAtUtc);
+
+public sealed record ReviewQuoteEvidenceRequestRequest(string? ReviewNotes);

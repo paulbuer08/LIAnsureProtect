@@ -26,6 +26,8 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
 
     public DbSet<QuoteReferralTimelineEntry> QuoteReferralTimelineEntries => Set<QuoteReferralTimelineEntry>();
 
+    public DbSet<QuoteEvidenceRequest> QuoteEvidenceRequests => Set<QuoteEvidenceRequest>();
+
     public DbSet<AiUnderwritingReview> AiUnderwritingReviews => Set<AiUnderwritingReview>();
 
     public DbSet<Policy> Policies => Set<Policy>();

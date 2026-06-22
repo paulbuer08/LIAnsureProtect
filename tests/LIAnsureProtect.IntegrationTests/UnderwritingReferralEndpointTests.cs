@@ -234,6 +234,205 @@ public sealed class UnderwritingReferralEndpointTests
     }
 
     [Fact]
+    public async Task Evidence_Request_Workflow_Creates_Owner_Response_And_Underwriter_Acceptance()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        var operation = QuoteReferralOperation.CreateDefault(
+            quote.Id,
+            quote.Quote.RiskTier,
+            quote.Quote.CreatedAtUtc,
+            quote.Quote.ExpiresAtUtc);
+        await SaveQuotesAsync(quote);
+        await SaveOperationsAsync(operation);
+
+        using var createRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/evidence-requests",
+            "Underwriter",
+            "underwriter-1",
+            new
+            {
+                category = "MultiFactorAuthentication",
+                title = "Confirm MFA rollout",
+                description = "Please provide current MFA rollout evidence for privileged and email access.",
+                dueAtUtc = new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc)
+            });
+        using var createResponse = await httpClient.SendAsync(createRequest, TestContext.Current.CancellationToken);
+        var createContent = await createResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var createPayload = JsonDocument.Parse(createContent);
+        var evidenceRequestId = createPayload.RootElement.GetProperty("evidenceRequestId").GetGuid();
+
+        using var ownerListRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            "/api/v1/evidence-requests",
+            "Customer",
+            "customer-1");
+        using var ownerListResponse = await httpClient.SendAsync(ownerListRequest, TestContext.Current.CancellationToken);
+        var ownerListContent = await ownerListResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var respondRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"/api/v1/evidence-requests/{evidenceRequestId}/respond",
+            "Customer",
+            "customer-1",
+            new
+            {
+                respondentName = "Jane Applicant",
+                respondentTitle = "CISO",
+                responseText = "MFA is enforced for all email and privileged accounts.",
+                attachmentFileName = "mfa-attestation.pdf",
+                attachmentContentType = "application/pdf",
+                attachmentSizeBytes = 124_000
+            });
+        using var respondResponse = await httpClient.SendAsync(respondRequest, TestContext.Current.CancellationToken);
+
+        using var acceptRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/evidence-requests/{evidenceRequestId}/accept",
+            "Underwriter",
+            "underwriter-1",
+            new
+            {
+                reviewNotes = "MFA evidence is sufficient for this referral."
+            });
+        using var acceptResponse = await httpClient.SendAsync(acceptRequest, TestContext.Current.CancellationToken);
+
+        using var timelineRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"{QueueEndpointPath}/{quote.Id}/operations/timeline",
+            "Underwriter",
+            "underwriter-1");
+        using var timelineResponse = await httpClient.SendAsync(timelineRequest, TestContext.Current.CancellationToken);
+        var timelineContent = await timelineResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, ownerListResponse.StatusCode);
+        Assert.Contains("Confirm MFA rollout", ownerListContent);
+        Assert.Equal(HttpStatusCode.OK, respondResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, timelineResponse.StatusCode);
+        Assert.Contains("EvidenceRequestCreated", timelineContent);
+        Assert.Contains("EvidenceRequestResponded", timelineContent);
+        Assert.Contains("EvidenceRequestAccepted", timelineContent);
+
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedRequest = await dbContext.Set<QuoteEvidenceRequest>().SingleAsync(
+            saved => saved.Id == evidenceRequestId,
+            TestContext.Current.CancellationToken);
+        var savedOperation = await dbContext.Set<QuoteReferralOperation>().SingleAsync(
+            saved => saved.QuoteId == quote.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(EvidenceRequestStatus.Accepted, savedRequest.Status);
+        Assert.Equal("customer-1", savedRequest.OwnerUserId);
+        Assert.Equal("mfa-attestation.pdf", savedRequest.AttachmentFileName);
+        Assert.Equal(ReferralOperationStatus.WaitingForInformation, savedOperation.Status);
+    }
+
+    [Fact]
+    public async Task Evidence_Request_Response_Returns_NotFound_For_Different_Owner()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        var operation = QuoteReferralOperation.CreateDefault(
+            quote.Id,
+            quote.Quote.RiskTier,
+            quote.Quote.CreatedAtUtc,
+            quote.Quote.ExpiresAtUtc);
+        var evidenceRequest = QuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            operation.Id,
+            "customer-1",
+            "underwriter-1",
+            EvidenceRequestCategory.EndpointDetectionAndResponse,
+            "Confirm EDR rollout",
+            "Please provide EDR rollout status for managed endpoints.",
+            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc));
+        await SaveQuotesAsync(quote);
+        await SaveOperationsAsync(operation);
+        await SaveEvidenceRequestsAsync(evidenceRequest);
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"/api/v1/evidence-requests/{evidenceRequest.Id}/respond",
+            "Customer",
+            "customer-2",
+            new
+            {
+                respondentName = "Other User",
+                respondentTitle = "CISO",
+                responseText = "Trying to respond to another owner's request."
+            });
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task List_Quote_Referrals_Returns_Evidence_Summary_For_Underwriter()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        var operation = QuoteReferralOperation.CreateDefault(
+            quote.Id,
+            quote.Quote.RiskTier,
+            quote.Quote.CreatedAtUtc,
+            quote.Quote.ExpiresAtUtc);
+        var openRequest = QuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            operation.Id,
+            "customer-1",
+            "underwriter-1",
+            EvidenceRequestCategory.BackupRecovery,
+            "Confirm backup testing",
+            "Please provide latest backup test date.",
+            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc));
+        var respondedRequest = QuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            operation.Id,
+            "customer-1",
+            "underwriter-1",
+            EvidenceRequestCategory.IncidentResponsePlan,
+            "Confirm incident response plan",
+            "Please provide the latest tabletop exercise notes.",
+            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 22, 10, 0, 0, DateTimeKind.Utc));
+        respondedRequest.Respond(
+            "customer-1",
+            "Jane Applicant",
+            "CISO",
+            "The latest tabletop exercise was completed in May.",
+            null,
+            null,
+            null,
+            new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc));
+        await SaveQuotesAsync(quote);
+        await SaveOperationsAsync(operation);
+        await SaveEvidenceRequestsAsync(openRequest, respondedRequest);
+
+        using var request = CreateAuthenticatedRequest(HttpMethod.Get, QueueEndpointPath, "Underwriter", "underwriter-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(content);
+        var evidence = payload.RootElement
+            .GetProperty("quoteReferrals")[0]
+            .GetProperty("evidence");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, evidence.GetProperty("openRequestCount").GetInt32());
+        Assert.Equal(1, evidence.GetProperty("respondedRequestCount").GetInt32());
+        Assert.True(evidence.GetProperty("isWaitingForInformation").GetBoolean());
+        Assert.Equal(
+            new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc),
+            evidence.GetProperty("latestEvidenceActivityAtUtc").GetDateTime());
+    }
+
+    [Fact]
     public async Task Approve_Quote_Referral_Returns_Forbidden_For_Customer()
     {
         var quote = CreateReferredQuote("customer-1");
@@ -516,6 +715,16 @@ public sealed class UnderwritingReferralEndpointTests
         var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
         await dbContext.Set<QuoteReferralOperation>().AddRangeAsync(
             operations,
+            TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task SaveEvidenceRequestsAsync(params QuoteEvidenceRequest[] evidenceRequests)
+    {
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        await dbContext.Set<QuoteEvidenceRequest>().AddRangeAsync(
+            evidenceRequests,
             TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }

@@ -7,8 +7,11 @@ import {
   useAddQuoteReferralTask,
   useAdjustQuoteReferral,
   useApproveQuoteReferral,
+  useAcceptQuoteEvidenceRequest,
   useAssignQuoteReferralToMe,
+  useCancelQuoteEvidenceRequest,
   useCompleteQuoteReferralTask,
+  useCreateQuoteEvidenceRequest,
   useDeclineQuoteReferral,
   useGenerateAiUnderwritingReview,
   useQuoteReferralTimeline,
@@ -18,6 +21,7 @@ import {
 import { useQuoteReferrals } from "../hooks/useQuoteReferrals";
 import type {
   AiUnderwritingReviewResponse,
+  QuoteEvidenceRequest,
   QuoteReferral,
   QuoteReferralOperationsSummary,
   UnderwriteQuoteReferralResult,
@@ -211,6 +215,210 @@ function OperationsSummary({ operations }: { operations: QuoteReferralOperations
         </dd>
       </div>
     </dl>
+  );
+}
+
+function EvidenceSummary({ quote }: { quote: QuoteReferral }) {
+  const evidence = quote.evidence;
+
+  return (
+    <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+      <div>
+        <dt className="text-slate-400">Open evidence</dt>
+        <dd className="font-medium text-white">
+          {evidence.openRequestCount === 1
+            ? "1 open evidence request"
+            : `${evidence.openRequestCount} open evidence requests`}
+        </dd>
+      </div>
+      <div>
+        <dt className="text-slate-400">Responses</dt>
+        <dd className="font-medium text-white">
+          {evidence.respondedRequestCount === 1
+            ? "1 response awaiting review"
+            : `${evidence.respondedRequestCount} responses awaiting review`}
+        </dd>
+      </div>
+      <div>
+        <dt className="text-slate-400">Information state</dt>
+        <dd className={evidence.isWaitingForInformation ? "font-medium text-amber-200" : "font-medium text-emerald-200"}>
+          {evidence.isWaitingForInformation ? "Waiting for information" : "No evidence blocker"}
+        </dd>
+      </div>
+      <div>
+        <dt className="text-slate-400">Latest evidence activity</dt>
+        <dd className="font-medium text-white">
+          {evidence.latestEvidenceActivityAtUtc
+            ? formatDate(evidence.latestEvidenceActivityAtUtc)
+            : "No evidence activity yet"}
+        </dd>
+      </div>
+    </dl>
+  );
+}
+
+function EvidencePanel({ quote }: { quote: QuoteReferral }) {
+  const createEvidenceRequest = useCreateQuoteEvidenceRequest();
+  const acceptEvidenceRequest = useAcceptQuoteEvidenceRequest();
+  const cancelEvidenceRequest = useCancelQuoteEvidenceRequest();
+  const [category, setCategory] = useState("MultiFactorAuthentication");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [dueAtUtc, setDueAtUtc] = useState(
+    quote.operations?.dueAtUtc ? formatDateTimeLocal(quote.operations.dueAtUtc) : "",
+  );
+  const [evidenceRequestId, setEvidenceRequestId] = useState("");
+  const [reviewNotes, setReviewNotes] = useState("");
+  const [lastEvidenceResult, setLastEvidenceResult] = useState<QuoteEvidenceRequest>();
+  const evidenceError =
+    createEvidenceRequest.error ??
+    acceptEvidenceRequest.error ??
+    cancelEvidenceRequest.error;
+
+  async function handleCreateEvidenceRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const result = await createEvidenceRequest.mutateAsync({
+      quoteId: quote.quoteId,
+      request: {
+        category,
+        title: title.trim(),
+        description: description.trim(),
+        dueAtUtc: toUtcIsoFromLocal(dueAtUtc),
+      },
+    });
+    setLastEvidenceResult(result);
+    setTitle("");
+    setDescription("");
+  }
+
+  async function handleAcceptEvidence(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const result = await acceptEvidenceRequest.mutateAsync({
+      quoteId: quote.quoteId,
+      evidenceRequestId: evidenceRequestId.trim(),
+      request: { reviewNotes: reviewNotes.trim() },
+    });
+    setLastEvidenceResult(result);
+  }
+
+  async function handleCancelEvidence() {
+    const result = await cancelEvidenceRequest.mutateAsync({
+      quoteId: quote.quoteId,
+      evidenceRequestId: evidenceRequestId.trim(),
+      request: { reviewNotes: reviewNotes.trim() },
+    });
+    setLastEvidenceResult(result);
+  }
+
+  return (
+    <section className="rounded-lg border border-amber-900 bg-amber-950/25 p-5">
+      <p className="text-sm font-semibold uppercase tracking-wide text-amber-300">
+        Evidence requests
+      </p>
+      <h2 className="mt-2 text-xl font-semibold text-white">
+        Customer and broker information requests
+      </h2>
+      <p className="mt-2 text-sm text-amber-100">
+        Request cyber-control evidence without collecting real files in this
+        milestone. Responses can include text and safe attachment metadata.
+      </p>
+
+      <EvidenceSummary quote={quote} />
+
+      {lastEvidenceResult && (
+        <p className="mt-4 rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm font-semibold text-emerald-100">
+          Evidence request saved: {lastEvidenceResult.status}
+        </p>
+      )}
+
+      {evidenceError !== null && evidenceError !== undefined && (
+        <p className="mt-4 whitespace-pre-wrap rounded-md border border-red-900 bg-red-950 p-3 text-sm text-red-200">
+          {getErrorMessage(evidenceError, "Unable to update evidence request.")}
+        </p>
+      )}
+
+      <form className="mt-5 space-y-4" onSubmit={handleCreateEvidenceRequest}>
+        <label className="block text-sm font-medium text-slate-200">
+          Evidence category
+          <select
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
+          >
+            <option value="MultiFactorAuthentication">MFA</option>
+            <option value="EndpointDetectionAndResponse">EDR</option>
+            <option value="BackupRecovery">Backup recovery</option>
+            <option value="IncidentResponsePlan">Incident response plan</option>
+            <option value="PriorLossDetails">Prior loss details</option>
+            <option value="SecurityQuestionnaireClarification">Questionnaire clarification</option>
+            <option value="Other">Other</option>
+          </select>
+        </label>
+        <label className="block text-sm font-medium text-slate-200">
+          Evidence request title
+          <input
+            required
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
+          />
+        </label>
+        <ReviewTextField
+          label="Evidence request description"
+          required
+          value={description}
+          onChange={setDescription}
+        />
+        <label className="block text-sm font-medium text-slate-200">
+          Evidence due date
+          <input
+            required
+            type="datetime-local"
+            value={dueAtUtc}
+            onChange={(event) => setDueAtUtc(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
+          />
+        </label>
+        <button
+          type="submit"
+          className="rounded-lg bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-200"
+        >
+          Create evidence request
+        </button>
+      </form>
+
+      <form className="mt-6 space-y-4" onSubmit={handleAcceptEvidence}>
+        <label className="block text-sm font-medium text-slate-200">
+          Evidence request id
+          <input
+            required
+            value={evidenceRequestId}
+            onChange={(event) => setEvidenceRequestId(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
+          />
+        </label>
+        <ReviewTextField
+          label="Evidence review notes"
+          value={reviewNotes}
+          onChange={setReviewNotes}
+        />
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="submit"
+            className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300"
+          >
+            Accept evidence
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleCancelEvidence()}
+            className="rounded-lg border border-amber-400 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-950"
+          >
+            Cancel evidence
+          </button>
+        </div>
+      </form>
+    </section>
   );
 }
 
@@ -879,6 +1087,8 @@ function ReferralCard({
 
       <OperationsSummary operations={referral.operations} />
 
+      <EvidenceSummary quote={referral} />
+
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <section>
           <h3 className="text-sm font-semibold text-white">Referral reasons</h3>
@@ -1102,6 +1312,8 @@ export function UnderwritingQuoteReferralsPage() {
                 />
 
                 <OperationsPanel key={`${selectedReferral.quoteId}-operations`} quote={selectedReferral} />
+
+                <EvidencePanel key={`${selectedReferral.quoteId}-evidence`} quote={selectedReferral} />
 
                 <ManualActionsPanel
                   key={selectedReferral.quoteId}

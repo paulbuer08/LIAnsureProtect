@@ -112,5 +112,8 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("ix_quote_referral_follow_up_tasks_quote_id_completed_due_at_utc", script);
         Assert.Contains("CREATE TABLE quote_referral_timeline_entries", script);
         Assert.Contains("ix_quote_referral_timeline_entries_quote_id_created_at_utc", script);
+        Assert.Contains("CREATE TABLE quote_evidence_requests", script);
+        Assert.Contains("ix_quote_evidence_requests_owner_status_due_at_utc", script);
+        Assert.Contains("ix_quote_evidence_requests_quote_status_updated_at_utc", script);
     }
 }

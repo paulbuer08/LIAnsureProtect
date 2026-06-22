@@ -772,6 +772,58 @@ quote_referral_timeline_entries
   created_at_utc
 ```
 
+Milestone 25 - Underwriting Evidence Request Foundation adds the first user-facing evidence workflow on top of referral operations:
+
+```text
+Underwriter creates evidence request
+  -> quote_evidence_requests row stores category, title, description, due date, owner, and requester audit
+  -> referral operation status becomes WaitingForInformation
+  -> referral timeline records EvidenceRequestCreated
+
+Customer or broker owner responds
+  -> response text, respondent name/title, and safe attachment metadata are stored
+  -> referral timeline records EvidenceRequestResponded
+  -> no quote, premium, policy, or decision state changes
+
+Underwriter accepts or cancels request
+  -> request status changes to Accepted or Cancelled
+  -> referral timeline records the review outcome
+```
+
+The `quote_evidence_requests` table is still not document storage. It stores workflow and audit metadata:
+
+```text
+quote_evidence_requests
+  id
+  quote_id
+  submission_id
+  quote_referral_operation_id
+  owner_user_id
+  category
+  title
+  description
+  due_at_utc
+  status
+  requested_by_user_id
+  requested_at_utc
+  responded_by_user_id
+  respondent_name
+  respondent_title
+  response_text
+  attachment_file_name
+  attachment_content_type
+  attachment_size_bytes
+  responded_at_utc
+  accepted_by_user_id
+  accepted_at_utc
+  cancelled_by_user_id
+  cancelled_at_utc
+  review_notes
+  updated_at_utc
+```
+
+This keeps the workflow realistic for cyber underwriting while deferring S3 storage, upload/download audit, virus scanning, OCR, embeddings, RAG, notification inboxes, and autonomous AI document review to separate milestones.
+
 These tables are separate from `quotes` because they answer operational questions instead of quote-term questions:
 
 - `quotes` answers: "What are the current quoted terms and underwriting decision state?"

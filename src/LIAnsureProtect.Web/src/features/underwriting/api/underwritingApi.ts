@@ -1,7 +1,9 @@
 import type {
   AdjustQuoteReferralRequest,
   AiUnderwritingReviewResponse,
+  CreateQuoteEvidenceRequest,
   ListQuoteReferralsResponse,
+  QuoteEvidenceRequest,
   QuoteReferralNoteRequest,
   QuoteReferralNoteResult,
   QuoteReferralOperationResult,
@@ -10,6 +12,7 @@ import type {
   QuoteReferralTaskResult,
   QuoteReferralTimelineResponse,
   QuoteReferralTriageRequest,
+  ReviewQuoteEvidenceRequest,
   UnderwriteQuoteReferralResult,
 } from "../types";
 
@@ -223,6 +226,56 @@ export async function completeQuoteReferralTask(
   );
 }
 
+export async function createQuoteEvidenceRequest(
+  accessToken: string,
+  quoteId: string,
+  request: CreateQuoteEvidenceRequest,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/evidence-requests`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(request),
+    },
+  );
+
+  return parseJsonResponse<QuoteEvidenceRequest>(
+    response,
+    "Quote referral was not found.",
+  );
+}
+
+export async function acceptQuoteEvidenceRequest(
+  accessToken: string,
+  quoteId: string,
+  evidenceRequestId: string,
+  request: ReviewQuoteEvidenceRequest,
+) {
+  return postEvidenceReviewAction(
+    accessToken,
+    quoteId,
+    evidenceRequestId,
+    "accept",
+    request,
+  );
+}
+
+export async function cancelQuoteEvidenceRequest(
+  accessToken: string,
+  quoteId: string,
+  evidenceRequestId: string,
+  request: ReviewQuoteEvidenceRequest,
+) {
+  return postEvidenceReviewAction(
+    accessToken,
+    quoteId,
+    evidenceRequestId,
+    "cancel",
+    request,
+  );
+}
+
 async function postUnderwritingAction(
   accessToken: string,
   quoteId: string,
@@ -260,5 +313,27 @@ async function postOperationAction(
   return parseJsonResponse<QuoteReferralOperationResult>(
     response,
     "Quote referral operations were not found.",
+  );
+}
+
+async function postEvidenceReviewAction(
+  accessToken: string,
+  quoteId: string,
+  evidenceRequestId: string,
+  action: "accept" | "cancel",
+  request: ReviewQuoteEvidenceRequest,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/evidence-requests/${evidenceRequestId}/${action}`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(request),
+    },
+  );
+
+  return parseJsonResponse<QuoteEvidenceRequest>(
+    response,
+    "Evidence request was not found.",
   );
 }

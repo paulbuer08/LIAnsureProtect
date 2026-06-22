@@ -8,6 +8,7 @@ public static class ApplicationPolicies
     public const string CreateQuote = "Quotes.Create";
     public const string AcceptQuote = "Quotes.Accept";
     public const string UnderwriteQuote = "Quotes.Underwrite";
+    public const string RespondToEvidenceRequest = "EvidenceRequests.Respond";
     public const string BindPolicy = "Policies.Bind";
     public const string AdminAccess = "System.Admin";
 }

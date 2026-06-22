@@ -67,7 +67,7 @@ Milestone 23 is implemented as `Milestone 23 - Underwriting Workbench UI Foundat
 
 Milestone 24 is implemented as `Milestone 24 - Underwriting Referral Operations Foundation`. It adds durable referral operations state for referred quotes: self-assignment, priority, SLA due dates, workflow status, append-only work notes, internal follow-up tasks, and an audit timeline exposed in the existing underwriting workbench. AI remains advisory-only and final approve/decline/adjust authority remains human-owned.
 
-Milestone 25 is started as `Milestone 25 - Underwriting Evidence Request Foundation`. The recommended planning target is a narrow evidence-request workflow for referred quotes: underwriters can request supporting evidence, customers or brokers can see and respond to their own requests, and the underwriting workbench can track request status without adding full document management, OCR, RAG, notification inboxes, or autonomous AI review yet.
+Milestone 25 is implemented as `Milestone 25 - Underwriting Evidence Request Foundation`. It adds PostgreSQL-backed evidence requests for referred quotes: underwriters can request cyber-control evidence by category, customer/broker owners can respond with text and safe placeholder attachment metadata, underwriters can accept or cancel requests, and the workbench tracks open/responded evidence activity without adding full document storage, OCR, RAG, notification inboxes, or autonomous AI review.
 
 ## Local Run
 

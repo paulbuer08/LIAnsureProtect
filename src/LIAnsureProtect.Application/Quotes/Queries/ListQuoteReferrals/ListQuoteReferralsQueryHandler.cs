@@ -14,30 +14,51 @@ public sealed class ListQuoteReferralsQueryHandler(IQuoteRepository quoteReposit
         var operations = await quoteRepository.ListReferralOperationsAsync(
             quotes.Select(quote => quote.Id).ToList(),
             cancellationToken);
+        var evidenceRequests = await quoteRepository.ListEvidenceRequestsForQuotesAsync(
+            quotes.Select(quote => quote.Id).ToList(),
+            cancellationToken);
         var operationsByQuoteId = operations.ToDictionary(operation => operation.QuoteId);
+        var evidenceRequestsByQuoteId = evidenceRequests
+            .GroupBy(request => request.QuoteId)
+            .ToDictionary(group => group.Key, group => group.ToList());
         var results = quotes
             .Select(quote =>
             {
                 operationsByQuoteId.TryGetValue(quote.Id, out var operation);
+                evidenceRequestsByQuoteId.TryGetValue(quote.Id, out var quoteEvidenceRequests);
 
                 return new QuoteReferralResult(
-                quote.Id,
-                quote.SubmissionId,
-                quote.OwnerUserId,
-                quote.Premium,
-                quote.RequestedLimit,
-                quote.Retention,
-                quote.RiskTier.ToString(),
-                quote.Status.ToString(),
-                SplitLines(quote.Subjectivities),
-                SplitLines(quote.ReferralReasons),
-                quote.CreatedAtUtc,
+                    quote.Id,
+                    quote.SubmissionId,
+                    quote.OwnerUserId,
+                    quote.Premium,
+                    quote.RequestedLimit,
+                    quote.Retention,
+                    quote.RiskTier.ToString(),
+                    quote.Status.ToString(),
+                    SplitLines(quote.Subjectivities),
+                    SplitLines(quote.ReferralReasons),
+                    quote.CreatedAtUtc,
                     quote.ExpiresAtUtc,
-                    operation is null ? null : CreateOperationsSummary(operation));
+                    operation is null ? null : CreateOperationsSummary(operation),
+                    CreateEvidenceSummary(quoteEvidenceRequests ?? []));
             })
             .ToList();
 
         return new ListQuoteReferralsResult(results);
+    }
+
+    private static QuoteReferralEvidenceSummaryResult CreateEvidenceSummary(
+        IReadOnlyCollection<QuoteEvidenceRequest> evidenceRequests)
+    {
+        return new QuoteReferralEvidenceSummaryResult(
+            evidenceRequests.Count(request => request.Status == EvidenceRequestStatus.Open),
+            evidenceRequests.Count(request => request.Status == EvidenceRequestStatus.Responded),
+            evidenceRequests.Any(request => request.Status is EvidenceRequestStatus.Open or EvidenceRequestStatus.Responded),
+            evidenceRequests
+                .OrderByDescending(request => request.UpdatedAtUtc)
+                .Select(request => (DateTime?)request.UpdatedAtUtc)
+                .FirstOrDefault());
     }
 
     private static QuoteReferralOperationsSummaryResult CreateOperationsSummary(QuoteReferralOperation operation)

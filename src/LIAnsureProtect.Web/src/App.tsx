@@ -48,6 +48,12 @@ const UnderwritingQuoteReferralsPage = lazy(() =>
   ),
 );
 
+const EvidenceRequestsPage = lazy(() =>
+  import("./features/evidence/pages/EvidenceRequestsPage").then((module) => ({
+    default: module.EvidenceRequestsPage,
+  })),
+);
+
 function RouteLoadingFallback() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-sm font-medium text-slate-300">
@@ -99,6 +105,14 @@ function App() {
           element={
             <RequireAuth>
               <UnderwritingQuoteReferralsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/evidence-requests"
+          element={
+            <RequireAuth>
+              <EvidenceRequestsPage />
             </RequireAuth>
           }
         />

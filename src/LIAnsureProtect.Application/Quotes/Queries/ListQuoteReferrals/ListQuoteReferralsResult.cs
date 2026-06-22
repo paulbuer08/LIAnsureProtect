@@ -16,7 +16,8 @@ public sealed record QuoteReferralResult(
     IReadOnlyCollection<string> ReferralReasons,
     DateTime CreatedAtUtc,
     DateTime ExpiresAtUtc,
-    QuoteReferralOperationsSummaryResult? Operations);
+    QuoteReferralOperationsSummaryResult? Operations,
+    QuoteReferralEvidenceSummaryResult Evidence);
 
 public sealed record QuoteReferralOperationsSummaryResult(
     string? AssignedUnderwriterUserId,
@@ -26,3 +27,9 @@ public sealed record QuoteReferralOperationsSummaryResult(
     string Status,
     int OpenTaskCount,
     DateTime? LatestTimelineAtUtc);
+
+public sealed record QuoteReferralEvidenceSummaryResult(
+    int OpenRequestCount,
+    int RespondedRequestCount,
+    bool IsWaitingForInformation,
+    DateTime? LatestEvidenceActivityAtUtc);

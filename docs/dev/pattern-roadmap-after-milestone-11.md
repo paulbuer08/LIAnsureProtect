@@ -669,7 +669,7 @@ Out of scope:
 
 Continue milestone by milestone. Milestone 24 now gives referred quotes durable operational workflow state around the existing underwriting workbench.
 
-The recommended next milestone is `Milestone 25 - Underwriting Evidence Request Foundation`. The likely useful slice is a narrow, realistic evidence-request workflow for referred quotes: underwriters can create evidence requests tied to referral operations, customers/brokers can see and respond to their own requested evidence, and the workbench can track request status. Keep production document storage, OCR, RAG, autonomous AI review, notification inboxes, and authority-matrix enforcement separate unless Milestone 25 planning explicitly expands the slice.
+Milestone 25 implements the recommended evidence-request foundation. The next useful direction after this is either notification delivery for evidence request activity, real document storage behind a document-storage abstraction, or richer customer/broker messaging, depending on which product workflow should come next.
 
 ### Milestone 24 - Underwriting Referral Operations Foundation
 
@@ -721,7 +721,7 @@ Out of scope:
 Status:
 
 ```text
-Recommended next milestone after referral operations closeout.
+Implemented locally as the first customer/broker-facing evidence request workflow for referred quotes.
 ```
 
 Goal:
@@ -736,14 +736,15 @@ Why this comes after Milestone 24:
 - Real underwriting teams often need supporting evidence before a final decision.
 - `WaitingForInformation` is currently only an internal operations status; Milestone 25 can give that status a concrete, user-facing workflow.
 
-Recommended first slice:
+Implemented scope:
 
 - Add underwriting evidence request records tied to referred quotes and referral operations.
-- Let underwriters create requests with title, description, due date, and status.
-- Let the owner customer/broker list requests for their own quote or submission context.
-- Let the owner customer/broker submit a simple text response or safe placeholder attachment metadata.
-- Reflect request status back in the underwriting workbench.
-- Add timeline entries when requests are created and responded to.
+- Let underwriters create requests with category, title, description, due date, and status.
+- Let the owner customer/broker list requests for their own quote/submission context.
+- Let the owner customer/broker submit a text response with respondent audit fields and safe attachment metadata.
+- Let underwriters accept or cancel evidence requests.
+- Reflect request status back in the underwriting workbench through open/responded counts and latest evidence activity.
+- Add timeline entries when evidence requests are created, responded to, accepted, or cancelled.
 
 Out of scope unless explicitly expanded:
 

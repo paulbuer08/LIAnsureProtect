@@ -14,10 +14,32 @@ public interface IQuoteRepository
         QuoteReferralOperation operation,
         CancellationToken cancellationToken);
 
+    Task AddEvidenceRequestAsync(
+        QuoteEvidenceRequest evidenceRequest,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyCollection<QuoteReferralOperation>> ListReferralOperationsAsync(
         IReadOnlyCollection<Guid> quoteIds,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<QuoteEvidenceRequest>> ListEvidenceRequestsForQuotesAsync(
+        IReadOnlyCollection<Guid> quoteIds,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<QuoteEvidenceRequest>> ListEvidenceRequestsForOwnerAsync(
+        string ownerUserId,
+        CancellationToken cancellationToken);
+
+    Task<QuoteEvidenceRequest?> GetEvidenceRequestForUnderwritingAsync(
+        Guid quoteId,
+        Guid evidenceRequestId,
+        CancellationToken cancellationToken);
+
+    Task<QuoteEvidenceRequest?> GetEvidenceRequestForOwnerAsync(
+        Guid evidenceRequestId,
+        string ownerUserId,
         CancellationToken cancellationToken);
 
     Task<QuoteReferralOperation?> GetReferralOperationForUpdateAsync(
