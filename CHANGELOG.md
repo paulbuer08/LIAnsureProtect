@@ -289,3 +289,6 @@ The format follows simple milestone-based entries.
 - Private owner and underwriter evidence document download endpoints that stream file bytes through the API instead of exposing public URLs.
 - React owner evidence page upload controls for real evidence files and document download links after response.
 - React underwriting workbench document visibility and private download links for submitted evidence documents.
+- Milestone 27 implementation commit `ab2e801 feat: add evidence document storage foundation`.
+- Milestone 27 verification passed with local CI artifact `TestResults\local-ci-20260623-080954.zip`.
+- Milestone 27 closeout recommends `Milestone 28 - Evidence Document Security Screening Foundation`.

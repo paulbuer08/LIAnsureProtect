@@ -196,3 +196,22 @@ Results:
 - Final local CI artifact: `TestResults\local-ci-20260623-080954.zip`.
 
 One testing note: running two `dotnet test` commands in parallel can lock the API build output under `src\LIAnsureProtect.Api\obj\Debug\net10.0`. When that happened during focused verification, rerunning the affected test by itself passed.
+
+## Closeout Result
+
+Implementation commit:
+
+```text
+ab2e801 feat: add evidence document storage foundation
+```
+
+Final verification:
+
+- Full local CI passed with Docker-backed PostgreSQL, all committed migrations applied including `20260622235023_AddQuoteEvidenceDocuments`, backend tests, Docker Compose config validation, frontend build, frontend lint, frontend tests, artifact creation, and Docker cleanup.
+- Final local CI artifact: `TestResults\local-ci-20260623-080954.zip`.
+
+Recommended next milestone:
+
+- `Milestone 28 - Evidence Document Security Screening Foundation`.
+- The realistic next slice is to add a document security-screening workflow before documents become downloadable, with a provider-shaped scanner boundary, local deterministic scanner for development/tests, scan status metadata, API/download gating, owner/underwriter UI status, and focused audit-ready tests.
+- Keep production antivirus provisioning, OCR, embeddings, RAG, retention/legal-hold automation, and broad document management outside the first Milestone 28 plan unless explicitly expanded.
