@@ -33,6 +33,13 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         await dbContext.QuoteEvidenceRequests.AddAsync(evidenceRequest, cancellationToken);
     }
 
+    public async Task AddEvidenceDocumentsAsync(
+        IReadOnlyCollection<QuoteEvidenceDocument> evidenceDocuments,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.QuoteEvidenceDocuments.AddRangeAsync(evidenceDocuments, cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken)
     {
         return await dbContext.Quotes
@@ -77,6 +84,20 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<QuoteEvidenceDocument>> ListEvidenceDocumentsForRequestsAsync(
+        IReadOnlyCollection<Guid> evidenceRequestIds,
+        CancellationToken cancellationToken)
+    {
+        if (evidenceRequestIds.Count == 0)
+            return [];
+
+        return await dbContext.QuoteEvidenceDocuments
+            .AsNoTracking()
+            .Where(document => evidenceRequestIds.Contains(document.EvidenceRequestId))
+            .OrderBy(document => document.UploadedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<QuoteEvidenceRequest?> GetEvidenceRequestForUnderwritingAsync(
         Guid quoteId,
         Guid evidenceRequestId,
@@ -95,6 +116,36 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         return await dbContext.QuoteEvidenceRequests.SingleOrDefaultAsync(
             request => request.Id == evidenceRequestId && request.OwnerUserId == ownerUserId,
             cancellationToken);
+    }
+
+    public async Task<QuoteEvidenceDocument?> GetEvidenceDocumentForOwnerAsync(
+        Guid evidenceRequestId,
+        Guid documentId,
+        string ownerUserId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.QuoteEvidenceDocuments
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                document => document.Id == documentId
+                    && document.EvidenceRequestId == evidenceRequestId
+                    && document.OwnerUserId == ownerUserId,
+                cancellationToken);
+    }
+
+    public async Task<QuoteEvidenceDocument?> GetEvidenceDocumentForUnderwritingAsync(
+        Guid quoteId,
+        Guid evidenceRequestId,
+        Guid documentId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.QuoteEvidenceDocuments
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                document => document.Id == documentId
+                    && document.EvidenceRequestId == evidenceRequestId
+                    && document.QuoteId == quoteId,
+                cancellationToken);
     }
 
     public async Task<QuoteReferralOperation?> GetReferralOperationForUpdateAsync(

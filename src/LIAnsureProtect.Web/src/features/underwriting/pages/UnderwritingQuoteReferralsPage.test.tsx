@@ -40,6 +40,12 @@ vi.mock("../api/underwritingApi", () => ({
   declineQuoteReferral: vi.fn(),
   createQuoteEvidenceRequest: vi.fn(),
   generateAiUnderwritingReview: vi.fn(),
+  getUnderwritingEvidenceDocumentDownloadUrl: (
+    quoteId: string,
+    evidenceRequestId: string,
+    documentId: string,
+  ) =>
+    `http://localhost:5223/api/v1/underwriting/quote-referrals/${quoteId}/evidence-requests/${evidenceRequestId}/documents/${documentId}/download`,
   addQuoteReferralNote: vi.fn(),
   addQuoteReferralTask: vi.fn(),
   assignQuoteReferralToMe: vi.fn(),
@@ -84,7 +90,7 @@ const severeReferral = {
   subjectivities: ["MFA evidence required.", "EDR rollout evidence required."],
   referralReasons: ["Severe cyber risk tier.", "Requested limit is high."],
   createdAtUtc: "2026-06-20T08:00:00Z",
-  expiresAtUtc: "2026-06-24T08:00:00Z",
+  expiresAtUtc: "2026-06-25T08:00:00Z",
   operations: {
     assignedUnderwriterUserId: "auth0|underwriter",
     priority: "High",
@@ -153,6 +159,10 @@ describe("UnderwritingQuoteReferralsPage", () => {
     vi.mocked(assignQuoteReferralToMe).mockReset();
     vi.mocked(completeQuoteReferralTask).mockReset();
     vi.mocked(listQuoteReferralTimeline).mockReset();
+    vi.mocked(listQuoteReferralTimeline).mockResolvedValue({
+      quoteId: "quote-severe",
+      entries: [],
+    });
     vi.mocked(listQuoteReferrals).mockReset();
     vi.mocked(releaseQuoteReferralAssignment).mockReset();
     vi.mocked(triageQuoteReferralOperation).mockReset();
@@ -412,6 +422,16 @@ describe("UnderwritingQuoteReferralsPage", () => {
       cancelledAtUtc: null,
       reviewNotes: "MFA evidence is sufficient.",
       updatedAtUtc: "2026-06-22T13:00:00Z",
+      documents: [
+        {
+          documentId: "document-1",
+          originalFileName: "mfa-attestation.pdf",
+          contentType: "application/pdf",
+          sizeBytes: 124000,
+          uploadedByUserId: "auth0|customer",
+          uploadedAtUtc: "2026-06-22T12:00:00Z",
+        },
+      ],
     });
     vi.mocked(followUpQuoteEvidenceRequest).mockResolvedValue({
       evidenceRequestId: "evidence-1",
@@ -480,6 +500,13 @@ describe("UnderwritingQuoteReferralsPage", () => {
       "quote-severe",
       "evidence-1",
       { reviewNotes: "MFA evidence is sufficient." },
+    );
+    const evidenceDocumentLink = await screen.findByRole("link", {
+      name: "Download mfa-attestation.pdf",
+    });
+    expect(evidenceDocumentLink).toHaveAttribute(
+      "href",
+      "http://localhost:5223/api/v1/underwriting/quote-referrals/quote-severe/evidence-requests/evidence-1/documents/document-1/download",
     );
 
     await user.click(screen.getByRole("button", { name: "Send evidence follow-up" }));

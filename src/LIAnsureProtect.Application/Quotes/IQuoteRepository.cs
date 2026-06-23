@@ -18,6 +18,10 @@ public interface IQuoteRepository
         QuoteEvidenceRequest evidenceRequest,
         CancellationToken cancellationToken);
 
+    Task AddEvidenceDocumentsAsync(
+        IReadOnlyCollection<QuoteEvidenceDocument> evidenceDocuments,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyCollection<QuoteReferralOperation>> ListReferralOperationsAsync(
@@ -32,6 +36,10 @@ public interface IQuoteRepository
         string ownerUserId,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyCollection<QuoteEvidenceDocument>> ListEvidenceDocumentsForRequestsAsync(
+        IReadOnlyCollection<Guid> evidenceRequestIds,
+        CancellationToken cancellationToken);
+
     Task<QuoteEvidenceRequest?> GetEvidenceRequestForUnderwritingAsync(
         Guid quoteId,
         Guid evidenceRequestId,
@@ -40,6 +48,18 @@ public interface IQuoteRepository
     Task<QuoteEvidenceRequest?> GetEvidenceRequestForOwnerAsync(
         Guid evidenceRequestId,
         string ownerUserId,
+        CancellationToken cancellationToken);
+
+    Task<QuoteEvidenceDocument?> GetEvidenceDocumentForOwnerAsync(
+        Guid evidenceRequestId,
+        Guid documentId,
+        string ownerUserId,
+        CancellationToken cancellationToken);
+
+    Task<QuoteEvidenceDocument?> GetEvidenceDocumentForUnderwritingAsync(
+        Guid quoteId,
+        Guid evidenceRequestId,
+        Guid documentId,
         CancellationToken cancellationToken);
 
     Task<QuoteReferralOperation?> GetReferralOperationForUpdateAsync(

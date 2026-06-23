@@ -10,6 +10,7 @@ export type RespondToEvidenceRequest = {
   respondentName: string;
   respondentTitle: string;
   responseText: string;
+  attachments?: File[];
   attachmentFileName?: string | null;
   attachmentContentType?: string | null;
   attachmentSizeBytes?: number | null;

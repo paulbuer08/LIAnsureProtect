@@ -31,11 +31,11 @@ function authHeaders(accessToken: string) {
   };
 }
 
-function jsonHeaders(accessToken: string) {
-  return {
-    ...authHeaders(accessToken),
-    "Content-Type": "application/json",
-  };
+export function getOwnerEvidenceDocumentDownloadUrl(
+  evidenceRequestId: string,
+  documentId: string,
+) {
+  return `${apiBaseUrl}/api/v1/evidence-requests/${evidenceRequestId}/documents/${documentId}/download`;
 }
 
 export async function listEvidenceRequests(accessToken: string) {
@@ -54,12 +54,21 @@ export async function respondToEvidenceRequest(
   evidenceRequestId: string,
   request: RespondToEvidenceRequest,
 ) {
+  const formData = new FormData();
+  formData.append("respondentName", request.respondentName);
+  formData.append("respondentTitle", request.respondentTitle);
+  formData.append("responseText", request.responseText);
+
+  for (const attachment of request.attachments ?? []) {
+    formData.append("attachments", attachment);
+  }
+
   const response = await fetch(
     `${apiBaseUrl}/api/v1/evidence-requests/${evidenceRequestId}/respond`,
     {
       method: "POST",
-      headers: jsonHeaders(accessToken),
-      body: JSON.stringify(request),
+      headers: authHeaders(accessToken),
+      body: formData,
     },
   );
 

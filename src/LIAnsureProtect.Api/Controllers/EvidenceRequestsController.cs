@@ -23,6 +23,7 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
     }
 
     [HttpPost("{evidenceRequestId:guid}/respond")]
+    [Consumes("application/json")]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -44,7 +45,8 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
                     request.ResponseText,
                     request.AttachmentFileName,
                     request.AttachmentContentType,
-                    request.AttachmentSizeBytes),
+                    request.AttachmentSizeBytes,
+                    []),
                 cancellationToken);
 
             return result is null ? NotFound() : Ok(result);
@@ -63,6 +65,76 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
                 "Evidence request cannot be updated.",
                 exception.Message));
         }
+    }
+
+    [HttpPost("{evidenceRequestId:guid}/respond")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<QuoteEvidenceRequestResult>> RespondWithDocuments(
+        Guid evidenceRequestId,
+        [FromForm] RespondToEvidenceRequestFormRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new RespondToQuoteEvidenceRequestCommand(
+                    evidenceRequestId,
+                    request.RespondentName,
+                    request.RespondentTitle,
+                    request.ResponseText,
+                    null,
+                    null,
+                    null,
+                    request.Attachments
+                        .Select(file => new EvidenceDocumentUpload(
+                            file.FileName,
+                            file.ContentType,
+                            file.Length,
+                            file.OpenReadStream()))
+                        .ToList()),
+                cancellationToken);
+
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Evidence response is invalid.",
+                exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Evidence request cannot be updated.",
+                exception.Message));
+        }
+    }
+
+    [HttpGet("{evidenceRequestId:guid}/documents/{documentId:guid}/download")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DownloadDocument(
+        Guid evidenceRequestId,
+        Guid documentId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new DownloadOwnerEvidenceDocumentQuery(evidenceRequestId, documentId),
+            cancellationToken);
+
+        return result is null
+            ? NotFound()
+            : File(result.Content, result.ContentType, result.OriginalFileName);
     }
 
     private static ProblemDetails CreateProblemDetails(
@@ -86,3 +158,14 @@ public sealed record RespondToEvidenceRequestRequest(
     string? AttachmentFileName,
     string? AttachmentContentType,
     long? AttachmentSizeBytes);
+
+public sealed class RespondToEvidenceRequestFormRequest
+{
+    public string RespondentName { get; init; } = string.Empty;
+
+    public string RespondentTitle { get; init; } = string.Empty;
+
+    public string ResponseText { get; init; } = string.Empty;
+
+    public IReadOnlyCollection<IFormFile> Attachments { get; init; } = [];
+}

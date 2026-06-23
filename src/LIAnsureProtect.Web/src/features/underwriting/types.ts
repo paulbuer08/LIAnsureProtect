@@ -116,6 +116,16 @@ export type QuoteEvidenceRequest = {
   cancelledAtUtc: string | null;
   reviewNotes: string | null;
   updatedAtUtc: string;
+  documents?: QuoteEvidenceDocument[];
+};
+
+export type QuoteEvidenceDocument = {
+  documentId: string;
+  originalFileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedByUserId: string;
+  uploadedAtUtc: string;
 };
 
 export type CreateQuoteEvidenceRequest = {

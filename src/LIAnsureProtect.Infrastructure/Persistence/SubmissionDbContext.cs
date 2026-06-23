@@ -28,6 +28,8 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
 
     public DbSet<QuoteEvidenceRequest> QuoteEvidenceRequests => Set<QuoteEvidenceRequest>();
 
+    public DbSet<QuoteEvidenceDocument> QuoteEvidenceDocuments => Set<QuoteEvidenceDocument>();
+
     public DbSet<AiUnderwritingReview> AiUnderwritingReviews => Set<AiUnderwritingReview>();
 
     public DbSet<Policy> Policies => Set<Policy>();

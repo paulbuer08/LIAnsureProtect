@@ -3,6 +3,7 @@ using LIAnsureProtect.Application;
 using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Api.Security;
 using LIAnsureProtect.Infrastructure;
+using LIAnsureProtect.Infrastructure.Documents;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -16,6 +17,7 @@ const string LocalFrontendCorsPolicy = "LocalFrontend";
 var databaseConnectionString = builder.Configuration.GetConnectionString("LIAnsureProtect");
 
 builder.Services.AddApplication();
+builder.Services.Configure<DocumentStorageOptions>(builder.Configuration.GetSection("DocumentStorage"));
 builder.Services.AddInfrastructure(databaseConnectionString);
 builder.Services
     .AddControllers()

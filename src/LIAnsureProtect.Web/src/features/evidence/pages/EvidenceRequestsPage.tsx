@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router";
 
+import { getOwnerEvidenceDocumentDownloadUrl } from "../api/evidenceRequestsApi";
 import {
   useEvidenceRequests,
   useRespondToEvidenceRequest,
@@ -42,10 +43,10 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
   const [respondentName, setRespondentName] = useState("");
   const [respondentTitle, setRespondentTitle] = useState("");
   const [responseText, setResponseText] = useState("");
-  const [attachmentFileName, setAttachmentFileName] = useState("");
-  const [attachmentContentType, setAttachmentContentType] = useState("");
-  const [attachmentSizeBytes, setAttachmentSizeBytes] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [savedStatus, setSavedStatus] = useState<string>();
+  const [savedDocuments, setSavedDocuments] = useState(request.documents ?? []);
+  const documents = savedDocuments.length > 0 ? savedDocuments : request.documents ?? [];
 
   async function handleRespond(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -55,15 +56,12 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
         respondentName: respondentName.trim(),
         respondentTitle: respondentTitle.trim(),
         responseText: responseText.trim(),
-        attachmentFileName: attachmentFileName.trim() || null,
-        attachmentContentType: attachmentContentType.trim() || null,
-        attachmentSizeBytes: attachmentSizeBytes.trim()
-          ? Number(attachmentSizeBytes)
-          : null,
+        attachments,
       },
     });
 
     setSavedStatus(result.status);
+    setSavedDocuments(result.documents ?? []);
   }
 
   return (
@@ -151,34 +149,23 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
               className="mt-2 min-h-24 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
             />
           </label>
-          <div className="grid gap-4 md:grid-cols-3">
-            <label className="block text-sm font-medium text-slate-200">
-              Attachment file name
-              <input
-                value={attachmentFileName}
-                onChange={(event) => setAttachmentFileName(event.target.value)}
-                className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
-              />
-            </label>
-            <label className="block text-sm font-medium text-slate-200">
-              Attachment content type
-              <input
-                value={attachmentContentType}
-                onChange={(event) => setAttachmentContentType(event.target.value)}
-                className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
-              />
-            </label>
-            <label className="block text-sm font-medium text-slate-200">
-              Attachment size bytes
-              <input
-                min="0"
-                type="number"
-                value={attachmentSizeBytes}
-                onChange={(event) => setAttachmentSizeBytes(event.target.value)}
-                className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
-              />
-            </label>
-          </div>
+          <label className="block text-sm font-medium text-slate-200">
+            Evidence files
+            <input
+              aria-label="Evidence files"
+              multiple
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.docx,.xlsx"
+              onChange={(event) =>
+                setAttachments(Array.from(event.target.files ?? []))
+              }
+              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-950 focus:border-emerald-400"
+            />
+            <span className="mt-2 block text-xs text-slate-400">
+              Upload up to 5 files. Supported formats: PDF, PNG, JPEG, TXT, CSV,
+              DOCX, and XLSX.
+            </span>
+          </label>
           <button
             type="submit"
             className="rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-300"
@@ -186,6 +173,30 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
             Submit evidence response
           </button>
         </form>
+      )}
+
+      {documents.length > 0 && (
+        <section className="mt-5 rounded-md border border-slate-800 bg-slate-950 p-4">
+          <h3 className="text-sm font-semibold text-white">Evidence documents</h3>
+          <ul className="mt-3 space-y-2 text-sm">
+            {documents.map((document) => (
+              <li key={document.documentId}>
+                <a
+                  href={getOwnerEvidenceDocumentDownloadUrl(
+                    request.evidenceRequestId,
+                    document.documentId,
+                  )}
+                  className="font-semibold text-emerald-300 hover:text-emerald-200"
+                >
+                  {document.originalFileName}
+                </a>
+                <span className="ml-2 text-slate-400">
+                  {document.contentType} | {document.sizeBytes.toLocaleString()} bytes
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </article>
   );
@@ -213,7 +224,7 @@ export function EvidenceRequestsPage() {
         </h1>
         <p className="mt-4 max-w-3xl text-slate-300">
           Respond to underwriter requests for supporting cyber-control evidence.
-          This milestone records response text and safe attachment metadata only.
+          This milestone stores uploaded evidence files privately through the API.
         </p>
 
         {evidenceRequestsQuery.isPending && (

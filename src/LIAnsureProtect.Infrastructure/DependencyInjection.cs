@@ -1,5 +1,6 @@
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
+using LIAnsureProtect.Application.Documents;
 using LIAnsureProtect.Application.Notifications;
 using LIAnsureProtect.Application.Policies;
 using LIAnsureProtect.Application.Policies.Binding;
@@ -7,6 +8,7 @@ using LIAnsureProtect.Application.Quotes;
 using LIAnsureProtect.Application.Quotes.Ai;
 using LIAnsureProtect.Application.Quotes.RatingProviders;
 using LIAnsureProtect.Application.Submissions;
+using LIAnsureProtect.Infrastructure.Documents;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
@@ -44,6 +46,8 @@ public static class DependencyInjection
         services.AddScoped<IIdempotencyRecordCleanup, EfCoreIdempotencyRecordCleanup>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
         services.AddScoped<INotificationPublisher, LocalNotificationPublisher>();
+        services.AddOptions<DocumentStorageOptions>();
+        services.AddScoped<IDocumentStorageService, LocalDocumentStorageService>();
         services.AddScoped<IPolicyBindingProviderClient, SimulatedPolicyBindingProviderClient>();
         services.AddScoped<IAiReviewService, LocalSimulatedAiReviewService>();
         services.AddTransient<RatingProviderAttemptCountingHandler>();

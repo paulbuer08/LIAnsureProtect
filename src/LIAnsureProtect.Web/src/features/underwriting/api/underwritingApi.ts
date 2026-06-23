@@ -50,6 +50,14 @@ function jsonHeaders(accessToken: string) {
   };
 }
 
+export function getUnderwritingEvidenceDocumentDownloadUrl(
+  quoteId: string,
+  evidenceRequestId: string,
+  documentId: string,
+) {
+  return `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/evidence-requests/${evidenceRequestId}/documents/${documentId}/download`;
+}
+
 export async function listQuoteReferrals(accessToken: string) {
   const response = await fetch(
     `${apiBaseUrl}/api/v1/underwriting/quote-referrals`,

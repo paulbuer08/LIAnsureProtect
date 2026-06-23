@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router";
 
+import { getUnderwritingEvidenceDocumentDownloadUrl } from "../api/underwritingApi";
 import {
   useAddQuoteReferralNote,
   useAddQuoteReferralTask,
@@ -371,6 +372,30 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
         <div className="mt-4 rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm text-emerald-100">
           <p className="font-semibold">Evidence request saved: {lastEvidenceResult.status}</p>
           <p className="mt-1">{formatEvidenceDueLabel(lastEvidenceResult.daysUntilDue)}</p>
+          {(lastEvidenceResult.documents?.length ?? 0) > 0 && (
+            <div className="mt-3">
+              <p className="font-semibold">Submitted documents</p>
+              <ul className="mt-2 space-y-1">
+                {lastEvidenceResult.documents?.map((document) => (
+                  <li key={document.documentId}>
+                    <a
+                      href={getUnderwritingEvidenceDocumentDownloadUrl(
+                        quote.quoteId,
+                        lastEvidenceResult.evidenceRequestId,
+                        document.documentId,
+                      )}
+                      className="font-semibold text-emerald-200 hover:text-white"
+                    >
+                      Download {document.originalFileName}
+                    </a>
+                    <span className="ml-2 text-emerald-100/80">
+                      {document.contentType} | {document.sizeBytes.toLocaleString()} bytes
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

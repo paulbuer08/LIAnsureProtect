@@ -19,6 +19,8 @@ vi.mock("@auth0/auth0-react", () => ({
 }));
 
 vi.mock("../api/evidenceRequestsApi", () => ({
+  getOwnerEvidenceDocumentDownloadUrl: (evidenceRequestId: string, documentId: string) =>
+    `http://localhost:5223/api/v1/evidence-requests/${evidenceRequestId}/documents/${documentId}/download`,
   listEvidenceRequests: vi.fn(),
   respondToEvidenceRequest: vi.fn(),
 }));
@@ -52,8 +54,14 @@ describe("EvidenceRequestsPage", () => {
     vi.mocked(respondToEvidenceRequest).mockReset();
   });
 
-  it("lists owner evidence requests and submits a text response with attachment metadata", async () => {
+  it("lists owner evidence requests and submits a text response with evidence documents", async () => {
     const user = userEvent.setup();
+    const mfaFile = new File(["mfa rollout evidence"], "mfa-attestation.pdf", {
+      type: "application/pdf",
+    });
+    const edrFile = new File(["edr deployment evidence"], "edr-rollout.txt", {
+      type: "text/plain",
+    });
     vi.mocked(listEvidenceRequests).mockResolvedValue({
       evidenceRequests: [
         {
@@ -83,6 +91,7 @@ describe("EvidenceRequestsPage", () => {
           cancelledAtUtc: null,
           reviewNotes: null,
           updatedAtUtc: "2026-06-22T09:00:00Z",
+          documents: [],
         },
       ],
     });
@@ -113,6 +122,24 @@ describe("EvidenceRequestsPage", () => {
       cancelledAtUtc: null,
       reviewNotes: null,
       updatedAtUtc: "2026-06-22T12:00:00Z",
+      documents: [
+        {
+          documentId: "document-1",
+          originalFileName: "mfa-attestation.pdf",
+          contentType: "application/pdf",
+          sizeBytes: 124000,
+          uploadedByUserId: "auth0|customer",
+          uploadedAtUtc: "2026-06-22T12:00:00Z",
+        },
+        {
+          documentId: "document-2",
+          originalFileName: "edr-rollout.txt",
+          contentType: "text/plain",
+          sizeBytes: 92000,
+          uploadedByUserId: "auth0|customer",
+          uploadedAtUtc: "2026-06-22T12:00:01Z",
+        },
+      ],
     });
 
     renderEvidenceRequestsPage();
@@ -127,9 +154,7 @@ describe("EvidenceRequestsPage", () => {
       screen.getByLabelText("Evidence response"),
       "MFA is enforced for all email and privileged accounts.",
     );
-    await user.type(screen.getByLabelText("Attachment file name"), "mfa-attestation.pdf");
-    await user.type(screen.getByLabelText("Attachment content type"), "application/pdf");
-    await user.type(screen.getByLabelText("Attachment size bytes"), "124000");
+    await user.upload(screen.getByLabelText("Evidence files"), [mfaFile, edrFile]);
     await user.click(screen.getByRole("button", { name: "Submit evidence response" }));
 
     expect(respondToEvidenceRequest).toHaveBeenCalledWith(
@@ -139,12 +164,12 @@ describe("EvidenceRequestsPage", () => {
         respondentName: "Jane Applicant",
         respondentTitle: "CISO",
         responseText: "MFA is enforced for all email and privileged accounts.",
-        attachmentFileName: "mfa-attestation.pdf",
-        attachmentContentType: "application/pdf",
-        attachmentSizeBytes: 124000,
+        attachments: [mfaFile, edrFile],
       },
     );
     expect(await screen.findByText("Evidence response saved: Responded")).toBeInTheDocument();
+    expect(screen.getByText("mfa-attestation.pdf")).toBeInTheDocument();
+    expect(screen.getByText("edr-rollout.txt")).toBeInTheDocument();
   });
 
   it("shows overdue evidence requests clearly for the owner", async () => {

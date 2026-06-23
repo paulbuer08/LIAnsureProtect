@@ -281,3 +281,11 @@ The format follows simple milestone-based entries.
 - Milestone 26 implementation commit `1f790e0 feat: add evidence request notification follow-up foundation`.
 - Milestone 26 closeout commit `5ca941d docs: close evidence request notification follow-up milestone`.
 - Milestone 27 starter continuity notes for `Milestone 27 - Evidence Document Storage Foundation`.
+- Milestone 27 - Evidence Document Storage Foundation implementation.
+- Application-owned document storage boundary for evidence files, with a local filesystem Infrastructure implementation for development and tests.
+- PostgreSQL-backed `quote_evidence_documents` metadata for evidence request id, quote id, submission id, owner user id, original file name, content type, size, storage key, uploaded-by user id, and uploaded timestamp.
+- Owner evidence responses now support private multipart uploads of up to five evidence files per response, with file count, size, content type, extension, and unsafe-name validation.
+- Evidence file bytes are stored outside PostgreSQL while safe metadata remains queryable and auditable in PostgreSQL.
+- Private owner and underwriter evidence document download endpoints that stream file bytes through the API instead of exposing public URLs.
+- React owner evidence page upload controls for real evidence files and document download links after response.
+- React underwriting workbench document visibility and private download links for submitted evidence documents.

@@ -805,7 +805,7 @@ Out of scope unless explicitly expanded:
 Status:
 
 ```text
-Started as the recommended next milestone after Milestone 26 closeout.
+Implemented locally as the first local evidence document storage foundation.
 ```
 
 Goal:
@@ -820,13 +820,15 @@ Why this comes after Milestone 26:
 - Milestone 26 added notifications, follow-up reminders, and due/overdue operational visibility.
 - Real cyber underwriting evidence now needs a controlled way to store and retrieve actual supporting files.
 
-Recommended first slice:
+Implemented first slice:
 
 - Add an Application-owned document storage boundary.
 - Add an Infrastructure local filesystem implementation for development and tests.
-- Store safe document metadata in PostgreSQL while keeping file bytes outside the database.
-- Allow owner customer/broker upload during evidence response.
-- Allow authorized owner and underwriter access to retrieve evidence documents.
+- Store safe document metadata in PostgreSQL through `quote_evidence_documents` while keeping file bytes outside the database.
+- Allow owner customer/broker multipart upload during evidence response.
+- Support up to five files per evidence response, with per-file size, total size, content type, extension, empty-file, and unsafe-name validation.
+- Allow authorized owner and underwriter access to retrieve evidence documents through private API download routes.
+- Show owner upload controls and underwriter document download links in the React evidence/workbench UI.
 
 Out of scope unless explicitly expanded:
 
@@ -836,4 +838,5 @@ Out of scope unless explicitly expanded:
 - OCR/document extraction.
 - Embeddings, RAG, or autonomous AI document review.
 - Legal hold or retention-policy automation.
+- Durable document download audit.
 - Full document management.

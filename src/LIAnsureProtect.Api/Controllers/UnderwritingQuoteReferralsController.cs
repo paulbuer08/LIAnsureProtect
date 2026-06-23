@@ -118,6 +118,26 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
             cancellationToken);
     }
 
+    [HttpGet("{quoteId:guid}/evidence-requests/{evidenceRequestId:guid}/documents/{documentId:guid}/download")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DownloadEvidenceDocument(
+        Guid quoteId,
+        Guid evidenceRequestId,
+        Guid documentId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new DownloadUnderwritingEvidenceDocumentQuery(quoteId, evidenceRequestId, documentId),
+            cancellationToken);
+
+        return result is null
+            ? NotFound()
+            : File(result.Content, result.ContentType, result.OriginalFileName);
+    }
+
     [HttpPost("{quoteId:guid}/ai-review")]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

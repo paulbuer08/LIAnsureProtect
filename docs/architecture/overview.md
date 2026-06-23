@@ -849,7 +849,49 @@ quote_evidence_requests
   updated_at_utc
 ```
 
-This keeps the workflow realistic for cyber underwriting while deferring S3 storage, upload/download audit, virus scanning, OCR, embeddings, RAG, notification inboxes, scheduled reminder automation, and autonomous AI document review to separate milestones.
+Milestone 27 adds the first real document storage boundary for that evidence workflow:
+
+```text
+Owner evidence response multipart upload
+  -> EvidenceRequestsController
+  -> RespondToQuoteEvidenceRequestCommand
+  -> IDocumentStorageService
+  -> LocalDocumentStorageService writes file bytes outside PostgreSQL
+  -> quote_evidence_documents stores safe metadata and opaque storage key
+```
+
+The `quote_evidence_documents` table stores document metadata, not file bytes:
+
+```text
+quote_evidence_documents
+  id
+  evidence_request_id
+  quote_id
+  submission_id
+  owner_user_id
+  original_file_name
+  content_type
+  size_bytes
+  storage_key
+  uploaded_by_user_id
+  uploaded_at_utc
+```
+
+Customer/broker owners can upload up to five evidence files per response. The API validates basic file governance rules before storing documents: supported content types/extensions, non-empty files, a maximum per-file size, a maximum total response size, and no path information in uploaded names. The server generates the storage key; clients never choose the local storage path.
+
+Downloads are private and API-mediated:
+
+```text
+Owner
+  -> GET /api/v1/evidence-requests/{evidenceRequestId}/documents/{documentId}/download
+  -> owner id must match the document metadata
+
+Underwriter/Admin
+  -> GET /api/v1/underwriting/quote-referrals/{quoteId}/evidence-requests/{evidenceRequestId}/documents/{documentId}/download
+  -> existing Quotes.Underwrite policy
+```
+
+This keeps the workflow realistic for cyber underwriting while still deferring production S3 provisioning, durable download audit, virus scanning, OCR, embeddings, RAG, notification inboxes, scheduled reminder automation, and autonomous AI document review to separate milestones.
 
 These tables are separate from `quotes` because they answer operational questions instead of quote-term questions:
 

@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application;
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
+using LIAnsureProtect.Application.Documents;
 using LIAnsureProtect.Application.Notifications;
 using LIAnsureProtect.Application.Policies;
 using LIAnsureProtect.Application.Policies.Binding;
@@ -60,6 +61,7 @@ public sealed class DependencyRegistrationTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IRatingProviderClient>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<INotificationPublisher>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IAiReviewService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IDocumentStorageService>());
     }
 
     [Fact]
@@ -115,5 +117,9 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("CREATE TABLE quote_evidence_requests", script);
         Assert.Contains("ix_quote_evidence_requests_owner_status_due_at_utc", script);
         Assert.Contains("ix_quote_evidence_requests_quote_status_updated_at_utc", script);
+        Assert.Contains("CREATE TABLE quote_evidence_documents", script);
+        Assert.Contains("ix_quote_evidence_documents_request_uploaded_at_utc", script);
+        Assert.Contains("ix_quote_evidence_documents_owner_request", script);
+        Assert.Contains("ux_quote_evidence_documents_storage_key", script);
     }
 }
