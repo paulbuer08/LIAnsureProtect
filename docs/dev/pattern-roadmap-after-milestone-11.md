@@ -940,6 +940,13 @@ Verification:
 - EF Core pending model check reported no pending model changes.
 - Full local CI passed with artifact `TestResults\local-ci-20260623-173225.zip`.
 
+Closeout result:
+
+- Milestone 29 is complete.
+- The final implementation commit is `7958a91 feat: add evidence review decision audit foundation`.
+- The final local CI artifact is `TestResults\local-ci-20260623-173225.zip`.
+- The recommended next milestone is `Milestone 30 - Evidence Review Outcome Notification Foundation`.
+
 Recommended next milestone:
 
 ```text
