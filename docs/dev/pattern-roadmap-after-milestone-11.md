@@ -971,3 +971,58 @@ Recommended out of scope for Milestone 30 unless explicitly expanded:
 - Scheduled reminder automation.
 - OCR, AI evidence review, embeddings, or RAG.
 - Policy binding or final quote approval automation.
+
+### Milestone 30 - Evidence Review Outcome Notification Foundation
+
+Status:
+
+```text
+Complete locally on branch codex/milestone-30-evidence-review-outcome-notification-foundation
+from Milestone 29 closeout commit f7d58f8.
+Implementation commit: 12994e4 feat: add evidence review outcome notification foundation
+Final local CI artifact: TestResults\local-ci-20260623-185058.zip
+```
+
+Implemented scope:
+
+- Added `QuoteEvidenceRequestRemediationRequiredDomainEvent`, raised by the domain only for
+  unfavorable evidence review decisions (`Insufficient`, `NeedsClarification`).
+- Mapped that event through the existing outbox dispatcher to an
+  `evidence_request.remediation_required` local notification for the customer/broker owner audience.
+- Carried safe, action-oriented attributes (evidence request id, quote id, submission id, category,
+  decision, review reason, remediation guidance, requested-by user id, reviewed-by user id, due date,
+  `actionRequired=true`) without document content, storage keys, or production delivery details.
+- Kept `Satisfied` evidence on the existing accepted-evidence notification path.
+- No schema change: the new event reuses the existing `outbox_messages` mechanism.
+
+Closeout note:
+
+- During closeout verification on 2026-06-24, the pre-existing Milestone 24 integration test
+  `Operations_Actions_Update_Assignment_Triage_Notes_Tasks_And_Timeline` failed because it created a
+  follow-up task through the HTTP endpoint with a hardcoded due date of `2026-06-23 12:00 UTC`, which
+  the `AddTask` domain guard rejected once real `DateTime.UtcNow` passed that instant. This was a
+  time-dependent test bug, not an M30 regression. It was fixed in `5783085` by anchoring the due date
+  to `DateTime.UtcNow.AddDays(7)`. The lesson recorded for future tests: when a test exercises a domain
+  guard that compares against handler-injected `DateTime.UtcNow`, use a due date relative to now rather
+  than a fixed calendar date that will eventually fall into the past.
+
+Recommended next milestone:
+
+```text
+Milestone 31 - Notification Inbox Read Model Foundation
+```
+
+Recommended planning target:
+
+- Milestones 21, 26, and 30 built the notification *sending* side, but no user can read their
+  notifications yet. Add an owner/underwriter-facing notification inbox read model.
+- PostgreSQL-first behind an Application-owned `INotificationInboxRepository`, fed from the existing
+  outbox dispatcher beside the current publish step. Reuse the M11 ownership boundary for owner-scoped
+  reads and key inbox writes on the source outbox message id so dispatcher retries stay idempotent.
+- Provide list + unread-count reads and a mark-read command, plus a React notification bell/list slice.
+
+Recommended out of scope for Milestone 31 unless explicitly expanded:
+
+- DynamoDB inbox implementation (keep it as a later swap behind the same interface).
+- Production email/SMS delivery and a notification preference center.
+- Real-time push/SignalR, per-type templates, and messaging threads.

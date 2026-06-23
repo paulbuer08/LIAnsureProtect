@@ -323,3 +323,6 @@ The format follows simple milestone-based entries.
 - Action-oriented remediation notification attributes for evidence request id, quote id, submission id, category, decision, review reason, remediation guidance, requested-by user id, reviewed-by user id, due date, and action-required status.
 - Existing `Satisfied` evidence review behavior preserved on the accepted-evidence notification path.
 - Milestone 30 verification passed with local CI artifact `TestResults\local-ci-20260623-185058.zip`.
+- Milestone 30 implementation commit `12994e4 feat: add evidence review outcome notification foundation`.
+- Closeout-time fix `5783085 fix: make referral operations task test time-independent` for a pre-existing (Milestone 24) time-dependent integration test that compared a hardcoded task due date against real `DateTime.UtcNow`.
+- Milestone 30 closeout recommends `Milestone 31 - Notification Inbox Read Model Foundation`.
