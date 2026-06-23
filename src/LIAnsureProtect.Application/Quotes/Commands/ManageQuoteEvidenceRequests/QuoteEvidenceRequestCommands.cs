@@ -23,6 +23,10 @@ public sealed record RespondToQuoteEvidenceRequestCommand(
     long? AttachmentSizeBytes,
     IReadOnlyCollection<EvidenceDocumentUpload> Documents) : IRequest<QuoteEvidenceRequestResult?>;
 
+public sealed record UploadReplacementEvidenceDocumentsCommand(
+    Guid EvidenceRequestId,
+    IReadOnlyCollection<EvidenceDocumentUpload> Documents) : IRequest<QuoteEvidenceRequestResult?>;
+
 public sealed record AcceptQuoteEvidenceRequestCommand(
     Guid QuoteId,
     Guid EvidenceRequestId,
@@ -86,7 +90,14 @@ public sealed record QuoteEvidenceDocumentResult(
     string ContentType,
     long SizeBytes,
     string UploadedByUserId,
-    DateTime UploadedAtUtc);
+    DateTime UploadedAtUtc,
+    string ScanStatus,
+    string? ScannerProviderName,
+    string? ScanResultCode,
+    string? ScanResultReason,
+    DateTime? ScannedAtUtc,
+    string? Sha256,
+    bool IsDownloadAvailable);
 
 public sealed record EvidenceDocumentUpload(
     string OriginalFileName,
@@ -148,30 +159,15 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
     IQuoteRepository quoteRepository,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
-    IDocumentStorageService documentStorageService)
+    IDocumentStorageService documentStorageService,
+    IEvidenceDocumentScanner evidenceDocumentScanner)
     : IRequestHandler<RespondToQuoteEvidenceRequestCommand, QuoteEvidenceRequestResult?>
 {
-    private const int MaximumDocumentCount = 5;
-    private const long MaximumDocumentSizeBytes = 10 * 1024 * 1024;
-    private const long MaximumTotalDocumentSizeBytes = 50 * 1024 * 1024;
-
-    private static readonly IReadOnlyDictionary<string, string> AllowedExtensionsByContentType =
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["application/pdf"] = ".pdf",
-            ["image/png"] = ".png",
-            ["image/jpeg"] = ".jpg",
-            ["text/plain"] = ".txt",
-            ["text/csv"] = ".csv",
-            ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"] = ".docx",
-            ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"] = ".xlsx"
-        };
-
     public async Task<QuoteEvidenceRequestResult?> Handle(
         RespondToQuoteEvidenceRequestCommand request,
         CancellationToken cancellationToken)
     {
-        ValidateDocumentUploads(request.Documents);
+        EvidenceDocumentUploadWorkflow.ValidateDocumentUploads(request.Documents);
 
         var ownerUserId = CurrentUserId.GetRequired(
             currentUser,
@@ -188,29 +184,14 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
             cancellationToken)
             ?? throw new InvalidOperationException("Referral operations must exist before evidence can be updated.");
         var respondedAtUtc = DateTime.UtcNow;
-        var evidenceDocuments = new List<QuoteEvidenceDocument>();
-
-        foreach (var document in request.Documents)
-        {
-            var storedDocument = await documentStorageService.StoreAsync(
-                new DocumentStorageUpload(
-                    document.OriginalFileName,
-                    document.ContentType,
-                    document.Content),
-                cancellationToken);
-
-            evidenceDocuments.Add(QuoteEvidenceDocument.Create(
-                evidenceRequest.Id,
-                evidenceRequest.QuoteId,
-                evidenceRequest.SubmissionId,
-                evidenceRequest.OwnerUserId,
-                Path.GetFileName(document.OriginalFileName),
-                document.ContentType,
-                document.SizeBytes,
-                storedDocument.StorageKey,
-                ownerUserId,
-                respondedAtUtc));
-        }
+        var evidenceDocuments = await EvidenceDocumentUploadWorkflow.StoreAndScanDocumentsAsync(
+            request.Documents,
+            evidenceRequest,
+            ownerUserId,
+            respondedAtUtc,
+            documentStorageService,
+            evidenceDocumentScanner,
+            cancellationToken);
 
         evidenceRequest.Respond(
             ownerUserId,
@@ -233,38 +214,62 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
 
         return QuoteEvidenceRequestResultFactory.FromRequest(evidenceRequest, evidenceDocuments);
     }
+}
 
-    private static void ValidateDocumentUploads(IReadOnlyCollection<EvidenceDocumentUpload> documents)
+public sealed class UploadReplacementEvidenceDocumentsCommandHandler(
+    IQuoteRepository quoteRepository,
+    IUnitOfWork unitOfWork,
+    ICurrentUser currentUser,
+    IDocumentStorageService documentStorageService,
+    IEvidenceDocumentScanner evidenceDocumentScanner)
+    : IRequestHandler<UploadReplacementEvidenceDocumentsCommand, QuoteEvidenceRequestResult?>
+{
+    public async Task<QuoteEvidenceRequestResult?> Handle(
+        UploadReplacementEvidenceDocumentsCommand request,
+        CancellationToken cancellationToken)
     {
-        if (documents.Count > MaximumDocumentCount)
-            throw new ArgumentException($"Evidence responses can include up to 5 files.", nameof(documents));
+        if (request.Documents.Count == 0)
+            throw new ArgumentException("Replacement evidence uploads must include at least one file.", nameof(request.Documents));
 
-        if (documents.Sum(document => document.SizeBytes) > MaximumTotalDocumentSizeBytes)
-            throw new ArgumentException("Evidence response documents cannot exceed 50 MB in total.", nameof(documents));
+        EvidenceDocumentUploadWorkflow.ValidateDocumentUploads(request.Documents);
 
-        foreach (var document in documents)
-        {
-            if (document.SizeBytes <= 0)
-                throw new ArgumentException("Evidence documents cannot be empty.", nameof(documents));
+        var ownerUserId = CurrentUserId.GetRequired(
+            currentUser,
+            "An authenticated owner user id is required to upload replacement evidence documents.");
+        var evidenceRequest = await quoteRepository.GetEvidenceRequestForOwnerAsync(
+            request.EvidenceRequestId,
+            ownerUserId,
+            cancellationToken);
+        if (evidenceRequest is null)
+            return null;
 
-            if (document.SizeBytes > MaximumDocumentSizeBytes)
-                throw new ArgumentException("Each evidence document must be 10 MB or smaller.", nameof(documents));
+        if (evidenceRequest.Status != EvidenceRequestStatus.Responded)
+            throw new InvalidOperationException("Replacement evidence documents can only be uploaded after an evidence response.");
 
-            var fileName = Path.GetFileName(document.OriginalFileName);
-            if (string.IsNullOrWhiteSpace(fileName) || fileName != document.OriginalFileName)
-                throw new ArgumentException("Evidence document file names must not contain path information.", nameof(documents));
+        var existingDocuments = await quoteRepository.ListEvidenceDocumentsForRequestsAsync(
+            [evidenceRequest.Id],
+            cancellationToken);
+        if (!existingDocuments.Any(document => document.ScanStatus is EvidenceDocumentScanStatus.Rejected or EvidenceDocumentScanStatus.Failed))
+            throw new InvalidOperationException("Replacement evidence documents are only allowed after a rejected or failed security scan.");
 
-            if (!AllowedExtensionsByContentType.TryGetValue(document.ContentType, out var expectedExtension))
-                throw new ArgumentException("Evidence document content type is not supported.", nameof(documents));
+        var uploadedAtUtc = DateTime.UtcNow;
+        var replacementDocuments = await EvidenceDocumentUploadWorkflow.StoreAndScanDocumentsAsync(
+            request.Documents,
+            evidenceRequest,
+            ownerUserId,
+            uploadedAtUtc,
+            documentStorageService,
+            evidenceDocumentScanner,
+            cancellationToken);
 
-            var extension = Path.GetExtension(fileName);
-            if (!string.Equals(extension, expectedExtension, StringComparison.OrdinalIgnoreCase)
-                && !(string.Equals(document.ContentType, "image/jpeg", StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase)))
-            {
-                throw new ArgumentException("Evidence document extension does not match the content type.", nameof(documents));
-            }
-        }
+        if (replacementDocuments.Count > 0)
+            await quoteRepository.AddEvidenceDocumentsAsync(replacementDocuments, cancellationToken);
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return QuoteEvidenceRequestResultFactory.FromRequest(
+            evidenceRequest,
+            existingDocuments.Concat(replacementDocuments).ToList());
     }
 }
 
@@ -289,6 +294,12 @@ public sealed class AcceptQuoteEvidenceRequestCommandHandler(
             request.QuoteId,
             cancellationToken)
             ?? throw new InvalidOperationException("Referral operations must exist before evidence can be reviewed.");
+        var documents = await quoteRepository.ListEvidenceDocumentsForRequestsAsync(
+            [evidenceRequest.Id],
+            cancellationToken);
+        if (documents.Any(document => !document.IsDownloadAvailable))
+            throw new InvalidOperationException("Only clean evidence documents can be accepted.");
+
         var underwriterUserId = CurrentUserId.GetRequired(
             currentUser,
             "An authenticated underwriter user id is required to accept evidence.");
@@ -500,7 +511,14 @@ public static class QuoteEvidenceRequestResultFactory
             document.ContentType,
             document.SizeBytes,
             document.UploadedByUserId,
-            document.UploadedAtUtc);
+            document.UploadedAtUtc,
+            document.ScanStatus.ToString(),
+            document.ScannerProviderName,
+            document.ScanResultCode,
+            document.ScanResultReason,
+            document.ScannedAtUtc,
+            document.Sha256,
+            document.IsDownloadAvailable);
     }
 }
 
@@ -511,6 +529,9 @@ internal static class EvidenceDocumentDownloadResultFactory
         QuoteEvidenceDocument document,
         CancellationToken cancellationToken)
     {
+        if (!document.IsDownloadAvailable)
+            throw new InvalidOperationException($"Evidence document scan status is {document.ScanStatus} and is not trusted for download.");
+
         var download = await documentStorageService.OpenReadAsync(document.StorageKey, cancellationToken);
         return download is null
             ? null
@@ -528,5 +549,116 @@ internal static class CurrentUserId
         return string.IsNullOrWhiteSpace(currentUser.UserId)
             ? throw new InvalidOperationException(message)
             : currentUser.UserId;
+    }
+}
+
+internal static class EvidenceDocumentUploadWorkflow
+{
+    private const int MaximumDocumentCount = 5;
+    private const long MaximumDocumentSizeBytes = 10 * 1024 * 1024;
+    private const long MaximumTotalDocumentSizeBytes = 50 * 1024 * 1024;
+
+    private static readonly IReadOnlyDictionary<string, string> AllowedExtensionsByContentType =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["application/pdf"] = ".pdf",
+            ["image/png"] = ".png",
+            ["image/jpeg"] = ".jpg",
+            ["text/plain"] = ".txt",
+            ["text/csv"] = ".csv",
+            ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"] = ".docx",
+            ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"] = ".xlsx"
+        };
+
+    public static void ValidateDocumentUploads(IReadOnlyCollection<EvidenceDocumentUpload> documents)
+    {
+        if (documents.Count > MaximumDocumentCount)
+            throw new ArgumentException($"Evidence responses can include up to 5 files.", nameof(documents));
+
+        if (documents.Sum(document => document.SizeBytes) > MaximumTotalDocumentSizeBytes)
+            throw new ArgumentException("Evidence response documents cannot exceed 50 MB in total.", nameof(documents));
+
+        foreach (var document in documents)
+        {
+            if (document.SizeBytes <= 0)
+                throw new ArgumentException("Evidence documents cannot be empty.", nameof(documents));
+
+            if (document.SizeBytes > MaximumDocumentSizeBytes)
+                throw new ArgumentException("Each evidence document must be 10 MB or smaller.", nameof(documents));
+
+            var fileName = Path.GetFileName(document.OriginalFileName);
+            if (string.IsNullOrWhiteSpace(fileName) || fileName != document.OriginalFileName)
+                throw new ArgumentException("Evidence document file names must not contain path information.", nameof(documents));
+
+            if (!AllowedExtensionsByContentType.TryGetValue(document.ContentType, out var expectedExtension))
+                throw new ArgumentException("Evidence document content type is not supported.", nameof(documents));
+
+            var extension = Path.GetExtension(fileName);
+            if (!string.Equals(extension, expectedExtension, StringComparison.OrdinalIgnoreCase)
+                && !(string.Equals(document.ContentType, "image/jpeg", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new ArgumentException("Evidence document extension does not match the content type.", nameof(documents));
+            }
+        }
+    }
+
+    public static async Task<IReadOnlyCollection<QuoteEvidenceDocument>> StoreAndScanDocumentsAsync(
+        IReadOnlyCollection<EvidenceDocumentUpload> uploads,
+        QuoteEvidenceRequest evidenceRequest,
+        string uploadedByUserId,
+        DateTime uploadedAtUtc,
+        IDocumentStorageService documentStorageService,
+        IEvidenceDocumentScanner evidenceDocumentScanner,
+        CancellationToken cancellationToken)
+    {
+        var evidenceDocuments = new List<QuoteEvidenceDocument>();
+
+        foreach (var upload in uploads)
+        {
+            var storedDocument = await documentStorageService.StoreAsync(
+                new DocumentStorageUpload(
+                    upload.OriginalFileName,
+                    upload.ContentType,
+                    upload.Content),
+                cancellationToken);
+
+            var evidenceDocument = QuoteEvidenceDocument.Create(
+                evidenceRequest.Id,
+                evidenceRequest.QuoteId,
+                evidenceRequest.SubmissionId,
+                evidenceRequest.OwnerUserId,
+                Path.GetFileName(upload.OriginalFileName),
+                upload.ContentType,
+                upload.SizeBytes,
+                storedDocument.StorageKey,
+                uploadedByUserId,
+                uploadedAtUtc);
+
+            var storedDownload = await documentStorageService.OpenReadAsync(storedDocument.StorageKey, cancellationToken)
+                ?? throw new InvalidOperationException("Stored evidence document could not be opened for security screening.");
+            await using (storedDownload.Content)
+            {
+                var scanResult = await evidenceDocumentScanner.ScanAsync(
+                    new EvidenceDocumentScanRequest(
+                        evidenceDocument.OriginalFileName,
+                        evidenceDocument.ContentType,
+                        evidenceDocument.SizeBytes,
+                        storedDownload.Content),
+                    cancellationToken);
+
+                evidenceDocument.RecordScanResult(
+                    scanResult.ScanStatus,
+                    scanResult.ScannerProviderName,
+                    scanResult.ScanResultCode,
+                    scanResult.ScanResultReason,
+                    scanResult.Sha256,
+                    scanResult.ScannedAtUtc);
+            }
+
+            evidenceDocuments.Add(evidenceDocument);
+        }
+
+        return evidenceDocuments;
     }
 }

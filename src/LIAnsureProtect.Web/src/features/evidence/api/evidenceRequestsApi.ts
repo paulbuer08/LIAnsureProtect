@@ -77,3 +77,29 @@ export async function respondToEvidenceRequest(
     "Evidence request was not found.",
   );
 }
+
+export async function uploadReplacementEvidenceDocuments(
+  accessToken: string,
+  evidenceRequestId: string,
+  attachments: File[],
+) {
+  const formData = new FormData();
+
+  for (const attachment of attachments) {
+    formData.append("attachments", attachment);
+  }
+
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/evidence-requests/${evidenceRequestId}/documents`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: formData,
+    },
+  );
+
+  return parseJsonResponse<QuoteEvidenceRequest>(
+    response,
+    "Evidence request was not found.",
+  );
+}

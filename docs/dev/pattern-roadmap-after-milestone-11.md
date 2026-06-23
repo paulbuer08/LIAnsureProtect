@@ -671,7 +671,7 @@ Continue milestone by milestone. Milestone 24 now gives referred quotes durable 
 
 Milestone 25 implements the recommended evidence-request foundation. Milestone 26 implements evidence request notifications and a manual follow-up reminder foundation through the existing local notification/outbox boundary while keeping production email delivery, inboxes, scheduled reminder automation, full document storage, OCR, RAG, and messaging threads out of scope.
 
-The recommended next milestone is `Milestone 27 - Evidence Document Storage Foundation`: replace evidence response attachment metadata placeholders with a narrow local document-storage boundary, private upload/download behavior, and audit-friendly storage metadata while keeping production S3, virus scanning, OCR, RAG, autonomous AI review, and full document management out of scope.
+The recommended next milestone after document storage was `Milestone 28 - Evidence Document Security Screening Foundation`: add a narrow quarantine-style trust state before evidence documents can be downloaded or accepted for underwriting review.
 
 ### Milestone 24 - Underwriting Referral Operations Foundation
 
@@ -840,3 +840,54 @@ Out of scope unless explicitly expanded:
 - Legal hold or retention-policy automation.
 - Durable document download audit.
 - Full document management.
+
+### Milestone 28 - Evidence Document Security Screening Foundation
+
+Status:
+
+```text
+Implemented locally as the first evidence document security screening foundation.
+```
+
+Goal:
+
+```text
+Make uploaded evidence documents more realistic by treating them as quarantined until a provider-shaped scanner marks them clean.
+```
+
+Why this comes after Milestone 27:
+
+- Milestone 27 introduced private document storage and API-mediated downloads.
+- Real insurance document intake should not trust newly uploaded files immediately.
+- A scanner boundary lets the app stay local now while keeping a future S3/GuardDuty or antivirus provider replaceable.
+
+Implemented first slice:
+
+- Added an Application-owned `IEvidenceDocumentScanner` boundary.
+- Added an Infrastructure local deterministic scanner for clean, rejected, and failed scan outcomes.
+- Persisted current scan metadata on `quote_evidence_documents`: status, provider name, result code, safe result reason, scanned timestamp, and SHA-256 hash.
+- Defaulted new and migrated documents to `PendingScan`, then marked newly uploaded files `Clean`, `Rejected`, or `Failed` after local scanning.
+- Kept owner and underwriter download routes private, but allowed bytes to stream only for `Clean` documents.
+- Blocked underwriter evidence acceptance while any attached document is pending, rejected, or failed.
+- Added an owner replacement upload route for responded evidence requests with rejected or failed documents.
+- Updated the owner evidence page and underwriting workbench to show scan status and only render clean download links.
+
+Out of scope unless explicitly expanded:
+
+- Production antivirus or SaaS scanner provisioning.
+- AWS S3/GuardDuty/EventBridge integration.
+- Asynchronous document scanning workers.
+- OCR/document extraction.
+- Embeddings, RAG, or autonomous AI document review.
+- Legal hold or retention-policy automation.
+- Manual malware analyst console.
+- Full document management.
+
+Verification:
+
+- Focused backend tests passed for scan state transitions, scanner registration, upload persistence, download gating, underwriter acceptance gating, and replacement upload behavior.
+- Focused frontend tests passed for owner and underwriter scan labels, disabled download behavior, clean download links, and rejected-document replacement controls.
+- `dotnet build LIAnsureProtect.slnx --no-restore` passed with 0 warnings and 0 errors.
+- `dotnet test LIAnsureProtect.slnx --no-restore` passed with UnitTests 52 passed and IntegrationTests 86 passed, 1 skipped PostgreSQL opt-in test.
+- EF Core pending model check reported no pending model changes.
+- Full local CI passed with artifact `TestResults\local-ci-20260623-160248.zip`.

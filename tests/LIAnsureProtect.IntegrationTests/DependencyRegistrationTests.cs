@@ -62,6 +62,7 @@ public sealed class DependencyRegistrationTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<INotificationPublisher>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IAiReviewService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IDocumentStorageService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IEvidenceDocumentScanner>());
     }
 
     [Fact]
@@ -121,5 +122,12 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("ix_quote_evidence_documents_request_uploaded_at_utc", script);
         Assert.Contains("ix_quote_evidence_documents_owner_request", script);
         Assert.Contains("ux_quote_evidence_documents_storage_key", script);
+        Assert.Contains("scan_status", script);
+        Assert.Contains("scanner_provider_name", script);
+        Assert.Contains("scan_result_code", script);
+        Assert.Contains("scan_result_reason", script);
+        Assert.Contains("scanned_at_utc", script);
+        Assert.Contains("sha256", script);
+        Assert.Contains("ix_quote_evidence_documents_scan_status_uploaded_at_utc", script);
     }
 }

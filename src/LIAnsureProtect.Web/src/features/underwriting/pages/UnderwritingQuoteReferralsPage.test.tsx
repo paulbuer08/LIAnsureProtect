@@ -430,6 +430,13 @@ describe("UnderwritingQuoteReferralsPage", () => {
           sizeBytes: 124000,
           uploadedByUserId: "auth0|customer",
           uploadedAtUtc: "2026-06-22T12:00:00Z",
+          scanStatus: "Clean",
+          scannerProviderName: "LocalDeterministicEvidenceDocumentScanner",
+          scanResultCode: "NO_THREATS_FOUND",
+          scanResultReason: "No local test threat markers were found.",
+          scannedAtUtc: "2026-06-22T12:00:01Z",
+          sha256: "hash-clean-1",
+          isDownloadAvailable: true,
         },
       ],
     });
@@ -508,6 +515,7 @@ describe("UnderwritingQuoteReferralsPage", () => {
       "href",
       "http://localhost:5223/api/v1/underwriting/quote-referrals/quote-severe/evidence-requests/evidence-1/documents/document-1/download",
     );
+    expect(screen.getByText("Clean")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Send evidence follow-up" }));
 

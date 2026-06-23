@@ -101,6 +101,14 @@ public sealed class EvidenceDocumentEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(5, documents.Length);
         Assert.All(documents, document => Assert.False(document.TryGetProperty("storageKey", out _)));
+        Assert.All(documents, document =>
+        {
+            Assert.Equal("Clean", document.GetProperty("scanStatus").GetString());
+            Assert.Equal("LocalDeterministicEvidenceDocumentScanner", document.GetProperty("scannerProviderName").GetString());
+            Assert.Equal("NO_THREATS_FOUND", document.GetProperty("scanResultCode").GetString());
+            Assert.True(document.GetProperty("isDownloadAvailable").GetBoolean());
+            Assert.False(string.IsNullOrWhiteSpace(document.GetProperty("sha256").GetString()));
+        });
 
         using var scope = webApplicationFactory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
@@ -118,10 +126,72 @@ public sealed class EvidenceDocumentEndpointTests
             Assert.Equal("customer-1", document.UploadedByUserId);
             Assert.False(string.IsNullOrWhiteSpace(document.StorageKey));
             Assert.True(File.Exists(Path.Combine(storageRootPath, document.StorageKey)));
+            Assert.Equal(EvidenceDocumentScanStatus.Clean, document.ScanStatus);
+            Assert.Equal("LocalDeterministicEvidenceDocumentScanner", document.ScannerProviderName);
+            Assert.Equal("NO_THREATS_FOUND", document.ScanResultCode);
+            Assert.Equal("No local test threat markers were found.", document.ScanResultReason);
+            Assert.NotNull(document.ScannedAtUtc);
+            Assert.False(string.IsNullOrWhiteSpace(document.Sha256));
+            Assert.True(document.IsDownloadAvailable);
         });
 
         var firstStoredFile = Path.Combine(storageRootPath, savedDocuments[0].StorageKey);
         Assert.Equal("Evidence document 1", await File.ReadAllTextAsync(firstStoredFile, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Owner_Response_Records_Rejected_And_Failed_Scan_Metadata()
+    {
+        var (_, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");
+        using var responseRequest = CreateAuthenticatedMultipartResponse(
+            evidenceRequest.Id,
+            "Customer",
+            "customer-1",
+            [
+                new EvidenceFile(
+                    "rejected-evidence.txt",
+                    "text/plain",
+                    "This local test file contains MALWARE-TEST-SIGNAL."),
+                new EvidenceFile(
+                    "scan-failure-evidence.txt",
+                    "text/plain",
+                    "This local test file contains SCAN-FAIL-TEST-SIGNAL.")
+            ]);
+
+        using var response = await httpClient.SendAsync(responseRequest, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(content);
+        var documents = payload.RootElement.GetProperty("documents").EnumerateArray().ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(documents, document =>
+            document.GetProperty("originalFileName").GetString() == "rejected-evidence.txt"
+            && document.GetProperty("scanStatus").GetString() == "Rejected"
+            && document.GetProperty("scanResultCode").GetString() == "THREATS_FOUND"
+            && !document.GetProperty("isDownloadAvailable").GetBoolean());
+        Assert.Contains(documents, document =>
+            document.GetProperty("originalFileName").GetString() == "scan-failure-evidence.txt"
+            && document.GetProperty("scanStatus").GetString() == "Failed"
+            && document.GetProperty("scanResultCode").GetString() == "SCAN_FAILED"
+            && !document.GetProperty("isDownloadAvailable").GetBoolean());
+
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedDocuments = await dbContext.Set<QuoteEvidenceDocument>()
+            .Where(document => document.EvidenceRequestId == evidenceRequest.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains(savedDocuments, document =>
+            document.OriginalFileName == "rejected-evidence.txt"
+            && document.ScanStatus == EvidenceDocumentScanStatus.Rejected
+            && document.ScanResultCode == "THREATS_FOUND"
+            && !document.IsDownloadAvailable);
+        Assert.Contains(savedDocuments, document =>
+            document.OriginalFileName == "scan-failure-evidence.txt"
+            && document.ScanStatus == EvidenceDocumentScanStatus.Failed
+            && document.ScanResultCode == "SCAN_FAILED"
+            && !document.IsDownloadAvailable);
     }
 
     [Fact]
@@ -173,6 +243,158 @@ public sealed class EvidenceDocumentEndpointTests
     }
 
     [Fact]
+    public async Task Evidence_Document_Download_Is_Fail_Closed_When_Scan_Does_Not_Clean_Document()
+    {
+        var (quote, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");
+        using var responseRequest = CreateAuthenticatedMultipartResponse(
+            evidenceRequest.Id,
+            "Customer",
+            "customer-1",
+            [
+                new EvidenceFile(
+                    "rejected-evidence.txt",
+                    "text/plain",
+                    "This local test file contains MALWARE-TEST-SIGNAL.")
+            ]);
+        using var uploadResponse = await httpClient.SendAsync(responseRequest, TestContext.Current.CancellationToken);
+        var uploadContent = await uploadResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var uploadPayload = JsonDocument.Parse(uploadContent);
+        var documentId = uploadPayload.RootElement.GetProperty("documents")[0].GetProperty("documentId").GetGuid();
+
+        using var ownerDownloadRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"/api/v1/evidence-requests/{evidenceRequest.Id}/documents/{documentId}/download",
+            "Customer",
+            "customer-1");
+        using var ownerDownloadResponse = await httpClient.SendAsync(ownerDownloadRequest, TestContext.Current.CancellationToken);
+        var ownerDownloadContent = await ownerDownloadResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var underwriterDownloadRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"/api/v1/underwriting/quote-referrals/{quote.Id}/evidence-requests/{evidenceRequest.Id}/documents/{documentId}/download",
+            "Underwriter",
+            "underwriter-1");
+        using var underwriterDownloadResponse = await httpClient.SendAsync(underwriterDownloadRequest, TestContext.Current.CancellationToken);
+        var underwriterDownloadContent = await underwriterDownloadResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, ownerDownloadResponse.StatusCode);
+        Assert.Contains("not trusted for download", ownerDownloadContent);
+        Assert.DoesNotContain("MALWARE-TEST-SIGNAL", ownerDownloadContent);
+        Assert.Equal(HttpStatusCode.Conflict, underwriterDownloadResponse.StatusCode);
+        Assert.Contains("not trusted for download", underwriterDownloadContent);
+        Assert.DoesNotContain("MALWARE-TEST-SIGNAL", underwriterDownloadContent);
+    }
+
+    [Fact]
+    public async Task Underwriter_Cannot_Accept_Evidence_When_Documents_Are_Not_All_Clean()
+    {
+        var (quote, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");
+        using var responseRequest = CreateAuthenticatedMultipartResponse(
+            evidenceRequest.Id,
+            "Customer",
+            "customer-1",
+            [
+                new EvidenceFile(
+                    "rejected-evidence.txt",
+                    "text/plain",
+                    "This local test file contains MALWARE-TEST-SIGNAL.")
+            ]);
+        using var uploadResponse = await httpClient.SendAsync(responseRequest, TestContext.Current.CancellationToken);
+
+        using var acceptRequest = CreateAuthenticatedJsonRequest(
+            HttpMethod.Post,
+            $"/api/v1/underwriting/quote-referrals/{quote.Id}/evidence-requests/{evidenceRequest.Id}/accept",
+            "Underwriter",
+            "underwriter-1",
+            """{"reviewNotes":"MFA evidence is sufficient."}""");
+        using var acceptResponse = await httpClient.SendAsync(acceptRequest, TestContext.Current.CancellationToken);
+        var acceptContent = await acceptResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, acceptResponse.StatusCode);
+        Assert.Contains("Only clean evidence documents can be accepted.", acceptContent);
+    }
+
+    [Fact]
+    public async Task Owner_Can_Upload_Replacement_Documents_When_Previous_Scan_Rejected_Or_Failed()
+    {
+        var (_, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");
+        using var rejectedResponseRequest = CreateAuthenticatedMultipartResponse(
+            evidenceRequest.Id,
+            "Customer",
+            "customer-1",
+            [
+                new EvidenceFile(
+                    "rejected-evidence.txt",
+                    "text/plain",
+                    "This local test file contains MALWARE-TEST-SIGNAL.")
+            ]);
+        using var rejectedResponse = await httpClient.SendAsync(rejectedResponseRequest, TestContext.Current.CancellationToken);
+
+        using var replacementRequest = CreateAuthenticatedReplacementUpload(
+            evidenceRequest.Id,
+            "Customer",
+            "customer-1",
+            [
+                new EvidenceFile(
+                    "replacement-evidence.txt",
+                    "text/plain",
+                    "Replacement clean evidence document.")
+            ]);
+        using var replacementResponse = await httpClient.SendAsync(replacementRequest, TestContext.Current.CancellationToken);
+        var replacementContent = await replacementResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(replacementContent);
+        var documents = payload.RootElement.GetProperty("documents").EnumerateArray().ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, rejectedResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, replacementResponse.StatusCode);
+        Assert.Contains(documents, document =>
+            document.GetProperty("originalFileName").GetString() == "rejected-evidence.txt"
+            && document.GetProperty("scanStatus").GetString() == "Rejected");
+        Assert.Contains(documents, document =>
+            document.GetProperty("originalFileName").GetString() == "replacement-evidence.txt"
+            && document.GetProperty("scanStatus").GetString() == "Clean");
+
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        Assert.Equal(
+            2,
+            await dbContext.Set<QuoteEvidenceDocument>()
+                .CountAsync(document => document.EvidenceRequestId == evidenceRequest.Id, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Owner_Replacement_Upload_Rejects_Empty_File_Set()
+    {
+        var (_, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");
+        using var rejectedResponseRequest = CreateAuthenticatedMultipartResponse(
+            evidenceRequest.Id,
+            "Customer",
+            "customer-1",
+            [
+                new EvidenceFile(
+                    "rejected-evidence.txt",
+                    "text/plain",
+                    "This local test file contains MALWARE-TEST-SIGNAL.")
+            ]);
+        using var rejectedResponse = await httpClient.SendAsync(rejectedResponseRequest, TestContext.Current.CancellationToken);
+
+        using var emptyReplacementRequest = CreateAuthenticatedReplacementUpload(
+            evidenceRequest.Id,
+            "Customer",
+            "customer-1",
+            []);
+        using var emptyReplacementResponse = await httpClient.SendAsync(emptyReplacementRequest, TestContext.Current.CancellationToken);
+        var emptyReplacementContent = await emptyReplacementResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, rejectedResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, emptyReplacementResponse.StatusCode);
+        Assert.Contains("at least one file", emptyReplacementContent);
+    }
+
+    [Fact]
     public async Task Owner_Response_Rejects_More_Than_Five_Evidence_Documents()
     {
         var (_, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");
@@ -215,6 +437,46 @@ public sealed class EvidenceDocumentEndpointTests
             role,
             userId);
         request.Content = content;
+
+        return request;
+    }
+
+    private HttpRequestMessage CreateAuthenticatedReplacementUpload(
+        Guid evidenceRequestId,
+        string role,
+        string userId,
+        IReadOnlyCollection<EvidenceFile> files)
+    {
+        var content = new MultipartFormDataContent();
+        if (files.Count == 0)
+            content.Add(new StringContent("true"), "emptyReplacementProbe");
+
+        foreach (var file in files)
+        {
+            var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(file.Content));
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+            content.Add(fileContent, "attachments", file.FileName);
+        }
+
+        var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"/api/v1/evidence-requests/{evidenceRequestId}/documents",
+            role,
+            userId);
+        request.Content = content;
+
+        return request;
+    }
+
+    private static HttpRequestMessage CreateAuthenticatedJsonRequest(
+        HttpMethod method,
+        string path,
+        string role,
+        string userId,
+        string json)
+    {
+        var request = CreateAuthenticatedRequest(method, path, role, userId);
+        request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
         return request;
     }

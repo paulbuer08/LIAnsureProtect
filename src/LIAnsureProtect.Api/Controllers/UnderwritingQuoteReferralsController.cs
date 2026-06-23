@@ -122,6 +122,7 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> DownloadEvidenceDocument(
         Guid quoteId,
@@ -129,13 +130,23 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
         Guid documentId,
         CancellationToken cancellationToken)
     {
-        var result = await sender.Send(
-            new DownloadUnderwritingEvidenceDocumentQuery(quoteId, evidenceRequestId, documentId),
-            cancellationToken);
+        try
+        {
+            var result = await sender.Send(
+                new DownloadUnderwritingEvidenceDocumentQuery(quoteId, evidenceRequestId, documentId),
+                cancellationToken);
 
-        return result is null
-            ? NotFound()
-            : File(result.Content, result.ContentType, result.OriginalFileName);
+            return result is null
+                ? NotFound()
+                : File(result.Content, result.ContentType, result.OriginalFileName);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Evidence document cannot be downloaded.",
+                exception.Message));
+        }
     }
 
     [HttpPost("{quoteId:guid}/ai-review")]

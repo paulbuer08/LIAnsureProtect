@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationPublisher, LocalNotificationPublisher>();
         services.AddOptions<DocumentStorageOptions>();
         services.AddScoped<IDocumentStorageService, LocalDocumentStorageService>();
+        services.AddScoped<IEvidenceDocumentScanner, LocalDeterministicEvidenceDocumentScanner>();
         services.AddScoped<IPolicyBindingProviderClient, SimulatedPolicyBindingProviderClient>();
         services.AddScoped<IAiReviewService, LocalSimulatedAiReviewService>();
         services.AddTransient<RatingProviderAttemptCountingHandler>();

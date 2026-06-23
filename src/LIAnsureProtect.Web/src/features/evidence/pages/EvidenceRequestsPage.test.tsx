@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   listEvidenceRequests,
   respondToEvidenceRequest,
+  uploadReplacementEvidenceDocuments,
 } from "../api/evidenceRequestsApi";
 import { EvidenceRequestsPage } from "./EvidenceRequestsPage";
 
@@ -23,6 +24,7 @@ vi.mock("../api/evidenceRequestsApi", () => ({
     `http://localhost:5223/api/v1/evidence-requests/${evidenceRequestId}/documents/${documentId}/download`,
   listEvidenceRequests: vi.fn(),
   respondToEvidenceRequest: vi.fn(),
+  uploadReplacementEvidenceDocuments: vi.fn(),
 }));
 
 function renderEvidenceRequestsPage() {
@@ -52,6 +54,7 @@ describe("EvidenceRequestsPage", () => {
     getAccessTokenSilently.mockResolvedValue("owner-token");
     vi.mocked(listEvidenceRequests).mockReset();
     vi.mocked(respondToEvidenceRequest).mockReset();
+    vi.mocked(uploadReplacementEvidenceDocuments).mockReset();
   });
 
   it("lists owner evidence requests and submits a text response with evidence documents", async () => {
@@ -130,6 +133,13 @@ describe("EvidenceRequestsPage", () => {
           sizeBytes: 124000,
           uploadedByUserId: "auth0|customer",
           uploadedAtUtc: "2026-06-22T12:00:00Z",
+          scanStatus: "Clean",
+          scannerProviderName: "LocalDeterministicEvidenceDocumentScanner",
+          scanResultCode: "NO_THREATS_FOUND",
+          scanResultReason: "No local test threat markers were found.",
+          scannedAtUtc: "2026-06-22T12:00:01Z",
+          sha256: "hash-clean-1",
+          isDownloadAvailable: true,
         },
         {
           documentId: "document-2",
@@ -138,6 +148,13 @@ describe("EvidenceRequestsPage", () => {
           sizeBytes: 92000,
           uploadedByUserId: "auth0|customer",
           uploadedAtUtc: "2026-06-22T12:00:01Z",
+          scanStatus: "Clean",
+          scannerProviderName: "LocalDeterministicEvidenceDocumentScanner",
+          scanResultCode: "NO_THREATS_FOUND",
+          scanResultReason: "No local test threat markers were found.",
+          scannedAtUtc: "2026-06-22T12:00:02Z",
+          sha256: "hash-clean-2",
+          isDownloadAvailable: true,
         },
       ],
     });
@@ -168,8 +185,157 @@ describe("EvidenceRequestsPage", () => {
       },
     );
     expect(await screen.findByText("Evidence response saved: Responded")).toBeInTheDocument();
-    expect(screen.getByText("mfa-attestation.pdf")).toBeInTheDocument();
-    expect(screen.getByText("edr-rollout.txt")).toBeInTheDocument();
+    expect(screen.getAllByText("Clean")).toHaveLength(2);
+    expect(screen.getByRole("link", { name: "Download mfa-attestation.pdf" })).toHaveAttribute(
+      "href",
+      "http://localhost:5223/api/v1/evidence-requests/evidence-1/documents/document-1/download",
+    );
+    expect(screen.getByRole("link", { name: "Download edr-rollout.txt" })).toHaveAttribute(
+      "href",
+      "http://localhost:5223/api/v1/evidence-requests/evidence-1/documents/document-2/download",
+    );
+  });
+
+  it("shows rejected document status and lets the owner upload replacement evidence", async () => {
+    const user = userEvent.setup();
+    const replacementFile = new File(["replacement clean evidence"], "replacement-evidence.txt", {
+      type: "text/plain",
+    });
+    vi.mocked(listEvidenceRequests).mockResolvedValue({
+      evidenceRequests: [
+        {
+          evidenceRequestId: "evidence-1",
+          quoteId: "quote-severe",
+          submissionId: "submission-severe",
+          category: "MultiFactorAuthentication",
+          title: "Confirm MFA rollout",
+          description: "Please provide current MFA rollout evidence.",
+          dueAtUtc: "2026-06-25T09:00:00Z",
+          status: "Responded",
+          isOverdue: false,
+          daysUntilDue: 3,
+          requestedByUserId: "auth0|underwriter",
+          requestedAtUtc: "2026-06-22T09:00:00Z",
+          respondedByUserId: "auth0|customer",
+          respondentName: "Jane Applicant",
+          respondentTitle: "CISO",
+          responseText: "MFA evidence uploaded.",
+          attachmentFileName: "rejected-evidence.txt",
+          attachmentContentType: "text/plain",
+          attachmentSizeBytes: 64,
+          respondedAtUtc: "2026-06-22T12:00:00Z",
+          acceptedByUserId: null,
+          acceptedAtUtc: null,
+          cancelledByUserId: null,
+          cancelledAtUtc: null,
+          reviewNotes: null,
+          updatedAtUtc: "2026-06-22T12:00:00Z",
+          documents: [
+            {
+              documentId: "document-1",
+              originalFileName: "rejected-evidence.txt",
+              contentType: "text/plain",
+              sizeBytes: 64,
+              uploadedByUserId: "auth0|customer",
+              uploadedAtUtc: "2026-06-22T12:00:00Z",
+              scanStatus: "Rejected",
+              scannerProviderName: "LocalDeterministicEvidenceDocumentScanner",
+              scanResultCode: "THREATS_FOUND",
+              scanResultReason: "Local deterministic scanner found a test threat marker.",
+              scannedAtUtc: "2026-06-22T12:00:01Z",
+              sha256: "hash-rejected",
+              isDownloadAvailable: false,
+            },
+          ],
+        },
+      ],
+    });
+    vi.mocked(uploadReplacementEvidenceDocuments).mockResolvedValue({
+      evidenceRequestId: "evidence-1",
+      quoteId: "quote-severe",
+      submissionId: "submission-severe",
+      category: "MultiFactorAuthentication",
+      title: "Confirm MFA rollout",
+      description: "Please provide current MFA rollout evidence.",
+      dueAtUtc: "2026-06-25T09:00:00Z",
+      status: "Responded",
+      isOverdue: false,
+      daysUntilDue: 3,
+      requestedByUserId: "auth0|underwriter",
+      requestedAtUtc: "2026-06-22T09:00:00Z",
+      respondedByUserId: "auth0|customer",
+      respondentName: "Jane Applicant",
+      respondentTitle: "CISO",
+      responseText: "MFA evidence uploaded.",
+      attachmentFileName: "rejected-evidence.txt",
+      attachmentContentType: "text/plain",
+      attachmentSizeBytes: 64,
+      respondedAtUtc: "2026-06-22T12:00:00Z",
+      acceptedByUserId: null,
+      acceptedAtUtc: null,
+      cancelledByUserId: null,
+      cancelledAtUtc: null,
+      reviewNotes: null,
+      updatedAtUtc: "2026-06-22T12:00:00Z",
+      documents: [
+        {
+          documentId: "document-1",
+          originalFileName: "rejected-evidence.txt",
+          contentType: "text/plain",
+          sizeBytes: 64,
+          uploadedByUserId: "auth0|customer",
+          uploadedAtUtc: "2026-06-22T12:00:00Z",
+          scanStatus: "Rejected",
+          scannerProviderName: "LocalDeterministicEvidenceDocumentScanner",
+          scanResultCode: "THREATS_FOUND",
+          scanResultReason: "Local deterministic scanner found a test threat marker.",
+          scannedAtUtc: "2026-06-22T12:00:01Z",
+          sha256: "hash-rejected",
+          isDownloadAvailable: false,
+        },
+        {
+          documentId: "document-2",
+          originalFileName: "replacement-evidence.txt",
+          contentType: "text/plain",
+          sizeBytes: 26,
+          uploadedByUserId: "auth0|customer",
+          uploadedAtUtc: "2026-06-22T12:10:00Z",
+          scanStatus: "Clean",
+          scannerProviderName: "LocalDeterministicEvidenceDocumentScanner",
+          scanResultCode: "NO_THREATS_FOUND",
+          scanResultReason: "No local test threat markers were found.",
+          scannedAtUtc: "2026-06-22T12:10:01Z",
+          sha256: "hash-clean-replacement",
+          isDownloadAvailable: true,
+        },
+      ],
+    });
+
+    renderEvidenceRequestsPage();
+
+    expect(await screen.findByText("rejected-evidence.txt")).toBeInTheDocument();
+    expect(screen.getByText("Rejected")).toBeInTheDocument();
+    expect(screen.getByText("Local deterministic scanner found a test threat marker.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Download rejected-evidence.txt" })).not.toBeInTheDocument();
+    expect(screen.getByText("Download unavailable until security screening is clean.")).toBeInTheDocument();
+
+    await user.upload(screen.getByLabelText("Replacement evidence files"), [replacementFile]);
+    await user.click(screen.getByRole("button", { name: "Upload replacement evidence" }));
+
+    await waitFor(() =>
+      expect(uploadReplacementEvidenceDocuments).toHaveBeenCalledWith(
+        "owner-token",
+        "evidence-1",
+        [replacementFile],
+      ),
+    );
+    const replacementLink = await screen.findByRole("link", {
+      name: "Download replacement-evidence.txt",
+    });
+    expect(replacementLink).toHaveAttribute(
+      "href",
+      "http://localhost:5223/api/v1/evidence-requests/evidence-1/documents/document-2/download",
+    );
   });
 
   it("shows overdue evidence requests clearly for the owner", async () => {

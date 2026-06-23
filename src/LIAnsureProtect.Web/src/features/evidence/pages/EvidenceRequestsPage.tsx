@@ -6,6 +6,7 @@ import { getOwnerEvidenceDocumentDownloadUrl } from "../api/evidenceRequestsApi"
 import {
   useEvidenceRequests,
   useRespondToEvidenceRequest,
+  useUploadReplacementEvidenceDocuments,
 } from "../hooks/useEvidenceRequests";
 import type { QuoteEvidenceRequest } from "../types";
 
@@ -40,13 +41,18 @@ function formatEvidenceDueLabel(request: QuoteEvidenceRequest) {
 
 function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
   const respondToEvidenceRequest = useRespondToEvidenceRequest();
+  const uploadReplacementEvidenceDocuments = useUploadReplacementEvidenceDocuments();
   const [respondentName, setRespondentName] = useState("");
   const [respondentTitle, setRespondentTitle] = useState("");
   const [responseText, setResponseText] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [replacementAttachments, setReplacementAttachments] = useState<File[]>([]);
   const [savedStatus, setSavedStatus] = useState<string>();
   const [savedDocuments, setSavedDocuments] = useState(request.documents ?? []);
   const documents = savedDocuments.length > 0 ? savedDocuments : request.documents ?? [];
+  const canUploadReplacement = documents.some(
+    (document) => document.scanStatus === "Rejected" || document.scanStatus === "Failed",
+  );
 
   async function handleRespond(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,6 +68,18 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
 
     setSavedStatus(result.status);
     setSavedDocuments(result.documents ?? []);
+  }
+
+  async function handleReplacementUpload(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const result = await uploadReplacementEvidenceDocuments.mutateAsync({
+      evidenceRequestId: request.evidenceRequestId,
+      attachments: replacementAttachments,
+    });
+
+    setSavedStatus(result.status);
+    setSavedDocuments(result.documents ?? []);
+    setReplacementAttachments([]);
   }
 
   return (
@@ -116,6 +134,16 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
             {getErrorMessage(
               respondToEvidenceRequest.error,
               "Unable to submit evidence response.",
+            )}
+          </p>
+        )}
+
+      {uploadReplacementEvidenceDocuments.error !== null &&
+        uploadReplacementEvidenceDocuments.error !== undefined && (
+          <p className="mt-4 whitespace-pre-wrap rounded-md border border-red-900 bg-red-950 p-3 text-sm text-red-200">
+            {getErrorMessage(
+              uploadReplacementEvidenceDocuments.error,
+              "Unable to upload replacement evidence.",
             )}
           </p>
         )}
@@ -180,22 +208,66 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
           <h3 className="text-sm font-semibold text-white">Evidence documents</h3>
           <ul className="mt-3 space-y-2 text-sm">
             {documents.map((document) => (
-              <li key={document.documentId}>
-                <a
-                  href={getOwnerEvidenceDocumentDownloadUrl(
-                    request.evidenceRequestId,
-                    document.documentId,
-                  )}
-                  className="font-semibold text-emerald-300 hover:text-emerald-200"
-                >
-                  {document.originalFileName}
-                </a>
+              <li key={document.documentId} className="rounded-md border border-slate-800 p-3">
+                {document.isDownloadAvailable ? (
+                  <a
+                    href={getOwnerEvidenceDocumentDownloadUrl(
+                      request.evidenceRequestId,
+                      document.documentId,
+                    )}
+                    className="font-semibold text-emerald-300 hover:text-emerald-200"
+                  >
+                    Download {document.originalFileName}
+                  </a>
+                ) : (
+                  <span className="font-semibold text-slate-200">
+                    {document.originalFileName}
+                  </span>
+                )}
                 <span className="ml-2 text-slate-400">
                   {document.contentType} | {document.sizeBytes.toLocaleString()} bytes
                 </span>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded-md border border-cyan-800 px-2 py-1 text-xs font-semibold text-cyan-200">
+                    {document.scanStatus}
+                  </span>
+                  {document.scanResultReason && (
+                    <span className="text-xs text-slate-400">
+                      {document.scanResultReason}
+                    </span>
+                  )}
+                </div>
+                {!document.isDownloadAvailable && (
+                  <p className="mt-2 text-xs text-amber-200">
+                    Download unavailable until security screening is clean.
+                  </p>
+                )}
               </li>
             ))}
           </ul>
+          {canUploadReplacement && (
+            <form className="mt-4 space-y-3" onSubmit={handleReplacementUpload}>
+              <label className="block text-sm font-medium text-slate-200">
+                Replacement evidence files
+                <input
+                  aria-label="Replacement evidence files"
+                  multiple
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.docx,.xlsx"
+                  onChange={(event) =>
+                    setReplacementAttachments(Array.from(event.target.files ?? []))
+                  }
+                  className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none file:mr-4 file:rounded-md file:border-0 file:bg-amber-300 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-950 focus:border-amber-300"
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded-lg bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-200"
+              >
+                Upload replacement evidence
+              </button>
+            </form>
+          )}
         </section>
       )}
     </article>

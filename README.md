@@ -73,6 +73,8 @@ Milestone 26 is implemented as `Milestone 26 - Evidence Request Notification and
 
 Milestone 27 is implemented locally as `Milestone 27 - Evidence Document Storage Foundation`. It replaces evidence response attachment metadata placeholders with private local evidence document upload/download behavior: customer/broker owners can upload up to five evidence files per response, PostgreSQL stores safe metadata in `quote_evidence_documents`, file bytes stay outside the database behind an Application-owned document storage boundary, and authorized owners and underwriters download documents through private API routes while production S3, public URLs, virus scanning, OCR, embeddings, RAG, and autonomous AI document review stay out of scope.
 
+Milestone 28 is implemented locally as `Milestone 28 - Evidence Document Security Screening Foundation`. It adds a local quarantine-style security screening workflow for uploaded evidence documents: newly uploaded files are scanned through an Application-owned scanner boundary, scan status and SHA-256 metadata are persisted on `quote_evidence_documents`, only clean documents are downloadable or acceptable for underwriting evidence review, rejected or failed documents stay visible for audit, and owners can append replacement evidence without deleting the original rejected file. Full local CI passed with artifact `TestResults\local-ci-20260623-160248.zip`.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -138,6 +140,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 25 Underwriting Evidence Request Foundation Learnings](docs/dev/milestone-25-underwriting-evidence-request-foundation-learnings.md)
 - [Milestone 26 Evidence Request Notification and Follow-up Foundation Learnings](docs/dev/milestone-26-evidence-request-notification-follow-up-foundation-learnings.md)
 - [Milestone 27 Evidence Document Storage Foundation Learnings](docs/dev/milestone-27-evidence-document-storage-foundation-learnings.md)
+- [Milestone 28 Evidence Document Security Screening Foundation Learnings](docs/dev/milestone-28-evidence-document-security-screening-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)

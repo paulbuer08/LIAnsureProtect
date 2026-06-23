@@ -62,12 +62,45 @@ public sealed class QuoteEvidenceDocumentConfiguration : IEntityTypeConfiguratio
             .HasColumnName("uploaded_at_utc")
             .IsRequired();
 
+        builder.Property(document => document.ScanStatus)
+            .HasColumnName("scan_status")
+            .HasConversion<string>()
+            .HasMaxLength(32)
+            .HasDefaultValue(EvidenceDocumentScanStatus.PendingScan)
+            .IsRequired();
+
+        builder.Property(document => document.ScannerProviderName)
+            .HasColumnName("scanner_provider_name")
+            .HasMaxLength(200);
+
+        builder.Property(document => document.ScanResultCode)
+            .HasColumnName("scan_result_code")
+            .HasMaxLength(100);
+
+        builder.Property(document => document.ScanResultReason)
+            .HasColumnName("scan_result_reason")
+            .HasMaxLength(1000);
+
+        builder.Property(document => document.ScannedAtUtc)
+            .HasColumnName("scanned_at_utc");
+
+        builder.Property(document => document.Sha256)
+            .HasColumnName("sha256")
+            .HasMaxLength(64);
+
         builder.HasIndex(document => new
             {
                 document.EvidenceRequestId,
                 document.UploadedAtUtc
             })
             .HasDatabaseName("ix_quote_evidence_documents_request_uploaded_at_utc");
+
+        builder.HasIndex(document => new
+            {
+                document.ScanStatus,
+                document.UploadedAtUtc
+            })
+            .HasDatabaseName("ix_quote_evidence_documents_scan_status_uploaded_at_utc");
 
         builder.HasIndex(document => new
             {

@@ -857,7 +857,9 @@ Owner evidence response multipart upload
   -> RespondToQuoteEvidenceRequestCommand
   -> IDocumentStorageService
   -> LocalDocumentStorageService writes file bytes outside PostgreSQL
-  -> quote_evidence_documents stores safe metadata and opaque storage key
+  -> IEvidenceDocumentScanner
+  -> LocalDeterministicEvidenceDocumentScanner returns clean/rejected/failed status
+  -> quote_evidence_documents stores safe metadata, opaque storage key, scan result, and SHA-256 hash
 ```
 
 The `quote_evidence_documents` table stores document metadata, not file bytes:
@@ -875,9 +877,31 @@ quote_evidence_documents
   storage_key
   uploaded_by_user_id
   uploaded_at_utc
+  scan_status
+  scanner_provider_name
+  scan_result_code
+  scan_result_reason
+  scanned_at_utc
+  sha256
 ```
 
 Customer/broker owners can upload up to five evidence files per response. The API validates basic file governance rules before storing documents: supported content types/extensions, non-empty files, a maximum per-file size, a maximum total response size, and no path information in uploaded names. The server generates the storage key; clients never choose the local storage path.
+
+Milestone 28 adds a quarantine-style trust state on top of that storage foundation. New documents start as `PendingScan`, then the local scanner records one of these current states:
+
+```text
+PendingScan
+  -> document has metadata but has not been trusted
+
+Clean
+  -> document can be downloaded and accepted as underwriting evidence
+
+Rejected
+  -> scanner found the local deterministic test threat marker
+
+Failed
+  -> scanner could not produce a clean trust decision
+```
 
 Downloads are private and API-mediated:
 
@@ -885,13 +909,17 @@ Downloads are private and API-mediated:
 Owner
   -> GET /api/v1/evidence-requests/{evidenceRequestId}/documents/{documentId}/download
   -> owner id must match the document metadata
+  -> document scan_status must be Clean
 
 Underwriter/Admin
   -> GET /api/v1/underwriting/quote-referrals/{quoteId}/evidence-requests/{evidenceRequestId}/documents/{documentId}/download
   -> existing Quotes.Underwrite policy
+  -> document scan_status must be Clean
 ```
 
-This keeps the workflow realistic for cyber underwriting while still deferring production S3 provisioning, durable download audit, virus scanning, OCR, embeddings, RAG, notification inboxes, scheduled reminder automation, and autonomous AI document review to separate milestones.
+If an authorized caller asks to download a pending, rejected, or failed document, the API returns a safe conflict response and does not stream the stored bytes. Underwriters also cannot accept responded evidence when any attached document is not clean. Owners can upload replacement evidence for responded requests with rejected or failed documents; the replacement upload appends new scanned document rows and keeps the original rejected/failed rows as audit evidence.
+
+This keeps the workflow realistic for cyber underwriting while still deferring production S3 provisioning, AWS GuardDuty/EventBridge wiring, durable download audit, OCR, embeddings, RAG, notification inboxes, scheduled reminder automation, autonomous AI document review, legal hold, and a full malware analyst console to separate milestones.
 
 These tables are separate from `quotes` because they answer operational questions instead of quote-term questions:
 

@@ -126,6 +126,13 @@ export type QuoteEvidenceDocument = {
   sizeBytes: number;
   uploadedByUserId: string;
   uploadedAtUtc: string;
+  scanStatus: string;
+  scannerProviderName: string | null;
+  scanResultCode: string | null;
+  scanResultReason: string | null;
+  scannedAtUtc: string | null;
+  sha256: string | null;
+  isDownloadAvailable: boolean;
 };
 
 export type CreateQuoteEvidenceRequest = {

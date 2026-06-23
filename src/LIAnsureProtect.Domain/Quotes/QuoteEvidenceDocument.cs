@@ -26,6 +26,7 @@ public sealed class QuoteEvidenceDocument
         StorageKey = storageKey;
         UploadedByUserId = uploadedByUserId;
         UploadedAtUtc = uploadedAtUtc;
+        ScanStatus = EvidenceDocumentScanStatus.PendingScan;
     }
 
     private QuoteEvidenceDocument()
@@ -53,6 +54,20 @@ public sealed class QuoteEvidenceDocument
     public string UploadedByUserId { get; private set; } = string.Empty;
 
     public DateTime UploadedAtUtc { get; private set; }
+
+    public EvidenceDocumentScanStatus ScanStatus { get; private set; } = EvidenceDocumentScanStatus.PendingScan;
+
+    public string? ScannerProviderName { get; private set; }
+
+    public string? ScanResultCode { get; private set; }
+
+    public string? ScanResultReason { get; private set; }
+
+    public DateTime? ScannedAtUtc { get; private set; }
+
+    public string? Sha256 { get; private set; }
+
+    public bool IsDownloadAvailable => ScanStatus == EvidenceDocumentScanStatus.Clean;
 
     public static QuoteEvidenceDocument Create(
         Guid evidenceRequestId,
@@ -87,6 +102,25 @@ public sealed class QuoteEvidenceDocument
             uploadedAtUtc);
     }
 
+    public void RecordScanResult(
+        EvidenceDocumentScanStatus scanStatus,
+        string scannerProviderName,
+        string scanResultCode,
+        string scanResultReason,
+        string sha256,
+        DateTime scannedAtUtc)
+    {
+        if (scanStatus == EvidenceDocumentScanStatus.PendingScan)
+            throw new ArgumentException("Scan result must be clean, rejected, or failed.", nameof(scanStatus));
+
+        ScanStatus = scanStatus;
+        ScannerProviderName = ValidateRequired(scannerProviderName, nameof(scannerProviderName), "Scanner provider name is required.");
+        ScanResultCode = ValidateRequired(scanResultCode, nameof(scanResultCode), "Scan result code is required.");
+        ScanResultReason = ValidateRequired(scanResultReason, nameof(scanResultReason), "Scan result reason is required.");
+        Sha256 = ValidateSha256(sha256);
+        ScannedAtUtc = scannedAtUtc;
+    }
+
     private static void ValidateGuid(Guid value, string parameterName, string message)
     {
         if (value == Guid.Empty)
@@ -99,5 +133,14 @@ public sealed class QuoteEvidenceDocument
             throw new ArgumentException(message, parameterName);
 
         return value.Trim();
+    }
+
+    private static string ValidateSha256(string value)
+    {
+        var trimmed = ValidateRequired(value, nameof(value), "SHA-256 hash is required.");
+        if (trimmed.Length != 64 || trimmed.Any(character => !Uri.IsHexDigit(character)))
+            throw new ArgumentException("SHA-256 hash must be a 64-character hexadecimal value.", nameof(value));
+
+        return trimmed.ToLowerInvariant();
     }
 }

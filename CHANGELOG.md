@@ -292,3 +292,12 @@ The format follows simple milestone-based entries.
 - Milestone 27 implementation commit `ab2e801 feat: add evidence document storage foundation`.
 - Milestone 27 verification passed with local CI artifact `TestResults\local-ci-20260623-080954.zip`.
 - Milestone 27 closeout recommends `Milestone 28 - Evidence Document Security Screening Foundation`.
+- Milestone 28 - Evidence Document Security Screening Foundation implementation.
+- Application-owned `IEvidenceDocumentScanner` boundary for uploaded evidence document security screening.
+- Infrastructure local deterministic evidence document scanner for development and tests, with clean, rejected, and failed result paths.
+- PostgreSQL scan metadata on `quote_evidence_documents`: scan status, scanner provider name, scan result code, safe scan reason, scanned timestamp, and SHA-256 hash.
+- Fail-closed private evidence document downloads so only clean documents expose file bytes to owners or underwriters.
+- Underwriter evidence acceptance gating so responded evidence with pending, rejected, or failed documents cannot be accepted.
+- Owner replacement evidence upload route for responded evidence requests with rejected or failed documents, appending replacement files while preserving original rejected/failed metadata for audit.
+- Owner evidence page and underwriting workbench document status display with download links available only for clean documents.
+- Milestone 28 verification passed with local CI artifact `TestResults\local-ci-20260623-160248.zip`.

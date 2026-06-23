@@ -362,8 +362,8 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
         Customer and broker information requests
       </h2>
       <p className="mt-2 text-sm text-amber-100">
-        Request cyber-control evidence without collecting real files in this
-        milestone. Responses can include text and safe attachment metadata.
+        Request cyber-control evidence and review uploaded documents only after
+        security screening marks them clean.
       </p>
 
       <EvidenceSummary quote={quote} />
@@ -375,22 +375,43 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
           {(lastEvidenceResult.documents?.length ?? 0) > 0 && (
             <div className="mt-3">
               <p className="font-semibold">Submitted documents</p>
-              <ul className="mt-2 space-y-1">
+              <ul className="mt-2 space-y-2">
                 {lastEvidenceResult.documents?.map((document) => (
-                  <li key={document.documentId}>
-                    <a
-                      href={getUnderwritingEvidenceDocumentDownloadUrl(
-                        quote.quoteId,
-                        lastEvidenceResult.evidenceRequestId,
-                        document.documentId,
-                      )}
-                      className="font-semibold text-emerald-200 hover:text-white"
-                    >
-                      Download {document.originalFileName}
-                    </a>
+                  <li key={document.documentId} className="rounded-md border border-emerald-900 p-2">
+                    {document.isDownloadAvailable ? (
+                      <a
+                        href={getUnderwritingEvidenceDocumentDownloadUrl(
+                          quote.quoteId,
+                          lastEvidenceResult.evidenceRequestId,
+                          document.documentId,
+                        )}
+                        className="font-semibold text-emerald-200 hover:text-white"
+                      >
+                        Download {document.originalFileName}
+                      </a>
+                    ) : (
+                      <span className="font-semibold text-emerald-100">
+                        {document.originalFileName}
+                      </span>
+                    )}
                     <span className="ml-2 text-emerald-100/80">
                       {document.contentType} | {document.sizeBytes.toLocaleString()} bytes
                     </span>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <span className="rounded-md border border-cyan-700 px-2 py-1 text-xs font-semibold text-cyan-100">
+                        {document.scanStatus}
+                      </span>
+                      {document.scanResultReason && (
+                        <span className="text-xs text-emerald-100/80">
+                          {document.scanResultReason}
+                        </span>
+                      )}
+                    </div>
+                    {!document.isDownloadAvailable && (
+                      <p className="mt-1 text-xs text-amber-100">
+                        Download unavailable until security screening is clean.
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>

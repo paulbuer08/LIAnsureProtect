@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,11 +18,28 @@ vi.mock("@auth0/auth0-react", () => ({
 }));
 
 vi.mock("./features/underwriting/api/underwritingApi", () => ({
+  acceptQuoteEvidenceRequest: vi.fn(),
+  addQuoteReferralNote: vi.fn(),
+  addQuoteReferralTask: vi.fn(),
   adjustQuoteReferral: vi.fn(),
   approveQuoteReferral: vi.fn(),
+  assignQuoteReferralToMe: vi.fn(),
+  cancelQuoteEvidenceRequest: vi.fn(),
+  completeQuoteReferralTask: vi.fn(),
+  createQuoteEvidenceRequest: vi.fn(),
   declineQuoteReferral: vi.fn(),
+  followUpQuoteEvidenceRequest: vi.fn(),
   generateAiUnderwritingReview: vi.fn(),
+  getUnderwritingEvidenceDocumentDownloadUrl: (
+    quoteId: string,
+    evidenceRequestId: string,
+    documentId: string,
+  ) =>
+    `http://localhost:5223/api/v1/underwriting/quote-referrals/${quoteId}/evidence-requests/${evidenceRequestId}/documents/${documentId}/download`,
+  listQuoteReferralTimeline: vi.fn(),
   listQuoteReferrals: vi.fn(),
+  releaseQuoteReferralAssignment: vi.fn(),
+  triageQuoteReferralOperation: vi.fn(),
 }));
 
 function renderAppAt(path: string) {
@@ -63,6 +80,8 @@ describe("App routes", () => {
     expect(
       await screen.findByRole("heading", { name: "Underwriting workbench" }),
     ).toBeInTheDocument();
-    expect(listQuoteReferrals).toHaveBeenCalledWith("underwriter-token");
+    await waitFor(() =>
+      expect(listQuoteReferrals).toHaveBeenCalledWith("underwriter-token"),
+    );
   });
 });

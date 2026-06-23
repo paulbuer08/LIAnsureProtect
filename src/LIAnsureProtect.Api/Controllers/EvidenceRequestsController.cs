@@ -122,19 +122,75 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> DownloadDocument(
         Guid evidenceRequestId,
         Guid documentId,
         CancellationToken cancellationToken)
     {
-        var result = await sender.Send(
-            new DownloadOwnerEvidenceDocumentQuery(evidenceRequestId, documentId),
-            cancellationToken);
+        try
+        {
+            var result = await sender.Send(
+                new DownloadOwnerEvidenceDocumentQuery(evidenceRequestId, documentId),
+                cancellationToken);
 
-        return result is null
-            ? NotFound()
-            : File(result.Content, result.ContentType, result.OriginalFileName);
+            return result is null
+                ? NotFound()
+                : File(result.Content, result.ContentType, result.OriginalFileName);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Evidence document cannot be downloaded.",
+                exception.Message));
+        }
+    }
+
+    [HttpPost("{evidenceRequestId:guid}/documents")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<QuoteEvidenceRequestResult>> UploadReplacementDocuments(
+        Guid evidenceRequestId,
+        [FromForm] UploadReplacementEvidenceDocumentsFormRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new UploadReplacementEvidenceDocumentsCommand(
+                    evidenceRequestId,
+                    request.Attachments
+                        .Select(file => new EvidenceDocumentUpload(
+                            file.FileName,
+                            file.ContentType,
+                            file.Length,
+                            file.OpenReadStream()))
+                        .ToList()),
+                cancellationToken);
+
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Replacement evidence documents are invalid.",
+                exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Replacement evidence documents cannot be uploaded.",
+                exception.Message));
+        }
     }
 
     private static ProblemDetails CreateProblemDetails(
@@ -167,5 +223,10 @@ public sealed class RespondToEvidenceRequestFormRequest
 
     public string ResponseText { get; init; } = string.Empty;
 
+    public IReadOnlyCollection<IFormFile> Attachments { get; init; } = [];
+}
+
+public sealed class UploadReplacementEvidenceDocumentsFormRequest
+{
     public IReadOnlyCollection<IFormFile> Attachments { get; init; } = [];
 }
