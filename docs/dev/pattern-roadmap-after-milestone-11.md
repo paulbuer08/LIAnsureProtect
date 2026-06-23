@@ -901,6 +901,12 @@ Closeout result:
 
 ### Milestone 29 - Evidence Review Decision Audit Foundation
 
+Status:
+
+```text
+Started on branch codex/milestone-29-evidence-review-decision-audit-foundation from Milestone 28 closeout commit 72a5bad.
+```
+
 Recommended planning target:
 
 - Add an auditable underwriter evidence-review decision layer after security screening.

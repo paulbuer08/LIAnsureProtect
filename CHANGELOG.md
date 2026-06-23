@@ -303,3 +303,4 @@ The format follows simple milestone-based entries.
 - Milestone 28 implementation commit `0925877 feat: add evidence document security screening foundation`.
 - Milestone 28 verification passed with local CI artifact `TestResults\local-ci-20260623-160248.zip`.
 - Milestone 28 closeout recommends `Milestone 29 - Evidence Review Decision Audit Foundation`.
+- Milestone 29 - Evidence Review Decision Audit Foundation planning started on branch `codex/milestone-29-evidence-review-decision-audit-foundation`.

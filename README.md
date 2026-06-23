@@ -75,7 +75,7 @@ Milestone 27 is implemented locally as `Milestone 27 - Evidence Document Storage
 
 Milestone 28 is implemented locally as `Milestone 28 - Evidence Document Security Screening Foundation`. It adds a local quarantine-style security screening workflow for uploaded evidence documents: newly uploaded files are scanned through an Application-owned scanner boundary, scan status and SHA-256 metadata are persisted on `quote_evidence_documents`, only clean documents are downloadable or acceptable for underwriting evidence review, rejected or failed documents stay visible for audit, and owners can append replacement evidence without deleting the original rejected file. Full local CI passed with artifact `TestResults\local-ci-20260623-160248.zip`.
 
-The recommended next milestone is `Milestone 29 - Evidence Review Decision Audit Foundation`: add a narrow underwriter evidence-review audit workflow on top of clean evidence documents, so underwriters can record whether submitted evidence satisfies the request, why, and what remains unresolved without adding OCR, autonomous document review, or full document management.
+Milestone 29 has started locally as `Milestone 29 - Evidence Review Decision Audit Foundation`. The planning target is a narrow underwriter evidence-review audit workflow on top of clean evidence documents, so underwriters can record whether submitted evidence satisfies the request, why, and what remains unresolved without adding OCR, autonomous document review, or full document management.
 
 ## Local Run
 
