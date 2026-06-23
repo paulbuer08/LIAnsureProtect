@@ -20,6 +20,7 @@ internal static class OutboxNotificationMapper
             nameof(QuoteEvidenceRequestAcceptedDomainEvent) => MapEvidenceRequestAccepted(outboxMessage),
             nameof(QuoteEvidenceRequestCancelledDomainEvent) => MapEvidenceRequestCancelled(outboxMessage),
             nameof(QuoteEvidenceRequestFollowUpSentDomainEvent) => MapEvidenceRequestFollowUpSent(outboxMessage),
+            nameof(QuoteEvidenceRequestRemediationRequiredDomainEvent) => MapEvidenceRequestRemediationRequired(outboxMessage),
             _ => null
         };
     }
@@ -219,6 +220,32 @@ internal static class OutboxNotificationMapper
             });
     }
 
+    private static NotificationMessage MapEvidenceRequestRemediationRequired(OutboxMessage outboxMessage)
+    {
+        var domainEvent = Deserialize<QuoteEvidenceRequestRemediationRequiredDomainEvent>(outboxMessage);
+
+        return CreateEvidenceMessage(
+            outboxMessage,
+            NotificationMessageTypes.EvidenceRequestRemediationRequired,
+            NotificationAudiences.CustomerOrBroker,
+            domainEvent.OwnerUserId,
+            domainEvent.EvidenceRequestId,
+            domainEvent.QuoteId,
+            domainEvent.SubmissionId,
+            domainEvent.RequestedByUserId,
+            domainEvent.Category,
+            domainEvent.DueAtUtc,
+            domainEvent.OccurredAtUtc,
+            new Dictionary<string, string>
+            {
+                ["reviewedByUserId"] = domainEvent.ReviewedByUserId,
+                ["decision"] = domainEvent.Decision.ToString(),
+                ["reviewReason"] = domainEvent.ReviewReason,
+                ["remediationGuidance"] = domainEvent.RemediationGuidance,
+                ["actionRequired"] = "true"
+            });
+    }
+
     private static NotificationMessage CreateEvidenceMessage(
         OutboxMessage outboxMessage,
         string type,
@@ -245,6 +272,7 @@ internal static class OutboxNotificationMapper
                 NotificationMessageTypes.EvidenceRequestResponded => EvidenceRequestStatus.Responded.ToString(),
                 NotificationMessageTypes.EvidenceRequestAccepted => EvidenceRequestStatus.Accepted.ToString(),
                 NotificationMessageTypes.EvidenceRequestCancelled => EvidenceRequestStatus.Cancelled.ToString(),
+                NotificationMessageTypes.EvidenceRequestRemediationRequired => EvidenceRequestStatus.Responded.ToString(),
                 _ => EvidenceRequestStatus.Open.ToString()
             },
             ["dueAtUtc"] = dueAtUtc.ToString("O")

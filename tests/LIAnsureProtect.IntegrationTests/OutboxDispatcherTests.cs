@@ -264,6 +264,55 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Equal("underwriter-2", publishedMessage.Attributes["followedUpByUserId"]);
     }
 
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Publishes_Evidence_Remediation_Required_Notification_To_Owner()
+    {
+        var domainEvent = new QuoteEvidenceRequestRemediationRequiredDomainEvent(
+            Guid.Parse("c3d23aa4-c01f-4ff4-851c-bd4c26ce1635"),
+            Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
+            Guid.Parse("6d3f563f-595c-4ad6-90ef-5d7d75066763"),
+            "customer-1",
+            "underwriter-1",
+            "underwriter-2",
+            EvidenceRequestCategory.MultiFactorAuthentication,
+            EvidenceReviewDecisionStatus.NeedsClarification,
+            "The response does not confirm privileged account MFA scope.",
+            "Please confirm whether MFA applies to all administrator and service-owner accounts.",
+            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 22, 14, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            domainEvent,
+            new DateTime(2026, 6, 22, 14, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+
+        var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var savedMessage = await dbContext.OutboxMessages.SingleAsync(
+            message => message.Id == outboxMessage.Id,
+            TestContext.Current.CancellationToken);
+        var publishedMessage = Assert.Single(publisher.PublishedMessages);
+
+        Assert.Equal(1, processedCount);
+        Assert.Equal(NotificationMessageTypes.EvidenceRequestRemediationRequired, publishedMessage.Type);
+        Assert.Equal(NotificationAudiences.CustomerOrBroker, publishedMessage.Audience);
+        Assert.Equal("customer-1", publishedMessage.OwnerUserId);
+        Assert.Equal("evidence-request", publishedMessage.SubjectReferenceType);
+        Assert.Equal(domainEvent.EvidenceRequestId.ToString(), publishedMessage.SubjectReferenceId);
+        Assert.Equal("underwriter-1", publishedMessage.Attributes["requestedByUserId"]);
+        Assert.Equal("underwriter-2", publishedMessage.Attributes["reviewedByUserId"]);
+        Assert.Equal("NeedsClarification", publishedMessage.Attributes["decision"]);
+        Assert.Equal("The response does not confirm privileged account MFA scope.", publishedMessage.Attributes["reviewReason"]);
+        Assert.Equal("Please confirm whether MFA applies to all administrator and service-owner accounts.", publishedMessage.Attributes["remediationGuidance"]);
+        Assert.Equal("true", publishedMessage.Attributes["actionRequired"]);
+        Assert.Equal("local-provider-message-1", savedMessage.ProviderMessageId);
+        Assert.NotNull(savedMessage.ProcessedAtUtc);
+    }
+
     public void Dispose()
     {
         dbContext.Dispose();

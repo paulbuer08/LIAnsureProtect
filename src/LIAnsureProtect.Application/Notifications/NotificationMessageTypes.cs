@@ -12,4 +12,5 @@ public static class NotificationMessageTypes
     public const string EvidenceRequestAccepted = "evidence_request.accepted";
     public const string EvidenceRequestCancelled = "evidence_request.cancelled";
     public const string EvidenceRequestFollowUpSent = "evidence_request.follow_up_sent";
+    public const string EvidenceRequestRemediationRequired = "evidence_request.remediation_required";
 }

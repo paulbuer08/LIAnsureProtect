@@ -114,6 +114,9 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Equal(request.Id, domainEvent.EvidenceRequestId);
         Assert.Equal("customer-1", domainEvent.OwnerUserId);
         Assert.Equal("underwriter-1", domainEvent.AcceptedByUserId);
+        Assert.DoesNotContain(
+            request.DomainEvents,
+            domainEvent => domainEvent.GetType().Name == "QuoteEvidenceRequestRemediationRequiredDomainEvent");
     }
 
     [Fact]
@@ -166,6 +169,42 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Equal("underwriter-1", request.ReviewedByUserId);
         Assert.Equal(reviewedAtUtc, request.ReviewedAtUtc);
         Assert.Equal(reviewedAtUtc, request.UpdatedAtUtc);
+
+        var domainEvent = Assert.IsType<QuoteEvidenceRequestRemediationRequiredDomainEvent>(
+            request.DomainEvents.Last());
+        Assert.Equal(request.Id, domainEvent.EvidenceRequestId);
+        Assert.Equal(EvidenceReviewDecisionStatus.Insufficient, domainEvent.Decision);
+        Assert.Equal("Screenshot only covered email MFA and did not prove privileged account MFA.", domainEvent.ReviewReason);
+        Assert.Equal("Please upload privileged access MFA evidence or a signed control attestation.", domainEvent.RemediationGuidance);
+        Assert.Equal("underwriter-1", domainEvent.ReviewedByUserId);
+    }
+
+    [Fact]
+    public void RecordReviewDecision_records_clarification_decision_with_remediation_notification_event()
+    {
+        var request = CreateRespondedRequest();
+        var reviewedAtUtc = new DateTime(2026, 6, 22, 14, 0, 0, DateTimeKind.Utc);
+
+        request.RecordReviewDecision(
+            EvidenceReviewDecisionStatus.NeedsClarification,
+            "The response did not explain whether administrator accounts are covered.",
+            "Please clarify MFA scope for privileged accounts.",
+            "underwriter-1",
+            reviewedAtUtc);
+
+        var domainEvent = Assert.IsType<QuoteEvidenceRequestRemediationRequiredDomainEvent>(
+            request.DomainEvents.Last());
+        Assert.Equal(request.Id, domainEvent.EvidenceRequestId);
+        Assert.Equal(request.QuoteId, domainEvent.QuoteId);
+        Assert.Equal(request.SubmissionId, domainEvent.SubmissionId);
+        Assert.Equal("customer-1", domainEvent.OwnerUserId);
+        Assert.Equal("underwriter-1", domainEvent.RequestedByUserId);
+        Assert.Equal(EvidenceRequestCategory.MultiFactorAuthentication, domainEvent.Category);
+        Assert.Equal(EvidenceReviewDecisionStatus.NeedsClarification, domainEvent.Decision);
+        Assert.Equal("The response did not explain whether administrator accounts are covered.", domainEvent.ReviewReason);
+        Assert.Equal("Please clarify MFA scope for privileged accounts.", domainEvent.RemediationGuidance);
+        Assert.Equal("underwriter-1", domainEvent.ReviewedByUserId);
+        Assert.Equal(reviewedAtUtc, domainEvent.OccurredAtUtc);
     }
 
     [Fact]

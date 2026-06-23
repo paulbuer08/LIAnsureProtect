@@ -77,7 +77,7 @@ Milestone 28 is implemented locally as `Milestone 28 - Evidence Document Securit
 
 Milestone 29 is complete as `Milestone 29 - Evidence Review Decision Audit Foundation`. It adds human-owned evidence sufficiency review after document security screening: underwriters can record `Satisfied`, `Insufficient`, or `NeedsClarification` decisions with rationale, owner remediation guidance, reviewer metadata, referral timeline entries, and append-only audit rows that snapshot the trusted document count at review time. Owners can submit supplemental evidence after unfavorable review decisions, while pending, rejected, or failed documents remain blocked from trusted review. OCR, autonomous AI evidence review, embeddings/RAG, legal hold, policy binding, and final quote approval automation remain out of scope. Full local CI passed with artifact `TestResults\local-ci-20260623-173225.zip`.
 
-Milestone 30 has started locally as `Milestone 30 - Evidence Review Outcome Notification Foundation`. The planning target is to notify customer/broker owners when evidence review outcomes require remediation, especially `Insufficient` and `NeedsClarification`, by reusing the existing outbox-backed local notification foundation without adding production email/SMS delivery, notification preferences, messaging threads, OCR, AI evidence review, policy binding, or final quote approval automation.
+Milestone 30 is implemented locally as `Milestone 30 - Evidence Review Outcome Notification Foundation`. It adds an unfavorable evidence review outcome notification path: `Insufficient` and `NeedsClarification` decisions raise an outbox-backed remediation-required domain event that maps to a customer/broker local notification with safe action-oriented attributes. `Satisfied` evidence remains on the existing accepted-evidence notification path. Production email/SMS delivery, notification preferences, messaging threads, OCR, AI evidence review, policy binding, and final quote approval automation remain out of scope. Full local CI passed with artifact `TestResults\local-ci-20260623-185058.zip`.
 
 ## Local Run
 
@@ -146,6 +146,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 27 Evidence Document Storage Foundation Learnings](docs/dev/milestone-27-evidence-document-storage-foundation-learnings.md)
 - [Milestone 28 Evidence Document Security Screening Foundation Learnings](docs/dev/milestone-28-evidence-document-security-screening-foundation-learnings.md)
 - [Milestone 29 Evidence Review Decision Audit Foundation Learnings](docs/dev/milestone-29-evidence-review-decision-audit-foundation-learnings.md)
+- [Milestone 30 Evidence Review Outcome Notification Foundation Learnings](docs/dev/milestone-30-evidence-review-outcome-notification-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)

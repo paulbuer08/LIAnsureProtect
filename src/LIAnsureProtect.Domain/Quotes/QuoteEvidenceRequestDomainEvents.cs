@@ -55,3 +55,17 @@ public sealed record QuoteEvidenceRequestFollowUpSentDomainEvent(
     EvidenceRequestCategory Category,
     DateTime DueAtUtc,
     DateTime OccurredAtUtc) : IDomainEvent;
+
+public sealed record QuoteEvidenceRequestRemediationRequiredDomainEvent(
+    Guid EvidenceRequestId,
+    Guid QuoteId,
+    Guid SubmissionId,
+    string OwnerUserId,
+    string RequestedByUserId,
+    string ReviewedByUserId,
+    EvidenceRequestCategory Category,
+    EvidenceReviewDecisionStatus Decision,
+    string ReviewReason,
+    string RemediationGuidance,
+    DateTime DueAtUtc,
+    DateTime OccurredAtUtc) : IDomainEvent;

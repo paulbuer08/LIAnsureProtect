@@ -287,6 +287,20 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         ReviewDecision = decision;
         ReviewedAtUtc = reviewedAtUtc;
         UpdatedAtUtc = reviewedAtUtc;
+
+        domainEvents.Add(new QuoteEvidenceRequestRemediationRequiredDomainEvent(
+            Id,
+            QuoteId,
+            SubmissionId,
+            OwnerUserId,
+            RequestedByUserId,
+            ReviewedByUserId,
+            Category,
+            ReviewDecision,
+            ReviewReason,
+            RemediationGuidance,
+            DueAtUtc,
+            reviewedAtUtc));
     }
 
     public void ClearDomainEvents()

@@ -409,12 +409,21 @@ public sealed class UnderwritingReferralEndpointTests
         var review = await dbContext.Set<QuoteEvidenceRequestReview>().SingleAsync(
             saved => saved.EvidenceRequestId == evidenceRequest.Id,
             TestContext.Current.CancellationToken);
+        var outboxMessage = await dbContext.Set<OutboxMessage>().SingleAsync(
+            message => message.Type == "QuoteEvidenceRequestRemediationRequiredDomainEvent",
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(EvidenceReviewDecisionStatus.NeedsClarification, savedRequest.ReviewDecision);
         Assert.Equal("underwriter-2", savedRequest.ReviewedByUserId);
         Assert.Equal(EvidenceReviewDecisionStatus.NeedsClarification, review.Decision);
         Assert.Equal(0, review.DocumentCount);
         Assert.Equal(0, review.CleanDocumentCount);
+        Assert.Contains(evidenceRequest.Id.ToString(), outboxMessage.Payload);
+        Assert.Contains("Please confirm whether MFA applies to all administrator and service-owner accounts.", outboxMessage.Payload);
+        using var outboxPayload = JsonDocument.Parse(outboxMessage.Payload);
+        Assert.Equal(
+            (int)EvidenceReviewDecisionStatus.NeedsClarification,
+            outboxPayload.RootElement.GetProperty("Decision").GetInt32());
     }
 
     [Fact]

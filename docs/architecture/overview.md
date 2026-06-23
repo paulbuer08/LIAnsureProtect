@@ -373,6 +373,7 @@ Current notification event coverage:
 - `QuoteEvidenceRequestRespondedDomainEvent` maps to an underwriting-operations evidence-response notification.
 - `QuoteEvidenceRequestAcceptedDomainEvent` and `QuoteEvidenceRequestCancelledDomainEvent` map to customer/broker evidence-review outcome notifications.
 - `QuoteEvidenceRequestFollowUpSentDomainEvent` maps to a customer/broker evidence follow-up reminder notification.
+- `QuoteEvidenceRequestRemediationRequiredDomainEvent` maps to a customer/broker remediation-required notification for `Insufficient` and `NeedsClarification` review outcomes.
 
 The Worker flow is:
 
@@ -935,6 +936,7 @@ POST /api/v1/underwriting/quote-referrals/{quoteId}/evidence-requests/{evidenceR
   -> current review fields are updated on quote_evidence_requests
   -> append-only quote_evidence_request_reviews row is inserted
   -> referral timeline records EvidenceRequestReviewDecisionRecorded
+  -> unfavorable outcomes also write a remediation-required event to outbox_messages
 ```
 
 The current review state lives on `quote_evidence_requests` because the workbench and owner evidence page need a fast answer to "what is the latest review outcome?" The append-only audit table preserves "what did the underwriter decide at that moment, and what trusted evidence count existed then?"
@@ -956,7 +958,9 @@ quote_evidence_request_reviews
   clean_document_count
 ```
 
-`Satisfied` maps to the existing accepted evidence lifecycle. `Insufficient` and `NeedsClarification` keep the request visible and respondable for the owner. A supplemental owner response clears the current review decision back to `NotReviewed`, but prior review rows remain immutable audit evidence.
+`Satisfied` maps to the existing accepted evidence lifecycle. `Insufficient` and `NeedsClarification` keep the request visible and respondable for the owner. They also raise `QuoteEvidenceRequestRemediationRequiredDomainEvent`, which the local outbox dispatcher maps to an `evidence_request.remediation_required` notification for the customer/broker owner. A supplemental owner response clears the current review decision back to `NotReviewed`, but prior review rows remain immutable audit evidence.
+
+The remediation notification is action-oriented but still safe for a local audit trail. It carries workflow identifiers, category, decision, review reason, remediation guidance, requested-by user id, reviewed-by user id, due date, and `actionRequired=true`. It does not carry document content, storage keys, raw file bytes, production delivery details, notification preferences, or messaging-thread data.
 
 This keeps the workflow realistic for cyber underwriting while still deferring production S3 provisioning, AWS GuardDuty/EventBridge wiring, durable download audit, OCR, embeddings, RAG, notification inboxes, scheduled reminder automation, autonomous AI document review, legal hold, policy binding, final quote approval automation, multi-reviewer approval chains, and a full malware analyst console to separate milestones.
 

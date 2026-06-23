@@ -317,3 +317,9 @@ The format follows simple milestone-based entries.
 - Milestone 29 verification passed with local CI artifact `TestResults\local-ci-20260623-173225.zip`.
 - Milestone 29 closeout recommends `Milestone 30 - Evidence Review Outcome Notification Foundation`.
 - Milestone 30 - Evidence Review Outcome Notification Foundation planning started on branch `codex/milestone-30-evidence-review-outcome-notification-foundation`.
+- Milestone 30 - Evidence Review Outcome Notification Foundation implementation.
+- `QuoteEvidenceRequestRemediationRequiredDomainEvent` for unfavorable evidence review outcomes that require owner remediation.
+- Local notification mapping for `evidence_request.remediation_required`, routed to the customer/broker owner audience through the existing outbox dispatcher.
+- Action-oriented remediation notification attributes for evidence request id, quote id, submission id, category, decision, review reason, remediation guidance, requested-by user id, reviewed-by user id, due date, and action-required status.
+- Existing `Satisfied` evidence review behavior preserved on the accepted-evidence notification path.
+- Milestone 30 verification passed with local CI artifact `TestResults\local-ci-20260623-185058.zip`.
