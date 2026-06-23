@@ -58,6 +58,13 @@ public sealed class ListQuoteReferralsQueryHandler(IQuoteRepository quoteReposit
         return new QuoteReferralEvidenceSummaryResult(
             openRequests.Count,
             evidenceRequests.Count(request => request.Status == EvidenceRequestStatus.Responded),
+            evidenceRequests.Count(request =>
+                request.Status == EvidenceRequestStatus.Responded
+                && request.ReviewDecision == EvidenceReviewDecisionStatus.NotReviewed),
+            evidenceRequests.Count(request => request.ReviewDecision == EvidenceReviewDecisionStatus.Satisfied),
+            evidenceRequests.Count(request =>
+                request.ReviewDecision is EvidenceReviewDecisionStatus.Insufficient
+                    or EvidenceReviewDecisionStatus.NeedsClarification),
             openRequests.Count(request => request.DueAtUtc < DateTime.UtcNow),
             openRequests
                 .OrderBy(request => request.DueAtUtc)

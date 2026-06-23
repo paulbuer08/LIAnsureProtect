@@ -40,6 +40,13 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         await dbContext.QuoteEvidenceDocuments.AddRangeAsync(evidenceDocuments, cancellationToken);
     }
 
+    public async Task AddEvidenceRequestReviewAsync(
+        QuoteEvidenceRequestReview review,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.QuoteEvidenceRequestReviews.AddAsync(review, cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken)
     {
         return await dbContext.Quotes

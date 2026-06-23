@@ -17,6 +17,7 @@ import {
   useFollowUpQuoteEvidenceRequest,
   useGenerateAiUnderwritingReview,
   useQuoteReferralTimeline,
+  useRecordQuoteEvidenceReviewDecision,
   useReleaseQuoteReferralAssignment,
   useTriageQuoteReferralOperation,
 } from "../hooks/useUnderwritingActions";
@@ -257,6 +258,30 @@ function EvidenceSummary({ quote }: { quote: QuoteReferral }) {
         </dd>
       </div>
       <div>
+        <dt className="text-slate-400">Unreviewed responses</dt>
+        <dd className="font-medium text-white">
+          {evidence.unreviewedRespondedRequestCount === 1
+            ? "1 unreviewed evidence response"
+            : `${evidence.unreviewedRespondedRequestCount} unreviewed evidence responses`}
+        </dd>
+      </div>
+      <div>
+        <dt className="text-slate-400">Satisfied evidence</dt>
+        <dd className="font-medium text-emerald-200">
+          {evidence.satisfiedRequestCount === 1
+            ? "1 satisfied evidence request"
+            : `${evidence.satisfiedRequestCount} satisfied evidence requests`}
+        </dd>
+      </div>
+      <div>
+        <dt className="text-slate-400">Needs follow-up</dt>
+        <dd className={evidence.needsAttentionRequestCount > 0 ? "font-medium text-amber-200" : "font-medium text-emerald-200"}>
+          {evidence.needsAttentionRequestCount === 1
+            ? "1 evidence request needs attention"
+            : `${evidence.needsAttentionRequestCount} evidence requests need attention`}
+        </dd>
+      </div>
+      <div>
         <dt className="text-slate-400">Overdue evidence</dt>
         <dd className={evidence.overdueRequestCount > 0 ? "font-medium text-red-200" : "font-medium text-emerald-200"}>
           {evidence.overdueRequestCount === 1
@@ -295,6 +320,7 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
   const acceptEvidenceRequest = useAcceptQuoteEvidenceRequest();
   const cancelEvidenceRequest = useCancelQuoteEvidenceRequest();
   const followUpEvidenceRequest = useFollowUpQuoteEvidenceRequest();
+  const recordEvidenceReviewDecision = useRecordQuoteEvidenceReviewDecision();
   const [category, setCategory] = useState("MultiFactorAuthentication");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -303,12 +329,16 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
   );
   const [evidenceRequestId, setEvidenceRequestId] = useState("");
   const [reviewNotes, setReviewNotes] = useState("");
+  const [reviewDecision, setReviewDecision] = useState("Satisfied");
+  const [reviewReason, setReviewReason] = useState("");
+  const [remediationGuidance, setRemediationGuidance] = useState("");
   const [lastEvidenceResult, setLastEvidenceResult] = useState<QuoteEvidenceRequest>();
   const evidenceError =
     createEvidenceRequest.error ??
     acceptEvidenceRequest.error ??
     cancelEvidenceRequest.error ??
-    followUpEvidenceRequest.error;
+    followUpEvidenceRequest.error ??
+    recordEvidenceReviewDecision.error;
 
   async function handleCreateEvidenceRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -353,6 +383,22 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
     setLastEvidenceResult(result);
   }
 
+  async function handleRecordEvidenceDecision() {
+    const result = await recordEvidenceReviewDecision.mutateAsync({
+      quoteId: quote.quoteId,
+      evidenceRequestId: evidenceRequestId.trim(),
+      request: {
+        decision: reviewDecision,
+        reason: reviewReason.trim(),
+        remediationGuidance:
+          remediationGuidance.trim().length > 0
+            ? remediationGuidance.trim()
+            : null,
+      },
+    });
+    setLastEvidenceResult(result);
+  }
+
   return (
     <section className="rounded-lg border border-amber-900 bg-amber-950/25 p-5">
       <p className="text-sm font-semibold uppercase tracking-wide text-amber-300">
@@ -372,6 +418,21 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
         <div className="mt-4 rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm text-emerald-100">
           <p className="font-semibold">Evidence request saved: {lastEvidenceResult.status}</p>
           <p className="mt-1">{formatEvidenceDueLabel(lastEvidenceResult.daysUntilDue)}</p>
+          {lastEvidenceResult.reviewDecision !== "NotReviewed" && (
+            <>
+              <p className="mt-2 font-semibold">
+                Evidence decision saved: {lastEvidenceResult.reviewDecision}
+              </p>
+              {lastEvidenceResult.reviewReason && (
+                <p className="mt-1">Reason: {lastEvidenceResult.reviewReason}</p>
+              )}
+              {lastEvidenceResult.remediationGuidance && (
+                <p className="mt-1">
+                  Remediation guidance: {lastEvidenceResult.remediationGuidance}
+                </p>
+              )}
+            </>
+          )}
           {(lastEvidenceResult.documents?.length ?? 0) > 0 && (
             <div className="mt-3">
               <p className="font-semibold">Submitted documents</p>
@@ -491,10 +552,39 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
           value={reviewNotes}
           onChange={setReviewNotes}
         />
+        <label className="block text-sm font-medium text-slate-200">
+          Evidence review decision
+          <select
+            value={reviewDecision}
+            onChange={(event) => setReviewDecision(event.target.value)}
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
+          >
+            <option value="Satisfied">Satisfied</option>
+            <option value="Insufficient">Insufficient</option>
+            <option value="NeedsClarification">Needs clarification</option>
+          </select>
+        </label>
+        <ReviewTextField
+          label="Evidence review reason"
+          value={reviewReason}
+          onChange={setReviewReason}
+        />
+        <ReviewTextField
+          label="Owner remediation guidance"
+          value={remediationGuidance}
+          onChange={setRemediationGuidance}
+        />
         <div className="flex flex-wrap gap-3">
           <button
-            type="submit"
+            type="button"
+            onClick={() => void handleRecordEvidenceDecision()}
             className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300"
+          >
+            Record evidence decision
+          </button>
+          <button
+            type="submit"
+            className="rounded-lg border border-emerald-400 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-950"
           >
             Accept evidence
           </button>

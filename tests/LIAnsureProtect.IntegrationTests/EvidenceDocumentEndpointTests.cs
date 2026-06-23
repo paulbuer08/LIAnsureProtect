@@ -317,6 +317,42 @@ public sealed class EvidenceDocumentEndpointTests
     }
 
     [Fact]
+    public async Task Underwriter_Cannot_Record_Evidence_Review_Decision_When_Documents_Are_Not_All_Clean()
+    {
+        var (quote, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");
+        using var responseRequest = CreateAuthenticatedMultipartResponse(
+            evidenceRequest.Id,
+            "Customer",
+            "customer-1",
+            [
+                new EvidenceFile(
+                    "rejected-evidence.txt",
+                    "text/plain",
+                    "This local test file contains MALWARE-TEST-SIGNAL.")
+            ]);
+        using var uploadResponse = await httpClient.SendAsync(responseRequest, TestContext.Current.CancellationToken);
+
+        using var reviewRequest = CreateAuthenticatedJsonRequest(
+            HttpMethod.Post,
+            $"/api/v1/underwriting/quote-referrals/{quote.Id}/evidence-requests/{evidenceRequest.Id}/review-decision",
+            "Underwriter",
+            "underwriter-1",
+            """
+            {
+              "decision": "NeedsClarification",
+              "reason": "The uploaded evidence cannot be reviewed while the document scan is rejected.",
+              "remediationGuidance": "Please upload a clean replacement evidence document."
+            }
+            """);
+        using var reviewResponse = await httpClient.SendAsync(reviewRequest, TestContext.Current.CancellationToken);
+        var reviewContent = await reviewResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, reviewResponse.StatusCode);
+        Assert.Contains("Only clean evidence documents can support a review decision.", reviewContent);
+    }
+
+    [Fact]
     public async Task Owner_Can_Upload_Replacement_Documents_When_Previous_Scan_Rejected_Or_Failed()
     {
         var (_, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");

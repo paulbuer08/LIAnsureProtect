@@ -75,7 +75,7 @@ Milestone 27 is implemented locally as `Milestone 27 - Evidence Document Storage
 
 Milestone 28 is implemented locally as `Milestone 28 - Evidence Document Security Screening Foundation`. It adds a local quarantine-style security screening workflow for uploaded evidence documents: newly uploaded files are scanned through an Application-owned scanner boundary, scan status and SHA-256 metadata are persisted on `quote_evidence_documents`, only clean documents are downloadable or acceptable for underwriting evidence review, rejected or failed documents stay visible for audit, and owners can append replacement evidence without deleting the original rejected file. Full local CI passed with artifact `TestResults\local-ci-20260623-160248.zip`.
 
-Milestone 29 has started locally as `Milestone 29 - Evidence Review Decision Audit Foundation`. The planning target is a narrow underwriter evidence-review audit workflow on top of clean evidence documents, so underwriters can record whether submitted evidence satisfies the request, why, and what remains unresolved without adding OCR, autonomous document review, or full document management.
+Milestone 29 is implemented locally as `Milestone 29 - Evidence Review Decision Audit Foundation`. It adds human-owned evidence sufficiency review after document security screening: underwriters can record `Satisfied`, `Insufficient`, or `NeedsClarification` decisions with rationale, owner remediation guidance, reviewer metadata, referral timeline entries, and append-only audit rows that snapshot the trusted document count at review time. Owners can submit supplemental evidence after unfavorable review decisions, while pending, rejected, or failed documents remain blocked from trusted review. OCR, autonomous AI evidence review, embeddings/RAG, legal hold, policy binding, and final quote approval automation remain out of scope. Full local CI passed with artifact `TestResults\local-ci-20260623-173225.zip`.
 
 ## Local Run
 
@@ -143,6 +143,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 26 Evidence Request Notification and Follow-up Foundation Learnings](docs/dev/milestone-26-evidence-request-notification-follow-up-foundation-learnings.md)
 - [Milestone 27 Evidence Document Storage Foundation Learnings](docs/dev/milestone-27-evidence-document-storage-foundation-learnings.md)
 - [Milestone 28 Evidence Document Security Screening Foundation Learnings](docs/dev/milestone-28-evidence-document-security-screening-foundation-learnings.md)
+- [Milestone 29 Evidence Review Decision Audit Foundation Learnings](docs/dev/milestone-29-evidence-review-decision-audit-foundation-learnings.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)

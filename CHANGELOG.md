@@ -304,3 +304,13 @@ The format follows simple milestone-based entries.
 - Milestone 28 verification passed with local CI artifact `TestResults\local-ci-20260623-160248.zip`.
 - Milestone 28 closeout recommends `Milestone 29 - Evidence Review Decision Audit Foundation`.
 - Milestone 29 - Evidence Review Decision Audit Foundation planning started on branch `codex/milestone-29-evidence-review-decision-audit-foundation`.
+- Milestone 29 - Evidence Review Decision Audit Foundation implementation.
+- Current evidence review state on `quote_evidence_requests` with `NotReviewed`, `Satisfied`, `Insufficient`, and `NeedsClarification` decisions, reason text, owner remediation guidance, reviewer user id, and reviewed timestamp.
+- PostgreSQL-backed `quote_evidence_request_reviews` append-only audit history that snapshots the evidence request, quote, submission, owner, category, decision, reason, remediation guidance, reviewer, timestamp, document count, and clean document count at review time.
+- Underwriter-only `POST /api/v1/underwriting/quote-referrals/{quoteId}/evidence-requests/{evidenceRequestId}/review-decision` endpoint for recording human evidence sufficiency decisions.
+- Existing `/accept` evidence endpoint kept as a compatibility path that records a `Satisfied` review decision and preserves existing accepted evidence notification behavior.
+- Clean-document review gate preserved so document-backed review decisions require every attached document to be `Clean`; pending, rejected, and failed documents cannot support trusted evidence review.
+- Owner supplemental evidence path after `Insufficient` or `NeedsClarification`, resetting current review state to `NotReviewed` while preserving prior audit rows.
+- Underwriting workbench evidence review decision controls, unreviewed/satisfied/follow-up evidence summary counts, and owner evidence page review outcome/remediation display.
+- Referral timeline entries for evidence review decisions.
+- Milestone 29 verification passed with local CI artifact `TestResults\local-ci-20260623-173225.zip`.

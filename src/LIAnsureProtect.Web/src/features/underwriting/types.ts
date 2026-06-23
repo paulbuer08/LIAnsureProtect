@@ -32,6 +32,9 @@ export type QuoteReferralOperationsSummary = {
 export type QuoteReferralEvidenceSummary = {
   openRequestCount: number;
   respondedRequestCount: number;
+  unreviewedRespondedRequestCount: number;
+  satisfiedRequestCount: number;
+  needsAttentionRequestCount: number;
   overdueRequestCount: number;
   nextOpenDueAtUtc: string | null;
   isWaitingForInformation: boolean;
@@ -114,6 +117,11 @@ export type QuoteEvidenceRequest = {
   acceptedAtUtc: string | null;
   cancelledByUserId: string | null;
   cancelledAtUtc: string | null;
+  reviewDecision: string;
+  reviewReason: string | null;
+  remediationGuidance: string | null;
+  reviewedByUserId: string | null;
+  reviewedAtUtc: string | null;
   reviewNotes: string | null;
   updatedAtUtc: string;
   documents?: QuoteEvidenceDocument[];
@@ -144,6 +152,12 @@ export type CreateQuoteEvidenceRequest = {
 
 export type ReviewQuoteEvidenceRequest = {
   reviewNotes?: string | null;
+};
+
+export type RecordQuoteEvidenceReviewDecisionRequest = {
+  decision: string;
+  reason: string;
+  remediationGuidance?: string | null;
 };
 
 export type AiUnderwritingReviewResponse = {

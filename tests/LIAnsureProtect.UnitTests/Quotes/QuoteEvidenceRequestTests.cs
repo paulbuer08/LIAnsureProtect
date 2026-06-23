@@ -23,6 +23,11 @@ public sealed class QuoteEvidenceRequestTests
             requestedAtUtc: requestedAtUtc);
 
         Assert.Equal(EvidenceRequestStatus.Open, request.Status);
+        Assert.Equal(EvidenceReviewDecisionStatus.NotReviewed, request.ReviewDecision);
+        Assert.Null(request.ReviewReason);
+        Assert.Null(request.RemediationGuidance);
+        Assert.Null(request.ReviewedByUserId);
+        Assert.Null(request.ReviewedAtUtc);
         Assert.Equal(EvidenceRequestCategory.MultiFactorAuthentication, request.Category);
         Assert.Equal("Confirm MFA rollout", request.Title);
         Assert.Equal("customer-1", request.OwnerUserId);
@@ -67,6 +72,7 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Equal(124_000, request.AttachmentSizeBytes);
         Assert.Equal(respondedAtUtc, request.RespondedAtUtc);
         Assert.Null(request.AcceptedAtUtc);
+        Assert.Equal(EvidenceReviewDecisionStatus.NotReviewed, request.ReviewDecision);
 
         var domainEvent = Assert.IsType<QuoteEvidenceRequestRespondedDomainEvent>(
             request.DomainEvents.Last());
@@ -97,6 +103,11 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Equal("underwriter-1", request.AcceptedByUserId);
         Assert.Equal("Evidence is sufficient for MFA review.", request.ReviewNotes);
         Assert.Equal(acceptedAtUtc, request.AcceptedAtUtc);
+        Assert.Equal(EvidenceReviewDecisionStatus.Satisfied, request.ReviewDecision);
+        Assert.Equal("Evidence is sufficient for MFA review.", request.ReviewReason);
+        Assert.Null(request.RemediationGuidance);
+        Assert.Equal("underwriter-1", request.ReviewedByUserId);
+        Assert.Equal(acceptedAtUtc, request.ReviewedAtUtc);
 
         var domainEvent = Assert.IsType<QuoteEvidenceRequestAcceptedDomainEvent>(
             request.DomainEvents.Last());
@@ -136,6 +147,90 @@ public sealed class QuoteEvidenceRequestTests
     }
 
     [Fact]
+    public void RecordReviewDecision_records_insufficient_decision_with_owner_remediation_guidance()
+    {
+        var request = CreateRespondedRequest();
+        var reviewedAtUtc = new DateTime(2026, 6, 22, 14, 0, 0, DateTimeKind.Utc);
+
+        request.RecordReviewDecision(
+            EvidenceReviewDecisionStatus.Insufficient,
+            "Screenshot only covered email MFA and did not prove privileged account MFA.",
+            "Please upload privileged access MFA evidence or a signed control attestation.",
+            "underwriter-1",
+            reviewedAtUtc);
+
+        Assert.Equal(EvidenceRequestStatus.Responded, request.Status);
+        Assert.Equal(EvidenceReviewDecisionStatus.Insufficient, request.ReviewDecision);
+        Assert.Equal("Screenshot only covered email MFA and did not prove privileged account MFA.", request.ReviewReason);
+        Assert.Equal("Please upload privileged access MFA evidence or a signed control attestation.", request.RemediationGuidance);
+        Assert.Equal("underwriter-1", request.ReviewedByUserId);
+        Assert.Equal(reviewedAtUtc, request.ReviewedAtUtc);
+        Assert.Equal(reviewedAtUtc, request.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void RecordReviewDecision_requires_responded_request()
+    {
+        var request = CreateRequest();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            request.RecordReviewDecision(
+                EvidenceReviewDecisionStatus.NeedsClarification,
+                "The response needs clarification.",
+                "Please explain whether MFA applies to administrators.",
+                "underwriter-1",
+                new DateTime(2026, 6, 22, 14, 0, 0, DateTimeKind.Utc)));
+
+        Assert.Equal("Only responded evidence requests can receive review decisions.", exception.Message);
+    }
+
+    [Fact]
+    public void RecordReviewDecision_requires_remediation_guidance_for_unfavorable_decisions()
+    {
+        var request = CreateRespondedRequest();
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            request.RecordReviewDecision(
+                EvidenceReviewDecisionStatus.NeedsClarification,
+                "The response is ambiguous.",
+                null,
+                "underwriter-1",
+                new DateTime(2026, 6, 22, 14, 0, 0, DateTimeKind.Utc)));
+
+        Assert.Equal("Remediation guidance is required for insufficient or clarification-needed evidence.", exception.Message);
+    }
+
+    [Fact]
+    public void Supplemental_response_after_unfavorable_review_resets_current_review_state()
+    {
+        var request = CreateRespondedRequest();
+        request.RecordReviewDecision(
+            EvidenceReviewDecisionStatus.NeedsClarification,
+            "The response did not explain whether admin accounts are covered.",
+            "Please clarify MFA scope for privileged accounts.",
+            "underwriter-1",
+            new DateTime(2026, 6, 22, 14, 0, 0, DateTimeKind.Utc));
+
+        request.Respond(
+            "customer-1",
+            "Jane Applicant",
+            "CISO",
+            "Supplemental response: MFA is enforced for email and all privileged accounts.",
+            null,
+            null,
+            null,
+            new DateTime(2026, 6, 22, 15, 0, 0, DateTimeKind.Utc));
+
+        Assert.Equal(EvidenceRequestStatus.Responded, request.Status);
+        Assert.Equal(EvidenceReviewDecisionStatus.NotReviewed, request.ReviewDecision);
+        Assert.Null(request.ReviewReason);
+        Assert.Null(request.RemediationGuidance);
+        Assert.Null(request.ReviewedByUserId);
+        Assert.Null(request.ReviewedAtUtc);
+        Assert.Equal("Supplemental response: MFA is enforced for email and all privileged accounts.", request.ResponseText);
+    }
+
+    [Fact]
     public void RecordFollowUpSent_requires_open_request_and_records_notification_event()
     {
         var request = CreateRequest();
@@ -166,6 +261,22 @@ public sealed class QuoteEvidenceRequestTests
                 new DateTime(2026, 6, 26, 9, 0, 0, DateTimeKind.Utc)));
 
         Assert.Equal("Only open evidence requests can receive follow-up reminders.", exception.Message);
+    }
+
+    private static QuoteEvidenceRequest CreateRespondedRequest()
+    {
+        var request = CreateRequest();
+        request.Respond(
+            "customer-1",
+            "Jane Applicant",
+            "CISO",
+            "MFA rollout evidence attached.",
+            "mfa-attestation.pdf",
+            "application/pdf",
+            124_000,
+            new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc));
+
+        return request;
     }
 
     private static QuoteEvidenceRequest CreateRequest()

@@ -32,6 +32,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         RequestedAtUtc = requestedAtUtc;
         UpdatedAtUtc = requestedAtUtc;
         Status = EvidenceRequestStatus.Open;
+        ReviewDecision = EvidenceReviewDecisionStatus.NotReviewed;
     }
 
     private QuoteEvidenceRequest()
@@ -87,6 +88,16 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
     public DateTime? CancelledAtUtc { get; private set; }
 
     public string? ReviewNotes { get; private set; }
+
+    public EvidenceReviewDecisionStatus ReviewDecision { get; private set; } = EvidenceReviewDecisionStatus.NotReviewed;
+
+    public string? ReviewReason { get; private set; }
+
+    public string? RemediationGuidance { get; private set; }
+
+    public string? ReviewedByUserId { get; private set; }
+
+    public DateTime? ReviewedAtUtc { get; private set; }
 
     public DateTime UpdatedAtUtc { get; private set; }
 
@@ -151,7 +162,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         long? attachmentSizeBytes,
         DateTime respondedAtUtc)
     {
-        EnsureOpen();
+        EnsureCanRespond();
 
         RespondedByUserId = ValidateRequired(respondedByUserId, nameof(respondedByUserId), "Responded-by user id is required.");
         RespondentName = ValidateRequired(respondentName, nameof(respondentName), "Respondent name is required.");
@@ -167,6 +178,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         RespondedAtUtc = respondedAtUtc;
         UpdatedAtUtc = respondedAtUtc;
         Status = EvidenceRequestStatus.Responded;
+        ResetReviewDecision();
 
         domainEvents.Add(new QuoteEvidenceRequestRespondedDomainEvent(
             Id,
@@ -190,6 +202,11 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         AcceptedAtUtc = acceptedAtUtc;
         UpdatedAtUtc = acceptedAtUtc;
         Status = EvidenceRequestStatus.Accepted;
+        ReviewDecision = EvidenceReviewDecisionStatus.Satisfied;
+        ReviewReason = ReviewNotes ?? "Evidence satisfied by underwriting review.";
+        RemediationGuidance = null;
+        ReviewedByUserId = AcceptedByUserId;
+        ReviewedAtUtc = acceptedAtUtc;
 
         domainEvents.Add(new QuoteEvidenceRequestAcceptedDomainEvent(
             Id,
@@ -248,6 +265,30 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             followedUpAtUtc));
     }
 
+    public void RecordReviewDecision(
+        EvidenceReviewDecisionStatus decision,
+        string reason,
+        string? remediationGuidance,
+        string reviewedByUserId,
+        DateTime reviewedAtUtc)
+    {
+        if (Status != EvidenceRequestStatus.Responded)
+            throw new InvalidOperationException("Only responded evidence requests can receive review decisions.");
+
+        if (decision is EvidenceReviewDecisionStatus.NotReviewed or EvidenceReviewDecisionStatus.Satisfied)
+            throw new InvalidOperationException("Use a specific unfavorable review decision for this workflow.");
+
+        ReviewReason = ValidateRequired(reason, nameof(reason), "Review reason is required.");
+        ReviewedByUserId = ValidateRequired(reviewedByUserId, nameof(reviewedByUserId), "Reviewed-by user id is required.");
+        RemediationGuidance = NormalizeOptional(remediationGuidance);
+        if (RemediationGuidance is null)
+            throw new ArgumentException("Remediation guidance is required for insufficient or clarification-needed evidence.");
+
+        ReviewDecision = decision;
+        ReviewedAtUtc = reviewedAtUtc;
+        UpdatedAtUtc = reviewedAtUtc;
+    }
+
     public void ClearDomainEvents()
     {
         domainEvents.Clear();
@@ -257,6 +298,20 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
     {
         if (Status != EvidenceRequestStatus.Open)
             throw new InvalidOperationException("Evidence request is already closed.");
+    }
+
+    private void EnsureCanRespond()
+    {
+        if (Status == EvidenceRequestStatus.Open)
+            return;
+
+        if (Status == EvidenceRequestStatus.Responded
+            && ReviewDecision is EvidenceReviewDecisionStatus.Insufficient or EvidenceReviewDecisionStatus.NeedsClarification)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException("Evidence request is already closed.");
     }
 
     private void EnsureOpenOrResponded()
@@ -282,5 +337,14 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private void ResetReviewDecision()
+    {
+        ReviewDecision = EvidenceReviewDecisionStatus.NotReviewed;
+        ReviewReason = null;
+        RemediationGuidance = null;
+        ReviewedByUserId = null;
+        ReviewedAtUtc = null;
     }
 }

@@ -15,6 +15,7 @@ import {
   followUpQuoteEvidenceRequest,
   generateAiUnderwritingReview,
   listQuoteReferralTimeline,
+  recordQuoteEvidenceReviewDecision,
   releaseQuoteReferralAssignment,
   triageQuoteReferralOperation,
 } from "../api/underwritingApi";
@@ -25,6 +26,7 @@ import type {
   QuoteReferralReviewRequest,
   QuoteReferralTaskRequest,
   QuoteReferralTriageRequest,
+  RecordQuoteEvidenceReviewDecisionRequest,
   ReviewQuoteEvidenceRequest,
 } from "../types";
 import { quoteReferralsQueryKey } from "./useQuoteReferrals";
@@ -332,6 +334,34 @@ export function useFollowUpQuoteEvidenceRequest() {
         accessToken,
         quoteId,
         evidenceRequestId,
+      );
+    },
+    onSuccess: (_result, variables) =>
+      invalidateOperationsQueries(queryClient, variables.quoteId),
+  });
+}
+
+export function useRecordQuoteEvidenceReviewDecision() {
+  const { getAccessTokenSilently } = useAuth0();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      quoteId,
+      evidenceRequestId,
+      request,
+    }: {
+      quoteId: string;
+      evidenceRequestId: string;
+      request: RecordQuoteEvidenceReviewDecisionRequest;
+    }) => {
+      const accessToken = await getAccessTokenSilently();
+
+      return recordQuoteEvidenceReviewDecision(
+        accessToken,
+        quoteId,
+        evidenceRequestId,
+        request,
       );
     },
     onSuccess: (_result, variables) =>

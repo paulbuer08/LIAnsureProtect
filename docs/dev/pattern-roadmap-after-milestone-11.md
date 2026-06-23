@@ -904,16 +904,20 @@ Closeout result:
 Status:
 
 ```text
-Started on branch codex/milestone-29-evidence-review-decision-audit-foundation from Milestone 28 closeout commit 72a5bad.
+Implemented locally on branch codex/milestone-29-evidence-review-decision-audit-foundation from Milestone 28 closeout commit 72a5bad.
 ```
 
-Recommended planning target:
+Implemented first slice:
 
-- Add an auditable underwriter evidence-review decision layer after security screening.
-- Let underwriters record whether a responded evidence request is `Satisfied`, `Insufficient`, or `NeedsClarification`, with safe reason text and reviewer/timestamp metadata.
-- Keep clean-document gating from Milestone 28: rejected, failed, or pending documents should not be reviewable as trusted evidence.
-- Surface review status in the underwriting workbench and owner evidence page so the owner can see whether more evidence is needed.
-- Keep the first slice narrow: review decisions should affect evidence request readiness and referral visibility, but should not bind policies or automate underwriting decisions.
+- Added current evidence review state on `quote_evidence_requests`: `NotReviewed`, `Satisfied`, `Insufficient`, and `NeedsClarification`.
+- Added review reason, owner remediation guidance, reviewer user id, and reviewed timestamp metadata.
+- Added append-only `quote_evidence_request_reviews` audit history with document count and clean document count snapshots at review time.
+- Added an underwriter-only review-decision endpoint for responded evidence requests.
+- Kept the existing `/accept` endpoint as a compatibility path that records a `Satisfied` review decision and preserves accepted evidence notification behavior.
+- Kept Milestone 28 clean-document gating: pending, rejected, or failed documents cannot support trusted evidence review.
+- Let owners submit supplemental evidence after `Insufficient` or `NeedsClarification`, resetting current review state to `NotReviewed` while preserving prior audit rows.
+- Updated the underwriting workbench and owner evidence page to show review status, reason, remediation guidance, and follow-up readiness.
+- Added referral timeline entries for evidence review decisions.
 
 Recommended out of scope unless explicitly expanded:
 
@@ -924,3 +928,39 @@ Recommended out of scope unless explicitly expanded:
 - Manual malware analyst workflows.
 - Legal hold or retention automation.
 - Multi-reviewer approval chains.
+- Policy binding or final quote approval automation.
+
+Verification:
+
+- Focused domain/unit tests passed for review state transitions, invalid review states, unfavorable remediation guidance, and supplemental response reset behavior.
+- Focused integration tests passed for underwriter/admin authority, customer/broker denial, clean-document gating, audit-row persistence, accepted notification compatibility, and owner remediation read model exposure.
+- Focused frontend tests passed for underwriting workbench review controls and owner remediation/supplemental response behavior.
+- `dotnet build LIAnsureProtect.slnx --no-restore` passed with 0 warnings and 0 errors.
+- `dotnet test LIAnsureProtect.slnx --no-restore` passed with UnitTests 56 passed and IntegrationTests 89 passed, 1 skipped PostgreSQL opt-in test.
+- EF Core pending model check reported no pending model changes.
+- Full local CI passed with artifact `TestResults\local-ci-20260623-173225.zip`.
+
+Recommended next milestone:
+
+```text
+Milestone 30 - Evidence Review Outcome Notification Foundation
+```
+
+Recommended planning target:
+
+- Notify customer/broker owners when evidence review outcomes require remediation, especially `Insufficient` and `NeedsClarification`.
+- Add an outbox-backed evidence review outcome domain event or notification mapping that reuses the Milestone 21 and Milestone 26 local notification foundation.
+- Keep accepted evidence behavior compatible with existing `QuoteEvidenceRequestAcceptedDomainEvent` notifications.
+- Consider owner-facing unread notification/read-model direction only if it can stay narrow; otherwise keep this milestone to provider-shaped local notification publishing and audit.
+- Surface review outcome notification evidence in referral timeline or notification audit where the existing architecture already supports it.
+- Keep the slice operational: it should help owners know they need to act, not automate underwriting decisions.
+
+Recommended out of scope for Milestone 30 unless explicitly expanded:
+
+- Production email/SMS delivery.
+- Notification preference center.
+- DynamoDB notification inbox implementation unless the milestone is explicitly widened.
+- Messaging threads or broker chat.
+- Scheduled reminder automation.
+- OCR, AI evidence review, embeddings, or RAG.
+- Policy binding or final quote approval automation.

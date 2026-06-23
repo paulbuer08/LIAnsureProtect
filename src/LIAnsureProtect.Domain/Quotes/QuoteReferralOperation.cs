@@ -294,6 +294,23 @@ public sealed class QuoteReferralOperation
             acceptedAtUtc);
     }
 
+    public void RecordEvidenceRequestReviewDecision(
+        Guid evidenceRequestId,
+        EvidenceReviewDecisionStatus decision,
+        string reviewedByUserId,
+        DateTime reviewedAtUtc)
+    {
+        EnsureOpen();
+        ValidateRequiredUserId(reviewedByUserId, nameof(reviewedByUserId));
+
+        UpdatedAtUtc = reviewedAtUtc;
+        RecordTimeline(
+            ReferralTimelineEntryType.EvidenceRequestReviewDecisionRecorded,
+            $"Evidence request {evidenceRequestId} review decision recorded: {decision}.",
+            reviewedByUserId,
+            reviewedAtUtc);
+    }
+
     public void RecordEvidenceRequestCancelled(
         Guid evidenceRequestId,
         string cancelledByUserId,

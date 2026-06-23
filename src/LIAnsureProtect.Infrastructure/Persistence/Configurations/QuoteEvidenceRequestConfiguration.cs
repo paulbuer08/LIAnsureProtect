@@ -119,6 +119,28 @@ public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration
             .HasColumnName("review_notes")
             .HasMaxLength(2000);
 
+        builder.Property(request => request.ReviewDecision)
+            .HasColumnName("review_decision")
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .HasDefaultValue(EvidenceReviewDecisionStatus.NotReviewed)
+            .IsRequired();
+
+        builder.Property(request => request.ReviewReason)
+            .HasColumnName("review_reason")
+            .HasMaxLength(2000);
+
+        builder.Property(request => request.RemediationGuidance)
+            .HasColumnName("remediation_guidance")
+            .HasMaxLength(2000);
+
+        builder.Property(request => request.ReviewedByUserId)
+            .HasColumnName("reviewed_by_user_id")
+            .HasMaxLength(256);
+
+        builder.Property(request => request.ReviewedAtUtc)
+            .HasColumnName("reviewed_at_utc");
+
         builder.Property(request => request.UpdatedAtUtc)
             .HasColumnName("updated_at_utc")
             .IsRequired();

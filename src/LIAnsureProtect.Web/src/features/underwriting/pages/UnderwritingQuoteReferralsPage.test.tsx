@@ -18,6 +18,7 @@ import {
   generateAiUnderwritingReview,
   listQuoteReferralTimeline,
   listQuoteReferrals,
+  recordQuoteEvidenceReviewDecision,
   releaseQuoteReferralAssignment,
   cancelQuoteEvidenceRequest,
   triageQuoteReferralOperation,
@@ -53,6 +54,7 @@ vi.mock("../api/underwritingApi", () => ({
   listQuoteReferralTimeline: vi.fn(),
   listQuoteReferrals: vi.fn(),
   followUpQuoteEvidenceRequest: vi.fn(),
+  recordQuoteEvidenceReviewDecision: vi.fn(),
   releaseQuoteReferralAssignment: vi.fn(),
   triageQuoteReferralOperation: vi.fn(),
 }));
@@ -77,6 +79,14 @@ function renderWorkbench() {
     </QueryClientProvider>,
   );
 }
+
+const notReviewedEvidence = {
+  reviewDecision: "NotReviewed",
+  reviewReason: null,
+  remediationGuidance: null,
+  reviewedByUserId: null,
+  reviewedAtUtc: null,
+};
 
 const severeReferral = {
   quoteId: "quote-severe",
@@ -103,6 +113,9 @@ const severeReferral = {
   evidence: {
     openRequestCount: 1,
     respondedRequestCount: 1,
+    unreviewedRespondedRequestCount: 1,
+    satisfiedRequestCount: 0,
+    needsAttentionRequestCount: 0,
     overdueRequestCount: 1,
     nextOpenDueAtUtc: "2026-06-20T09:00:00Z",
     isWaitingForInformation: true,
@@ -135,6 +148,9 @@ const moderateReferral = {
   evidence: {
     openRequestCount: 0,
     respondedRequestCount: 0,
+    unreviewedRespondedRequestCount: 0,
+    satisfiedRequestCount: 0,
+    needsAttentionRequestCount: 0,
     overdueRequestCount: 0,
     nextOpenDueAtUtc: null,
     isWaitingForInformation: false,
@@ -164,6 +180,7 @@ describe("UnderwritingQuoteReferralsPage", () => {
       entries: [],
     });
     vi.mocked(listQuoteReferrals).mockReset();
+    vi.mocked(recordQuoteEvidenceReviewDecision).mockReset();
     vi.mocked(releaseQuoteReferralAssignment).mockReset();
     vi.mocked(triageQuoteReferralOperation).mockReset();
   });
@@ -392,6 +409,7 @@ describe("UnderwritingQuoteReferralsPage", () => {
       acceptedAtUtc: null,
       cancelledByUserId: null,
       cancelledAtUtc: null,
+      ...notReviewedEvidence,
       reviewNotes: null,
       updatedAtUtc: "2026-06-22T09:00:00Z",
     });
@@ -420,6 +438,11 @@ describe("UnderwritingQuoteReferralsPage", () => {
       acceptedAtUtc: "2026-06-22T13:00:00Z",
       cancelledByUserId: null,
       cancelledAtUtc: null,
+      reviewDecision: "Satisfied",
+      reviewReason: "MFA evidence is sufficient.",
+      remediationGuidance: null,
+      reviewedByUserId: "auth0|underwriter",
+      reviewedAtUtc: "2026-06-22T13:00:00Z",
       reviewNotes: "MFA evidence is sufficient.",
       updatedAtUtc: "2026-06-22T13:00:00Z",
       documents: [
@@ -465,6 +488,7 @@ describe("UnderwritingQuoteReferralsPage", () => {
       acceptedAtUtc: null,
       cancelledByUserId: null,
       cancelledAtUtc: null,
+      ...notReviewedEvidence,
       reviewNotes: null,
       updatedAtUtc: "2026-06-22T09:00:00Z",
     });
@@ -525,6 +549,97 @@ describe("UnderwritingQuoteReferralsPage", () => {
       "evidence-1",
     );
     expect(await screen.findByText("Evidence request saved: Open")).toBeInTheDocument();
+  });
+
+  it("records evidence sufficiency decisions with owner remediation guidance", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listQuoteReferrals).mockResolvedValue({
+      quoteReferrals: [
+        {
+          ...severeReferral,
+          evidence: {
+            ...severeReferral.evidence,
+            unreviewedRespondedRequestCount: 1,
+            needsAttentionRequestCount: 1,
+          },
+        },
+      ],
+    });
+    vi.mocked(recordQuoteEvidenceReviewDecision).mockResolvedValue({
+      evidenceRequestId: "evidence-1",
+      quoteId: "quote-severe",
+      submissionId: "submission-severe",
+      category: "MultiFactorAuthentication",
+      title: "Confirm MFA rollout",
+      description: "Please provide current MFA rollout evidence.",
+      dueAtUtc: "2026-06-25T09:00:00Z",
+      status: "Responded",
+      reviewDecision: "NeedsClarification",
+      reviewReason: "The response does not confirm privileged account MFA scope.",
+      remediationGuidance:
+        "Please confirm whether MFA applies to all administrator and service-owner accounts.",
+      reviewedByUserId: "auth0|underwriter",
+      reviewedAtUtc: "2026-06-22T13:00:00Z",
+      isOverdue: false,
+      daysUntilDue: 3,
+      requestedByUserId: "auth0|underwriter",
+      requestedAtUtc: "2026-06-22T09:00:00Z",
+      respondedByUserId: "auth0|customer",
+      respondentName: "Jane Applicant",
+      respondentTitle: "CISO",
+      responseText: "MFA evidence uploaded as placeholder metadata.",
+      attachmentFileName: null,
+      attachmentContentType: null,
+      attachmentSizeBytes: null,
+      respondedAtUtc: "2026-06-22T12:00:00Z",
+      acceptedByUserId: null,
+      acceptedAtUtc: null,
+      cancelledByUserId: null,
+      cancelledAtUtc: null,
+      reviewNotes: null,
+      updatedAtUtc: "2026-06-22T13:00:00Z",
+      documents: [],
+    });
+
+    renderWorkbench();
+
+    expect(await screen.findAllByText("1 unreviewed evidence response")).toHaveLength(2);
+    expect(screen.getAllByText("1 evidence request needs attention")).toHaveLength(2);
+
+    await user.type(screen.getByLabelText("Evidence request id"), "evidence-1");
+    await user.selectOptions(
+      screen.getByLabelText("Evidence review decision"),
+      "NeedsClarification",
+    );
+    await user.type(
+      screen.getByLabelText("Evidence review reason"),
+      "The response does not confirm privileged account MFA scope.",
+    );
+    await user.type(
+      screen.getByLabelText("Owner remediation guidance"),
+      "Please confirm whether MFA applies to all administrator and service-owner accounts.",
+    );
+    await user.click(screen.getByRole("button", { name: "Record evidence decision" }));
+
+    expect(recordQuoteEvidenceReviewDecision).toHaveBeenCalledWith(
+      "underwriter-token",
+      "quote-severe",
+      "evidence-1",
+      {
+        decision: "NeedsClarification",
+        reason: "The response does not confirm privileged account MFA scope.",
+        remediationGuidance:
+          "Please confirm whether MFA applies to all administrator and service-owner accounts.",
+      },
+    );
+    expect(
+      await screen.findByText("Evidence decision saved: NeedsClarification"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Please confirm whether MFA applies to all administrator and service-owner accounts.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("requests advisory AI review and displays advisory-only output", async () => {

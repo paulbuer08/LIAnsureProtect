@@ -85,6 +85,35 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
             cancellationToken);
     }
 
+    [HttpPost("{quoteId:guid}/evidence-requests/{evidenceRequestId:guid}/review-decision")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<QuoteEvidenceRequestResult>> RecordEvidenceReviewDecision(
+        Guid quoteId,
+        Guid evidenceRequestId,
+        RecordQuoteEvidenceReviewDecisionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse<EvidenceReviewDecisionStatus>(request.Decision, ignoreCase: true, out var decision)
+            || decision == EvidenceReviewDecisionStatus.NotReviewed)
+        {
+            return BadRequest(CreateProblemDetails(StatusCodes.Status400BadRequest, "Evidence review decision is invalid."));
+        }
+
+        return await ExecuteEvidenceReviewAsync(
+            new RecordQuoteEvidenceReviewDecisionCommand(
+                quoteId,
+                evidenceRequestId,
+                decision,
+                request.Reason,
+                request.RemediationGuidance),
+            cancellationToken);
+    }
+
     [HttpPost("{quoteId:guid}/evidence-requests/{evidenceRequestId:guid}/cancel")]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -535,3 +564,8 @@ public sealed record CreateQuoteEvidenceRequestRequest(
     DateTime DueAtUtc);
 
 public sealed record ReviewQuoteEvidenceRequestRequest(string? ReviewNotes);
+
+public sealed record RecordQuoteEvidenceReviewDecisionRequest(
+    string Decision,
+    string Reason,
+    string? RemediationGuidance);

@@ -22,6 +22,10 @@ public interface IQuoteRepository
         IReadOnlyCollection<QuoteEvidenceDocument> evidenceDocuments,
         CancellationToken cancellationToken);
 
+    Task AddEvidenceRequestReviewAsync(
+        QuoteEvidenceRequestReview review,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyCollection<QuoteReferralOperation>> ListReferralOperationsAsync(

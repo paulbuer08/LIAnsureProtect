@@ -12,6 +12,7 @@ import type {
   QuoteReferralTaskResult,
   QuoteReferralTimelineResponse,
   QuoteReferralTriageRequest,
+  RecordQuoteEvidenceReviewDecisionRequest,
   ReviewQuoteEvidenceRequest,
   UnderwriteQuoteReferralResult,
 } from "../types";
@@ -294,6 +295,27 @@ export async function followUpQuoteEvidenceRequest(
     {
       method: "POST",
       headers: authHeaders(accessToken),
+    },
+  );
+
+  return parseJsonResponse<QuoteEvidenceRequest>(
+    response,
+    "Evidence request was not found.",
+  );
+}
+
+export async function recordQuoteEvidenceReviewDecision(
+  accessToken: string,
+  quoteId: string,
+  evidenceRequestId: string,
+  request: RecordQuoteEvidenceReviewDecisionRequest,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/evidence-requests/${evidenceRequestId}/review-decision`,
+    {
+      method: "POST",
+      headers: jsonHeaders(accessToken),
+      body: JSON.stringify(request),
     },
   );
 

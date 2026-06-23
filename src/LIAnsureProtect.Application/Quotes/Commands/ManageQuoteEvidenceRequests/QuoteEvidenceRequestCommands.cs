@@ -32,6 +32,13 @@ public sealed record AcceptQuoteEvidenceRequestCommand(
     Guid EvidenceRequestId,
     string? ReviewNotes) : IRequest<QuoteEvidenceRequestResult?>;
 
+public sealed record RecordQuoteEvidenceReviewDecisionCommand(
+    Guid QuoteId,
+    Guid EvidenceRequestId,
+    EvidenceReviewDecisionStatus Decision,
+    string Reason,
+    string? RemediationGuidance) : IRequest<QuoteEvidenceRequestResult?>;
+
 public sealed record CancelQuoteEvidenceRequestCommand(
     Guid QuoteId,
     Guid EvidenceRequestId,
@@ -81,6 +88,11 @@ public sealed record QuoteEvidenceRequestResult(
     string? CancelledByUserId,
     DateTime? CancelledAtUtc,
     string? ReviewNotes,
+    string ReviewDecision,
+    string? ReviewReason,
+    string? RemediationGuidance,
+    string? ReviewedByUserId,
+    DateTime? ReviewedAtUtc,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<QuoteEvidenceDocumentResult> Documents);
 
@@ -297,8 +309,9 @@ public sealed class AcceptQuoteEvidenceRequestCommandHandler(
         var documents = await quoteRepository.ListEvidenceDocumentsForRequestsAsync(
             [evidenceRequest.Id],
             cancellationToken);
-        if (documents.Any(document => !document.IsDownloadAvailable))
-            throw new InvalidOperationException("Only clean evidence documents can be accepted.");
+        EvidenceReviewDocumentGate.EnsureReviewDocumentsAreTrusted(
+            documents,
+            "Only clean evidence documents can be accepted.");
 
         var underwriterUserId = CurrentUserId.GetRequired(
             currentUser,
@@ -306,10 +319,94 @@ public sealed class AcceptQuoteEvidenceRequestCommandHandler(
         var acceptedAtUtc = DateTime.UtcNow;
 
         evidenceRequest.Accept(underwriterUserId, request.ReviewNotes, acceptedAtUtc);
+        var review = QuoteEvidenceRequestReview.Record(
+            evidenceRequest,
+            EvidenceReviewDecisionStatus.Satisfied,
+            request.ReviewNotes ?? "Evidence accepted by underwriting.",
+            null,
+            underwriterUserId,
+            acceptedAtUtc,
+            documents.Count,
+            documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean));
         operation.RecordEvidenceRequestAccepted(evidenceRequest.Id, underwriterUserId, acceptedAtUtc);
+        operation.RecordEvidenceRequestReviewDecision(
+            evidenceRequest.Id,
+            EvidenceReviewDecisionStatus.Satisfied,
+            underwriterUserId,
+            acceptedAtUtc);
+        await quoteRepository.AddEvidenceRequestReviewAsync(review, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return QuoteEvidenceRequestResultFactory.FromRequest(evidenceRequest);
+        return QuoteEvidenceRequestResultFactory.FromRequest(evidenceRequest, documents);
+    }
+}
+
+public sealed class RecordQuoteEvidenceReviewDecisionCommandHandler(
+    IQuoteRepository quoteRepository,
+    IUnitOfWork unitOfWork,
+    ICurrentUser currentUser)
+    : IRequestHandler<RecordQuoteEvidenceReviewDecisionCommand, QuoteEvidenceRequestResult?>
+{
+    public async Task<QuoteEvidenceRequestResult?> Handle(
+        RecordQuoteEvidenceReviewDecisionCommand request,
+        CancellationToken cancellationToken)
+    {
+        var evidenceRequest = await quoteRepository.GetEvidenceRequestForUnderwritingAsync(
+            request.QuoteId,
+            request.EvidenceRequestId,
+            cancellationToken);
+        if (evidenceRequest is null)
+            return null;
+
+        var operation = await quoteRepository.GetReferralOperationForUpdateAsync(
+            request.QuoteId,
+            cancellationToken)
+            ?? throw new InvalidOperationException("Referral operations must exist before evidence can be reviewed.");
+        var documents = await quoteRepository.ListEvidenceDocumentsForRequestsAsync(
+            [evidenceRequest.Id],
+            cancellationToken);
+        EvidenceReviewDocumentGate.EnsureReviewDocumentsAreTrusted(
+            documents,
+            "Only clean evidence documents can support a review decision.");
+
+        var underwriterUserId = CurrentUserId.GetRequired(
+            currentUser,
+            "An authenticated underwriter user id is required to review evidence.");
+        var reviewedAtUtc = DateTime.UtcNow;
+
+        if (request.Decision == EvidenceReviewDecisionStatus.Satisfied)
+        {
+            evidenceRequest.Accept(underwriterUserId, request.Reason, reviewedAtUtc);
+            operation.RecordEvidenceRequestAccepted(evidenceRequest.Id, underwriterUserId, reviewedAtUtc);
+        }
+        else
+        {
+            evidenceRequest.RecordReviewDecision(
+                request.Decision,
+                request.Reason,
+                request.RemediationGuidance,
+                underwriterUserId,
+                reviewedAtUtc);
+        }
+
+        var review = QuoteEvidenceRequestReview.Record(
+            evidenceRequest,
+            request.Decision,
+            request.Reason,
+            request.RemediationGuidance,
+            underwriterUserId,
+            reviewedAtUtc,
+            documents.Count,
+            documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean));
+        operation.RecordEvidenceRequestReviewDecision(
+            evidenceRequest.Id,
+            request.Decision,
+            underwriterUserId,
+            reviewedAtUtc);
+        await quoteRepository.AddEvidenceRequestReviewAsync(review, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return QuoteEvidenceRequestResultFactory.FromRequest(evidenceRequest, documents);
     }
 }
 
@@ -496,6 +593,11 @@ public static class QuoteEvidenceRequestResultFactory
             request.CancelledByUserId,
             request.CancelledAtUtc,
             request.ReviewNotes,
+            request.ReviewDecision.ToString(),
+            request.ReviewReason,
+            request.RemediationGuidance,
+            request.ReviewedByUserId,
+            request.ReviewedAtUtc,
             request.UpdatedAtUtc,
             (documents ?? [])
                 .OrderBy(document => document.UploadedAtUtc)
@@ -519,6 +621,17 @@ public static class QuoteEvidenceRequestResultFactory
             document.ScannedAtUtc,
             document.Sha256,
             document.IsDownloadAvailable);
+    }
+}
+
+internal static class EvidenceReviewDocumentGate
+{
+    public static void EnsureReviewDocumentsAreTrusted(
+        IReadOnlyCollection<QuoteEvidenceDocument> documents,
+        string message)
+    {
+        if (documents.Any(document => !document.IsDownloadAvailable))
+            throw new InvalidOperationException(message);
     }
 }
 

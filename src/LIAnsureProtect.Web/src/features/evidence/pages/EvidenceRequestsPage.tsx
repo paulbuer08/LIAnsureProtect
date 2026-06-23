@@ -50,6 +50,10 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
   const [savedStatus, setSavedStatus] = useState<string>();
   const [savedDocuments, setSavedDocuments] = useState(request.documents ?? []);
   const documents = savedDocuments.length > 0 ? savedDocuments : request.documents ?? [];
+  const needsSupplementalEvidence =
+    request.reviewDecision === "Insufficient" ||
+    request.reviewDecision === "NeedsClarification";
+  const canSubmitResponse = request.status === "Open" || needsSupplementalEvidence;
   const canUploadReplacement = documents.some(
     (document) => document.scanStatus === "Rejected" || document.scanStatus === "Failed",
   );
@@ -122,6 +126,33 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
 
       <p className="mt-4 text-sm text-slate-300">{request.description}</p>
 
+      <section className="mt-4 rounded-md border border-slate-800 bg-slate-950 p-4 text-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-slate-400">Review decision</span>
+          <span className="rounded-md border border-cyan-800 px-2 py-1 text-xs font-semibold text-cyan-200">
+            {request.reviewDecision}
+          </span>
+        </div>
+        {request.reviewReason && (
+          <p className="mt-3 text-slate-300">
+            <span className="font-semibold text-white">Underwriter reason:</span>{" "}
+            {request.reviewReason}
+          </p>
+        )}
+        {request.remediationGuidance && (
+          <p className="mt-2 text-amber-100">
+            <span className="font-semibold text-white">What to send next:</span>{" "}
+            {request.remediationGuidance}
+          </p>
+        )}
+        {request.reviewedByUserId && request.reviewedAtUtc && (
+          <p className="mt-2 text-xs text-slate-400">
+            Reviewed by {request.reviewedByUserId} on{" "}
+            {formatDate(request.reviewedAtUtc)}.
+          </p>
+        )}
+      </section>
+
       {savedStatus && (
         <p className="mt-4 rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm font-semibold text-emerald-100">
           Evidence response saved: {savedStatus}
@@ -148,7 +179,7 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
           </p>
         )}
 
-      {request.status === "Open" && (
+      {canSubmitResponse && (
         <form className="mt-5 space-y-4" onSubmit={handleRespond}>
           <label className="block text-sm font-medium text-slate-200">
             Respondent name
@@ -198,7 +229,9 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
             type="submit"
             className="rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-300"
           >
-            Submit evidence response
+            {needsSupplementalEvidence
+              ? "Submit supplemental evidence"
+              : "Submit evidence response"}
           </button>
         </form>
       )}

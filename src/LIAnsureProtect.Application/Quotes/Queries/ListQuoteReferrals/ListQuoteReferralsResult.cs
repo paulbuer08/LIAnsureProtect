@@ -31,6 +31,9 @@ public sealed record QuoteReferralOperationsSummaryResult(
 public sealed record QuoteReferralEvidenceSummaryResult(
     int OpenRequestCount,
     int RespondedRequestCount,
+    int UnreviewedRespondedRequestCount,
+    int SatisfiedRequestCount,
+    int NeedsAttentionRequestCount,
     int OverdueRequestCount,
     DateTime? NextOpenDueAtUtc,
     bool IsWaitingForInformation,

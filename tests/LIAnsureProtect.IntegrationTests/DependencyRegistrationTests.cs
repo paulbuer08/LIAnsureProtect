@@ -118,6 +118,16 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("CREATE TABLE quote_evidence_requests", script);
         Assert.Contains("ix_quote_evidence_requests_owner_status_due_at_utc", script);
         Assert.Contains("ix_quote_evidence_requests_quote_status_updated_at_utc", script);
+        Assert.Contains("review_decision", script);
+        Assert.Contains("review_reason", script);
+        Assert.Contains("remediation_guidance", script);
+        Assert.Contains("reviewed_by_user_id", script);
+        Assert.Contains("reviewed_at_utc", script);
+        Assert.Contains("CREATE TABLE quote_evidence_request_reviews", script);
+        Assert.Contains("ix_quote_evidence_request_reviews_request_reviewed_at_utc", script);
+        Assert.Contains("ix_quote_evidence_request_reviews_quote_reviewed_at_utc", script);
+        Assert.Contains("document_count", script);
+        Assert.Contains("clean_document_count", script);
         Assert.Contains("CREATE TABLE quote_evidence_documents", script);
         Assert.Contains("ix_quote_evidence_documents_request_uploaded_at_utc", script);
         Assert.Contains("ix_quote_evidence_documents_owner_request", script);

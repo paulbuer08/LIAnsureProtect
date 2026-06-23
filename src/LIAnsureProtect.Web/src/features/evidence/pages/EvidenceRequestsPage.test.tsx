@@ -27,6 +27,14 @@ vi.mock("../api/evidenceRequestsApi", () => ({
   uploadReplacementEvidenceDocuments: vi.fn(),
 }));
 
+const notReviewedEvidence = {
+  reviewDecision: "NotReviewed",
+  reviewReason: null,
+  remediationGuidance: null,
+  reviewedByUserId: null,
+  reviewedAtUtc: null,
+};
+
 function renderEvidenceRequestsPage() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -92,6 +100,7 @@ describe("EvidenceRequestsPage", () => {
           acceptedAtUtc: null,
           cancelledByUserId: null,
           cancelledAtUtc: null,
+          ...notReviewedEvidence,
           reviewNotes: null,
           updatedAtUtc: "2026-06-22T09:00:00Z",
           documents: [],
@@ -123,6 +132,7 @@ describe("EvidenceRequestsPage", () => {
       acceptedAtUtc: null,
       cancelledByUserId: null,
       cancelledAtUtc: null,
+      ...notReviewedEvidence,
       reviewNotes: null,
       updatedAtUtc: "2026-06-22T12:00:00Z",
       documents: [
@@ -228,6 +238,7 @@ describe("EvidenceRequestsPage", () => {
           acceptedAtUtc: null,
           cancelledByUserId: null,
           cancelledAtUtc: null,
+          ...notReviewedEvidence,
           reviewNotes: null,
           updatedAtUtc: "2026-06-22T12:00:00Z",
           documents: [
@@ -275,6 +286,7 @@ describe("EvidenceRequestsPage", () => {
       acceptedAtUtc: null,
       cancelledByUserId: null,
       cancelledAtUtc: null,
+      ...notReviewedEvidence,
       reviewNotes: null,
       updatedAtUtc: "2026-06-22T12:00:00Z",
       documents: [
@@ -366,6 +378,7 @@ describe("EvidenceRequestsPage", () => {
           acceptedAtUtc: null,
           cancelledByUserId: null,
           cancelledAtUtc: null,
+          ...notReviewedEvidence,
           reviewNotes: null,
           updatedAtUtc: "2020-06-18T09:00:00Z",
         },
@@ -376,5 +389,111 @@ describe("EvidenceRequestsPage", () => {
 
     expect(await screen.findByText("Confirm backup testing")).toBeInTheDocument();
     expect(screen.getByText("Overdue by 3 days")).toBeInTheDocument();
+  });
+
+  it("shows underwriter remediation guidance and allows supplemental response", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listEvidenceRequests).mockResolvedValue({
+      evidenceRequests: [
+        {
+          evidenceRequestId: "evidence-clarification",
+          quoteId: "quote-severe",
+          submissionId: "submission-severe",
+          category: "MultiFactorAuthentication",
+          title: "Confirm MFA rollout",
+          description: "Please provide current MFA rollout evidence.",
+          dueAtUtc: "2026-06-25T09:00:00Z",
+          status: "Responded",
+          reviewDecision: "NeedsClarification",
+          reviewReason: "The response does not confirm privileged account MFA scope.",
+          remediationGuidance:
+            "Please confirm whether MFA applies to all administrator and service-owner accounts.",
+          reviewedByUserId: "auth0|underwriter",
+          reviewedAtUtc: "2026-06-22T13:00:00Z",
+          isOverdue: false,
+          daysUntilDue: 3,
+          requestedByUserId: "auth0|underwriter",
+          requestedAtUtc: "2026-06-22T09:00:00Z",
+          respondedByUserId: "auth0|customer",
+          respondentName: "Jane Applicant",
+          respondentTitle: "CISO",
+          responseText: "MFA is enforced for email accounts.",
+          attachmentFileName: null,
+          attachmentContentType: null,
+          attachmentSizeBytes: null,
+          respondedAtUtc: "2026-06-22T12:00:00Z",
+          acceptedByUserId: null,
+          acceptedAtUtc: null,
+          cancelledByUserId: null,
+          cancelledAtUtc: null,
+          reviewNotes: null,
+          updatedAtUtc: "2026-06-22T13:00:00Z",
+          documents: [],
+        },
+      ],
+    });
+    vi.mocked(respondToEvidenceRequest).mockResolvedValue({
+      evidenceRequestId: "evidence-clarification",
+      quoteId: "quote-severe",
+      submissionId: "submission-severe",
+      category: "MultiFactorAuthentication",
+      title: "Confirm MFA rollout",
+      description: "Please provide current MFA rollout evidence.",
+      dueAtUtc: "2026-06-25T09:00:00Z",
+      status: "Responded",
+      reviewDecision: "NotReviewed",
+      reviewReason: null,
+      remediationGuidance: null,
+      reviewedByUserId: null,
+      reviewedAtUtc: null,
+      isOverdue: false,
+      daysUntilDue: 3,
+      requestedByUserId: "auth0|underwriter",
+      requestedAtUtc: "2026-06-22T09:00:00Z",
+      respondedByUserId: "auth0|customer",
+      respondentName: "Jane Applicant",
+      respondentTitle: "CISO",
+      responseText: "Supplemental response: MFA applies to email and privileged accounts.",
+      attachmentFileName: null,
+      attachmentContentType: null,
+      attachmentSizeBytes: null,
+      respondedAtUtc: "2026-06-22T14:00:00Z",
+      acceptedByUserId: null,
+      acceptedAtUtc: null,
+      cancelledByUserId: null,
+      cancelledAtUtc: null,
+      reviewNotes: null,
+      updatedAtUtc: "2026-06-22T14:00:00Z",
+      documents: [],
+    });
+
+    renderEvidenceRequestsPage();
+
+    expect(await screen.findByText("NeedsClarification")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Please confirm whether MFA applies to all administrator and service-owner accounts.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Respondent name"), "Jane Applicant");
+    await user.type(screen.getByLabelText("Respondent title"), "CISO");
+    await user.type(
+      screen.getByLabelText("Evidence response"),
+      "Supplemental response: MFA applies to email and privileged accounts.",
+    );
+    await user.click(screen.getByRole("button", { name: "Submit supplemental evidence" }));
+
+    expect(respondToEvidenceRequest).toHaveBeenCalledWith(
+      "owner-token",
+      "evidence-clarification",
+      {
+        respondentName: "Jane Applicant",
+        respondentTitle: "CISO",
+        responseText: "Supplemental response: MFA applies to email and privileged accounts.",
+        attachments: [],
+      },
+    );
+    expect(await screen.findByText("Evidence response saved: Responded")).toBeInTheDocument();
   });
 });

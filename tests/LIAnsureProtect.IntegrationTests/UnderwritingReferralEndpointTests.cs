@@ -331,6 +331,142 @@ public sealed class UnderwritingReferralEndpointTests
     }
 
     [Fact]
+    public async Task Evidence_Request_Review_Decision_Persists_Audit_And_Exposes_Owner_Remediation()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        var operation = QuoteReferralOperation.CreateDefault(
+            quote.Id,
+            quote.Quote.RiskTier,
+            quote.Quote.CreatedAtUtc,
+            quote.Quote.ExpiresAtUtc);
+        var evidenceRequest = QuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            operation.Id,
+            "customer-1",
+            "underwriter-1",
+            EvidenceRequestCategory.MultiFactorAuthentication,
+            "Confirm MFA rollout",
+            "Please provide current MFA rollout evidence for privileged and email access.",
+            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc));
+        evidenceRequest.Respond(
+            "customer-1",
+            "Jane Applicant",
+            "CISO",
+            "MFA is enforced for email, but privileged access scope is unclear.",
+            null,
+            null,
+            null,
+            new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc));
+        await SaveQuotesAsync(quote);
+        await SaveOperationsAsync(operation);
+        await SaveEvidenceRequestsAsync(evidenceRequest);
+
+        using var reviewRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/evidence-requests/{evidenceRequest.Id}/review-decision",
+            "Underwriter",
+            "underwriter-2",
+            new
+            {
+                decision = "NeedsClarification",
+                reason = "The response does not confirm privileged account MFA scope.",
+                remediationGuidance = "Please confirm whether MFA applies to all administrator and service-owner accounts."
+            });
+        using var reviewResponse = await httpClient.SendAsync(reviewRequest, TestContext.Current.CancellationToken);
+        var reviewContent = await reviewResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var ownerListRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            "/api/v1/evidence-requests",
+            "Customer",
+            "customer-1");
+        using var ownerListResponse = await httpClient.SendAsync(ownerListRequest, TestContext.Current.CancellationToken);
+        var ownerListContent = await ownerListResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var timelineRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"{QueueEndpointPath}/{quote.Id}/operations/timeline",
+            "Underwriter",
+            "underwriter-2");
+        using var timelineResponse = await httpClient.SendAsync(timelineRequest, TestContext.Current.CancellationToken);
+        var timelineContent = await timelineResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, reviewResponse.StatusCode);
+        Assert.Contains("NeedsClarification", reviewContent);
+        Assert.Equal(HttpStatusCode.OK, ownerListResponse.StatusCode);
+        Assert.Contains("NeedsClarification", ownerListContent);
+        Assert.Contains("Please confirm whether MFA applies to all administrator and service-owner accounts.", ownerListContent);
+        Assert.Equal(HttpStatusCode.OK, timelineResponse.StatusCode);
+        Assert.Contains("EvidenceRequestReviewDecisionRecorded", timelineContent);
+
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedRequest = await dbContext.Set<QuoteEvidenceRequest>().SingleAsync(
+            saved => saved.Id == evidenceRequest.Id,
+            TestContext.Current.CancellationToken);
+        var review = await dbContext.Set<QuoteEvidenceRequestReview>().SingleAsync(
+            saved => saved.EvidenceRequestId == evidenceRequest.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(EvidenceReviewDecisionStatus.NeedsClarification, savedRequest.ReviewDecision);
+        Assert.Equal("underwriter-2", savedRequest.ReviewedByUserId);
+        Assert.Equal(EvidenceReviewDecisionStatus.NeedsClarification, review.Decision);
+        Assert.Equal(0, review.DocumentCount);
+        Assert.Equal(0, review.CleanDocumentCount);
+    }
+
+    [Fact]
+    public async Task Evidence_Request_Review_Decision_Returns_Forbidden_For_Customer()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        var operation = QuoteReferralOperation.CreateDefault(
+            quote.Id,
+            quote.Quote.RiskTier,
+            quote.Quote.CreatedAtUtc,
+            quote.Quote.ExpiresAtUtc);
+        var evidenceRequest = QuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            operation.Id,
+            "customer-1",
+            "underwriter-1",
+            EvidenceRequestCategory.MultiFactorAuthentication,
+            "Confirm MFA rollout",
+            "Please provide current MFA rollout evidence.",
+            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc));
+        evidenceRequest.Respond(
+            "customer-1",
+            "Jane Applicant",
+            "CISO",
+            "MFA is enforced for all email and privileged accounts.",
+            null,
+            null,
+            null,
+            new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc));
+        await SaveQuotesAsync(quote);
+        await SaveOperationsAsync(operation);
+        await SaveEvidenceRequestsAsync(evidenceRequest);
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/evidence-requests/{evidenceRequest.Id}/review-decision",
+            "Customer",
+            "customer-1",
+            new
+            {
+                decision = "Satisfied",
+                reason = "Trying to satisfy own evidence request.",
+                remediationGuidance = (string?)null
+            });
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Evidence_Request_Follow_Up_Creates_Timeline_Entry_And_Outbox_Event()
     {
         var quote = CreateReferredQuote("customer-1");

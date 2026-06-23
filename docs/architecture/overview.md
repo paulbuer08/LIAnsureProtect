@@ -845,6 +845,11 @@ quote_evidence_requests
   accepted_at_utc
   cancelled_by_user_id
   cancelled_at_utc
+  review_decision
+  review_reason
+  remediation_guidance
+  reviewed_by_user_id
+  reviewed_at_utc
   review_notes
   updated_at_utc
 ```
@@ -919,7 +924,41 @@ Underwriter/Admin
 
 If an authorized caller asks to download a pending, rejected, or failed document, the API returns a safe conflict response and does not stream the stored bytes. Underwriters also cannot accept responded evidence when any attached document is not clean. Owners can upload replacement evidence for responded requests with rejected or failed documents; the replacement upload appends new scanned document rows and keeps the original rejected/failed rows as audit evidence.
 
-This keeps the workflow realistic for cyber underwriting while still deferring production S3 provisioning, AWS GuardDuty/EventBridge wiring, durable download audit, OCR, embeddings, RAG, notification inboxes, scheduled reminder automation, autonomous AI document review, legal hold, and a full malware analyst console to separate milestones.
+Milestone 29 adds human evidence sufficiency review after the document trust gate:
+
+```text
+POST /api/v1/underwriting/quote-referrals/{quoteId}/evidence-requests/{evidenceRequestId}/review-decision
+  -> Quotes.Underwrite authorization policy
+  -> evidence request must be Responded
+  -> document-backed responses must have only Clean documents
+  -> underwriter records Satisfied, Insufficient, or NeedsClarification
+  -> current review fields are updated on quote_evidence_requests
+  -> append-only quote_evidence_request_reviews row is inserted
+  -> referral timeline records EvidenceRequestReviewDecisionRecorded
+```
+
+The current review state lives on `quote_evidence_requests` because the workbench and owner evidence page need a fast answer to "what is the latest review outcome?" The append-only audit table preserves "what did the underwriter decide at that moment, and what trusted evidence count existed then?"
+
+```text
+quote_evidence_request_reviews
+  id
+  evidence_request_id
+  quote_id
+  submission_id
+  owner_user_id
+  category
+  decision
+  reason
+  remediation_guidance
+  reviewed_by_user_id
+  reviewed_at_utc
+  document_count
+  clean_document_count
+```
+
+`Satisfied` maps to the existing accepted evidence lifecycle. `Insufficient` and `NeedsClarification` keep the request visible and respondable for the owner. A supplemental owner response clears the current review decision back to `NotReviewed`, but prior review rows remain immutable audit evidence.
+
+This keeps the workflow realistic for cyber underwriting while still deferring production S3 provisioning, AWS GuardDuty/EventBridge wiring, durable download audit, OCR, embeddings, RAG, notification inboxes, scheduled reminder automation, autonomous AI document review, legal hold, policy binding, final quote approval automation, multi-reviewer approval chains, and a full malware analyst console to separate milestones.
 
 These tables are separate from `quotes` because they answer operational questions instead of quote-term questions:
 
