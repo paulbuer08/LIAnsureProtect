@@ -77,6 +77,8 @@ Milestone 28 is implemented locally as `Milestone 28 - Evidence Document Securit
 
 Milestone 29 is complete as `Milestone 29 - Evidence Review Decision Audit Foundation`. It adds human-owned evidence sufficiency review after document security screening: underwriters can record `Satisfied`, `Insufficient`, or `NeedsClarification` decisions with rationale, owner remediation guidance, reviewer metadata, referral timeline entries, and append-only audit rows that snapshot the trusted document count at review time. Owners can submit supplemental evidence after unfavorable review decisions, while pending, rejected, or failed documents remain blocked from trusted review. OCR, autonomous AI evidence review, embeddings/RAG, legal hold, policy binding, and final quote approval automation remain out of scope. Full local CI passed with artifact `TestResults\local-ci-20260623-173225.zip`.
 
+Milestone 30 has started locally as `Milestone 30 - Evidence Review Outcome Notification Foundation`. The planning target is to notify customer/broker owners when evidence review outcomes require remediation, especially `Insufficient` and `NeedsClarification`, by reusing the existing outbox-backed local notification foundation without adding production email/SMS delivery, notification preferences, messaging threads, OCR, AI evidence review, policy binding, or final quote approval automation.
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:

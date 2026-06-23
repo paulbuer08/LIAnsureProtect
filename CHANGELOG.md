@@ -316,3 +316,4 @@ The format follows simple milestone-based entries.
 - Milestone 29 implementation commit `7958a91 feat: add evidence review decision audit foundation`.
 - Milestone 29 verification passed with local CI artifact `TestResults\local-ci-20260623-173225.zip`.
 - Milestone 29 closeout recommends `Milestone 30 - Evidence Review Outcome Notification Foundation`.
+- Milestone 30 - Evidence Review Outcome Notification Foundation planning started on branch `codex/milestone-30-evidence-review-outcome-notification-foundation`.
