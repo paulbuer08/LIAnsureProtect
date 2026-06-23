@@ -188,7 +188,7 @@ public sealed class UnderwritingReferralEndpointTests
             new
             {
                 title = "Verify MFA evidence.",
-                dueAtUtc = new DateTime(2026, 6, 23, 12, 0, 0, DateTimeKind.Utc)
+                dueAtUtc = DateTime.UtcNow.AddDays(7)
             });
         using var taskResponse = await httpClient.SendAsync(taskRequest, TestContext.Current.CancellationToken);
         var taskContent = await taskResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
