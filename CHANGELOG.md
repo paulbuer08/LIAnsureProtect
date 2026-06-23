@@ -300,4 +300,6 @@ The format follows simple milestone-based entries.
 - Underwriter evidence acceptance gating so responded evidence with pending, rejected, or failed documents cannot be accepted.
 - Owner replacement evidence upload route for responded evidence requests with rejected or failed documents, appending replacement files while preserving original rejected/failed metadata for audit.
 - Owner evidence page and underwriting workbench document status display with download links available only for clean documents.
+- Milestone 28 implementation commit `0925877 feat: add evidence document security screening foundation`.
 - Milestone 28 verification passed with local CI artifact `TestResults\local-ci-20260623-160248.zip`.
+- Milestone 28 closeout recommends `Milestone 29 - Evidence Review Decision Audit Foundation`.

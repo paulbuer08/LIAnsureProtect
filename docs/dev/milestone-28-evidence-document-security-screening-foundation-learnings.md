@@ -227,3 +227,27 @@ Final verification results:
 - EF Core pending model check reported no pending model changes.
 - Full frontend Vitest passed with 8 files and 29 tests.
 - Full local CI passed with artifact `TestResults\local-ci-20260623-160248.zip`.
+
+## Closeout And Next Milestone
+
+Milestone 28 is complete with implementation commit `0925877 feat: add evidence document security screening foundation`.
+
+Recommended next milestone:
+
+```text
+Milestone 29 - Evidence Review Decision Audit Foundation
+```
+
+Simple English scope:
+
+- Milestone 28 decides whether uploaded evidence files are safe enough to trust.
+- Milestone 29 should decide whether the safe evidence actually satisfies the underwriter's evidence request.
+- That is a separate real-world insurance workflow: security screening protects the platform from unsafe files, while evidence review records underwriting judgment.
+
+Recommended first slice:
+
+- Add a persisted evidence-review decision/audit record for underwriters.
+- Support clear review outcomes such as `Satisfied`, `Insufficient`, and `NeedsClarification`.
+- Require trusted clean documents before document-backed evidence can be marked satisfied.
+- Show review status to underwriters and owners.
+- Keep final quote approval, policy binding, OCR, autonomous AI review, and full document management out of scope.

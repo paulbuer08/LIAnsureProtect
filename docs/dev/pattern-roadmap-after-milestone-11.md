@@ -891,3 +891,30 @@ Verification:
 - `dotnet test LIAnsureProtect.slnx --no-restore` passed with UnitTests 52 passed and IntegrationTests 86 passed, 1 skipped PostgreSQL opt-in test.
 - EF Core pending model check reported no pending model changes.
 - Full local CI passed with artifact `TestResults\local-ci-20260623-160248.zip`.
+
+Closeout result:
+
+- Milestone 28 is complete.
+- The final implementation commit is `0925877 feat: add evidence document security screening foundation`.
+- The final local CI artifact is `TestResults\local-ci-20260623-160248.zip`.
+- The recommended next milestone is `Milestone 29 - Evidence Review Decision Audit Foundation`.
+
+### Milestone 29 - Evidence Review Decision Audit Foundation
+
+Recommended planning target:
+
+- Add an auditable underwriter evidence-review decision layer after security screening.
+- Let underwriters record whether a responded evidence request is `Satisfied`, `Insufficient`, or `NeedsClarification`, with safe reason text and reviewer/timestamp metadata.
+- Keep clean-document gating from Milestone 28: rejected, failed, or pending documents should not be reviewable as trusted evidence.
+- Surface review status in the underwriting workbench and owner evidence page so the owner can see whether more evidence is needed.
+- Keep the first slice narrow: review decisions should affect evidence request readiness and referral visibility, but should not bind policies or automate underwriting decisions.
+
+Recommended out of scope unless explicitly expanded:
+
+- OCR/document extraction.
+- Autonomous AI evidence review.
+- Embeddings or RAG.
+- Production document management.
+- Manual malware analyst workflows.
+- Legal hold or retention automation.
+- Multi-reviewer approval chains.
