@@ -326,3 +326,5 @@ The format follows simple milestone-based entries.
 - Milestone 30 implementation commit `12994e4 feat: add evidence review outcome notification foundation`.
 - Closeout-time fix `5783085 fix: make referral operations task test time-independent` for a pre-existing (Milestone 24) time-dependent integration test that compared a hardcoded task due date against real `DateTime.UtcNow`.
 - Milestone 30 closeout recommends `Milestone 31 - Notification Inbox Read Model Foundation`.
+- Milestone 30 closeout committed locally as `1e10753 docs: close evidence review outcome notification milestone`.
+- Milestone 31 - Notification Inbox Read Model Foundation planning started on branch `codex/milestone-31-notification-inbox-read-model-foundation` with handoff `docs/dev/milestone-31-notification-inbox-read-model-foundation-handoff.md`.

@@ -79,6 +79,8 @@ Milestone 29 is complete as `Milestone 29 - Evidence Review Decision Audit Found
 
 Milestone 30 is complete as `Milestone 30 - Evidence Review Outcome Notification Foundation`. It adds an unfavorable evidence review outcome notification path: `Insufficient` and `NeedsClarification` decisions raise an outbox-backed remediation-required domain event that maps to a customer/broker local notification with safe action-oriented attributes. `Satisfied` evidence remains on the existing accepted-evidence notification path. Production email/SMS delivery, notification preferences, messaging threads, OCR, AI evidence review, policy binding, and final quote approval automation remain out of scope. Full local CI passed with artifact `TestResults\local-ci-20260623-185058.zip`.
 
+Milestone 31 has started locally as `Milestone 31 - Notification Inbox Read Model Foundation` (planning only, not yet implemented). The planning target is an owner/underwriter-facing notification inbox read model so users can read the notifications Milestones 21, 26, and 30 already publish: a PostgreSQL-first `notification_inbox_entries` read model behind an Application-owned `INotificationInboxRepository`, fed from the existing outbox dispatcher, with owner-scoped list and unread-count reads, a mark-read command, and a React notification bell/list. DynamoDB inbox storage, production email/SMS delivery, a notification preference center, real-time push, per-type templates, and messaging threads remain out of scope. See [Milestone 31 Handoff & Planning](docs/dev/milestone-31-notification-inbox-read-model-foundation-handoff.md).
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -147,6 +149,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 28 Evidence Document Security Screening Foundation Learnings](docs/dev/milestone-28-evidence-document-security-screening-foundation-learnings.md)
 - [Milestone 29 Evidence Review Decision Audit Foundation Learnings](docs/dev/milestone-29-evidence-review-decision-audit-foundation-learnings.md)
 - [Milestone 30 Evidence Review Outcome Notification Foundation Learnings](docs/dev/milestone-30-evidence-review-outcome-notification-foundation-learnings.md)
+- [Milestone 31 Notification Inbox Read Model Foundation Handoff & Planning](docs/dev/milestone-31-notification-inbox-read-model-foundation-handoff.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)
