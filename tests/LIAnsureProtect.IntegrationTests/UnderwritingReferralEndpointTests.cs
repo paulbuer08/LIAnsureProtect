@@ -103,20 +103,20 @@ public sealed class UnderwritingReferralEndpointTests
     [Fact]
     public async Task List_Quote_Referrals_Returns_Operations_Summary_For_Underwriter()
     {
-        var quote = CreateReferredQuote(
-            "customer-1",
-            new DateTime(2026, 6, 22, 8, 0, 0, DateTimeKind.Utc));
+        // Anchor to "now" so the derived SLA due date stays in the future no matter when the test runs.
+        var nowUtc = DateTime.UtcNow;
+        var quote = CreateReferredQuote("customer-1", nowUtc.AddDays(-1));
         var operation = QuoteReferralOperation.CreateDefault(
             quote.Id,
             CyberRiskTier.Severe,
             quote.Quote.CreatedAtUtc,
             quote.Quote.ExpiresAtUtc);
-        operation.AssignTo("underwriter-1", new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc));
+        operation.AssignTo("underwriter-1", nowUtc.AddHours(-20));
         operation.AddTask(
             "underwriter-1",
             "Verify MFA evidence.",
-            new DateTime(2026, 6, 23, 9, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 6, 22, 9, 5, 0, DateTimeKind.Utc));
+            nowUtc.AddDays(5),
+            nowUtc.AddHours(-19));
         await SaveQuotesAsync(quote);
         await SaveOperationsAsync(operation);
 
@@ -255,7 +255,7 @@ public sealed class UnderwritingReferralEndpointTests
                 category = "MultiFactorAuthentication",
                 title = "Confirm MFA rollout",
                 description = "Please provide current MFA rollout evidence for privileged and email access.",
-                dueAtUtc = new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc)
+                dueAtUtc = DateTime.UtcNow.AddDays(7)
             });
         using var createResponse = await httpClient.SendAsync(createRequest, TestContext.Current.CancellationToken);
         var createContent = await createResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -611,6 +611,10 @@ public sealed class UnderwritingReferralEndpointTests
             quote.Quote.RiskTier,
             quote.Quote.CreatedAtUtc,
             quote.Quote.ExpiresAtUtc);
+        // Future due date (truncated to whole seconds for an exact JSON round-trip) so the open
+        // request is never overdue, regardless of when the test runs.
+        var openDueAtUtc = DateTime.UtcNow.AddDays(7);
+        openDueAtUtc = openDueAtUtc.AddTicks(-(openDueAtUtc.Ticks % TimeSpan.TicksPerSecond));
         var openRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
@@ -620,7 +624,7 @@ public sealed class UnderwritingReferralEndpointTests
             EvidenceRequestCategory.BackupRecovery,
             "Confirm backup testing",
             "Please provide latest backup test date.",
-            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            openDueAtUtc,
             new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc));
         var respondedRequest = QuoteEvidenceRequest.Create(
             quote.Id,
@@ -664,7 +668,7 @@ public sealed class UnderwritingReferralEndpointTests
             evidence.GetProperty("latestEvidenceActivityAtUtc").GetDateTime());
         Assert.Equal(0, evidence.GetProperty("overdueRequestCount").GetInt32());
         Assert.Equal(
-            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            openDueAtUtc,
             evidence.GetProperty("nextOpenDueAtUtc").GetDateTime());
     }
 
