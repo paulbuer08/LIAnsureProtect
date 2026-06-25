@@ -88,6 +88,14 @@ const notReviewedEvidence = {
   reviewedAtUtc: null,
 };
 
+// Expiry labels are computed from the current date, so anchor these relative to "now"
+// (instead of hardcoded calendar dates) to keep the test stable over time.
+function isoDateDaysFromNow(days: number): string {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString();
+}
+
 const severeReferral = {
   quoteId: "quote-severe",
   submissionId: "submission-severe",
@@ -100,7 +108,7 @@ const severeReferral = {
   subjectivities: ["MFA evidence required.", "EDR rollout evidence required."],
   referralReasons: ["Severe cyber risk tier.", "Requested limit is high."],
   createdAtUtc: "2026-06-20T08:00:00Z",
-  expiresAtUtc: "2026-06-25T08:00:00Z",
+  expiresAtUtc: isoDateDaysFromNow(2),
   operations: {
     assignedUnderwriterUserId: "auth0|underwriter",
     priority: "High",
@@ -135,7 +143,7 @@ const moderateReferral = {
   subjectivities: ["Backup evidence required."],
   referralReasons: ["Prior incident requires review."],
   createdAtUtc: "2026-06-21T08:00:00Z",
-  expiresAtUtc: "2026-07-20T08:00:00Z",
+  expiresAtUtc: isoDateDaysFromNow(30),
   operations: {
     assignedUnderwriterUserId: null,
     priority: "Normal",

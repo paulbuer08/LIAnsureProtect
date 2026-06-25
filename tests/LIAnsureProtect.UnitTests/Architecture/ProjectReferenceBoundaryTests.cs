@@ -34,7 +34,8 @@ public sealed class ProjectReferenceBoundaryTests
             .Descendants("ProjectReference")
             .Select(reference => reference.Attribute("Include")?.Value)
             .Where(include => !string.IsNullOrWhiteSpace(include))
-            .Select(Path.GetFileNameWithoutExtension)
+            // Normalize Windows-style separators so the project name parses on Linux CI too.
+            .Select(include => Path.GetFileNameWithoutExtension(include!.Replace('\\', '/')))
             .Order()
             .ToArray();
 
