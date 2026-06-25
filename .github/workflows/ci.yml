@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore: ['**/*.md', 'docs/**']
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md', 'docs/**']
+
+# If you push again before a run finishes, cancel the older run for the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (build, migrate, test)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.2-pg16-trixie
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: liansureprotect
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      ConnectionStrings__LIAnsureProtect: "Host=localhost;Port=5432;Database=liansureprotect;Username=postgres;Password=postgres"
+      Authentication__Authority: "https://liansureprotect-ci.example.com/"
+      Authentication__Audience: "https://api.liansureprotect.local"
+      Authentication__RoleClaimType: "https://liansureprotect.local/roles"
+      LIANSUREPROTECT_RUN_POSTGRES_TESTS: "true"
+      LIANSUREPROTECT_TEST_POSTGRES_CONNECTION_STRING: "Host=localhost;Port=5432;Database=liansureprotect;Username=postgres;Password=postgres"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore LIAnsureProtect.slnx
+
+      - name: Build
+        run: dotnet build LIAnsureProtect.slnx --no-restore
+
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
+      - name: Apply EF Core migrations
+        run: >-
+          dotnet ef database update
+          --project src/LIAnsureProtect.Infrastructure/LIAnsureProtect.Infrastructure.csproj
+          --startup-project src/LIAnsureProtect.Api/LIAnsureProtect.Api.csproj
+          --context SubmissionDbContext
+
+      - name: Test
+        run: dotnet test LIAnsureProtect.slnx --no-build --verbosity minimal
+
+  frontend:
+    name: Frontend (build, lint, test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/LIAnsureProtect.Web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/LIAnsureProtect.Web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
