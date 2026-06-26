@@ -54,6 +54,12 @@ const EvidenceRequestsPage = lazy(() =>
   })),
 );
 
+const NotificationsPage = lazy(() =>
+  import("./features/notifications/pages/NotificationsPage").then((module) => ({
+    default: module.NotificationsPage,
+  })),
+);
+
 function RouteLoadingFallback() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-sm font-medium text-slate-300">
@@ -113,6 +119,14 @@ function App() {
           element={
             <RequireAuth>
               <EvidenceRequestsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <RequireAuth>
+              <NotificationsPage />
             </RequireAuth>
           }
         />

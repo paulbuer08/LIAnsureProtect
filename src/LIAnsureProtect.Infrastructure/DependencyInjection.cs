@@ -46,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IIdempotencyRecordCleanup, EfCoreIdempotencyRecordCleanup>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
         services.AddScoped<INotificationPublisher, LocalNotificationPublisher>();
+        services.AddScoped<INotificationInboxRepository, EfNotificationInboxRepository>();
         services.AddOptions<DocumentStorageOptions>();
         services.AddScoped<IDocumentStorageService, LocalDocumentStorageService>();
         services.AddScoped<IEvidenceDocumentScanner, LocalDeterministicEvidenceDocumentScanner>();

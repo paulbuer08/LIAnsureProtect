@@ -10,5 +10,6 @@ public static class ApplicationPolicies
     public const string UnderwriteQuote = "Quotes.Underwrite";
     public const string RespondToEvidenceRequest = "EvidenceRequests.Respond";
     public const string BindPolicy = "Policies.Bind";
+    public const string ReadNotifications = "Notifications.Read";
     public const string AdminAccess = "System.Admin";
 }

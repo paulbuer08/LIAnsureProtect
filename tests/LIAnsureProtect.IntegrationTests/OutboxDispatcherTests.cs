@@ -2,6 +2,7 @@ using LIAnsureProtect.Application.Notifications;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
+using LIAnsureProtect.Infrastructure.Persistence.Notifications;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -311,6 +312,102 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Equal("true", publishedMessage.Attributes["actionRequired"]);
         Assert.Equal("local-provider-message-1", savedMessage.ProviderMessageId);
         Assert.NotNull(savedMessage.ProcessedAtUtc);
+    }
+
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Writes_Inbox_Entry_For_Customer_Notification()
+    {
+        var domainEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("d9f7a2f5-0c3c-46f3-a841-ac26f8af1169"),
+            Guid.Parse("a6f943ad-9c87-4932-9e65-8fdd97da4079"),
+            "customer-1",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 6, 21, 5, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            domainEvent,
+            new DateTime(2026, 6, 21, 5, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var dispatcher = new OutboxDispatcher(dbContext, new RecordingNotificationPublisher());
+        await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var entry = await dbContext.Set<NotificationInboxEntry>()
+            .SingleAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("customer-1", entry.RecipientUserId);
+        Assert.Equal(NotificationMessageTypes.QuoteReady, entry.Type);
+        Assert.Equal(NotificationAudiences.CustomerOrBroker, entry.Audience);
+        Assert.Equal(outboxMessage.Id, entry.SourceOutboxMessageId);
+        Assert.Null(entry.ReadAtUtc);
+    }
+
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Does_Not_Write_Inbox_Entry_For_Operations_Notification()
+    {
+        var domainEvent = new QuoteEvidenceRequestRespondedDomainEvent(
+            Guid.Parse("c3d23aa4-c01f-4ff4-851c-bd4c26ce1635"),
+            Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
+            Guid.Parse("6d3f563f-595c-4ad6-90ef-5d7d75066763"),
+            "customer-1",
+            "underwriter-1",
+            "customer-1",
+            EvidenceRequestCategory.MultiFactorAuthentication,
+            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            domainEvent,
+            new DateTime(2026, 6, 22, 12, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var dispatcher = new OutboxDispatcher(dbContext, new RecordingNotificationPublisher());
+        await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var entries = await dbContext.Set<NotificationInboxEntry>()
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Empty(entries);
+    }
+
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Does_Not_Duplicate_Existing_Inbox_Entry()
+    {
+        var domainEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("d9f7a2f5-0c3c-46f3-a841-ac26f8af1169"),
+            Guid.Parse("a6f943ad-9c87-4932-9e65-8fdd97da4079"),
+            "customer-1",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 6, 21, 5, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            domainEvent,
+            new DateTime(2026, 6, 21, 5, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
+
+        // Pre-existing inbox entry for this outbox message (as if a prior dispatch attempt wrote it).
+        var existingEntry = NotificationInboxEntry.FromNotificationMessage(
+            new NotificationMessage(
+                outboxMessage.Id.ToString("N"),
+                outboxMessage.Id,
+                NotificationMessageTypes.QuoteReady,
+                NotificationAudiences.CustomerOrBroker,
+                "customer-1",
+                "quote",
+                domainEvent.QuoteId.ToString(),
+                domainEvent.OccurredAtUtc,
+                new Dictionary<string, string>()),
+            new DateTime(2026, 6, 21, 5, 0, 10, DateTimeKind.Utc));
+        await dbContext.Set<NotificationInboxEntry>().AddAsync(existingEntry, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var dispatcher = new OutboxDispatcher(dbContext, new RecordingNotificationPublisher());
+        await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var entries = await dbContext.Set<NotificationInboxEntry>()
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Single(entries);
     }
 
     public void Dispose()

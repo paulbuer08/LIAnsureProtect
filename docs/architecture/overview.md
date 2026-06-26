@@ -375,6 +375,22 @@ Current notification event coverage:
 - `QuoteEvidenceRequestFollowUpSentDomainEvent` maps to a customer/broker evidence follow-up reminder notification.
 - `QuoteEvidenceRequestRemediationRequiredDomainEvent` maps to a customer/broker remediation-required notification for `Insufficient` and `NeedsClarification` review outcomes.
 
+Milestone 31 - Notification Inbox Read Model Foundation adds the missing receiving half. Until now the dispatcher only *published* notifications (to a local provider) and then forgot them, so no user could read them. The dispatcher now also drops a per-recipient copy into a PostgreSQL `notification_inbox_entries` read model:
+
+```text
+outbox_messages (pending)
+  -> OutboxDispatcher maps the event to a NotificationMessage (unchanged)
+  -> if Audience == customer-or-broker:
+       write a notification_inbox_entries row (idempotent on source outbox message id)
+  -> publish + mark processed (unchanged)
+  -> one SubmissionDbContext.SaveChangesAsync(...)   <- inbox row commits with the outbox state
+
+GET  /api/v1/notifications              -> owner-scoped list (newest first) + unread count
+POST /api/v1/notifications/{id}/read    -> owner-scoped, idempotent mark-as-read
+```
+
+Only person-addressed (`customer-or-broker`) notifications are persisted to the inbox in this milestone; team-addressed audiences (`underwriting-operations`, `binding-operations`) need a different fan-out model and are deferred to a later "team inbox" milestone. The inbox is intentionally PostgreSQL-first behind the Application-owned `INotificationInboxRepository`; a DynamoDB read-model implementation can replace it later behind the same interface, mirroring how document storage started local before S3. Reads are owner-scoped through `ICurrentUser` and guarded by the new `Notifications.Read` policy.
+
 The Worker flow is:
 
 ```text

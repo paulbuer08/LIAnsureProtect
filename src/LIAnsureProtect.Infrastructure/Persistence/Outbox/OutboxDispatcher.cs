@@ -1,4 +1,5 @@
 using LIAnsureProtect.Application.Notifications;
+using LIAnsureProtect.Infrastructure.Persistence.Notifications;
 using Microsoft.EntityFrameworkCore;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
@@ -37,6 +38,9 @@ public sealed class OutboxDispatcher(
                 continue;
             }
 
+            // Drop a copy in the recipient's inbox (read model) before publishing.
+            await EnsureInboxEntryAsync(message, notificationMessage, nowUtc, cancellationToken);
+
             var publishResult = await notificationPublisher.PublishAsync(
                 notificationMessage,
                 cancellationToken);
@@ -62,5 +66,29 @@ public sealed class OutboxDispatcher(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return processedCount;
+    }
+
+    // Persist a per-recipient inbox entry for person-addressed notifications.
+    // Idempotent on the source outbox message id so dispatcher retries never duplicate.
+    private async Task EnsureInboxEntryAsync(
+        OutboxMessage message,
+        NotificationMessage notificationMessage,
+        DateTime createdAtUtc,
+        CancellationToken cancellationToken)
+    {
+        if (notificationMessage.Audience != NotificationAudiences.CustomerOrBroker)
+            return;
+
+        if (string.IsNullOrWhiteSpace(notificationMessage.OwnerUserId))
+            return;
+
+        var alreadyExists = await dbContext.Set<NotificationInboxEntry>()
+            .AnyAsync(entry => entry.SourceOutboxMessageId == message.Id, cancellationToken);
+        if (alreadyExists)
+            return;
+
+        await dbContext.Set<NotificationInboxEntry>().AddAsync(
+            NotificationInboxEntry.FromNotificationMessage(notificationMessage, createdAtUtc),
+            cancellationToken);
     }
 }
