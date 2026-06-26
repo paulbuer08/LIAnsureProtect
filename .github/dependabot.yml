@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Backend NuGet packages (central package management at the repo root)
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Frontend npm packages
+  - package-ecosystem: "npm"
+    directory: "/src/LIAnsureProtect.Web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # GitHub Actions used by the CI workflow (also clears the Node 20 deprecation warning over time)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
