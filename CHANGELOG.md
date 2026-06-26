@@ -328,3 +328,11 @@ The format follows simple milestone-based entries.
 - Milestone 30 closeout recommends `Milestone 31 - Notification Inbox Read Model Foundation`.
 - Milestone 30 closeout committed locally as `1e10753 docs: close evidence review outcome notification milestone`.
 - Milestone 31 - Notification Inbox Read Model Foundation planning started on branch `codex/milestone-31-notification-inbox-read-model-foundation` with handoff `docs/dev/milestone-31-notification-inbox-read-model-foundation-handoff.md`.
+- Repository operations: pushed full history to GitHub `paulbuer08/LIAnsureProtect`, added a GitHub Actions CI workflow (backend + frontend), made the repo public, and enabled branch protection, secret scanning, push protection, and Dependabot; rewrote history to replace the commit author email with a private GitHub noreply address; per-commit SHAs are no longer tracked in `docs/project-status.md`.
+- Milestone 31 - Notification Inbox Read Model Foundation implementation.
+- PostgreSQL `notification_inbox_entries` read model and EF Core migration `AddNotificationInbox`; `NotificationInboxEntry` Infrastructure entity.
+- Application-owned `INotificationInboxRepository` (read-only) with `EfNotificationInboxRepository`; `ListMyNotificationsQuery` (list + unread count) and `MarkNotificationReadCommand`.
+- `OutboxDispatcher` now writes a per-recipient inbox entry for `customer-or-broker` notifications, idempotent on the source outbox message id, within its existing save.
+- `NotificationsController` (`GET /api/v1/notifications`, `POST /api/v1/notifications/{id}/read`) behind a new `Notifications.Read` policy (Customer/Broker/Admin, owner-scoped).
+- React `features/notifications` slice (api, hooks, list page with unread count + mark-read, tests) and a dashboard entry point.
+- Milestone 31 verification: `dotnet test` UnitTests 57 / IntegrationTests 96 (1 PostgreSQL opt-in skipped), EF pending-model check clean, frontend build/lint clean, vitest 34 passed; delivered via the protected-`main` pull-request flow.
