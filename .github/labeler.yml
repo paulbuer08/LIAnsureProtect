@@ -1,0 +1,45 @@
+frontend:
+  - changed-files:
+    - any-glob-to-any-file: 'src/LIAnsureProtect.Web/**'
+
+backend:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/LIAnsureProtect.Api/**'
+      - 'src/LIAnsureProtect.Application/**'
+      - 'src/LIAnsureProtect.Domain/**'
+      - 'src/LIAnsureProtect.Infrastructure/**'
+      - 'src/LIAnsureProtect.Worker/**'
+
+tests:
+  - changed-files:
+    - any-glob-to-any-file: 'tests/**'
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'docs/**'
+      - '**/*.md'
+
+database:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/Persistence/Migrations/**'
+      - '**/Persistence/Configurations/**'
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file: '.github/**'
+
+scripts:
+  - changed-files:
+    - any-glob-to-any-file: 'scripts/**'
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'Directory.Packages.props'
+      - '.config/dotnet-tools.json'
+      - '**/*.csproj'
+      - '**/package.json'
+      - '**/package-lock.json'
