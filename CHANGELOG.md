@@ -336,3 +336,5 @@ The format follows simple milestone-based entries.
 - `NotificationsController` (`GET /api/v1/notifications`, `POST /api/v1/notifications/{id}/read`) behind a new `Notifications.Read` policy (Customer/Broker/Admin, owner-scoped).
 - React `features/notifications` slice (api, hooks, list page with unread count + mark-read, tests) and a dashboard entry point.
 - Milestone 31 verification: `dotnet test` UnitTests 57 / IntegrationTests 96 (1 PostgreSQL opt-in skipped), EF pending-model check clean, frontend build/lint clean, vitest 34 passed; delivered via the protected-`main` pull-request flow.
+- Repository automation and hardening: PR labeler (`actions/labeler`), automatic Claude PR review (`anthropics/claude-code-action`, skips bots, non-blocking), Dependabot version-update grouping, CodeQL default setup (C#/TS/Actions) with Copilot Autofix, secret scanning + push protection, Dependabot malware + grouped security updates, and branch protection on `main`. Documented in `docs/dev/github-repository-and-automation.md`.
+- Dependencies brought current via Dependabot (incl. react-router 7 -> 8; the app uses only declarative routing, so the v8 changes do not apply).

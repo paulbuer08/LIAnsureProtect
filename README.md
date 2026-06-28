@@ -151,6 +151,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 30 Evidence Review Outcome Notification Foundation Learnings](docs/dev/milestone-30-evidence-review-outcome-notification-foundation-learnings.md)
 - [Milestone 31 Notification Inbox Read Model Foundation Handoff & Planning](docs/dev/milestone-31-notification-inbox-read-model-foundation-handoff.md)
 - [Milestone 31 Notification Inbox Read Model Foundation Learnings](docs/dev/milestone-31-notification-inbox-read-model-foundation-learnings.md)
+- [GitHub Repository, CI/CD, and Automation](docs/dev/github-repository-and-automation.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)
 - [Milestone 10 Submission List And Detail Foundation Plan](docs/superpowers/plans/2026-06-19-milestone-10-submission-list-and-detail-foundation.md)
 - [ADR-005: Application Use Case Patterns](docs/architecture/decision-records/ADR-005-application-use-case-patterns.md)
