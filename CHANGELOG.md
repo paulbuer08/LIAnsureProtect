@@ -8,6 +8,22 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 32 - Platform & Module Skeleton + Local⇄AWS Deploy Switch (behavior-preserving).
+- `LIAnsureProtect.Platform.Abstractions` shared-kernel ports project (references nothing): relocated domain-event base (`IDomainEvent`, `IHasDomainEvents`), plus new `PlatformProfile`, `PlatformOptions`, and `IClock`.
+- `LIAnsureProtect.Platform` shared-kernel adapters project: `ModuleDbContext` base (schema-per-module + transactional domain-event/outbox capture template), `SystemClock`, `PlatformProfileResolver`, and `AddPlatform(...)`.
+- `Platform:Profile` configuration switch selecting Local vs AWS infrastructure adapters at the composition root, proven first on document storage (Local wired; AWS fails fast until Milestone 42).
+- `src/Modules/` placeholder with a README describing the per-module three-project layout and boundary rules (first real module carved in Milestone 33).
+- Module-boundary architecture-test ratchet that discovers `src/Modules/*` projects and forbids cross-module/legacy references, plus updated project-reference expectations and tests for the profile switch and `ModuleDbContext`.
+- Concepts handbook under `docs/concepts/`: Clean Architecture, Modular Monolith, Ports & Adapters, the Local ⇄ AWS deploy switch, and schema-per-module.
+- Milestone 32 learning notes.
+
+### Changed
+
+- Hosts (`Api`, `Worker`) now call `AddPlatform(...)` and pass the resolved `PlatformProfile` into `AddInfrastructure(...)`; document-storage registration branches on the profile.
+- Relocated the domain-event base interfaces from `LIAnsureProtect.Domain.Common` to `LIAnsureProtect.Platform.Abstractions.DomainEvents` (no serialized-data or schema impact; EF model unchanged).
+
+### Earlier unreleased history
+
 - Repository foundation files.
 - Project status document for continuity across milestone conversations.
 - Initial architecture, business, role, local development, and AWS environment documentation.

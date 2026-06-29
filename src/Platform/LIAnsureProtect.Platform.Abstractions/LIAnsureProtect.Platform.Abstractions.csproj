@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    Platform.Abstractions is the shared-kernel PORTS project.
+    It intentionally has NO project references (and no infrastructure packages):
+    it only declares contracts that the Platform adapters and every bounded-context
+    module depend on. The ProjectReferenceBoundaryTests enforce this "depends on nothing" rule.
+  -->
+
+</Project>

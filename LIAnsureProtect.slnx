@@ -6,6 +6,13 @@
     <Project Path="src/LIAnsureProtect.Infrastructure/LIAnsureProtect.Infrastructure.csproj" Id="f1287d83-4c26-4620-b835-5e092ffcb8b0" />
     <Project Path="src/LIAnsureProtect.Worker/LIAnsureProtect.Worker.csproj" Id="a4f3914f-ec14-45cc-837b-63fb5394d214" />
   </Folder>
+  <Folder Name="/src/Platform/">
+    <Project Path="src/Platform/LIAnsureProtect.Platform.Abstractions/LIAnsureProtect.Platform.Abstractions.csproj" Id="93d96969-9954-4ec1-93b5-470f2bb3cd50" />
+    <Project Path="src/Platform/LIAnsureProtect.Platform/LIAnsureProtect.Platform.csproj" Id="213673e2-a0a9-41f1-b565-79d7ed1fadd0" />
+  </Folder>
+  <Folder Name="/src/Modules/">
+    <File Path="src/Modules/README.md" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LIAnsureProtect.IntegrationTests/LIAnsureProtect.IntegrationTests.csproj" Id="e3de299f-6eab-48f2-82c1-9378c9fcad71" />
     <Project Path="tests/LIAnsureProtect.UnitTests/LIAnsureProtect.UnitTests.csproj" Id="708bc2cf-8339-4ac6-9c25-05554e6c4760" />

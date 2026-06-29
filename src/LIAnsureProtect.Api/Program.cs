@@ -4,6 +4,7 @@ using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Api.Security;
 using LIAnsureProtect.Infrastructure;
 using LIAnsureProtect.Infrastructure.Documents;
+using LIAnsureProtect.Platform;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -16,9 +17,14 @@ const string LocalFrontendCorsPolicy = "LocalFrontend";
 // 1) Add services to the container.
 var databaseConnectionString = builder.Configuration.GetConnectionString("LIAnsureProtect");
 
+// Platform:Profile selects the Local <-> AWS adapter set. Resolve it once and pass it into the
+// layer/module registrations so they wire the matching adapters (e.g. document storage).
+var platformProfile = PlatformProfileResolver.Resolve(builder.Configuration);
+
+builder.Services.AddPlatform(builder.Configuration);
 builder.Services.AddApplication();
 builder.Services.Configure<DocumentStorageOptions>(builder.Configuration.GetSection("DocumentStorage"));
-builder.Services.AddInfrastructure(databaseConnectionString);
+builder.Services.AddInfrastructure(databaseConnectionString, platformProfile);
 builder.Services
     .AddControllers()
     .AddJsonOptions(options =>

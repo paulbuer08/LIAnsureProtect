@@ -45,11 +45,49 @@ Application and Infrastructure each expose a dependency-registration extension m
 
 Current architecture guard tests read the project files and verify the intended project-reference direction:
 
-- Domain references no production project.
+- Platform.Abstractions references no project (the shared-kernel ports depend on nothing).
+- Platform references Platform.Abstractions only.
+- Domain references Platform.Abstractions (for the shared domain-event base).
 - Application references Domain.
-- Infrastructure references Application and Domain.
-- Api references Application and Infrastructure.
-- Worker references Application and Infrastructure.
+- Infrastructure references Application, Domain, and Platform.Abstractions.
+- Api references Application, Infrastructure, and Platform.
+- Worker references Application, Infrastructure, and Platform.
+
+A module-boundary ratchet test also discovers any `src/Modules/*` project and proves no module
+references another module or a legacy layer (it passes trivially until the first module is carved).
+
+## Modular Monolith And Platform (Milestone 32)
+
+Starting in Milestone 32 the project evolves from a single layered solution into a **modular
+monolith of bounded contexts** with a **Local ⇄ AWS deploy switch**, one always-green milestone at
+a time. The architecture rests on three ideas, each documented richly under `docs/concepts/`:
+
+- **[Clean Architecture](../concepts/clean-architecture.md)** — layering *inside* each unit
+  (Domain → Application → Infrastructure → host).
+- **[Modular Monolith](../concepts/modular-monolith.md)** — many bounded-context modules in one
+  deployable, each its own projects and [its own DB schema](../concepts/schema-per-module.md).
+- **[Ports & Adapters](../concepts/ports-and-adapters.md)** — every infrastructure concern is a
+  port with swappable Local/AWS adapters, selected by the
+  [`Platform:Profile` switch](../concepts/deployment-profiles-local-aws-switch.md).
+
+```text
+src/
+├─ Platform/
+│  ├─ LIAnsureProtect.Platform.Abstractions   ← shared-kernel PORTS (domain-event base, IClock,
+│  │                                             PlatformProfile/PlatformOptions); references nothing
+│  └─ LIAnsureProtect.Platform                 ← shared-kernel ADAPTERS + base infra
+│                                                (ModuleDbContext base, SystemClock, AddPlatform switch)
+├─ Modules/<Context>/{Domain,Application,Infrastructure}   ← carved one per milestone (M33+)
+├─ LIAnsureProtect.Domain / Application / Infrastructure   ← legacy layers, strangled over time
+└─ LIAnsureProtect.Api / Worker                            ← composition roots; AddPlatform + profile
+```
+
+Milestone 32 is **behavior-preserving**: it builds the Platform shared kernel, the `Modules/`
+placeholder, the profile switch (first proven on document storage), the schema-per-module
+`ModuleDbContext` template, and the architecture-test ratchet. It deliberately does **not** split the
+existing `SubmissionDbContext` or move any table — because the transactional outbox is captured inside
+that context's `SaveChangesAsync`, the first real context carve (Notifications) waits for Milestone 33.
+See [schema-per-module](../concepts/schema-per-module.md) for the full reasoning.
 
 ## Application Use Case Pattern
 

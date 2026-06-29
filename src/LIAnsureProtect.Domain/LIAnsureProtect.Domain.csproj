@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Platform\LIAnsureProtect.Platform.Abstractions\LIAnsureProtect.Platform.Abstractions.csproj" />
+  </ItemGroup>
+
 </Project>

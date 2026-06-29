@@ -18,6 +18,7 @@ using LIAnsureProtect.Infrastructure.Quotes;
 using LIAnsureProtect.Infrastructure.Quotes.Ai;
 using LIAnsureProtect.Infrastructure.Quotes.RatingProviders;
 using LIAnsureProtect.Infrastructure.Submissions;
+using LIAnsureProtect.Platform.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
@@ -28,7 +29,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        string? databaseConnectionString)
+        string? databaseConnectionString,
+        PlatformProfile profile = PlatformProfile.Local)
     {
         if (string.IsNullOrWhiteSpace(databaseConnectionString))
             throw new InvalidOperationException("Connection string 'LIAnsureProtect' is required.");
@@ -48,7 +50,21 @@ public static class DependencyInjection
         services.AddScoped<INotificationPublisher, LocalNotificationPublisher>();
         services.AddScoped<INotificationInboxRepository, EfNotificationInboxRepository>();
         services.AddOptions<DocumentStorageOptions>();
-        services.AddScoped<IDocumentStorageService, LocalDocumentStorageService>();
+
+        // Ports & Adapters: the document-storage adapter is chosen by the active deployment profile.
+        // This is the first concrete proof of the Local <-> AWS switch; more ports follow in later milestones.
+        switch (profile)
+        {
+            case PlatformProfile.Local:
+                services.AddScoped<IDocumentStorageService, LocalDocumentStorageService>();
+                break;
+            case PlatformProfile.Aws:
+                throw new NotSupportedException(
+                    "The AWS document storage adapter (S3) arrives in Milestone 42. " +
+                    "Set Platform:Profile=Local until then.");
+            default:
+                throw new NotSupportedException($"Unsupported Platform:Profile '{profile}'.");
+        }
         services.AddScoped<IEvidenceDocumentScanner, LocalDeterministicEvidenceDocumentScanner>();
         services.AddScoped<IPolicyBindingProviderClient, SimulatedPolicyBindingProviderClient>();
         services.AddScoped<IAiReviewService, LocalSimulatedAiReviewService>();

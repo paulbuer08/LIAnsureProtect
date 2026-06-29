@@ -1,4 +1,4 @@
-using LIAnsureProtect.Domain.Common;
+using LIAnsureProtect.Platform.Abstractions.DomainEvents;
 using LIAnsureProtect.Domain.Policies;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
