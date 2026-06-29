@@ -8,6 +8,17 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 34 - Notifications Team Inbox (first feature built inside a carved module).
+- `team_notification_entries` + `team_notification_read_receipts` tables (notifications schema): the underwriting-operations/binding-operations audiences are now persisted as shared team entries with per-user read receipts (created lazily on mark-read; team membership from the role claim, no user directory).
+- Team Domain (`TeamNotificationEntry` + `TeamNotificationReadReceipt`), `ITeamNotificationRepository`, `NotificationTeamAudiences.ForRoles` (Underwriter/Admin → both ops audiences), and `NotificationsDbContext` migration `AddTeamNotificationInbox`.
+- The list endpoint merges personal + team notifications (each tagged with `scope`/`audience`); mark-read handles either, gated by the caller's allowed audiences. Frontend gains All/Personal/Team tabs + a Team badge.
+- Milestone 34 learning notes.
+
+### Changed
+
+- `Notifications.Read` policy now allows the Underwriter role (previously Customer/Broker/Admin only) so internal staff can read their team inbox.
+- `HttpContextCurrentUser.GetRoles()` now reads the identity's `RoleClaimType` so it always agrees with `IsInRole()` (fixes empty roles under the integration-test auth handler).
+
 - Milestone 33 - Notifications Module (first bounded-context carve, behavior-preserving).
 - `src/Modules/Notifications/{Domain,Application,Infrastructure}` — the first real module, with its own `NotificationsDbContext` owning a dedicated `notifications` PostgreSQL schema (inherits the Platform `ModuleDbContext`).
 - `INotificationProjector` inbound port + `NotificationInboxProjector`: the outbox dispatcher now projects inbox entries through the module via idempotent ordered projection (no distributed transaction), then publishes, then marks the outbox row processed.

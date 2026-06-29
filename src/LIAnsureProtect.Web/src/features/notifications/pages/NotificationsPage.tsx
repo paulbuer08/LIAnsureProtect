@@ -1,9 +1,19 @@
+import { useState } from "react";
 import { Link } from "react-router";
 
 import {
   useMarkNotificationRead,
   useNotifications,
 } from "../hooks/useNotifications";
+import type { NotificationScope } from "../types";
+
+type NotificationFilter = "all" | NotificationScope;
+
+const filterTabs: { value: NotificationFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "personal", label: "Personal" },
+  { value: "team", label: "Team" },
+];
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error
@@ -14,8 +24,13 @@ function getErrorMessage(error: unknown) {
 export function NotificationsPage() {
   const notificationsQuery = useNotifications();
   const markReadMutation = useMarkNotificationRead();
+  const [filter, setFilter] = useState<NotificationFilter>("all");
+
   const notifications = notificationsQuery.data?.notifications ?? [];
   const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
+  const visibleNotifications = notifications.filter(
+    (notification) => filter === "all" || notification.scope === filter,
+  );
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
@@ -61,52 +76,90 @@ export function NotificationsPage() {
           </section>
         )}
 
-        {notifications.length > 0 && (
-          <ul className="mt-8 space-y-3">
-            {notifications.map((notification) => (
-              <li
-                key={notification.notificationId}
-                className={`rounded-lg border p-5 ${
-                  notification.isRead
-                    ? "border-slate-800 bg-slate-900"
-                    : "border-emerald-500/40 bg-emerald-950/20"
-                }`}
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h2 className="text-base font-semibold text-white">
-                      {notification.title}
-                    </h2>
-                    {notification.attributes.remediationGuidance && (
-                      <p className="mt-1 text-sm text-slate-300">
-                        {notification.attributes.remediationGuidance}
-                      </p>
-                    )}
-                    <p className="mt-2 text-xs text-slate-400">
-                      {new Date(notification.occurredAtUtc).toLocaleString()}
-                    </p>
-                  </div>
+        {notificationsQuery.isSuccess && notifications.length > 0 && (
+          <>
+            <div
+              role="tablist"
+              aria-label="Filter notifications"
+              className="mt-8 inline-flex rounded-lg border border-slate-800 bg-slate-900 p-1"
+            >
+              {filterTabs.map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === tab.value}
+                  onClick={() => setFilter(tab.value)}
+                  className={`rounded-md px-4 py-1.5 text-sm font-semibold ${
+                    filter === tab.value
+                      ? "bg-emerald-400 text-slate-950"
+                      : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-                  {notification.isRead ? (
-                    <span className="inline-flex h-fit rounded-md border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">
-                      Read
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        markReadMutation.mutate(notification.notificationId)
-                      }
-                      disabled={markReadMutation.isPending}
-                      className="inline-flex h-fit rounded-lg bg-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-                    >
-                      Mark as read
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+            {visibleNotifications.length === 0 ? (
+              <p className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-300">
+                No notifications in this view.
+              </p>
+            ) : (
+              <ul className="mt-6 space-y-3">
+                {visibleNotifications.map((notification) => (
+                  <li
+                    key={notification.notificationId}
+                    className={`rounded-lg border p-5 ${
+                      notification.isRead
+                        ? "border-slate-800 bg-slate-900"
+                        : "border-emerald-500/40 bg-emerald-950/20"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-base font-semibold text-white">
+                            {notification.title}
+                          </h2>
+                          {notification.scope === "team" && (
+                            <span className="inline-flex rounded-md border border-sky-500/40 bg-sky-950/40 px-2 py-0.5 text-xs font-semibold text-sky-300">
+                              Team
+                            </span>
+                          )}
+                        </div>
+                        {notification.attributes.remediationGuidance && (
+                          <p className="mt-1 text-sm text-slate-300">
+                            {notification.attributes.remediationGuidance}
+                          </p>
+                        )}
+                        <p className="mt-2 text-xs text-slate-400">
+                          {new Date(notification.occurredAtUtc).toLocaleString()}
+                        </p>
+                      </div>
+
+                      {notification.isRead ? (
+                        <span className="inline-flex h-fit rounded-md border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">
+                          Read
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            markReadMutation.mutate(notification.notificationId)
+                          }
+                          disabled={markReadMutation.isPending}
+                          className="inline-flex h-fit rounded-lg bg-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+                        >
+                          Mark as read
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </section>
     </main>

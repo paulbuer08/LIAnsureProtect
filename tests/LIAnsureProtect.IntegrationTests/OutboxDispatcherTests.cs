@@ -377,9 +377,16 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
         notificationsDbContext.ChangeTracker.Clear();
-        var entries = await notificationsDbContext.NotificationInboxEntries
+        // An operations-addressed event produces no PERSONAL inbox entry ...
+        var personalEntries = await notificationsDbContext.NotificationInboxEntries
             .ToListAsync(TestContext.Current.CancellationToken);
-        Assert.Empty(entries);
+        Assert.Empty(personalEntries);
+
+        // ... but does produce a shared TEAM entry for the underwriting-operations audience.
+        var teamEntry = await notificationsDbContext.TeamNotificationEntries
+            .SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(NotificationAudiences.UnderwritingOperations, teamEntry.Audience);
+        Assert.Equal(outboxMessage.Id, teamEntry.SourceOutboxMessageId);
     }
 
     [Fact]

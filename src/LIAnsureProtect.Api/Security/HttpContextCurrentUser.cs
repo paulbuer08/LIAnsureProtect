@@ -26,7 +26,12 @@ public sealed class HttpContextCurrentUser(
 
     public IReadOnlyCollection<string> GetRoles()
     {
-        string roleClaimType = configuration["Authentication:RoleClaimType"] ?? ClaimTypes.Role;
+        // Read roles using the identity's own RoleClaimType so GetRoles() always agrees with
+        // IsInRole(). The JWT bearer sets this to Authentication:RoleClaimType in production; the
+        // config fallback keeps behavior if no authenticated identity is present.
+        var roleClaimType = (User?.Identity as ClaimsIdentity)?.RoleClaimType
+            ?? configuration["Authentication:RoleClaimType"]
+            ?? ClaimTypes.Role;
         return User?.FindAll(roleClaimType)
             .Select(claim => claim.Value)
             .ToArray()
