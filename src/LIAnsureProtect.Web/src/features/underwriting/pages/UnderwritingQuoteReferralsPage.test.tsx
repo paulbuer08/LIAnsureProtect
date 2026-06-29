@@ -701,7 +701,10 @@ describe("UnderwritingQuoteReferralsPage", () => {
   });
 
   it("submits approve, decline, and adjust manual decisions with the current token", async () => {
-    const user = userEvent.setup();
+    // delay: null removes userEvent's per-keystroke delay; this test types many long strings
+    // and otherwise exceeds the default 5s timeout on a loaded machine. The explicit timeout
+    // below adds margin for slow CI/dev hardware.
+    const user = userEvent.setup({ delay: null });
     vi.mocked(listQuoteReferrals).mockResolvedValue({
       quoteReferrals: [severeReferral],
     });
@@ -808,5 +811,5 @@ describe("UnderwritingQuoteReferralsPage", () => {
         notes: "Higher retention required.",
       },
     );
-  });
+  }, 20000);
 });
