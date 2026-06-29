@@ -1,7 +1,7 @@
-using LIAnsureProtect.Application.Common.Security;
+using LIAnsureProtect.Platform.Abstractions.Security;
 using MediatR;
 
-namespace LIAnsureProtect.Application.Notifications.Queries.ListMyNotifications;
+namespace LIAnsureProtect.Modules.Notifications.Application.Queries.ListMyNotifications;
 
 public sealed class ListMyNotificationsQueryHandler(
     INotificationInboxRepository notificationInboxRepository,

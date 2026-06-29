@@ -1,11 +1,11 @@
-using LIAnsureProtect.Application.Notifications;
-using LIAnsureProtect.Infrastructure.Persistence.Notifications;
+using LIAnsureProtect.Modules.Notifications.Application;
 using Microsoft.EntityFrameworkCore;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 
 public sealed class OutboxDispatcher(
     SubmissionDbContext dbContext,
+    INotificationProjector notificationProjector,
     INotificationPublisher notificationPublisher) : IOutboxDispatcher
 {
     private const int BatchSize = 20;
@@ -38,8 +38,11 @@ public sealed class OutboxDispatcher(
                 continue;
             }
 
-            // Drop a copy in the recipient's inbox (read model) before publishing.
-            await EnsureInboxEntryAsync(message, notificationMessage, nowUtc, cancellationToken);
+            // Project into the Notifications module's inbox (its own context/transaction, idempotent on
+            // the source outbox message id) BEFORE publishing and before marking this row processed.
+            // This ordering makes the cross-context handoff safe without a distributed transaction:
+            // a crash anywhere just re-delivers, and the unique index dedupes the inbox entry.
+            await notificationProjector.ProjectAsync(notificationMessage, cancellationToken);
 
             var publishResult = await notificationPublisher.PublishAsync(
                 notificationMessage,
@@ -66,29 +69,5 @@ public sealed class OutboxDispatcher(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return processedCount;
-    }
-
-    // Persist a per-recipient inbox entry for person-addressed notifications.
-    // Idempotent on the source outbox message id so dispatcher retries never duplicate.
-    private async Task EnsureInboxEntryAsync(
-        OutboxMessage message,
-        NotificationMessage notificationMessage,
-        DateTime createdAtUtc,
-        CancellationToken cancellationToken)
-    {
-        if (notificationMessage.Audience != NotificationAudiences.CustomerOrBroker)
-            return;
-
-        if (string.IsNullOrWhiteSpace(notificationMessage.OwnerUserId))
-            return;
-
-        var alreadyExists = await dbContext.Set<NotificationInboxEntry>()
-            .AnyAsync(entry => entry.SourceOutboxMessageId == message.Id, cancellationToken);
-        if (alreadyExists)
-            return;
-
-        await dbContext.Set<NotificationInboxEntry>().AddAsync(
-            NotificationInboxEntry.FromNotificationMessage(notificationMessage, createdAtUtc),
-            cancellationToken);
     }
 }

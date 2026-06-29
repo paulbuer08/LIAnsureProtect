@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using LIAnsureProtect.Application.Common.Persistence;
-using LIAnsureProtect.Application.Common.Security;
+using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Application.Quotes.Ai;
 using LIAnsureProtect.Domain.Quotes;
 using MediatR;

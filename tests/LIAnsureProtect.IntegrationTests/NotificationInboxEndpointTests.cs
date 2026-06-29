@@ -1,10 +1,10 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
-using LIAnsureProtect.Application.Notifications;
 using LIAnsureProtect.Infrastructure.Persistence;
-using LIAnsureProtect.Infrastructure.Persistence.Notifications;
 using LIAnsureProtect.IntegrationTests.Security;
+using LIAnsureProtect.Modules.Notifications.Application;
+using LIAnsureProtect.Modules.Notifications.Domain;
+using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -25,14 +25,17 @@ public sealed class NotificationInboxEndpointTests
     private const string EndpointPath = "/api/v1/notifications";
     private static readonly Uri TestServerBaseAddress = new("https://localhost");
 
-    private readonly SqliteConnection databaseConnection;
+    private readonly SqliteConnection submissionConnection;
+    private readonly SqliteConnection notificationsConnection;
     private readonly WebApplicationFactory<Program> webApplicationFactory;
     private readonly HttpClient httpClient;
 
     public NotificationInboxEndpointTests(WebApplicationFactory<Program> webApplicationFactory)
     {
-        databaseConnection = new SqliteConnection("DataSource=:memory:");
-        databaseConnection.Open();
+        submissionConnection = new SqliteConnection("DataSource=:memory:");
+        submissionConnection.Open();
+        notificationsConnection = new SqliteConnection("DataSource=:memory:");
+        notificationsConnection.Open();
 
         this.webApplicationFactory = webApplicationFactory.WithWebHostBuilder(builder =>
         {
@@ -41,9 +44,13 @@ public sealed class NotificationInboxEndpointTests
             builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IDbContextOptionsConfiguration<SubmissionDbContext>>();
-                services.RemoveAll<DbContextOptions>();
                 services.RemoveAll<DbContextOptions<SubmissionDbContext>>();
-                services.AddDbContext<SubmissionDbContext>(options => options.UseSqlite(databaseConnection));
+                services.AddDbContext<SubmissionDbContext>(options => options.UseSqlite(submissionConnection));
+
+                // The inbox now lives in the Notifications module's own context/schema.
+                services.RemoveAll<IDbContextOptionsConfiguration<NotificationsDbContext>>();
+                services.RemoveAll<DbContextOptions<NotificationsDbContext>>();
+                services.AddDbContext<NotificationsDbContext>(options => options.UseSqlite(notificationsConnection));
 
                 services
                     .AddAuthentication(TestAuthHandler.AuthenticationScheme)
@@ -54,8 +61,8 @@ public sealed class NotificationInboxEndpointTests
         });
 
         using var scope = this.webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
-        dbContext.Database.EnsureCreated();
+        scope.ServiceProvider.GetRequiredService<SubmissionDbContext>().Database.EnsureCreated();
+        scope.ServiceProvider.GetRequiredService<NotificationsDbContext>().Database.EnsureCreated();
 
         httpClient = this.webApplicationFactory.CreateClient(
             new WebApplicationFactoryClientOptions
@@ -130,24 +137,22 @@ public sealed class NotificationInboxEndpointTests
     private async Task SeedEntriesAsync(params NotificationInboxEntry[] entries)
     {
         using var scope = webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
-        await dbContext.Set<NotificationInboxEntry>().AddRangeAsync(entries, TestContext.Current.CancellationToken);
+        var dbContext = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
+        await dbContext.NotificationInboxEntries.AddRangeAsync(entries, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     private static NotificationInboxEntry CreateEntry(string recipientUserId, string type)
     {
-        return NotificationInboxEntry.FromNotificationMessage(
-            new NotificationMessage(
-                Guid.NewGuid().ToString("N"),
-                Guid.NewGuid(),
-                type,
-                NotificationAudiences.CustomerOrBroker,
-                recipientUserId,
-                "quote",
-                Guid.NewGuid().ToString(),
-                new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc),
-                new Dictionary<string, string> { ["actionRequired"] = "true" }),
+        return NotificationInboxEntry.Create(
+            recipientUserId,
+            NotificationAudiences.CustomerOrBroker,
+            type,
+            "quote",
+            Guid.NewGuid().ToString(),
+            JsonSerializer.Serialize(new Dictionary<string, string> { ["actionRequired"] = "true" }),
+            Guid.NewGuid(),
+            new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 6, 22, 9, 0, 5, DateTimeKind.Utc));
     }
 
@@ -168,6 +173,7 @@ public sealed class NotificationInboxEndpointTests
     {
         httpClient.Dispose();
         webApplicationFactory.Dispose();
-        databaseConnection.Dispose();
+        submissionConnection.Dispose();
+        notificationsConnection.Dispose();
     }
 }

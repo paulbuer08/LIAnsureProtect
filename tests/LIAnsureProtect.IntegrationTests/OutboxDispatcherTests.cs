@@ -1,9 +1,10 @@
-using LIAnsureProtect.Application.Notifications;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
-using LIAnsureProtect.Infrastructure.Persistence.Notifications;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
+using LIAnsureProtect.Modules.Notifications.Application;
+using LIAnsureProtect.Modules.Notifications.Domain;
+using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,20 +12,30 @@ namespace LIAnsureProtect.IntegrationTests;
 
 public sealed class OutboxDispatcherTests : IDisposable
 {
-    private readonly SqliteConnection databaseConnection;
+    private readonly SqliteConnection submissionConnection;
+    private readonly SqliteConnection notificationsConnection;
     private readonly SubmissionDbContext dbContext;
+    private readonly NotificationsDbContext notificationsDbContext;
+    private readonly NotificationInboxProjector projector;
 
     public OutboxDispatcherTests()
     {
-        databaseConnection = new SqliteConnection("DataSource=:memory:");
-        databaseConnection.Open();
-
-        var dbContextOptions = new DbContextOptionsBuilder<SubmissionDbContext>()
-            .UseSqlite(databaseConnection)
-            .Options;
-
-        dbContext = new SubmissionDbContext(dbContextOptions);
+        // The outbox lives in the Submissions/legacy context; the inbox lives in the Notifications
+        // module's own context (its own schema). They are separate databases here, mirroring the
+        // idempotent-ordered projection that needs no shared transaction.
+        submissionConnection = new SqliteConnection("DataSource=:memory:");
+        submissionConnection.Open();
+        dbContext = new SubmissionDbContext(
+            new DbContextOptionsBuilder<SubmissionDbContext>().UseSqlite(submissionConnection).Options);
         dbContext.Database.EnsureCreated();
+
+        notificationsConnection = new SqliteConnection("DataSource=:memory:");
+        notificationsConnection.Open();
+        notificationsDbContext = new NotificationsDbContext(
+            new DbContextOptionsBuilder<NotificationsDbContext>().UseSqlite(notificationsConnection).Options);
+        notificationsDbContext.Database.EnsureCreated();
+
+        projector = new NotificationInboxProjector(notificationsDbContext);
     }
 
     [Fact]
@@ -41,7 +52,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -71,7 +82,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -113,7 +124,7 @@ public sealed class OutboxDispatcherTests : IDisposable
 
         var publisher = new RecordingNotificationPublisher(
             NotificationPublishResult.TransientFailure("local notification provider is unavailable"));
-        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -149,7 +160,7 @@ public sealed class OutboxDispatcherTests : IDisposable
 
         var publisher = new RecordingNotificationPublisher(
             NotificationPublishResult.PermanentFailure("notification payload is not accepted by provider"));
-        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -189,7 +200,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher);
 
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -223,7 +234,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher);
 
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -255,7 +266,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher);
 
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -288,7 +299,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, publisher);
+        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -329,11 +340,11 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var dispatcher = new OutboxDispatcher(dbContext, new RecordingNotificationPublisher());
+        var dispatcher = new OutboxDispatcher(dbContext, projector, new RecordingNotificationPublisher());
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
-        dbContext.ChangeTracker.Clear();
-        var entry = await dbContext.Set<NotificationInboxEntry>()
+        notificationsDbContext.ChangeTracker.Clear();
+        var entry = await notificationsDbContext.NotificationInboxEntries
             .SingleAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("customer-1", entry.RecipientUserId);
@@ -362,11 +373,11 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var dispatcher = new OutboxDispatcher(dbContext, new RecordingNotificationPublisher());
+        var dispatcher = new OutboxDispatcher(dbContext, projector, new RecordingNotificationPublisher());
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
-        dbContext.ChangeTracker.Clear();
-        var entries = await dbContext.Set<NotificationInboxEntry>()
+        notificationsDbContext.ChangeTracker.Clear();
+        var entries = await notificationsDbContext.NotificationInboxEntries
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Empty(entries);
     }
@@ -384,28 +395,27 @@ public sealed class OutboxDispatcherTests : IDisposable
             domainEvent,
             new DateTime(2026, 6, 21, 5, 0, 5, DateTimeKind.Utc));
         await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
-
-        // Pre-existing inbox entry for this outbox message (as if a prior dispatch attempt wrote it).
-        var existingEntry = NotificationInboxEntry.FromNotificationMessage(
-            new NotificationMessage(
-                outboxMessage.Id.ToString("N"),
-                outboxMessage.Id,
-                NotificationMessageTypes.QuoteReady,
-                NotificationAudiences.CustomerOrBroker,
-                "customer-1",
-                "quote",
-                domainEvent.QuoteId.ToString(),
-                domainEvent.OccurredAtUtc,
-                new Dictionary<string, string>()),
-            new DateTime(2026, 6, 21, 5, 0, 10, DateTimeKind.Utc));
-        await dbContext.Set<NotificationInboxEntry>().AddAsync(existingEntry, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var dispatcher = new OutboxDispatcher(dbContext, new RecordingNotificationPublisher());
+        // Pre-existing inbox entry for this outbox message (as if a prior dispatch attempt wrote it).
+        var existingEntry = NotificationInboxEntry.Create(
+            "customer-1",
+            NotificationAudiences.CustomerOrBroker,
+            NotificationMessageTypes.QuoteReady,
+            "quote",
+            domainEvent.QuoteId.ToString(),
+            "{}",
+            outboxMessage.Id,
+            domainEvent.OccurredAtUtc,
+            new DateTime(2026, 6, 21, 5, 0, 10, DateTimeKind.Utc));
+        await notificationsDbContext.NotificationInboxEntries.AddAsync(existingEntry, TestContext.Current.CancellationToken);
+        await notificationsDbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var dispatcher = new OutboxDispatcher(dbContext, projector, new RecordingNotificationPublisher());
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
-        dbContext.ChangeTracker.Clear();
-        var entries = await dbContext.Set<NotificationInboxEntry>()
+        notificationsDbContext.ChangeTracker.Clear();
+        var entries = await notificationsDbContext.NotificationInboxEntries
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Single(entries);
     }
@@ -413,7 +423,9 @@ public sealed class OutboxDispatcherTests : IDisposable
     public void Dispose()
     {
         dbContext.Dispose();
-        databaseConnection.Dispose();
+        notificationsDbContext.Dispose();
+        submissionConnection.Dispose();
+        notificationsConnection.Dispose();
     }
 
     private sealed class RecordingNotificationPublisher(

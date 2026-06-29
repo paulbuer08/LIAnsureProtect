@@ -1,7 +1,7 @@
-using LIAnsureProtect.Application.Common.Security;
+using LIAnsureProtect.Platform.Abstractions.Security;
 using MediatR;
 
-namespace LIAnsureProtect.Application.Notifications.Commands.MarkNotificationRead;
+namespace LIAnsureProtect.Modules.Notifications.Application.Commands.MarkNotificationRead;
 
 public sealed class MarkNotificationReadCommandHandler(
     INotificationInboxRepository notificationInboxRepository,

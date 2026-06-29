@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Security;
+using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Application.Submissions.Commands.CreateSubmission;
 using LIAnsureProtect.Application.Submissions.Commands.SubmitSubmission;
 using LIAnsureProtect.Application.Submissions.Queries.GetSubmissionDetail;

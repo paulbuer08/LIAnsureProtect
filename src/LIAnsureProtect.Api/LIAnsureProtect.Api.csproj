@@ -20,5 +20,6 @@
     <ProjectReference Include="..\LIAnsureProtect.Application\LIAnsureProtect.Application.csproj" />
     <ProjectReference Include="..\LIAnsureProtect.Infrastructure\LIAnsureProtect.Infrastructure.csproj" />
     <ProjectReference Include="..\Platform\LIAnsureProtect.Platform\LIAnsureProtect.Platform.csproj" />
+    <ProjectReference Include="..\Modules\Notifications\LIAnsureProtect.Modules.Notifications.Infrastructure\LIAnsureProtect.Modules.Notifications.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

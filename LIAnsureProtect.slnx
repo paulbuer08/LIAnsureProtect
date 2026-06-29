@@ -13,6 +13,11 @@
   <Folder Name="/src/Modules/">
     <File Path="src/Modules/README.md" />
   </Folder>
+  <Folder Name="/src/Modules/Notifications/">
+    <Project Path="src/Modules/Notifications/LIAnsureProtect.Modules.Notifications.Domain/LIAnsureProtect.Modules.Notifications.Domain.csproj" Id="b9c3dbab-80aa-4637-8fb2-79f63ee82395" />
+    <Project Path="src/Modules/Notifications/LIAnsureProtect.Modules.Notifications.Application/LIAnsureProtect.Modules.Notifications.Application.csproj" Id="6ff933d8-0fa3-423e-b936-a190ba985913" />
+    <Project Path="src/Modules/Notifications/LIAnsureProtect.Modules.Notifications.Infrastructure/LIAnsureProtect.Modules.Notifications.Infrastructure.csproj" Id="14d27c0c-17f1-4325-88fb-19f6b7f9d971" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LIAnsureProtect.IntegrationTests/LIAnsureProtect.IntegrationTests.csproj" Id="e3de299f-6eab-48f2-82c1-9378c9fcad71" />
     <Project Path="tests/LIAnsureProtect.UnitTests/LIAnsureProtect.UnitTests.csproj" Id="708bc2cf-8339-4ac6-9c25-05554e6c4760" />

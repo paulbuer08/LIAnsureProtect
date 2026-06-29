@@ -1,4 +1,4 @@
-namespace LIAnsureProtect.Application.Notifications;
+namespace LIAnsureProtect.Modules.Notifications.Application;
 
 public sealed record NotificationPublishResult(
     bool IsSuccess,

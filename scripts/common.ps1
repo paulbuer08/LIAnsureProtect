@@ -77,4 +77,21 @@ function Assert-SubmissionMigrationsExist {
     if ($migrationFiles.Count -eq 0) {
         Stop-MissingSubmissionMigrations "Expected at least one migration file in: $migrationsDirectory`nFound only the model snapshot or no C# migration files."
     }
+
+    # Each bounded-context module owns its own DbContext + migrations; the Notifications module
+    # must have its committed migrations too, or a fresh database will be missing the notifications schema.
+    $notificationsMigrationsDirectory = Join-Path $RepositoryRoot "src\Modules\Notifications\LIAnsureProtect.Modules.Notifications.Infrastructure\Migrations"
+
+    if (-not (Test-Path $notificationsMigrationsDirectory -PathType Container)) {
+        Stop-MissingSubmissionMigrations "Expected folder: $notificationsMigrationsDirectory"
+    }
+
+    $notificationsMigrationFiles = @(
+        Get-ChildItem -Path $notificationsMigrationsDirectory -Filter "*.cs" -File |
+            Where-Object { $_.Name -ne "NotificationsDbContextModelSnapshot.cs" }
+    )
+
+    if ($notificationsMigrationFiles.Count -eq 0) {
+        Stop-MissingSubmissionMigrations "Expected at least one migration file in: $notificationsMigrationsDirectory`nFound only the model snapshot or no C# migration files."
+    }
 }

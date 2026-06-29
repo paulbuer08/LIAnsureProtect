@@ -8,6 +8,18 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 33 - Notifications Module (first bounded-context carve, behavior-preserving).
+- `src/Modules/Notifications/{Domain,Application,Infrastructure}` — the first real module, with its own `NotificationsDbContext` owning a dedicated `notifications` PostgreSQL schema (inherits the Platform `ModuleDbContext`).
+- `INotificationProjector` inbound port + `NotificationInboxProjector`: the outbox dispatcher now projects inbox entries through the module via idempotent ordered projection (no distributed transaction), then publishes, then marks the outbox row processed.
+- New `NotificationsDbContext` migration (`CreateNotificationsSchema`) and a `SubmissionDbContext` migration (`DropNotificationInbox`) that move `notification_inbox_entries` from `public` to the `notifications` schema (drop-and-recreate; no production data).
+- Dev scripts and CI apply migrations per `DbContext` (`--context`), now covering both `SubmissionDbContext` and `NotificationsDbContext`.
+- Milestone 33 learning notes.
+
+### Changed
+
+- Moved the notification contracts, inbox read model, repository, projector, and local publisher out of the legacy `Application`/`Infrastructure` projects into the Notifications module; the dispatcher/mapper stay in legacy Infrastructure and consume the module's Application ports (integration-event decoupling is deferred to M40).
+- Relocated `ICurrentUser` from `Application.Common.Security` to `Platform.Abstractions.Security` (shared kernel). `IUnitOfWork` stays in legacy until a carved write-module needs it.
+
 - Milestone 32 - Platform & Module Skeleton + Local⇄AWS Deploy Switch (behavior-preserving).
 - `LIAnsureProtect.Platform.Abstractions` shared-kernel ports project (references nothing): relocated domain-event base (`IDomainEvent`, `IHasDomainEvents`), plus new `PlatformProfile`, `PlatformOptions`, and `IClock`.
 - `LIAnsureProtect.Platform` shared-kernel adapters project: `ModuleDbContext` base (schema-per-module + transactional domain-event/outbox capture template), `SystemClock`, `PlatformProfileResolver`, and `AddPlatform(...)`.

@@ -1,5 +1,5 @@
 using MediatR;
 
-namespace LIAnsureProtect.Application.Notifications.Queries.ListMyNotifications;
+namespace LIAnsureProtect.Modules.Notifications.Application.Queries.ListMyNotifications;
 
 public sealed record ListMyNotificationsQuery : IRequest<ListMyNotificationsResult>;

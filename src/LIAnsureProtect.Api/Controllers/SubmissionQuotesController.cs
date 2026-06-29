@@ -4,6 +4,7 @@ using System.Text.Json;
 using LIAnsureProtect.Application.Common.Exceptions;
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Security;
+using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Application.Quotes.Commands.CreateQuote;
 using LIAnsureProtect.Domain.Quotes;
 using MediatR;

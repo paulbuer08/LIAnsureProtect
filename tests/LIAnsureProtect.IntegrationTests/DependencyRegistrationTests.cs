@@ -2,7 +2,6 @@ using LIAnsureProtect.Application;
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Application.Documents;
-using LIAnsureProtect.Application.Notifications;
 using LIAnsureProtect.Application.Policies;
 using LIAnsureProtect.Application.Policies.Binding;
 using LIAnsureProtect.Application.Quotes;
@@ -13,6 +12,9 @@ using LIAnsureProtect.Infrastructure;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
+using LIAnsureProtect.Modules.Notifications.Application;
+using LIAnsureProtect.Modules.Notifications.Infrastructure;
+using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +32,7 @@ public sealed class DependencyRegistrationTests
 
         // Act
         services.AddApplication();
+        services.AddNotificationsModule("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
         services.AddInfrastructure("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
         using var provider = services.BuildServiceProvider();
 
@@ -44,6 +47,7 @@ public sealed class DependencyRegistrationTests
         var services = new ServiceCollection();
 
         // Act
+        services.AddNotificationsModule("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
         services.AddInfrastructure("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
@@ -59,10 +63,15 @@ public sealed class DependencyRegistrationTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IIdempotencyRecordCleanup>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IRatingProviderClient>());
-        Assert.NotNull(scope.ServiceProvider.GetRequiredService<INotificationPublisher>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IAiReviewService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IDocumentStorageService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IEvidenceDocumentScanner>());
+
+        // Notifications module services (inbox read, projection, publishing) resolve from the module.
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<NotificationsDbContext>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<INotificationInboxRepository>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<INotificationProjector>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<INotificationPublisher>());
     }
 
     [Fact]
@@ -139,5 +148,26 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("scanned_at_utc", script);
         Assert.Contains("sha256", script);
         Assert.Contains("ix_quote_evidence_documents_scan_status_uploaded_at_utc", script);
+    }
+
+    [Fact]
+    public void NotificationsModuleMigrationsCreateNotificationsSchemaAndInbox()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddNotificationsModule("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
+        var migrator = dbContext.GetInfrastructure().GetRequiredService<IMigrator>();
+
+        // Act
+        var script = migrator.GenerateScript();
+
+        // Assert: the inbox table now lives in the module-owned "notifications" schema.
+        Assert.Contains("CREATE SCHEMA notifications", script);
+        Assert.Contains("CREATE TABLE notifications.notification_inbox_entries", script);
+        Assert.Contains("ix_notification_inbox_entries_source_outbox_message_id", script);
+        Assert.Contains("ix_notification_inbox_entries_recipient_read", script);
     }
 }

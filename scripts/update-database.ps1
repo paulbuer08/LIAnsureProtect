@@ -16,6 +16,8 @@ try {
         [Environment]::SetEnvironmentVariable($efCommandLogLevelVariableName, "Critical", "Process")
     }
 
+    # Each bounded-context module owns its own DbContext (and PostgreSQL schema), so migrations are
+    # applied once per context. Add a line here when a new module introduces its own DbContext.
     Invoke-CheckedCommand "dotnet" @(
         "ef",
         "database",
@@ -26,6 +28,18 @@ try {
         "src\LIAnsureProtect.Api\LIAnsureProtect.Api.csproj",
         "--context",
         "SubmissionDbContext"
+    )
+
+    Invoke-CheckedCommand "dotnet" @(
+        "ef",
+        "database",
+        "update",
+        "--project",
+        "src\Modules\Notifications\LIAnsureProtect.Modules.Notifications.Infrastructure\LIAnsureProtect.Modules.Notifications.Infrastructure.csproj",
+        "--startup-project",
+        "src\LIAnsureProtect.Api\LIAnsureProtect.Api.csproj",
+        "--context",
+        "NotificationsDbContext"
     )
 }
 finally {

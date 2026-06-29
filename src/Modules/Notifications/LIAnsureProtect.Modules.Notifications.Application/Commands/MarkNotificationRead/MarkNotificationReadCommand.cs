@@ -1,5 +1,5 @@
 using MediatR;
 
-namespace LIAnsureProtect.Application.Notifications.Commands.MarkNotificationRead;
+namespace LIAnsureProtect.Modules.Notifications.Application.Commands.MarkNotificationRead;
 
 public sealed record MarkNotificationReadCommand(Guid NotificationId) : IRequest<bool>;

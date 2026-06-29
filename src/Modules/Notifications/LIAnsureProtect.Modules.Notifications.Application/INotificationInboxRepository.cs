@@ -1,6 +1,6 @@
-using LIAnsureProtect.Application.Notifications.Queries.ListMyNotifications;
+using LIAnsureProtect.Modules.Notifications.Application.Queries.ListMyNotifications;
 
-namespace LIAnsureProtect.Application.Notifications;
+namespace LIAnsureProtect.Modules.Notifications.Application;
 
 public interface INotificationInboxRepository
 {

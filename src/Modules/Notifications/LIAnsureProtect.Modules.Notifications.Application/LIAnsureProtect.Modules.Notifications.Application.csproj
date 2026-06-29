@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>LIAnsureProtect.Modules.Notifications.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LIAnsureProtect.Modules.Notifications.Domain\LIAnsureProtect.Modules.Notifications.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Platform\LIAnsureProtect.Platform.Abstractions\LIAnsureProtect.Platform.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

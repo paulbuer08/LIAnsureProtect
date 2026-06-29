@@ -1,13 +1,14 @@
-using LIAnsureProtect.Infrastructure.Persistence.Notifications;
+using LIAnsureProtect.Modules.Notifications.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace LIAnsureProtect.Infrastructure.Persistence.Configurations;
+namespace LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 
 public sealed class NotificationInboxEntryConfiguration : IEntityTypeConfiguration<NotificationInboxEntry>
 {
     public void Configure(EntityTypeBuilder<NotificationInboxEntry> builder)
     {
+        // Schema comes from NotificationsDbContext.HasDefaultSchema("notifications").
         builder.ToTable("notification_inbox_entries");
 
         builder.HasKey(entry => entry.Id);
