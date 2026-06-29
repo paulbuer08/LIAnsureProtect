@@ -26,6 +26,18 @@ gh pr merge --squash --delete-branch    # merge into main (squash = linear histo
 git switch main && git pull             # re-sync
 ```
 
+### Starting a milestone (or any change)
+
+Every milestone starts the same way, so `main` is never built on stale state:
+
+1. **Sync the trunk:** `git switch main` then `git pull --ff-only` — local `main` becomes the latest remote `main`.
+2. **Branch from the fresh `main`:** `git switch -c feat/milestone-<n>-<slug>` (the branch is always created from an up-to-date `main`, never a stale local copy).
+3. **Do the work on that branch** — targeted tests during development, one full test pass before each commit.
+4. **Push and open a PR into `main`;** CI and the Claude review run automatically.
+5. **Squash-merge when green, delete the branch,** then `git switch main && git pull` to re-sync.
+
+This is an automatic expectation for any agent or contributor working the repo — keeping local `main` current before branching is part of step 1, not an afterthought. Worktrees are optional (an isolated second folder on the new branch); the default is a feature branch in the main working folder.
+
 ### Branch protection on `main`
 
 - Require a pull request before merging (0 required approvals so the solo owner can self-merge).
