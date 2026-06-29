@@ -1,4 +1,4 @@
-namespace LIAnsureProtect.Application.Notifications;
+namespace LIAnsureProtect.Modules.Notifications.Application;
 
 // Maps a notification type to a short, human-friendly inbox title so the API is
 // self-describing and the frontend does not need to know every type string.

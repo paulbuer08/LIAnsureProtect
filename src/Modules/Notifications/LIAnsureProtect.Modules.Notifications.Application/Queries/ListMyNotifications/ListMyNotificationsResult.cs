@@ -1,4 +1,4 @@
-namespace LIAnsureProtect.Application.Notifications.Queries.ListMyNotifications;
+namespace LIAnsureProtect.Modules.Notifications.Application.Queries.ListMyNotifications;
 
 public sealed record ListMyNotificationsResult(
     IReadOnlyList<NotificationInboxItemResult> Notifications,

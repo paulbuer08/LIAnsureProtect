@@ -1,9 +1,10 @@
 # Modules
 
-This folder holds the **bounded-context modules** of the modular monolith. It is intentionally
-empty right now — Milestone 32 builds the `Platform` shared kernel and the seams; the first real
-module (**Notifications**) is carved out in Milestone 33, and the rest follow one milestone at a
-time (Underwriting → M34, Rating/Quoting/Policy → M35, Accounts/Companies/Product Catalog → M36, …).
+This folder holds the **bounded-context modules** of the modular monolith. The first real module,
+**Notifications** (`Notifications/`), was carved out in Milestone 33 — it owns the notification inbox
+in its own `notifications` PostgreSQL schema. The rest follow one milestone at a time (team inbox →
+M34, Underwriting, Rating/Quoting/Policy, Accounts/Companies/Product Catalog, …). Milestone 32 built
+the `Platform` shared kernel and the seams these modules plug into.
 
 ## What a module looks like
 

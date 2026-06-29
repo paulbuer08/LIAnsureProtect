@@ -3,7 +3,6 @@ using LIAnsureProtect.Domain.Policies;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
-using LIAnsureProtect.Infrastructure.Persistence.Notifications;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using Microsoft.EntityFrameworkCore;
 
@@ -40,8 +39,6 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
     public DbSet<PolicyBindingAttempt> PolicyBindingAttempts => Set<PolicyBindingAttempt>();
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
-
-    public DbSet<NotificationInboxEntry> NotificationInboxEntries => Set<NotificationInboxEntry>();
 
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
 

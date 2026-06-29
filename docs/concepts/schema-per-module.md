@@ -55,33 +55,39 @@ So the rollout is:
 
 ```text
 M32  Establish the PATTERN: ModuleDbContext base + this doc + tests. No tables move.
-M33  First real carve: Notifications module gets its own DbContext + `notifications` schema,
-     inheriting ModuleDbContext (its own outbox lives in its schema).
+M33  First real carve (DONE): the Notifications module gets its own NotificationsDbContext +
+     `notifications` schema, inheriting ModuleDbContext.
 M34+ Carve the remaining contexts one per milestone, each always-green.
 ```
 
-## Design-time factory (per-module migrations)
+### Moving an existing table to its schema: `SET SCHEMA` vs. drop-and-recreate
 
-Each module needs EF Core to find its `DbContext` at design time (for `dotnet ef migrations add`).
-The standard template — added per module when it is created — is:
+When a carve relocates a table that already exists in `public`, there are two ways:
 
-```csharp
-// In the module's Infrastructure project, next to its DbContext.
-public sealed class NotificationsDbContextFactory : IDesignTimeDbContextFactory<NotificationsDbContext>
-{
-    public NotificationsDbContext CreateDbContext(string[] args)
-    {
-        var options = new DbContextOptionsBuilder<NotificationsDbContext>()
-            .UseNpgsql("Host=localhost;Database=liansureprotect;Username=postgres;Password=postgres",
-                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "notifications"))
-            .Options;
-        return new NotificationsDbContext(options);
-    }
-}
+- **`ALTER TABLE public.x SET SCHEMA newschema`** — preserves data. Use this once there is production
+  data to keep.
+- **Drop-and-recreate** — the old context drops the table; the new context creates it in its schema.
+  Simpler and avoids fragile hand-authored cross-context migrations, but loses existing rows.
+
+M33 used **drop-and-recreate** for `notification_inbox_entries` because there is no production
+deployment yet and the inbox is a rebuildable read model: `SubmissionDbContext` got a
+`DropNotificationInbox` migration and `NotificationsDbContext` a `CreateNotificationsSchema` migration.
+
+## Per-module migrations (two DbContexts, two histories)
+
+Each module owns its own migrations and its own `__EFMigrationsHistory` (the Notifications module's
+lives in its `notifications` schema via `MigrationsHistoryTable(..., "notifications")` in
+`AddNotificationsModule`). Because there are now multiple `DbContext`s, every `dotnet ef` command
+must pass `--context`, and the dev scripts + CI apply **each** context's migrations:
+
+```text
+dotnet ef database update --context SubmissionDbContext   --project src/LIAnsureProtect.Infrastructure ...
+dotnet ef database update --context NotificationsDbContext --project src/Modules/Notifications/...Infrastructure ...
 ```
 
-Note `MigrationsHistoryTable(..., "notifications")` — each module tracks its own migration history
-inside its own schema, so migrations stay independent.
+EF finds each context at design time from the **Api host's DI registration** (`AddNotificationsModule`),
+which supplies the correct per-environment connection string — so no `IDesignTimeDbContextFactory` is
+needed.
 
 ## Why we use it
 

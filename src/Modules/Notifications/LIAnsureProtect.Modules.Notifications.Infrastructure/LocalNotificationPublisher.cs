@@ -1,6 +1,6 @@
-using LIAnsureProtect.Application.Notifications;
+using LIAnsureProtect.Modules.Notifications.Application;
 
-namespace LIAnsureProtect.Infrastructure.Notifications;
+namespace LIAnsureProtect.Modules.Notifications.Infrastructure;
 
 public sealed class LocalNotificationPublisher : INotificationPublisher
 {

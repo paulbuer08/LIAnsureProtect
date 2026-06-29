@@ -1,11 +1,10 @@
-using System.Text.Json;
-using LIAnsureProtect.Application.Notifications;
+namespace LIAnsureProtect.Modules.Notifications.Domain;
 
-namespace LIAnsureProtect.Infrastructure.Persistence.Notifications;
-
-// Per-recipient inbox read model. Built from a NotificationMessage when the outbox
-// dispatcher processes a customer/broker-addressed event, so users can read the
-// notifications the system publishes.
+/// <summary>
+/// Per-recipient inbox read model. One entry is projected from a published notification when the
+/// outbox dispatcher processes a customer/broker-addressed event, so users can read the notifications
+/// the system publishes. This is the Notifications module's owned aggregate.
+/// </summary>
 public sealed class NotificationInboxEntry
 {
     private NotificationInboxEntry(
@@ -70,20 +69,31 @@ public sealed class NotificationInboxEntry
         ReadAtUtc ??= readAtUtc;
     }
 
-    public static NotificationInboxEntry FromNotificationMessage(
-        NotificationMessage message,
+    /// <summary>
+    /// Creates a new inbox entry. Called by the projector from a published notification; the entry
+    /// itself stays free of any Application/contract types so the Domain depends only on the kernel.
+    /// </summary>
+    public static NotificationInboxEntry Create(
+        string recipientUserId,
+        string audience,
+        string type,
+        string subjectReferenceType,
+        string subjectReferenceId,
+        string attributesJson,
+        Guid sourceOutboxMessageId,
+        DateTime occurredAtUtc,
         DateTime createdAtUtc)
     {
         return new NotificationInboxEntry(
             Guid.NewGuid(),
-            message.OwnerUserId,
-            message.Audience,
-            message.Type,
-            message.SubjectReferenceType,
-            message.SubjectReferenceId,
-            JsonSerializer.Serialize(message.Attributes),
-            message.OutboxMessageId,
-            message.OccurredAtUtc,
+            recipientUserId,
+            audience,
+            type,
+            subjectReferenceType,
+            subjectReferenceId,
+            attributesJson,
+            sourceOutboxMessageId,
+            occurredAtUtc,
             createdAtUtc);
     }
 }

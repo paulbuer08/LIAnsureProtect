@@ -89,6 +89,16 @@ existing `SubmissionDbContext` or move any table — because the transactional o
 that context's `SaveChangesAsync`, the first real context carve (Notifications) waits for Milestone 33.
 See [schema-per-module](../concepts/schema-per-module.md) for the full reasoning.
 
+Milestone 33 performs that **first carve**: the Notifications context moves into
+`src/Modules/Notifications/{Domain,Application,Infrastructure}` with its own `NotificationsDbContext`
+owning a dedicated `notifications` schema. The outbox dispatcher (still in legacy Infrastructure,
+because it knows other contexts' domain events) feeds the module through the `INotificationProjector`
+port using **idempotent ordered projection** — project to the inbox (idempotent on the source outbox
+id) → publish → mark the outbox row processed — so the cross-context handoff needs no distributed
+transaction. Because there are now two `DbContext`s, every `dotnet ef` command takes `--context` and
+the dev scripts + CI apply both contexts' migrations. Full integration-event decoupling of the
+dispatcher is scheduled for Milestone 40.
+
 ## Application Use Case Pattern
 
 Milestone 4 - Application Use Case Foundation introduced practical CQRS with MediatR and FluentValidation.

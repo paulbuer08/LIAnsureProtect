@@ -57,12 +57,19 @@ jobs:
       - name: Restore .NET tools
         run: dotnet tool restore
 
-      - name: Apply EF Core migrations
+      - name: Apply EF Core migrations (SubmissionDbContext)
         run: >-
           dotnet ef database update
           --project src/LIAnsureProtect.Infrastructure/LIAnsureProtect.Infrastructure.csproj
           --startup-project src/LIAnsureProtect.Api/LIAnsureProtect.Api.csproj
           --context SubmissionDbContext
+
+      - name: Apply EF Core migrations (NotificationsDbContext)
+        run: >-
+          dotnet ef database update
+          --project src/Modules/Notifications/LIAnsureProtect.Modules.Notifications.Infrastructure/LIAnsureProtect.Modules.Notifications.Infrastructure.csproj
+          --startup-project src/LIAnsureProtect.Api/LIAnsureProtect.Api.csproj
+          --context NotificationsDbContext
 
       - name: Test
         run: dotnet test LIAnsureProtect.slnx --no-build --verbosity minimal

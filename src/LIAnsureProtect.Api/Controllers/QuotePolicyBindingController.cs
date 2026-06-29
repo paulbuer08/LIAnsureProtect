@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Security;
+using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Application.Policies.Commands.BindPolicy;
 using LIAnsureProtect.Application.Quotes.Commands.AcceptQuote;
 using MediatR;

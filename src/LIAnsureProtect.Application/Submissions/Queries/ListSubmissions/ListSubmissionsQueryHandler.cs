@@ -1,4 +1,4 @@
-using LIAnsureProtect.Application.Common.Security;
+using LIAnsureProtect.Platform.Abstractions.Security;
 using MediatR;
 
 namespace LIAnsureProtect.Application.Submissions.Queries.ListSubmissions;

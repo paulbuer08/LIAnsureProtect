@@ -1,5 +1,5 @@
 using LIAnsureProtect.Application.Common.Persistence;
-using LIAnsureProtect.Application.Common.Security;
+using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Domain.Submissions;
 using MediatR;
 

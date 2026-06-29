@@ -1,7 +1,7 @@
 using System.Text.Json;
-using LIAnsureProtect.Application.Notifications;
 using LIAnsureProtect.Domain.Policies;
 using LIAnsureProtect.Domain.Quotes;
+using LIAnsureProtect.Modules.Notifications.Application;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 

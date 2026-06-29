@@ -1,13 +1,11 @@
 using System.Text.Json;
-using LIAnsureProtect.Application.Notifications;
-using LIAnsureProtect.Application.Notifications.Queries.ListMyNotifications;
-using LIAnsureProtect.Infrastructure.Persistence;
-using LIAnsureProtect.Infrastructure.Persistence.Notifications;
+using LIAnsureProtect.Modules.Notifications.Application;
+using LIAnsureProtect.Modules.Notifications.Application.Queries.ListMyNotifications;
 using Microsoft.EntityFrameworkCore;
 
-namespace LIAnsureProtect.Infrastructure.Notifications;
+namespace LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 
-public sealed class EfNotificationInboxRepository(SubmissionDbContext dbContext) : INotificationInboxRepository
+public sealed class EfNotificationInboxRepository(NotificationsDbContext dbContext) : INotificationInboxRepository
 {
     private const int MaxListSize = 50;
 
@@ -15,7 +13,7 @@ public sealed class EfNotificationInboxRepository(SubmissionDbContext dbContext)
         string recipientUserId,
         CancellationToken cancellationToken)
     {
-        var entries = await dbContext.Set<NotificationInboxEntry>()
+        var entries = await dbContext.NotificationInboxEntries
             .AsNoTracking()
             .Where(entry => entry.RecipientUserId == recipientUserId)
             .OrderByDescending(entry => entry.CreatedAtUtc)
@@ -50,7 +48,7 @@ public sealed class EfNotificationInboxRepository(SubmissionDbContext dbContext)
         string recipientUserId,
         CancellationToken cancellationToken)
     {
-        return dbContext.Set<NotificationInboxEntry>()
+        return dbContext.NotificationInboxEntries
             .CountAsync(
                 entry => entry.RecipientUserId == recipientUserId && entry.ReadAtUtc == null,
                 cancellationToken);
@@ -62,7 +60,7 @@ public sealed class EfNotificationInboxRepository(SubmissionDbContext dbContext)
         DateTime readAtUtc,
         CancellationToken cancellationToken)
     {
-        var entry = await dbContext.Set<NotificationInboxEntry>()
+        var entry = await dbContext.NotificationInboxEntries
             .FirstOrDefaultAsync(
                 candidate => candidate.Id == notificationId && candidate.RecipientUserId == recipientUserId,
                 cancellationToken);
