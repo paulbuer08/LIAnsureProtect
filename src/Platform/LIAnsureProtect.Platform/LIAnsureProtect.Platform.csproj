@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    Platform is the shared-kernel ADAPTERS + base-infrastructure project.
+    It references only Platform.Abstractions (never Domain/Application/Infrastructure or any module),
+    so it stays the foundation everything else builds on. Boundaries enforced by ProjectReferenceBoundaryTests.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LIAnsureProtect.Platform.Abstractions\LIAnsureProtect.Platform.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

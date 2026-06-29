@@ -1,5 +1,5 @@
 using System.Text.Json;
-using LIAnsureProtect.Domain.Common;
+using LIAnsureProtect.Platform.Abstractions.DomainEvents;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 

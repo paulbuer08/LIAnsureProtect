@@ -1,4 +1,4 @@
-using LIAnsureProtect.Domain.Common;
+using LIAnsureProtect.Platform.Abstractions.DomainEvents;
 
 namespace LIAnsureProtect.Domain.Submissions;
 

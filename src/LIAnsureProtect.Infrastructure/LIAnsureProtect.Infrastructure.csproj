@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\LIAnsureProtect.Application\LIAnsureProtect.Application.csproj" />
     <ProjectReference Include="..\LIAnsureProtect.Domain\LIAnsureProtect.Domain.csproj" />
+    <ProjectReference Include="..\Platform\LIAnsureProtect.Platform.Abstractions\LIAnsureProtect.Platform.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>
