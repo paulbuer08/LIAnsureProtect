@@ -1,5 +1,9 @@
+export type NotificationScope = "personal" | "team";
+
 export interface NotificationInboxItem {
   notificationId: string;
+  scope: NotificationScope;
+  audience: string;
   type: string;
   title: string;
   subjectReferenceType: string;

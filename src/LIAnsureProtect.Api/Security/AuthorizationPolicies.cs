@@ -75,6 +75,7 @@ public static class AuthorizationPolicies
             policy => policy.RequireRole(
                 ApplicationRoles.Customer,
                 ApplicationRoles.Broker,
+                ApplicationRoles.Underwriter,
                 ApplicationRoles.Admin
             )
         );

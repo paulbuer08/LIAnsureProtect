@@ -70,6 +70,7 @@ public sealed class DependencyRegistrationTests
         // Notifications module services (inbox read, projection, publishing) resolve from the module.
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<NotificationsDbContext>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<INotificationInboxRepository>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<ITeamNotificationRepository>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<INotificationProjector>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<INotificationPublisher>());
     }
@@ -169,5 +170,11 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("CREATE TABLE notifications.notification_inbox_entries", script);
         Assert.Contains("ix_notification_inbox_entries_source_outbox_message_id", script);
         Assert.Contains("ix_notification_inbox_entries_recipient_read", script);
+
+        // Team inbox tables (M34) live in the same module schema.
+        Assert.Contains("CREATE TABLE notifications.team_notification_entries", script);
+        Assert.Contains("CREATE TABLE notifications.team_notification_read_receipts", script);
+        Assert.Contains("ix_team_notification_entries_source_outbox_message_id", script);
+        Assert.Contains("ux_team_notification_read_receipts_entry_recipient", script);
     }
 }

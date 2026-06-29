@@ -1,0 +1,126 @@
+using LIAnsureProtect.Modules.Notifications.Application;
+using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+
+namespace LIAnsureProtect.IntegrationTests.Notifications;
+
+/// <summary>
+/// Covers the team inbox: the projector persists a single shared entry per team audience (idempotent),
+/// and read state is independent per user (per-user read receipts), gated by allowed audiences.
+/// </summary>
+public sealed class TeamNotificationInboxTests : IDisposable
+{
+    private static readonly string[] OpsAudiences =
+        [NotificationAudiences.UnderwritingOperations, NotificationAudiences.BindingOperations];
+
+    private readonly SqliteConnection connection;
+    private readonly NotificationsDbContext dbContext;
+    private readonly NotificationInboxProjector projector;
+    private readonly EfTeamNotificationRepository repository;
+
+    public TeamNotificationInboxTests()
+    {
+        connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+        dbContext = new NotificationsDbContext(
+            new DbContextOptionsBuilder<NotificationsDbContext>().UseSqlite(connection).Options);
+        dbContext.Database.EnsureCreated();
+        projector = new NotificationInboxProjector(dbContext);
+        repository = new EfTeamNotificationRepository(dbContext);
+    }
+
+    [Fact]
+    public async Task Projector_Persists_One_Shared_Team_Entry_Idempotently()
+    {
+        var message = TeamMessage(Guid.Parse("b1a7d4e0-0000-4000-8000-000000000001"));
+
+        await projector.ProjectAsync(message, TestContext.Current.CancellationToken);
+        await projector.ProjectAsync(message, TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var entry = await dbContext.TeamNotificationEntries.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(NotificationAudiences.UnderwritingOperations, entry.Audience);
+        Assert.Equal(message.OutboxMessageId, entry.SourceOutboxMessageId);
+    }
+
+    [Fact]
+    public async Task Read_State_Is_Per_User()
+    {
+        await projector.ProjectAsync(
+            TeamMessage(Guid.Parse("b1a7d4e0-0000-4000-8000-000000000002")),
+            TestContext.Current.CancellationToken);
+
+        var forUnderwriterA = await repository.ListForAudiencesAsync(
+            "uw-a", OpsAudiences, TestContext.Current.CancellationToken);
+        var item = Assert.Single(forUnderwriterA);
+        Assert.Equal(NotificationScopes.Team, item.Scope);
+        Assert.Equal(NotificationAudiences.UnderwritingOperations, item.Audience);
+        Assert.False(item.IsRead);
+
+        var marked = await repository.MarkReadAsync(
+            item.NotificationId, "uw-a", OpsAudiences, DateTime.UtcNow, TestContext.Current.CancellationToken);
+        Assert.True(marked);
+
+        dbContext.ChangeTracker.Clear();
+
+        // uw-a now sees it read with no unread count ...
+        Assert.True(Assert.Single(await repository.ListForAudiencesAsync(
+            "uw-a", OpsAudiences, TestContext.Current.CancellationToken)).IsRead);
+        Assert.Equal(0, await repository.CountUnreadForAudiencesAsync(
+            "uw-a", OpsAudiences, TestContext.Current.CancellationToken));
+
+        // ... while uw-b still sees the same shared entry as unread.
+        Assert.False(Assert.Single(await repository.ListForAudiencesAsync(
+            "uw-b", OpsAudiences, TestContext.Current.CancellationToken)).IsRead);
+        Assert.Equal(1, await repository.CountUnreadForAudiencesAsync(
+            "uw-b", OpsAudiences, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Mark_Read_Is_Rejected_When_The_Audience_Is_Not_Allowed()
+    {
+        await projector.ProjectAsync(
+            TeamMessage(Guid.Parse("b1a7d4e0-0000-4000-8000-000000000003")),
+            TestContext.Current.CancellationToken);
+        var entryId = (await dbContext.TeamNotificationEntries.SingleAsync(TestContext.Current.CancellationToken)).Id;
+
+        // No allowed audiences (e.g. a customer) -> cannot mark a team entry by guessing its id.
+        Assert.False(await repository.MarkReadAsync(
+            entryId, "cust-1", [], DateTime.UtcNow, TestContext.Current.CancellationToken));
+
+        // Allowed audiences that do not include the entry's audience -> still rejected.
+        Assert.False(await repository.MarkReadAsync(
+            entryId, "x", [NotificationAudiences.BindingOperations], DateTime.UtcNow, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task List_Returns_Nothing_When_The_Caller_Has_No_Team_Audiences()
+    {
+        await projector.ProjectAsync(
+            TeamMessage(Guid.Parse("b1a7d4e0-0000-4000-8000-000000000004")),
+            TestContext.Current.CancellationToken);
+
+        Assert.Empty(await repository.ListForAudiencesAsync(
+            "cust-1", [], TestContext.Current.CancellationToken));
+        Assert.Equal(0, await repository.CountUnreadForAudiencesAsync(
+            "cust-1", [], TestContext.Current.CancellationToken));
+    }
+
+    private static NotificationMessage TeamMessage(Guid outboxMessageId) => new(
+        outboxMessageId.ToString("N"),
+        outboxMessageId,
+        NotificationMessageTypes.QuoteReferredForUnderwriting,
+        NotificationAudiences.UnderwritingOperations,
+        OwnerUserId: string.Empty,
+        SubjectReferenceType: "quote",
+        SubjectReferenceId: Guid.NewGuid().ToString(),
+        OccurredAtUtc: new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc),
+        Attributes: new Dictionary<string, string>());
+
+    public void Dispose()
+    {
+        dbContext.Dispose();
+        connection.Dispose();
+    }
+}

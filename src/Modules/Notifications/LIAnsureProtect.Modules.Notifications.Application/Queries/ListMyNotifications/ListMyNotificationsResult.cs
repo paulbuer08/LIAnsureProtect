@@ -6,6 +6,8 @@ public sealed record ListMyNotificationsResult(
 
 public sealed record NotificationInboxItemResult(
     Guid NotificationId,
+    string Scope,
+    string Audience,
     string Type,
     string Title,
     string SubjectReferenceType,

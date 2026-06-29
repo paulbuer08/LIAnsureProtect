@@ -5,17 +5,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 
-public sealed class EfNotificationInboxRepository(NotificationsDbContext dbContext) : INotificationInboxRepository
+public sealed class EfTeamNotificationRepository(NotificationsDbContext dbContext) : ITeamNotificationRepository
 {
     private const int MaxListSize = 50;
 
-    public async Task<IReadOnlyList<NotificationInboxItemResult>> ListForRecipientAsync(
+    public async Task<IReadOnlyList<NotificationInboxItemResult>> ListForAudiencesAsync(
         string recipientUserId,
+        IReadOnlyCollection<string> audiences,
         CancellationToken cancellationToken)
     {
-        var entries = await dbContext.NotificationInboxEntries
+        if (audiences.Count == 0)
+            return [];
+
+        var entries = await dbContext.TeamNotificationEntries
             .AsNoTracking()
-            .Where(entry => entry.RecipientUserId == recipientUserId)
+            .Where(entry => audiences.Contains(entry.Audience))
             .OrderByDescending(entry => entry.CreatedAtUtc)
             .Take(MaxListSize)
             .Select(entry => new
@@ -27,14 +31,18 @@ public sealed class EfNotificationInboxRepository(NotificationsDbContext dbConte
                 entry.SubjectReferenceId,
                 entry.AttributesJson,
                 entry.OccurredAtUtc,
-                entry.ReadAtUtc
+                // Per-user read state: this caller's receipt, if any.
+                ReadAtUtc = entry.ReadReceipts
+                    .Where(receipt => receipt.RecipientUserId == recipientUserId)
+                    .Select(receipt => (DateTime?)receipt.ReadAtUtc)
+                    .FirstOrDefault()
             })
             .ToListAsync(cancellationToken);
 
         return entries
             .Select(entry => new NotificationInboxItemResult(
                 entry.Id,
-                NotificationScopes.Personal,
+                NotificationScopes.Team,
                 entry.Audience,
                 entry.Type,
                 NotificationInboxTitles.For(entry.Type),
@@ -47,36 +55,38 @@ public sealed class EfNotificationInboxRepository(NotificationsDbContext dbConte
             .ToList();
     }
 
-    public Task<int> CountUnreadForRecipientAsync(
+    public Task<int> CountUnreadForAudiencesAsync(
         string recipientUserId,
+        IReadOnlyCollection<string> audiences,
         CancellationToken cancellationToken)
     {
-        return dbContext.NotificationInboxEntries
+        if (audiences.Count == 0)
+            return Task.FromResult(0);
+
+        return dbContext.TeamNotificationEntries
             .CountAsync(
-                entry => entry.RecipientUserId == recipientUserId && entry.ReadAtUtc == null,
+                entry => audiences.Contains(entry.Audience)
+                    && !entry.ReadReceipts.Any(receipt => receipt.RecipientUserId == recipientUserId),
                 cancellationToken);
     }
 
     public async Task<bool> MarkReadAsync(
-        Guid notificationId,
+        Guid teamNotificationEntryId,
         string recipientUserId,
+        IReadOnlyCollection<string> allowedAudiences,
         DateTime readAtUtc,
         CancellationToken cancellationToken)
     {
-        var entry = await dbContext.NotificationInboxEntries
-            .FirstOrDefaultAsync(
-                candidate => candidate.Id == notificationId && candidate.RecipientUserId == recipientUserId,
-                cancellationToken);
+        var entry = await dbContext.TeamNotificationEntries
+            .Include(candidate => candidate.ReadReceipts)
+            .FirstOrDefaultAsync(candidate => candidate.Id == teamNotificationEntryId, cancellationToken);
 
-        if (entry is null)
+        // Not found, or the caller's role does not grant this entry's audience.
+        if (entry is null || !allowedAudiences.Contains(entry.Audience))
             return false;
 
-        if (entry.ReadAtUtc is null)
-        {
-            entry.MarkRead(readAtUtc);
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-
+        entry.MarkReadBy(recipientUserId, readAtUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
         return true;
     }
 

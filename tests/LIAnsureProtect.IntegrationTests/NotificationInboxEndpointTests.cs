@@ -134,6 +134,73 @@ public sealed class NotificationInboxEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Underwriter_Sees_And_Reads_Team_Notifications()
+    {
+        var entry = await SeedTeamEntryAsync(
+            NotificationAudiences.UnderwritingOperations,
+            NotificationMessageTypes.QuoteReferredForUnderwriting);
+
+        using var listRequest = CreateAuthenticatedRequest(HttpMethod.Get, EndpointPath, "Underwriter", "uw-1");
+        using var listResponse = await httpClient.SendAsync(listRequest, TestContext.Current.CancellationToken);
+        var listContent = await listResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var listPayload = JsonDocument.Parse(listContent);
+        var item = listPayload.RootElement.GetProperty("notifications")[0];
+
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.Equal("team", item.GetProperty("scope").GetString());
+        Assert.Equal("underwriting-operations", item.GetProperty("audience").GetString());
+        Assert.Equal(1, listPayload.RootElement.GetProperty("unreadCount").GetInt32());
+
+        using var markRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post, $"{EndpointPath}/{entry.Id}/read", "Underwriter", "uw-1");
+        using var markResponse = await httpClient.SendAsync(markRequest, TestContext.Current.CancellationToken);
+
+        using var afterRequest = CreateAuthenticatedRequest(HttpMethod.Get, EndpointPath, "Underwriter", "uw-1");
+        using var afterResponse = await httpClient.SendAsync(afterRequest, TestContext.Current.CancellationToken);
+        var afterContent = await afterResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var afterPayload = JsonDocument.Parse(afterContent);
+
+        Assert.Equal(HttpStatusCode.OK, markResponse.StatusCode);
+        Assert.Equal(0, afterPayload.RootElement.GetProperty("unreadCount").GetInt32());
+        Assert.True(afterPayload.RootElement.GetProperty("notifications")[0].GetProperty("isRead").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Customer_Does_Not_See_Team_Notifications()
+    {
+        await SeedTeamEntryAsync(
+            NotificationAudiences.UnderwritingOperations,
+            NotificationMessageTypes.QuoteReferredForUnderwriting);
+
+        using var request = CreateAuthenticatedRequest(HttpMethod.Get, EndpointPath, "Customer", "customer-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var payload = JsonDocument.Parse(content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty(payload.RootElement.GetProperty("notifications").EnumerateArray());
+        Assert.Equal(0, payload.RootElement.GetProperty("unreadCount").GetInt32());
+    }
+
+    private async Task<TeamNotificationEntry> SeedTeamEntryAsync(string audience, string type)
+    {
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
+        var entry = TeamNotificationEntry.Create(
+            audience,
+            type,
+            "quote",
+            Guid.NewGuid().ToString(),
+            "{}",
+            Guid.NewGuid(),
+            new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 22, 9, 0, 5, DateTimeKind.Utc));
+        dbContext.TeamNotificationEntries.Add(entry);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return entry;
+    }
+
     private async Task SeedEntriesAsync(params NotificationInboxEntry[] entries)
     {
         using var scope = webApplicationFactory.Services.CreateScope();
