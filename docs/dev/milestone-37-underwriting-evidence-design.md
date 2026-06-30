@@ -16,15 +16,27 @@ the M36 decoupling (drop the vestigial `quote_referral_operation_id` column + th
 
 **In M37:**
 - Aggregates: `QuoteEvidenceRequest` (root) + `QuoteEvidenceRequestReview` (audit) + the evidence enums
-  + the six `QuoteEvidenceRequest*DomainEvent`s.
-- Use cases (non-document): create, accept, record-review-decision, cancel, follow-up, owner-list.
-- The module outbox + the source-agnostic dispatcher.
-- Reads: owner-list + the queue's evidence summary via a module read port.
+  + the six `QuoteEvidenceRequest*DomainEvent`s, all into the module + `underwriting` schema.
+- Use cases that move fully into the module (no document dependency): **create**, **cancel**,
+  **follow-up**, the **owner-list** query, and the queue **evidence-summary** read.
+- The module outbox + the source-agnostic (merge-ordered) dispatcher.
+
+**Stay legacy in M37 but mutate the now-module-owned request through one inbound port (§4):** the
+document-coupled use cases — **respond** (text + upload), **replacement-upload**, **accept**, and
+**record-review-decision** (these gate on / snapshot clean-document state and return documents), plus the
+two **downloads**. They keep orchestrating documents legacy-side and pass the request-state change — and
+any document counts, as **primitives** — to the module via the port. So the request aggregate is only
+ever mutated on the module context (and raises all six events to the module outbox), yet
+`QuoteEvidenceDocument` and the clean-document gate stay put with **no outbound document-read port**.
+
+> Why this line: drawing the boundary at *document-coupling* (rather than owner-vs-underwriter) means
+> the heavily document-dependent review/accept/respond handlers don't need to reach back into the module
+> for the request *or* forward into legacy for documents from the module — each side keeps what it owns
+> and the single inbound port carries primitives across. This seam dissolves entirely in M38.
 
 **Deferred to M38 (documents):** `QuoteEvidenceDocument`, `IDocumentStorageService`,
-`IEvidenceDocumentScanner`, and the document use cases — respond-with-upload, replacement-upload, owner
-download, underwriting download. In M37 these stay **legacy** and reach the now-module-owned request
-through one inbound port (§4).
+`IEvidenceDocumentScanner`, and the document storage/scanning/download internals — moving documents into
+the module then removes the M37 respond/accept/review seam.
 
 **Deferred further:** full dispatcher decoupling / integration events → M40 (M37 lays its foundation);
 the underwriting **decision** slice (`Approve/Decline/Adjust` + `QuoteUnderwritingReview`) remains the
@@ -63,16 +75,27 @@ The `OutboxDispatcher` (legacy Infrastructure) drains one outbox today. It becom
 Platform.Abstractions:
   IOutboxSource        — GetPendingAsync(batchSize, nowUtc, ct) → IReadOnlyList<IOutboxMessageView>;
                          SaveChangesAsync(ct)
-  IOutboxMessageView   — Id, Type, Payload + MarkProcessed / MarkPublishSucceeded / MarkPublishFailed
+  IOutboxMessageView   — Id, Type, Payload, CreatedAtUtc + MarkProcessed / MarkPublishSucceeded /
+                         MarkPublishFailed
 
 Legacy Infrastructure:   SubmissionOutboxSource : IOutboxSource (wraps SubmissionDbContext.OutboxMessages)
 Module Infrastructure:   UnderwritingOutboxSource : IOutboxSource (wraps UnderwritingDbContext outbox)
 
-OutboxDispatcher: injects IEnumerable<IOutboxSource>; for each source drains its pending messages,
-  runs the existing mappers (OutboxNotificationMapper → notifications, OutboxReferralOperationMapper →
-  referral projector) keyed on Type+Payload, publishes, and marks — per-source SaveChanges, no shared
-  transaction (same idempotent-ordered model as M33/M36).
+OutboxDispatcher: injects IEnumerable<IOutboxSource>; collects each source's pending batch, then
+  MERGE-SORTS the combined set by CreatedAtUtc and processes globally in that order — running the
+  existing mappers (OutboxNotificationMapper → notifications, OutboxReferralOperationMapper → referral
+  projector) keyed on Type+Payload, publishing, and marking via the message's owning source
+  (per-source SaveChanges, no shared transaction; same idempotent-ordered model as M33/M36).
 ```
+
+**Cross-source ordering matters (and is double-backstopped).** The referral operation projector consumes
+quote/decision events (legacy outbox) *and* evidence events (now the module outbox). In M36 a single
+outbox's `CreatedAtUtc` order guaranteed evidence projected before the decision closed the operation;
+two independently-drained sources would break that and the closed-operation guard could silently drop a
+late evidence timeline entry. Merge-sorting the combined pending set by `CreatedAtUtc` restores the
+global order. Belt and suspenders: M36's projector is already resilient here — **create-if-missing**
+self-heal tolerates evidence-before-create, and the closed-operation **guard** tolerates the reverse — so
+correctness does not hinge on perfect ordering, but merge-sort keeps the common-case timeline faithful.
 
 `IOutboxSource` lives in `Platform.Abstractions` so the dispatcher (legacy Infra) and the module source
 (module Infra) can both reference it without a module→legacy or legacy→module-Infra dependency. The
@@ -96,37 +119,47 @@ centralized mapper deliberately.
                                                                └─► referral operation projector
 ```
 
-## 4. The request/review carve + the respond seam
+## 4. The request/review carve + the inbound seam
 
-The six **non-document** use cases move into `Modules/Underwriting/...Application/Evidence` and raise
-their events on the module context (→ module outbox). The reads move behind a module read port:
+**Move into the module** (`Modules/Underwriting/...Application/Evidence`): the document-free commands
+(**create**, **cancel**, **follow-up**) raise their events on the module context (→ module outbox), and
+the reads move behind a module read port:
 - `IEvidenceRequestsReader.GetOwnerRequestsAsync(ownerUserId)` — the owner list.
 - `IEvidenceRequestsReader.GetSummariesAsync(quoteIds)` — the queue's per-quote evidence summary
   (today computed in `ListQuoteReferralsQueryHandler` from legacy evidence; now read from the module,
   mirroring `IReferralOperationsReader`).
 
-**The respond seam (documents stay legacy in M37).** The legacy respond / replacement-upload / download
-handlers keep storing + scanning documents in the legacy context, but mutate the now-module-owned
-request through one inbound port:
+**The inbound seam (documents + their handlers stay legacy in M37).** The legacy respond /
+replacement-upload / accept / review-decision handlers keep orchestrating documents (store, scan, the
+clean-document gate, the count snapshot) in the legacy context, but every **request-state change** goes
+through one inbound port, so the request is only ever mutated module-side and raises all six events to
+the module outbox:
 
 ```
-Module Application: IEvidenceRequestWriter
+Module Application: IEvidenceRequestWriter   (every parameter is a primitive)
   RecordResponseAsync(evidenceRequestId, ownerUserId, respondent + response + attachment-metadata, at)
-      → loads the module request (owner-scoped), request.RecordResponse(...), saves (raises Responded)
+      → request.RecordResponse(...)                                      raises Responded
   RecordSupplementalResponseAsync(evidenceRequestId, ownerUserId, ..., at)
-      → replacement-upload path: resets the current review decision to NotReviewed, preserving audit
+      → replacement-upload: resets the current review decision to NotReviewed, preserving audit
+  AcceptAsync(evidenceRequestId, reviewedByUserId, reason, documentCount, cleanDocumentCount, at)
+      → request.Accept(...) + writes the moved QuoteEvidenceRequestReview audit   raises Accepted
+  RecordReviewDecisionAsync(evidenceRequestId, decision, reason, guidance, reviewedByUserId,
+                            documentCount, cleanDocumentCount, at)
+      → request.RecordReviewDecision(...) + writes the review audit   raises RemediationRequired
 ```
 
-Ordering in the legacy respond handler: validate uploads → store + scan documents (legacy) → call
-`RecordResponseAsync` (module mutates the request + raises the event). The two saves (legacy documents,
-module request) are **not atomic** — if the document store fails the request stays `Open`; if the port
-call fails after storing, the documents are orphaned and the owner re-responds. This brief inconsistency
-is acceptable for an evidence response and disappears in M38 when documents join the module. All six
-evidence events therefore end up sourced from the module outbox, consistently.
+The legacy review/accept handler keeps the document work it already does — load documents, run the
+clean-document gate, compute `documentCount`/`cleanDocumentCount` — then passes those **counts as
+primitives** to the port, which mutates the module request and writes the now-module-owned
+`QuoteEvidenceRequestReview` audit. The response DTO is assembled legacy-side from the port's returned
+request snapshot + the legacy documents. **No outbound document-read port is needed** — documents never
+leave legacy and the module never reads them.
 
-`IEvidenceRequestWriter` takes **primitives** at the boundary (ids, strings, the attachment-metadata
-values) — the evidence enums move *with* the aggregate into the module, so the legacy document handlers
-never reference a moved module enum; the port validates ownership and maps to the aggregate internally.
+Atomicity: the legacy document save and the module request/port save are **not** one transaction (e.g.
+respond stores documents legacy, then calls the port). If the second save fails the owner re-acts; the
+brief inconsistency is acceptable for evidence and disappears in M38. `IEvidenceRequestWriter` takes
+**primitives** only — the evidence enums move *with* the aggregate, so no legacy handler references a
+moved module enum; the port validates ownership/state and maps internally.
 
 ## 5. Consistency & boundaries
 
@@ -145,24 +178,33 @@ NEW  Platform.Abstractions: IOutboxSource, IOutboxMessageView
 MOVE Modules/Underwriting/...Domain/Evidence: QuoteEvidenceRequest, QuoteEvidenceRequestReview, enums
        (EvidenceRequestCategory, EvidenceRequestStatus, EvidenceReviewDecisionStatus), the 6 events
 MOVE Modules/Underwriting/...Application/Evidence:
-       Commands: Create/Accept/RecordReviewDecision/Cancel/FollowUp; Query: ListOwnerEvidenceRequests
-       IEvidenceRequestRepository, IEvidenceRequestsReader, IEvidenceRequestWriter (inbound respond port)
+       Commands (document-free): Create / Cancel / FollowUp; Query: ListOwnerEvidenceRequests
+       IEvidenceRequestRepository, IEvidenceRequestsReader,
+       IEvidenceRequestWriter (inbound port: respond / supplemental / accept / review-decision)
 NEW  Modules/Underwriting/...Infrastructure:
        EfEvidenceRequestRepository, EvidenceRequestsReader, EvidenceRequestWriter,
        QuoteEvidenceRequest/Review EF configs (underwriting schema), UnderwritingOutboxSource,
        CaptureDomainEventsAsync override, outbox + evidence migration
-EDIT OutboxDispatcher → source-agnostic (IEnumerable<IOutboxSource>); mappers take Type/Payload and
-       reference module evidence event types; register SubmissionOutboxSource + UnderwritingOutboxSource
-EDIT legacy QuoteEvidenceRequestCommands.cs → keep document use cases (respond/upload/downloads); they
-       call IEvidenceRequestWriter for the request-state change; remove the moved request/review repo
-       methods from IQuoteRepository/EfCoreQuoteRepository
+EDIT OutboxDispatcher → source-agnostic (IEnumerable<IOutboxSource>, merge-sort by CreatedAtUtc);
+       mappers take Type/Payload and reference the module evidence event types (new ratchet edge
+       Infrastructure → Modules.Underwriting.Domain); register SubmissionOutboxSource + UnderwritingOutboxSource
+EDIT legacy QuoteEvidenceRequestCommands.cs → KEEP respond / replacement-upload / accept /
+       review-decision / downloads (document-coupled); each calls IEvidenceRequestWriter for the
+       request-state change (passing primitive counts); remove the moved create/cancel/follow-up
+       commands and the request/review repo methods from IQuoteRepository/EfCoreQuoteRepository
+EDIT moved request aggregate → drop the QuoteReferralOperationId property + its Create parameter (the
+       M36 vestigial correlation is gone now); references quote/submission by id only
+EDIT legacy QuoteEvidenceDocumentConfiguration → drop the document → quote_evidence_requests FK (the
+       request table is leaving; documents reference it by id only until M38)
 EDIT ListQuoteReferralsQueryHandler → evidence summary via IEvidenceRequestsReader
-EDIT EvidenceRequestsController + UnderwritingQuoteReferralsController → dispatch moved use cases to the
-       module; document actions unchanged (still legacy)
-DROP evidence→quotes + evidence→submissions FKs and the quote_referral_operation_id column
-MIGRATIONS: CreateEvidenceRequests + CreateUnderwritingOutbox (UnderwritingDbContext);
-       DropEvidenceRequests + DropQuoteReferralOperationId (SubmissionDbContext) — drop-and-recreate,
-       no production data
+EDIT EvidenceRequestsController + UnderwritingQuoteReferralsController → dispatch create/cancel/follow-up/
+       owner-list to the module; respond/accept/review/downloads stay legacy (now call the inbound port)
+DROP evidence→quotes + evidence→submissions FKs; document→request FK; the quote_referral_operation_id
+       column (it leaves with the dropped request table)
+MIGRATIONS: CreateUnderwritingOutbox + CreateEvidenceRequests (UnderwritingDbContext);
+       DropEvidenceRequests (SubmissionDbContext — drops quote_evidence_requests +
+       quote_evidence_request_reviews, taking the vestigial column with them, and drops the
+       document→request FK) — drop-and-recreate, no production data
 DOCS: this spec; learnings (post-impl); project-status M37 + M38 handoff; CHANGELOG; README; overview
 UNCHANGED: scripts/guard/CI (still three DbContexts — the module outbox is a table in UnderwritingDbContext)
 ```
@@ -176,10 +218,13 @@ UNCHANGED: scripts/guard/CI (still three DbContexts — the module outbox is a t
   row in the same transaction); `UnderwritingOutboxSource` pending/mark test.
 - New: source-agnostic dispatcher test — an evidence event in the **module** outbox is projected to
   notifications + the referral operation, and a quote event in the **legacy** outbox still works (both
-  sources drained in one dispatch).
-- Rework the evidence endpoint/integration tests for the two-source wiring; the respond test exercises
-  the `IEvidenceRequestWriter` seam (documents legacy, request module); pump the dispatcher where
-  eventual consistency applies (as M36 established).
+  sources drained in one dispatch). Plus a **cross-source ordering** test: an earlier evidence event
+  (module outbox) and a later decision event (legacy outbox) pending together are processed in
+  `CreatedAtUtc` order, so the evidence timeline entry is recorded before the operation closes.
+- Rework the evidence endpoint/integration tests for the two-source wiring; the **respond** and
+  **accept/review-decision** tests exercise the `IEvidenceRequestWriter` seam (documents + the
+  clean-document gate stay legacy, the request + review-audit mutate module-side, counts passed as
+  primitives); pump the dispatcher where eventual consistency applies (as M36 established).
 - New migration tests: evidence tables + outbox in `underwriting`; drop migration on `submission`.
 - Architecture ratchet updated for any new reference rows.
 
