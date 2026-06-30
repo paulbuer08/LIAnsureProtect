@@ -28,9 +28,6 @@ public sealed class AdjustQuoteReferralCommandHandler(
             request.Reason,
             request.Notes,
             reviewedAtUtc);
-        var operation = await quoteRepository.GetReferralOperationForUpdateAsync(request.QuoteId, cancellationToken);
-        operation?.CloseForDecision(reviewedByUserId, review.Decision, reviewedAtUtc);
-
         await quoteRepository.AddUnderwritingReviewAsync(review, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
