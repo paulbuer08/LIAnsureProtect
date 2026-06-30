@@ -6,6 +6,8 @@ using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.IntegrationTests.Security;
+using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
+using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -27,6 +29,8 @@ public sealed class UnderwritingReferralEndpointTests
     private static readonly Uri TestServerBaseAddress = new("https://localhost");
 
     private readonly SqliteConnection databaseConnection;
+    private readonly SqliteConnection underwritingConnection;
+    private readonly SqliteConnection notificationsConnection;
     private readonly WebApplicationFactory<Program> webApplicationFactory;
     private readonly HttpClient httpClient;
 
@@ -34,6 +38,10 @@ public sealed class UnderwritingReferralEndpointTests
     {
         databaseConnection = new SqliteConnection("DataSource=:memory:");
         databaseConnection.Open();
+        underwritingConnection = new SqliteConnection("DataSource=:memory:");
+        underwritingConnection.Open();
+        notificationsConnection = new SqliteConnection("DataSource=:memory:");
+        notificationsConnection.Open();
 
         this.webApplicationFactory = webApplicationFactory.WithWebHostBuilder(builder =>
         {
@@ -52,6 +60,24 @@ public sealed class UnderwritingReferralEndpointTests
                     options.UseSqlite(databaseConnection);
                 });
 
+                // The referral operation aggregate now lives in the Underwriting module's own context.
+                services.RemoveAll<IDbContextOptionsConfiguration<UnderwritingDbContext>>();
+                services.RemoveAll<DbContextOptions<UnderwritingDbContext>>();
+                services.AddDbContext<UnderwritingDbContext>(options =>
+                {
+                    options.UseSqlite(underwritingConnection);
+                });
+
+                // The outbox dispatcher also invokes the NotificationInboxProjector, which uses the
+                // Notifications module's own context. Replace it with SQLite so PumpOutboxAsync does
+                // not attempt to connect to PostgreSQL in the test environment.
+                services.RemoveAll<IDbContextOptionsConfiguration<NotificationsDbContext>>();
+                services.RemoveAll<DbContextOptions<NotificationsDbContext>>();
+                services.AddDbContext<NotificationsDbContext>(options =>
+                {
+                    options.UseSqlite(notificationsConnection);
+                });
+
                 services
                     .AddAuthentication(TestAuthHandler.AuthenticationScheme)
                     .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
@@ -61,8 +87,9 @@ public sealed class UnderwritingReferralEndpointTests
         });
 
         using var scope = this.webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
-        dbContext.Database.EnsureCreated();
+        scope.ServiceProvider.GetRequiredService<SubmissionDbContext>().Database.EnsureCreated();
+        scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>().Database.EnsureCreated();
+        scope.ServiceProvider.GetRequiredService<NotificationsDbContext>().Database.EnsureCreated();
 
         httpClient = this.webApplicationFactory.CreateClient(
             new WebApplicationFactoryClientOptions
@@ -106,9 +133,12 @@ public sealed class UnderwritingReferralEndpointTests
         // Anchor to "now" so the derived SLA due date stays in the future no matter when the test runs.
         var nowUtc = DateTime.UtcNow;
         var quote = CreateReferredQuote("customer-1", nowUtc.AddDays(-1));
-        var operation = QuoteReferralOperation.CreateDefault(
+        // Seed the operation directly into the module's UnderwritingDbContext (it was previously created
+        // synchronously; now it is owned by the module and projected via the outbox dispatcher). We seed it
+        // directly here because the test is verifying the LIST summary shape, not the event-driven create path.
+        var operation = LIAnsureProtect.Modules.Underwriting.Domain.Referrals.QuoteReferralOperation.CreateDefault(
             quote.Id,
-            CyberRiskTier.Severe,
+            "Severe",
             quote.Quote.CreatedAtUtc,
             quote.Quote.ExpiresAtUtc);
         operation.AssignTo("underwriter-1", nowUtc.AddHours(-20));
@@ -118,7 +148,7 @@ public sealed class UnderwritingReferralEndpointTests
             nowUtc.AddDays(5),
             nowUtc.AddHours(-19));
         await SaveQuotesAsync(quote);
-        await SaveOperationsAsync(operation);
+        await SaveUnderwritingOperationsAsync(operation);
 
         using var request = CreateAuthenticatedRequest(HttpMethod.Get, QueueEndpointPath, "Underwriter", "underwriter-1");
         using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
@@ -141,13 +171,10 @@ public sealed class UnderwritingReferralEndpointTests
     public async Task Operations_Actions_Update_Assignment_Triage_Notes_Tasks_And_Timeline()
     {
         var quote = CreateReferredQuote("customer-1");
-        var operation = QuoteReferralOperation.CreateDefault(
-            quote.Id,
-            quote.Quote.RiskTier,
-            quote.Quote.CreatedAtUtc,
-            quote.Quote.ExpiresAtUtc);
         await SaveQuotesAsync(quote);
-        await SaveOperationsAsync(operation);
+        // Pump the outbox so the QuoteGenerated event projector creates the referral operation in the
+        // Underwriting module's context before the HTTP action calls below.
+        await PumpOutboxAsync(webApplicationFactory, TestContext.Current.CancellationToken);
 
         using var assignRequest = CreateAuthenticatedRequest(
             HttpMethod.Post,
@@ -222,28 +249,52 @@ public sealed class UnderwritingReferralEndpointTests
         Assert.Contains("TaskAdded", timelineContent);
         Assert.Contains("TaskCompleted", timelineContent);
 
+        // The referral operation is now owned by the Underwriting module (UnderwritingDbContext).
         using var scope = webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
-        var savedOperation = await dbContext.Set<QuoteReferralOperation>().SingleAsync(
+        var underwritingDbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        var savedOperation = await underwritingDbContext.QuoteReferralOperations.SingleAsync(
             saved => saved.QuoteId == quote.Id,
             TestContext.Current.CancellationToken);
 
         Assert.Equal("underwriter-1", savedOperation.AssignedUnderwriterUserId);
-        Assert.Equal(ReferralPriority.Urgent, savedOperation.Priority);
-        Assert.Equal(ReferralOperationStatus.WaitingForInformation, savedOperation.Status);
+        Assert.Equal(LIAnsureProtect.Modules.Underwriting.Domain.Referrals.ReferralPriority.Urgent, savedOperation.Priority);
+        Assert.Equal(LIAnsureProtect.Modules.Underwriting.Domain.Referrals.ReferralOperationStatus.WaitingForInformation, savedOperation.Status);
+    }
+
+    [Fact]
+    public async Task Operations_Write_Action_Self_Heals_Operation_Without_Outbox_Pump()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        await SaveQuotesAsync(quote);
+        // Deliberately DO NOT pump the outbox: the QuoteGenerated projector has not created the referral
+        // operation yet. The write command must self-heal (create-if-missing) and succeed rather than 404 —
+        // this is the "no user-visible gap" guarantee for eventual consistency.
+
+        using var assignRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/operations/assign-to-me",
+            "Underwriter",
+            "underwriter-1");
+        using var assignResponse = await httpClient.SendAsync(assignRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, assignResponse.StatusCode);
+
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var underwritingDbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        var savedOperation = await underwritingDbContext.QuoteReferralOperations.SingleAsync(
+            saved => saved.QuoteId == quote.Id,
+            TestContext.Current.CancellationToken);
+        Assert.Equal("underwriter-1", savedOperation.AssignedUnderwriterUserId);
     }
 
     [Fact]
     public async Task Evidence_Request_Workflow_Creates_Owner_Response_And_Underwriter_Acceptance()
     {
         var quote = CreateReferredQuote("customer-1");
-        var operation = QuoteReferralOperation.CreateDefault(
-            quote.Id,
-            quote.Quote.RiskTier,
-            quote.Quote.CreatedAtUtc,
-            quote.Quote.ExpiresAtUtc);
         await SaveQuotesAsync(quote);
-        await SaveOperationsAsync(operation);
+        // Pump the outbox so the referral operation is projected into the Underwriting module context
+        // before the evidence request HTTP calls below.
+        await PumpOutboxAsync(webApplicationFactory, TestContext.Current.CancellationToken);
 
         using var createRequest = CreateAuthenticatedRequest(
             HttpMethod.Post,
@@ -297,6 +348,10 @@ public sealed class UnderwritingReferralEndpointTests
             });
         using var acceptResponse = await httpClient.SendAsync(acceptRequest, TestContext.Current.CancellationToken);
 
+        // Pump the outbox so the evidence events (Created, Responded, Accepted) are projected onto the
+        // referral operation in the Underwriting module context before the timeline assertion.
+        await PumpOutboxAsync(webApplicationFactory, TestContext.Current.CancellationToken);
+
         using var timelineRequest = CreateAuthenticatedRequest(
             HttpMethod.Get,
             $"{QueueEndpointPath}/{quote.Id}/operations/timeline",
@@ -314,35 +369,37 @@ public sealed class UnderwritingReferralEndpointTests
         Assert.Contains("EvidenceRequestCreated", timelineContent);
         Assert.Contains("EvidenceRequestResponded", timelineContent);
         Assert.Contains("EvidenceRequestAccepted", timelineContent);
+        // Accepting evidence records BOTH an acceptance entry and a Satisfied review-decision entry,
+        // mirroring the legacy synchronous accept path (the projector emits both for the Accepted event).
+        Assert.Contains("EvidenceRequestReviewDecisionRecorded", timelineContent);
 
         using var scope = webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
-        var savedRequest = await dbContext.Set<QuoteEvidenceRequest>().SingleAsync(
+        var submissionDbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedRequest = await submissionDbContext.Set<QuoteEvidenceRequest>().SingleAsync(
             saved => saved.Id == evidenceRequestId,
             TestContext.Current.CancellationToken);
-        var savedOperation = await dbContext.Set<QuoteReferralOperation>().SingleAsync(
+        // The referral operation is now owned by the Underwriting module (UnderwritingDbContext).
+        var underwritingDbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        var savedOperation = await underwritingDbContext.QuoteReferralOperations.SingleAsync(
             saved => saved.QuoteId == quote.Id,
             TestContext.Current.CancellationToken);
 
         Assert.Equal(EvidenceRequestStatus.Accepted, savedRequest.Status);
         Assert.Equal("customer-1", savedRequest.OwnerUserId);
         Assert.Equal("mfa-attestation.pdf", savedRequest.AttachmentFileName);
-        Assert.Equal(ReferralOperationStatus.WaitingForInformation, savedOperation.Status);
+        Assert.Equal(LIAnsureProtect.Modules.Underwriting.Domain.Referrals.ReferralOperationStatus.WaitingForInformation, savedOperation.Status);
     }
 
     [Fact]
     public async Task Evidence_Request_Review_Decision_Persists_Audit_And_Exposes_Owner_Remediation()
     {
         var quote = CreateReferredQuote("customer-1");
-        var operation = QuoteReferralOperation.CreateDefault(
-            quote.Id,
-            quote.Quote.RiskTier,
-            quote.Quote.CreatedAtUtc,
-            quote.Quote.ExpiresAtUtc);
+        // QuoteReferralOperationId is now a plain correlation column (FK dropped in M36).
+        var operationId = Guid.NewGuid();
         var evidenceRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
-            operation.Id,
+            operationId,
             "customer-1",
             "underwriter-1",
             EvidenceRequestCategory.MultiFactorAuthentication,
@@ -360,7 +417,6 @@ public sealed class UnderwritingReferralEndpointTests
             null,
             new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc));
         await SaveQuotesAsync(quote);
-        await SaveOperationsAsync(operation);
         await SaveEvidenceRequestsAsync(evidenceRequest);
 
         using var reviewRequest = CreateAuthenticatedRequest(
@@ -384,6 +440,10 @@ public sealed class UnderwritingReferralEndpointTests
             "customer-1");
         using var ownerListResponse = await httpClient.SendAsync(ownerListRequest, TestContext.Current.CancellationToken);
         var ownerListContent = await ownerListResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        // Pump the outbox so the EvidenceRequestRemediationRequired event is projected onto the referral
+        // operation (the projector self-heals and creates the operation if it doesn't yet exist).
+        await PumpOutboxAsync(webApplicationFactory, TestContext.Current.CancellationToken);
 
         using var timelineRequest = CreateAuthenticatedRequest(
             HttpMethod.Get,
@@ -430,15 +490,11 @@ public sealed class UnderwritingReferralEndpointTests
     public async Task Evidence_Request_Review_Decision_Returns_Forbidden_For_Customer()
     {
         var quote = CreateReferredQuote("customer-1");
-        var operation = QuoteReferralOperation.CreateDefault(
-            quote.Id,
-            quote.Quote.RiskTier,
-            quote.Quote.CreatedAtUtc,
-            quote.Quote.ExpiresAtUtc);
+        var operationId = Guid.NewGuid();
         var evidenceRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
-            operation.Id,
+            operationId,
             "customer-1",
             "underwriter-1",
             EvidenceRequestCategory.MultiFactorAuthentication,
@@ -456,7 +512,6 @@ public sealed class UnderwritingReferralEndpointTests
             null,
             new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc));
         await SaveQuotesAsync(quote);
-        await SaveOperationsAsync(operation);
         await SaveEvidenceRequestsAsync(evidenceRequest);
 
         using var request = CreateAuthenticatedRequest(
@@ -479,15 +534,12 @@ public sealed class UnderwritingReferralEndpointTests
     public async Task Evidence_Request_Follow_Up_Creates_Timeline_Entry_And_Outbox_Event()
     {
         var quote = CreateReferredQuote("customer-1");
-        var operation = QuoteReferralOperation.CreateDefault(
-            quote.Id,
-            quote.Quote.RiskTier,
-            quote.Quote.CreatedAtUtc,
-            quote.Quote.ExpiresAtUtc);
+        // QuoteReferralOperationId is now a plain correlation column (FK dropped in M36).
+        var operationId = Guid.NewGuid();
         var evidenceRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
-            operation.Id,
+            operationId,
             "customer-1",
             "underwriter-1",
             EvidenceRequestCategory.MultiFactorAuthentication,
@@ -496,7 +548,6 @@ public sealed class UnderwritingReferralEndpointTests
             new DateTime(2026, 6, 20, 9, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 6, 18, 9, 0, 0, DateTimeKind.Utc));
         await SaveQuotesAsync(quote);
-        await SaveOperationsAsync(operation);
         await SaveEvidenceRequestsAsync(evidenceRequest);
 
         using var followUpRequest = CreateAuthenticatedRequest(
@@ -505,6 +556,10 @@ public sealed class UnderwritingReferralEndpointTests
             "Underwriter",
             "underwriter-2");
         using var followUpResponse = await httpClient.SendAsync(followUpRequest, TestContext.Current.CancellationToken);
+
+        // Pump the outbox so the EvidenceRequestFollowUpSent event is projected onto the referral
+        // operation (the projector self-heals and creates the operation if it doesn't yet exist).
+        await PumpOutboxAsync(webApplicationFactory, TestContext.Current.CancellationToken);
 
         using var timelineRequest = CreateAuthenticatedRequest(
             HttpMethod.Get,
@@ -532,15 +587,11 @@ public sealed class UnderwritingReferralEndpointTests
     public async Task Evidence_Request_Follow_Up_Returns_Forbidden_For_Customer()
     {
         var quote = CreateReferredQuote("customer-1");
-        var operation = QuoteReferralOperation.CreateDefault(
-            quote.Id,
-            quote.Quote.RiskTier,
-            quote.Quote.CreatedAtUtc,
-            quote.Quote.ExpiresAtUtc);
+        var operationId = Guid.NewGuid();
         var evidenceRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
-            operation.Id,
+            operationId,
             "customer-1",
             "underwriter-1",
             EvidenceRequestCategory.MultiFactorAuthentication,
@@ -549,7 +600,6 @@ public sealed class UnderwritingReferralEndpointTests
             new DateTime(2026, 6, 20, 9, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 6, 18, 9, 0, 0, DateTimeKind.Utc));
         await SaveQuotesAsync(quote);
-        await SaveOperationsAsync(operation);
         await SaveEvidenceRequestsAsync(evidenceRequest);
 
         using var request = CreateAuthenticatedRequest(
@@ -566,15 +616,11 @@ public sealed class UnderwritingReferralEndpointTests
     public async Task Evidence_Request_Response_Returns_NotFound_For_Different_Owner()
     {
         var quote = CreateReferredQuote("customer-1");
-        var operation = QuoteReferralOperation.CreateDefault(
-            quote.Id,
-            quote.Quote.RiskTier,
-            quote.Quote.CreatedAtUtc,
-            quote.Quote.ExpiresAtUtc);
+        var operationId = Guid.NewGuid();
         var evidenceRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
-            operation.Id,
+            operationId,
             "customer-1",
             "underwriter-1",
             EvidenceRequestCategory.EndpointDetectionAndResponse,
@@ -583,7 +629,6 @@ public sealed class UnderwritingReferralEndpointTests
             new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc));
         await SaveQuotesAsync(quote);
-        await SaveOperationsAsync(operation);
         await SaveEvidenceRequestsAsync(evidenceRequest);
 
         using var request = CreateAuthenticatedRequest(
@@ -606,11 +651,7 @@ public sealed class UnderwritingReferralEndpointTests
     public async Task List_Quote_Referrals_Returns_Evidence_Summary_For_Underwriter()
     {
         var quote = CreateReferredQuote("customer-1");
-        var operation = QuoteReferralOperation.CreateDefault(
-            quote.Id,
-            quote.Quote.RiskTier,
-            quote.Quote.CreatedAtUtc,
-            quote.Quote.ExpiresAtUtc);
+        var operationId = Guid.NewGuid();
         // Future due date (truncated to whole seconds for an exact JSON round-trip) so the open
         // request is never overdue, regardless of when the test runs.
         var openDueAtUtc = DateTime.UtcNow.AddDays(7);
@@ -618,7 +659,7 @@ public sealed class UnderwritingReferralEndpointTests
         var openRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
-            operation.Id,
+            operationId,
             "customer-1",
             "underwriter-1",
             EvidenceRequestCategory.BackupRecovery,
@@ -629,7 +670,7 @@ public sealed class UnderwritingReferralEndpointTests
         var respondedRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
-            operation.Id,
+            operationId,
             "customer-1",
             "underwriter-1",
             EvidenceRequestCategory.IncidentResponsePlan,
@@ -647,7 +688,6 @@ public sealed class UnderwritingReferralEndpointTests
             null,
             new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc));
         await SaveQuotesAsync(quote);
-        await SaveOperationsAsync(operation);
         await SaveEvidenceRequestsAsync(openRequest, respondedRequest);
 
         using var request = CreateAuthenticatedRequest(HttpMethod.Get, QueueEndpointPath, "Underwriter", "underwriter-1");
@@ -676,15 +716,11 @@ public sealed class UnderwritingReferralEndpointTests
     public async Task List_Quote_Referrals_Counts_Only_Open_Overdue_Evidence_Requests()
     {
         var quote = CreateReferredQuote("customer-1");
-        var operation = QuoteReferralOperation.CreateDefault(
-            quote.Id,
-            quote.Quote.RiskTier,
-            quote.Quote.CreatedAtUtc,
-            quote.Quote.ExpiresAtUtc);
+        var operationId = Guid.NewGuid();
         var overdueOpenRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
-            operation.Id,
+            operationId,
             "customer-1",
             "underwriter-1",
             EvidenceRequestCategory.BackupRecovery,
@@ -695,7 +731,7 @@ public sealed class UnderwritingReferralEndpointTests
         var overdueRespondedRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
-            operation.Id,
+            operationId,
             "customer-1",
             "underwriter-1",
             EvidenceRequestCategory.IncidentResponsePlan,
@@ -713,7 +749,6 @@ public sealed class UnderwritingReferralEndpointTests
             null,
             new DateTime(2020, 6, 19, 12, 0, 0, DateTimeKind.Utc));
         await SaveQuotesAsync(quote);
-        await SaveOperationsAsync(operation);
         await SaveEvidenceRequestsAsync(overdueOpenRequest, overdueRespondedRequest);
 
         using var request = CreateAuthenticatedRequest(HttpMethod.Get, QueueEndpointPath, "Underwriter", "underwriter-1");
@@ -736,15 +771,11 @@ public sealed class UnderwritingReferralEndpointTests
     public async Task List_Owner_Evidence_Requests_Returns_Overdue_And_Days_Until_Due()
     {
         var quote = CreateReferredQuote("customer-1");
-        var operation = QuoteReferralOperation.CreateDefault(
-            quote.Id,
-            quote.Quote.RiskTier,
-            quote.Quote.CreatedAtUtc,
-            quote.Quote.ExpiresAtUtc);
+        var operationId = Guid.NewGuid();
         var evidenceRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
-            operation.Id,
+            operationId,
             "customer-1",
             "underwriter-1",
             EvidenceRequestCategory.BackupRecovery,
@@ -753,7 +784,6 @@ public sealed class UnderwritingReferralEndpointTests
             new DateTime(2020, 6, 20, 9, 0, 0, DateTimeKind.Utc),
             new DateTime(2020, 6, 18, 9, 0, 0, DateTimeKind.Utc));
         await SaveQuotesAsync(quote);
-        await SaveOperationsAsync(operation);
         await SaveEvidenceRequestsAsync(evidenceRequest);
 
         using var request = CreateAuthenticatedRequest(
@@ -909,13 +939,10 @@ public sealed class UnderwritingReferralEndpointTests
     public async Task Operations_Mutation_Returns_Conflict_After_Final_Underwriting_Decision()
     {
         var quote = CreateReferredQuote("customer-1");
-        var operation = QuoteReferralOperation.CreateDefault(
-            quote.Id,
-            quote.Quote.RiskTier,
-            quote.Quote.CreatedAtUtc,
-            quote.Quote.ExpiresAtUtc);
         await SaveQuotesAsync(quote);
-        await SaveOperationsAsync(operation);
+        // Pump the outbox so the referral operation is projected into the Underwriting module context
+        // before the approve and note HTTP calls below.
+        await PumpOutboxAsync(webApplicationFactory, TestContext.Current.CancellationToken);
 
         using var approveRequest = CreateAuthenticatedRequest(
             HttpMethod.Post,
@@ -928,6 +955,10 @@ public sealed class UnderwritingReferralEndpointTests
                 notes = "MFA evidence reviewed."
             });
         using var approveResponse = await httpClient.SendAsync(approveRequest, TestContext.Current.CancellationToken);
+
+        // Pump the outbox so the QuoteUnderwritingDecisionRecorded event is projected and closes the
+        // operation before the add-note call below (which must return Conflict on a closed operation).
+        await PumpOutboxAsync(webApplicationFactory, TestContext.Current.CancellationToken);
 
         using var noteRequest = CreateAuthenticatedRequest(
             HttpMethod.Post,
@@ -1049,16 +1080,6 @@ public sealed class UnderwritingReferralEndpointTests
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
-    private async Task SaveOperationsAsync(params QuoteReferralOperation[] operations)
-    {
-        using var scope = webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
-        await dbContext.Set<QuoteReferralOperation>().AddRangeAsync(
-            operations,
-            TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
-    }
-
     private async Task SaveEvidenceRequestsAsync(params QuoteEvidenceRequest[] evidenceRequests)
     {
         using var scope = webApplicationFactory.Services.CreateScope();
@@ -1067,6 +1088,26 @@ public sealed class UnderwritingReferralEndpointTests
             evidenceRequests,
             TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task SaveUnderwritingOperationsAsync(
+        params LIAnsureProtect.Modules.Underwriting.Domain.Referrals.QuoteReferralOperation[] operations)
+    {
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        await dbContext.QuoteReferralOperations.AddRangeAsync(
+            operations,
+            TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static async Task PumpOutboxAsync(
+        WebApplicationFactory<Program> factory,
+        CancellationToken ct = default)
+    {
+        using var scope = factory.Services.CreateScope();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>();
+        while (await dispatcher.DispatchPendingMessagesAsync(ct) > 0) { }
     }
 
     private static SeededQuote CreateReferredQuote(
@@ -1137,5 +1178,7 @@ public sealed class UnderwritingReferralEndpointTests
         httpClient.Dispose();
         webApplicationFactory.Dispose();
         databaseConnection.Dispose();
+        underwritingConnection.Dispose();
+        notificationsConnection.Dispose();
     }
 }

@@ -1,14 +1,19 @@
 using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Application.Quotes.Commands.ManageQuoteEvidenceRequests;
-using LIAnsureProtect.Application.Quotes.Commands.ManageQuoteReferralOperations;
 using LIAnsureProtect.Application.Quotes.Commands.UnderwriteQuoteReferral;
 using LIAnsureProtect.Application.Quotes.Queries.ListQuoteReferrals;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Modules.Underwriting.Application.Commands.GenerateAiUnderwritingReview;
+using LIAnsureProtect.Modules.Underwriting.Application.Referrals.Commands.ManageReferralOperations;
+using LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ApplicationValidationException = LIAnsureProtect.Application.Common.Exceptions.ValidationException;
+using GetQuoteReferralTimelineQuery = LIAnsureProtect.Application.Quotes.Commands.ManageQuoteReferralOperations.GetQuoteReferralTimelineQuery;
+using QuoteReferralTimelineResult = LIAnsureProtect.Application.Quotes.Commands.ManageQuoteReferralOperations.QuoteReferralTimelineResult;
+using ReferralOperationStatus = LIAnsureProtect.Modules.Underwriting.Domain.Referrals.ReferralOperationStatus;
+using ReferralPriority = LIAnsureProtect.Modules.Underwriting.Domain.Referrals.ReferralPriority;
 
 namespace LIAnsureProtect.Api.Controllers;
 

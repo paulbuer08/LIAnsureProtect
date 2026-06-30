@@ -17,7 +17,10 @@ public sealed class ProjectReferenceBoundaryTests
     [InlineData(
         "src/LIAnsureProtect.Domain/LIAnsureProtect.Domain.csproj",
         "LIAnsureProtect.Platform.Abstractions")]
-    [InlineData("src/LIAnsureProtect.Application/LIAnsureProtect.Application.csproj", "LIAnsureProtect.Domain")]
+    [InlineData(
+        "src/LIAnsureProtect.Application/LIAnsureProtect.Application.csproj",
+        "LIAnsureProtect.Domain",
+        "LIAnsureProtect.Modules.Underwriting.Application")]
     [InlineData(
         "src/LIAnsureProtect.Infrastructure/LIAnsureProtect.Infrastructure.csproj",
         "LIAnsureProtect.Application",

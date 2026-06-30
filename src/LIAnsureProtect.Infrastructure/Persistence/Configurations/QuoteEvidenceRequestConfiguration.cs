@@ -166,10 +166,9 @@ public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration
             .HasForeignKey(request => request.QuoteId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<QuoteReferralOperation>()
-            .WithMany()
-            .HasForeignKey(request => request.QuoteReferralOperationId)
-            .OnDelete(DeleteBehavior.Restrict);
+        // QuoteReferralOperationId is a plain correlation column — the FK to QuoteReferralOperation was
+        // dropped in M36 because the referral aggregate now lives in the Underwriting module's own context
+        // and the column is removed in M37 when evidence carves into the module.
 
         builder.HasOne<Submission>()
             .WithMany()

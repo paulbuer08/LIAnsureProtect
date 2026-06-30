@@ -1,4 +1,4 @@
-namespace LIAnsureProtect.Domain.Quotes;
+namespace LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 
 public sealed class QuoteReferralOperation
 {
@@ -55,7 +55,7 @@ public sealed class QuoteReferralOperation
 
     public static QuoteReferralOperation CreateDefault(
         Guid quoteId,
-        CyberRiskTier riskTier,
+        string riskTier,
         DateTime referredAtUtc,
         DateTime quoteExpiresAtUtc)
     {
@@ -65,7 +65,7 @@ public sealed class QuoteReferralOperation
         if (quoteExpiresAtUtc < referredAtUtc)
             throw new InvalidOperationException("Referral due date cannot be calculated after quote expiry.");
 
-        var priority = riskTier is CyberRiskTier.High or CyberRiskTier.Severe
+        var priority = riskTier is "High" or "Severe"
             ? ReferralPriority.High
             : ReferralPriority.Normal;
         var targetDueAtUtc = referredAtUtc.AddDays(priority == ReferralPriority.High ? 2 : 5);
@@ -220,7 +220,7 @@ public sealed class QuoteReferralOperation
 
     public void CloseForDecision(
         string reviewedByUserId,
-        QuoteUnderwritingDecision decision,
+        string decision,
         DateTime closedAtUtc)
     {
         EnsureOpen();
@@ -296,7 +296,7 @@ public sealed class QuoteReferralOperation
 
     public void RecordEvidenceRequestReviewDecision(
         Guid evidenceRequestId,
-        EvidenceReviewDecisionStatus decision,
+        string decision,
         string reviewedByUserId,
         DateTime reviewedAtUtc)
     {

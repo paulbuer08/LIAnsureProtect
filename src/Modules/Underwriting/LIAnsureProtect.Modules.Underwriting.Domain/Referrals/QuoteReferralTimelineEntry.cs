@@ -1,26 +1,28 @@
-namespace LIAnsureProtect.Domain.Quotes;
+namespace LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 
-public sealed class QuoteReferralWorkNote
+public sealed class QuoteReferralTimelineEntry
 {
-    private QuoteReferralWorkNote(
+    private QuoteReferralTimelineEntry(
         Guid id,
         Guid quoteReferralOperationId,
         Guid quoteId,
-        string note,
+        ReferralTimelineEntryType entryType,
+        string summary,
         string createdByUserId,
         DateTime createdAtUtc)
     {
         Id = id;
         QuoteReferralOperationId = quoteReferralOperationId;
         QuoteId = quoteId;
-        Note = note;
+        EntryType = entryType;
+        Summary = summary;
         CreatedByUserId = createdByUserId;
         CreatedAtUtc = createdAtUtc;
     }
 
-    private QuoteReferralWorkNote()
+    private QuoteReferralTimelineEntry()
     {
-        Note = string.Empty;
+        Summary = string.Empty;
         CreatedByUserId = string.Empty;
     }
 
@@ -30,24 +32,28 @@ public sealed class QuoteReferralWorkNote
 
     public Guid QuoteId { get; private set; }
 
-    public string Note { get; private set; }
+    public ReferralTimelineEntryType EntryType { get; private set; }
+
+    public string Summary { get; private set; }
 
     public string CreatedByUserId { get; private set; }
 
     public DateTime CreatedAtUtc { get; private set; }
 
-    internal static QuoteReferralWorkNote Record(
+    internal static QuoteReferralTimelineEntry Record(
         Guid operationId,
         Guid quoteId,
+        ReferralTimelineEntryType entryType,
+        string summary,
         string createdByUserId,
-        string note,
         DateTime createdAtUtc)
     {
-        return new QuoteReferralWorkNote(
+        return new QuoteReferralTimelineEntry(
             Guid.NewGuid(),
             operationId,
             quoteId,
-            note.Trim(),
+            entryType,
+            summary.Trim(),
             createdByUserId.Trim(),
             createdAtUtc);
     }

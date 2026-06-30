@@ -1,8 +1,8 @@
-using LIAnsureProtect.Domain.Quotes;
+using LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace LIAnsureProtect.Infrastructure.Persistence.Configurations;
+namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 
 public sealed class QuoteReferralTimelineEntryConfiguration : IEntityTypeConfiguration<QuoteReferralTimelineEntry>
 {

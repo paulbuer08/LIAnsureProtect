@@ -8,6 +8,20 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 36 - Underwriting Referral Operations (second slice of the Underwriting carve).
+- `QuoteReferralOperation` (+ work notes, follow-up tasks, timeline, and the `ReferralOperationStatus`/`ReferralPriority`/`ReferralTimelineEntryType` enums) moved into `Modules/Underwriting/...Domain/Referrals`; its four tables + a `referral_operation_projected_messages` dedupe table joined `UnderwritingDbContext` in the `underwriting` schema (no fourth context; scripts/guard/CI unchanged).
+- Event-driven hand-offs: the outbox dispatcher now also fans out to a new module `IReferralOperationProjector` (idempotent on the source outbox-message id; create-if-missing self-heal via `IUnderwritingQuoteContextReader.GetForReferralOperationAsync`), reacting to existing `QuoteGenerated`(Referred)→create, `QuoteUnderwritingDecisionRecorded`→close, and the six `QuoteEvidenceRequest*`→timeline/status events. The underwriter's own actions moved into the module as synchronous MediatR commands (`ManageReferralOperations`).
+- `IReferralOperationsReader` read port: the legacy queue (`ListQuoteReferrals`) + timeline reads now read the operation side via the module (new allowed reference edge `Application → Modules.Underwriting.Application`, captured in the architecture ratchet); the timeline still concats the legacy underwriting-decision audit.
+- `CreateReferralOperations` migration (`UnderwritingDbContext`) + `DropReferralOperations` migration (`SubmissionDbContext`) — drop-and-recreate, no production data.
+- `docs/dev/async-and-eventing-conventions.md` established as a global best practice (async/await all the way down on I/O + events-at-the-seams / synchronous core; not event sourcing).
+- Milestone 36 design spec and learning notes.
+
+### Changed
+
+- Removed the referral-operation methods (`AddReferralOperationAsync`, `ListReferralOperationsAsync`, `GetReferralOperationForUpdateAsync`) from `IQuoteRepository`/`EfCoreQuoteRepository`; deleted the legacy `QuoteReferralOperation` aggregate, child entities, enums, and EF configs from the legacy `Quotes` context.
+- Create/close/evidence projection of the referral operation are now **eventually consistent** (the legacy synchronous writes were removed; the module projector applies them after the Worker dispatches). Integration tests pump the outbox dispatcher (`PumpOutboxAsync`) — no assertions weakened.
+- Evidence-create decoupled from the referral operation: the cross-schema `quote_evidence_requests` → `quote_referral_operations` FK is dropped (reference by id only); the `quote_referral_operation_id` column is retained (vestigial, correlated by quote id) and is removed when evidence carves in M37.
+
 - Milestone 35 - Underwriting Module: AI Review (first slice of the Underwriting carve).
 - `src/Modules/Underwriting/{Domain,Application,Infrastructure}` with its own `UnderwritingDbContext` owning a dedicated `underwriting` PostgreSQL schema; the advisory AI underwriting review (`AiUnderwritingReview`, `IAiReviewService` + local simulated provider, `GenerateAiUnderwritingReview` use case) moves into it.
 - `IUnderwritingQuoteContextReader` cross-context read port (implemented by the legacy `QuoteUnderwritingContextReader`) so the module reads a read-only quote snapshot without referencing the Quote aggregate; `IAiUnderwritingReviewRepository` persists the audit on the module's own context.
