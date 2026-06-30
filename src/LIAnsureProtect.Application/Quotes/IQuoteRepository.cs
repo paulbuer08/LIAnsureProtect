@@ -10,10 +10,6 @@ public interface IQuoteRepository
         QuoteRatingProviderAttempt attempt,
         CancellationToken cancellationToken);
 
-    Task AddReferralOperationAsync(
-        QuoteReferralOperation operation,
-        CancellationToken cancellationToken);
-
     Task AddEvidenceRequestAsync(
         QuoteEvidenceRequest evidenceRequest,
         CancellationToken cancellationToken);
@@ -27,10 +23,6 @@ public interface IQuoteRepository
         CancellationToken cancellationToken);
 
     Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken);
-
-    Task<IReadOnlyCollection<QuoteReferralOperation>> ListReferralOperationsAsync(
-        IReadOnlyCollection<Guid> quoteIds,
-        CancellationToken cancellationToken);
 
     Task<IReadOnlyCollection<QuoteEvidenceRequest>> ListEvidenceRequestsForQuotesAsync(
         IReadOnlyCollection<Guid> quoteIds,
@@ -64,10 +56,6 @@ public interface IQuoteRepository
         Guid quoteId,
         Guid evidenceRequestId,
         Guid documentId,
-        CancellationToken cancellationToken);
-
-    Task<QuoteReferralOperation?> GetReferralOperationForUpdateAsync(
-        Guid quoteId,
         CancellationToken cancellationToken);
 
     Task<Quote?> GetForUnderwritingReviewAsync(Guid quoteId, CancellationToken cancellationToken);
