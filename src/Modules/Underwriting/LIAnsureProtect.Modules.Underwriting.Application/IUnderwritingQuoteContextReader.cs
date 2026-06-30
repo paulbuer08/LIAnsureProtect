@@ -8,6 +8,9 @@ namespace LIAnsureProtect.Modules.Underwriting.Application;
 public interface IUnderwritingQuoteContextReader
 {
     Task<UnderwritingQuoteContext?> GetForAiReviewAsync(Guid quoteId, CancellationToken cancellationToken);
+
+    /// <summary>Minimal quote facts needed to create a referral operation (risk tier, referred-at, expiry).</summary>
+    Task<ReferralQuoteContext?> GetForReferralOperationAsync(Guid quoteId, CancellationToken cancellationToken);
 }
 
 /// <summary>Read-only snapshot of a quote plus its prior underwriting decisions, for AI review context.</summary>
@@ -24,3 +27,10 @@ public sealed record UnderwritingQuoteContext(
     IReadOnlyCollection<string> Subjectivities,
     IReadOnlyCollection<string> ReferralReasons,
     IReadOnlyCollection<string> PriorUnderwritingDecisions);
+
+/// <summary>Read-only quote facts for creating a referral operation. RiskTier is a string (cross-context).</summary>
+public sealed record ReferralQuoteContext(
+    Guid QuoteId,
+    string RiskTier,
+    DateTime ReferredAtUtc,
+    DateTime ExpiresAtUtc);

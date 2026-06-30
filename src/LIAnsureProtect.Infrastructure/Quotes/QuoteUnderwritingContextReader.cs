@@ -40,6 +40,21 @@ public sealed class QuoteUnderwritingContextReader(IQuoteRepository quoteReposit
                 .ToArray());
     }
 
+    public async Task<ReferralQuoteContext?> GetForReferralOperationAsync(
+        Guid quoteId,
+        CancellationToken cancellationToken)
+    {
+        var quote = await quoteRepository.GetForUnderwritingReviewAsync(quoteId, cancellationToken);
+        if (quote is null)
+            return null;
+
+        return new ReferralQuoteContext(
+            quote.Id,
+            quote.RiskTier.ToString(),
+            quote.CreatedAtUtc,
+            quote.ExpiresAtUtc);
+    }
+
     private static IReadOnlyCollection<string> SplitLines(string value)
     {
         return value
