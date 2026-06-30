@@ -128,6 +128,7 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Dependency Management](docs/dev/dependency-management.md)
 - [CI/CD Flow](docs/dev/ci-cd-flow.md)
 - [Milestone Documentation Practice](docs/dev/milestone-documentation-practice.md)
+- [Async / Await and Eventing Conventions (Global Best Practice)](docs/dev/async-and-eventing-conventions.md)
 - [Milestone 2 Backend Foundation Learnings](docs/dev/milestone-2-backend-foundation-learnings.md)
 - [Milestone 3 Dependency Registration And Architecture Guards Learnings](docs/dev/milestone-3-dependency-registration-and-architecture-guards-learnings.md)
 - [Milestone 4 Application Use Case Foundation Learnings](docs/dev/milestone-4-application-use-case-foundation-learnings.md)

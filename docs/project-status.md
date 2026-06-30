@@ -133,6 +133,8 @@ I started as a modular monolith with clean boundaries and event-driven workflows
 
 Use ASP.NET Core Web API with C# and .NET 10.
 
+Global best practice: follow `docs/dev/async-and-eventing-conventions.md` across all backend code — async/await all the way down on I/O with `CancellationToken` threaded end-to-end, never block on async, and route cross-context side-effects through domain events + the transactional outbox (events at the seams, synchronous request/response in the core; not event sourcing). This standard ranks alongside the Clean Architecture dependency rule and the module-boundary rule.
+
 Use practical Clean Architecture:
 
 - Domain: business entities, enums, value objects, and domain rules.
