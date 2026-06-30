@@ -139,14 +139,16 @@ public sealed class CreateQuoteEvidenceRequestCommandHandler(
         if (quote.Status != QuoteStatus.Referred)
             throw new InvalidOperationException("Evidence can only be requested while a quote is referred.");
 
-        var operation = await quoteRepository.GetReferralOperationForUpdateAsync(request.QuoteId, cancellationToken)
-            ?? throw new InvalidOperationException("Referral operations must exist before evidence can be requested.");
-
         var requestedAtUtc = DateTime.UtcNow;
+        // The referral operation is now owned by the Underwriting module and created asynchronously via
+        // the QuoteGenerated event projector, so it can no longer be loaded synchronously here. The
+        // evidence request's QuoteReferralOperationId is a vestigial 1:1 correlation column (nothing reads
+        // it; its cross-context FK is dropped in this milestone) that is removed when evidence carves into
+        // the module in M37 — so we correlate by the quote id until then.
         var evidenceRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.SubmissionId,
-            operation.Id,
+            quote.Id,
             quote.OwnerUserId,
             CurrentUserId.GetRequired(currentUser, "An authenticated underwriter user id is required to request evidence."),
             request.Category,
