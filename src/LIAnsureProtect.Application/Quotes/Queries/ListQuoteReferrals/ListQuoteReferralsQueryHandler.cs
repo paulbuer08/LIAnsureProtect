@@ -1,9 +1,12 @@
+using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
 using MediatR;
 using LIAnsureProtect.Domain.Quotes;
 
 namespace LIAnsureProtect.Application.Quotes.Queries.ListQuoteReferrals;
 
-public sealed class ListQuoteReferralsQueryHandler(IQuoteRepository quoteRepository)
+public sealed class ListQuoteReferralsQueryHandler(
+    IQuoteRepository quoteRepository,
+    IReferralOperationsReader referralOperationsReader)
     : IRequestHandler<ListQuoteReferralsQuery, ListQuoteReferralsResult>
 {
     public async Task<ListQuoteReferralsResult> Handle(
@@ -11,20 +14,20 @@ public sealed class ListQuoteReferralsQueryHandler(IQuoteRepository quoteReposit
         CancellationToken cancellationToken)
     {
         var quotes = await quoteRepository.ListPendingReferralsAsync(cancellationToken);
-        var operations = await quoteRepository.ListReferralOperationsAsync(
+        var operationSummaries = await referralOperationsReader.GetSummariesAsync(
             quotes.Select(quote => quote.Id).ToList(),
             cancellationToken);
         var evidenceRequests = await quoteRepository.ListEvidenceRequestsForQuotesAsync(
             quotes.Select(quote => quote.Id).ToList(),
             cancellationToken);
-        var operationsByQuoteId = operations.ToDictionary(operation => operation.QuoteId);
+        var operationsByQuoteId = operationSummaries.ToDictionary(summary => summary.QuoteId);
         var evidenceRequestsByQuoteId = evidenceRequests
             .GroupBy(request => request.QuoteId)
             .ToDictionary(group => group.Key, group => group.ToList());
         var results = quotes
             .Select(quote =>
             {
-                operationsByQuoteId.TryGetValue(quote.Id, out var operation);
+                operationsByQuoteId.TryGetValue(quote.Id, out var operationSummary);
                 evidenceRequestsByQuoteId.TryGetValue(quote.Id, out var quoteEvidenceRequests);
 
                 return new QuoteReferralResult(
@@ -40,7 +43,14 @@ public sealed class ListQuoteReferralsQueryHandler(IQuoteRepository quoteReposit
                     SplitLines(quote.ReferralReasons),
                     quote.CreatedAtUtc,
                     quote.ExpiresAtUtc,
-                    operation is null ? null : CreateOperationsSummary(operation),
+                    operationSummary is null ? null : new QuoteReferralOperationsSummaryResult(
+                        operationSummary.AssignedUnderwriterUserId,
+                        operationSummary.Priority,
+                        operationSummary.DueAtUtc,
+                        operationSummary.IsSlaBreached,
+                        operationSummary.Status,
+                        operationSummary.OpenTaskCount,
+                        operationSummary.LatestTimelineAtUtc),
                     CreateEvidenceSummary(quoteEvidenceRequests ?? []));
             })
             .ToList();
@@ -74,21 +84,6 @@ public sealed class ListQuoteReferralsQueryHandler(IQuoteRepository quoteReposit
             evidenceRequests
                 .OrderByDescending(request => request.UpdatedAtUtc)
                 .Select(request => (DateTime?)request.UpdatedAtUtc)
-                .FirstOrDefault());
-    }
-
-    private static QuoteReferralOperationsSummaryResult CreateOperationsSummary(QuoteReferralOperation operation)
-    {
-        return new QuoteReferralOperationsSummaryResult(
-            operation.AssignedUnderwriterUserId,
-            operation.Priority.ToString(),
-            operation.DueAtUtc,
-            operation.DueAtUtc < DateTime.UtcNow && operation.Status != ReferralOperationStatus.Closed,
-            operation.Status.ToString(),
-            operation.Tasks.Count(task => !task.IsCompleted),
-            operation.TimelineEntries
-                .OrderByDescending(entry => entry.CreatedAtUtc)
-                .Select(entry => (DateTime?)entry.CreatedAtUtc)
                 .FirstOrDefault());
     }
 
