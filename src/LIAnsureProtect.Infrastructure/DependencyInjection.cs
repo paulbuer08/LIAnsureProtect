@@ -4,7 +4,6 @@ using LIAnsureProtect.Application.Documents;
 using LIAnsureProtect.Application.Policies;
 using LIAnsureProtect.Application.Policies.Binding;
 using LIAnsureProtect.Application.Quotes;
-using LIAnsureProtect.Application.Quotes.Ai;
 using LIAnsureProtect.Application.Quotes.RatingProviders;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure.Documents;
@@ -13,9 +12,9 @@ using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.Infrastructure.Policies;
 using LIAnsureProtect.Infrastructure.Quotes;
-using LIAnsureProtect.Infrastructure.Quotes.Ai;
 using LIAnsureProtect.Infrastructure.Quotes.RatingProviders;
 using LIAnsureProtect.Infrastructure.Submissions;
+using LIAnsureProtect.Modules.Underwriting.Application;
 using LIAnsureProtect.Platform.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,7 +64,8 @@ public static class DependencyInjection
         }
         services.AddScoped<IEvidenceDocumentScanner, LocalDeterministicEvidenceDocumentScanner>();
         services.AddScoped<IPolicyBindingProviderClient, SimulatedPolicyBindingProviderClient>();
-        services.AddScoped<IAiReviewService, LocalSimulatedAiReviewService>();
+        // Quoting-side adapter for the Underwriting module's cross-context quote-read port.
+        services.AddScoped<IUnderwritingQuoteContextReader, QuoteUnderwritingContextReader>();
         services.AddTransient<RatingProviderAttemptCountingHandler>();
         services.AddTransient<SimulatedRatingProviderHttpMessageHandler>();
         var ratingProviderClientBuilder = services

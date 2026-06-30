@@ -8,6 +8,17 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 35 - Underwriting Module: AI Review (first slice of the Underwriting carve).
+- `src/Modules/Underwriting/{Domain,Application,Infrastructure}` with its own `UnderwritingDbContext` owning a dedicated `underwriting` PostgreSQL schema; the advisory AI underwriting review (`AiUnderwritingReview`, `IAiReviewService` + local simulated provider, `GenerateAiUnderwritingReview` use case) moves into it.
+- `IUnderwritingQuoteContextReader` cross-context read port (implemented by the legacy `QuoteUnderwritingContextReader`) so the module reads a read-only quote snapshot without referencing the Quote aggregate; `IAiUnderwritingReviewRepository` persists the audit on the module's own context.
+- `NotificationsDbContext`-style migration plumbing extended to a third context: `SubmissionDbContext` migration `DropAiUnderwritingReviews` + `UnderwritingDbContext` migration `CreateUnderwritingSchema`; scripts/guard/CI now apply all three contexts with `--context`.
+- Milestone 35 learning notes.
+
+### Changed
+
+- Removed `AddAiUnderwritingReviewAsync` from `IQuoteRepository`/`EfCoreQuoteRepository` and the `AiUnderwritingReview` DbSet from `SubmissionDbContext` (AI review is now module-owned). The cross-aggregate FK from `ai_underwriting_reviews` to `quotes` is dropped (reference by id only).
+- The "AI cannot make an insurance decision" guardrail is now structural: the Underwriting module has no reference to the Quote aggregate.
+
 - Milestone 34 - Notifications Team Inbox (first feature built inside a carved module).
 - `team_notification_entries` + `team_notification_read_receipts` tables (notifications schema): the underwriting-operations/binding-operations audiences are now persisted as shared team entries with per-user read receipts (created lazily on mark-read; team membership from the role claim, no user directory).
 - Team Domain (`TeamNotificationEntry` + `TeamNotificationReadReceipt`), `ITeamNotificationRepository`, `NotificationTeamAudiences.ForRoles` (Underwriter/Admin → both ops audiences), and `NotificationsDbContext` migration `AddTeamNotificationInbox`.

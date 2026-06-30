@@ -71,6 +71,13 @@ jobs:
           --startup-project src/LIAnsureProtect.Api/LIAnsureProtect.Api.csproj
           --context NotificationsDbContext
 
+      - name: Apply EF Core migrations (UnderwritingDbContext)
+        run: >-
+          dotnet ef database update
+          --project src/Modules/Underwriting/LIAnsureProtect.Modules.Underwriting.Infrastructure/LIAnsureProtect.Modules.Underwriting.Infrastructure.csproj
+          --startup-project src/LIAnsureProtect.Api/LIAnsureProtect.Api.csproj
+          --context UnderwritingDbContext
+
       - name: Test
         run: dotnet test LIAnsureProtect.slnx --no-build --verbosity minimal
 

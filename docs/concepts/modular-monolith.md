@@ -58,10 +58,12 @@ We pick the **middle**: clean boundaries now, the option to extract a service la
 
 ## How it shows up in this codebase
 
-- `src/Platform/` holds the shared kernel; `src/Modules/<Context>/` holds each module. The first,
-  **`src/Modules/Notifications/`**, was carved in Milestone 33 — three projects
-  (`Domain`/`Application`/`Infrastructure`) owning the notification inbox in its own `notifications`
-  PostgreSQL schema, fed by the outbox dispatcher through the `INotificationProjector` port.
+- `src/Platform/` holds the shared kernel; `src/Modules/<Context>/` holds each module. **Notifications**
+  was carved in Milestone 33 (its own `notifications` schema, fed by the dispatcher through the
+  `INotificationProjector` port). **Underwriting** began carving in Milestone 35 — its first slice owns
+  the advisory AI review in an `underwriting` schema and reads a quote snapshot through the
+  `IUnderwritingQuoteContextReader` port (a module never references another context's aggregate; it
+  reads via a port or links by id + events).
 - The boundary rules are **enforced by tests** in `ProjectReferenceBoundaryTests.cs`, including a
   ratchet that automatically checks any future `src/Modules/*` project.
 - Today the legacy `src/LIAnsureProtect.{Domain,Application,Infrastructure}` projects still hold most

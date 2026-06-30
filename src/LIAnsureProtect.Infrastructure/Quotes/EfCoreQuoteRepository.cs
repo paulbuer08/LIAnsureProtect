@@ -212,11 +212,4 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
     {
         await dbContext.QuoteUnderwritingReviews.AddAsync(review, cancellationToken);
     }
-
-    public async Task AddAiUnderwritingReviewAsync(
-        AiUnderwritingReview review,
-        CancellationToken cancellationToken)
-    {
-        await dbContext.AiUnderwritingReviews.AddAsync(review, cancellationToken);
-    }
 }

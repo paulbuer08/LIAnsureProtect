@@ -87,8 +87,4 @@ public interface IQuoteRepository
         CancellationToken cancellationToken);
 
     Task AddUnderwritingReviewAsync(QuoteUnderwritingReview review, CancellationToken cancellationToken);
-
-    Task AddAiUnderwritingReviewAsync(
-        AiUnderwritingReview review,
-        CancellationToken cancellationToken);
 }

@@ -1,4 +1,4 @@
-namespace LIAnsureProtect.Application.Quotes.Commands.GenerateAiUnderwritingReview;
+namespace LIAnsureProtect.Modules.Underwriting.Application.Commands.GenerateAiUnderwritingReview;
 
 public sealed record GenerateAiUnderwritingReviewResult(
     Guid ReviewId,
