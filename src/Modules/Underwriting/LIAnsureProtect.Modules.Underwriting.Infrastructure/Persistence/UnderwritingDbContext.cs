@@ -1,4 +1,5 @@
 using LIAnsureProtect.Modules.Underwriting.Domain;
+using LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 using LIAnsureProtect.Platform.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,6 +16,11 @@ public sealed class UnderwritingDbContext(DbContextOptions<UnderwritingDbContext
     public const string SchemaName = "underwriting";
 
     public DbSet<AiUnderwritingReview> AiUnderwritingReviews => Set<AiUnderwritingReview>();
+
+    public DbSet<QuoteReferralOperation> QuoteReferralOperations => Set<QuoteReferralOperation>();
+
+    public DbSet<ReferralOperationProjectedMessage> ReferralOperationProjectedMessages
+        => Set<ReferralOperationProjectedMessage>();
 
     protected override string? Schema => SchemaName;
 
