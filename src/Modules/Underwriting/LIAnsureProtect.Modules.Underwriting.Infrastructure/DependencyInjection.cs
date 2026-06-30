@@ -1,5 +1,6 @@
 using LIAnsureProtect.Modules.Underwriting.Application;
 using LIAnsureProtect.Modules.Underwriting.Application.Ai;
+using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Ai;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 using LIAnsureProtect.Platform.Abstractions;
@@ -31,6 +32,10 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IAiUnderwritingReviewRepository, EfAiUnderwritingReviewRepository>();
+
+        services.AddScoped<IReferralOperationRepository, EfReferralOperationRepository>();
+        services.AddScoped<IReferralOperationsReader, ReferralOperationsReader>();
+        services.AddScoped<IReferralOperationProjector, ReferralOperationProjector>();
 
         // Ports & Adapters: the advisory AI provider is chosen by the active deployment profile.
         switch (profile)
