@@ -1,4 +1,5 @@
 using LIAnsureProtect.Modules.Notifications.Application;
+using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
 using Microsoft.EntityFrameworkCore;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
@@ -6,7 +7,8 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 public sealed class OutboxDispatcher(
     SubmissionDbContext dbContext,
     INotificationProjector notificationProjector,
-    INotificationPublisher notificationPublisher) : IOutboxDispatcher
+    INotificationPublisher notificationPublisher,
+    IReferralOperationProjector referralOperationProjector) : IOutboxDispatcher
 {
     private const int BatchSize = 20;
     private const int MaxPublishAttempts = 3;
@@ -30,6 +32,10 @@ public sealed class OutboxDispatcher(
 
         foreach (var message in pendingMessages)
         {
+            var referralEvent = OutboxReferralOperationMapper.TryMap(message);
+            if (referralEvent is not null)
+                await referralOperationProjector.ProjectAsync(referralEvent, cancellationToken);
+
             var notificationMessage = OutboxNotificationMapper.TryMap(message);
             if (notificationMessage is null)
             {
