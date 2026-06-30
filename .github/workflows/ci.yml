@@ -11,6 +11,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least-privilege default for the GITHUB_TOKEN: both jobs only check out the repository and run
+# build/test, so read-only access to repository contents is all they need. This resolves the CodeQL
+# "Workflow does not contain permissions" alert for both jobs.
+permissions:
+  contents: read
+
 jobs:
   backend:
     name: Backend (build, migrate, test)
