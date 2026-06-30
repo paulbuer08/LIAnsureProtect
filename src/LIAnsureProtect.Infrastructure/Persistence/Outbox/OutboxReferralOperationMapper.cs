@@ -1,0 +1,93 @@
+using System.Text.Json;
+using LIAnsureProtect.Domain.Quotes;
+using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
+
+namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
+
+/// <summary>
+/// Legacy-side mapper from an outbox message (a serialized Quoting domain event) to the module's
+/// context-neutral <see cref="ReferralOperationEvent"/>. Returns null for events the referral operation
+/// does not react to.
+/// </summary>
+internal static class OutboxReferralOperationMapper
+{
+    public static ReferralOperationEvent? TryMap(OutboxMessage outboxMessage)
+    {
+        return outboxMessage.Type switch
+        {
+            nameof(QuoteGeneratedDomainEvent) => MapGenerated(outboxMessage),
+            nameof(QuoteUnderwritingDecisionRecordedDomainEvent) => MapDecision(outboxMessage),
+            nameof(QuoteEvidenceRequestCreatedDomainEvent) => MapEvidence(outboxMessage, ReferralOperationEventKind.EvidenceRequestCreated),
+            nameof(QuoteEvidenceRequestRespondedDomainEvent) => MapEvidence(outboxMessage, ReferralOperationEventKind.EvidenceRequestResponded),
+            nameof(QuoteEvidenceRequestAcceptedDomainEvent) => MapEvidenceAccepted(outboxMessage),
+            nameof(QuoteEvidenceRequestCancelledDomainEvent) => MapEvidence(outboxMessage, ReferralOperationEventKind.EvidenceRequestCancelled),
+            nameof(QuoteEvidenceRequestFollowUpSentDomainEvent) => MapEvidence(outboxMessage, ReferralOperationEventKind.EvidenceRequestFollowUpSent),
+            nameof(QuoteEvidenceRequestRemediationRequiredDomainEvent) => MapRemediation(outboxMessage),
+            _ => null
+        };
+    }
+
+    private static ReferralOperationEvent? MapGenerated(OutboxMessage outboxMessage)
+    {
+        var domainEvent = Deserialize<QuoteGeneratedDomainEvent>(outboxMessage);
+        if (domainEvent.Status != QuoteStatus.Referred)
+            return null;
+
+        return new ReferralOperationEvent(
+            outboxMessage.Id, ReferralOperationEventKind.Created, domainEvent.QuoteId,
+            "system", domainEvent.OccurredAtUtc, null, null);
+    }
+
+    private static ReferralOperationEvent MapDecision(OutboxMessage outboxMessage)
+    {
+        var domainEvent = Deserialize<QuoteUnderwritingDecisionRecordedDomainEvent>(outboxMessage);
+        return new ReferralOperationEvent(
+            outboxMessage.Id, ReferralOperationEventKind.DecisionRecorded, domainEvent.QuoteId,
+            domainEvent.ReviewedByUserId, domainEvent.OccurredAtUtc, null, domainEvent.Decision.ToString());
+    }
+
+    private static ReferralOperationEvent MapEvidence(OutboxMessage outboxMessage, ReferralOperationEventKind kind)
+    {
+        // QuoteEvidenceRequestCreated/Responded/Cancelled/FollowUpSent share the same shape we need:
+        // EvidenceRequestId, QuoteId, an actor user id, OccurredAtUtc.
+        using var document = JsonDocument.Parse(outboxMessage.Payload);
+        var root = document.RootElement;
+        var quoteId = root.GetProperty("QuoteId").GetGuid();
+        var evidenceRequestId = root.GetProperty("EvidenceRequestId").GetGuid();
+        var actor = ActorFor(kind, root);
+        var occurredAtUtc = root.GetProperty("OccurredAtUtc").GetDateTime();
+
+        return new ReferralOperationEvent(
+            outboxMessage.Id, kind, quoteId, actor, occurredAtUtc, evidenceRequestId, null);
+    }
+
+    private static ReferralOperationEvent MapEvidenceAccepted(OutboxMessage outboxMessage)
+    {
+        var domainEvent = Deserialize<QuoteEvidenceRequestAcceptedDomainEvent>(outboxMessage);
+        return new ReferralOperationEvent(
+            outboxMessage.Id, ReferralOperationEventKind.EvidenceRequestAccepted, domainEvent.QuoteId,
+            domainEvent.AcceptedByUserId, domainEvent.OccurredAtUtc, domainEvent.EvidenceRequestId, null);
+    }
+
+    private static ReferralOperationEvent MapRemediation(OutboxMessage outboxMessage)
+    {
+        var domainEvent = Deserialize<QuoteEvidenceRequestRemediationRequiredDomainEvent>(outboxMessage);
+        return new ReferralOperationEvent(
+            outboxMessage.Id, ReferralOperationEventKind.EvidenceRequestReviewDecisionRecorded, domainEvent.QuoteId,
+            domainEvent.ReviewedByUserId, domainEvent.OccurredAtUtc, domainEvent.EvidenceRequestId,
+            domainEvent.Decision.ToString());
+    }
+
+    private static string ActorFor(ReferralOperationEventKind kind, JsonElement root) => kind switch
+    {
+        ReferralOperationEventKind.EvidenceRequestCreated => root.GetProperty("RequestedByUserId").GetString() ?? "system",
+        ReferralOperationEventKind.EvidenceRequestResponded => root.GetProperty("RespondedByUserId").GetString() ?? "system",
+        ReferralOperationEventKind.EvidenceRequestCancelled => root.GetProperty("CancelledByUserId").GetString() ?? "system",
+        ReferralOperationEventKind.EvidenceRequestFollowUpSent => root.GetProperty("FollowedUpByUserId").GetString() ?? "system",
+        _ => "system"
+    };
+
+    private static T Deserialize<T>(OutboxMessage outboxMessage)
+        => JsonSerializer.Deserialize<T>(outboxMessage.Payload)
+            ?? throw new InvalidOperationException($"Outbox message {outboxMessage.Id} payload could not be deserialized.");
+}
