@@ -56,7 +56,9 @@ public sealed class ReferralOperationProjectorTests : IDisposable
             EvidenceRequestId: null,
             Decision: null);
 
-        var projector = new ReferralOperationProjector(dbContext, quoteContextReaderMock.Object);
+        var projector = new ReferralOperationProjector(
+            dbContext,
+            new EfReferralOperationRepository(dbContext, quoteContextReaderMock.Object));
 
         // Act — apply the Created event twice with the same SourceOutboxMessageId.
         await projector.ProjectAsync(createdEvent, TestContext.Current.CancellationToken);
@@ -92,7 +94,9 @@ public sealed class ReferralOperationProjectorTests : IDisposable
             EvidenceRequestId: null,
             Decision: "Approved");
 
-        var projector = new ReferralOperationProjector(dbContext, quoteContextReaderMock.Object);
+        var projector = new ReferralOperationProjector(
+            dbContext,
+            new EfReferralOperationRepository(dbContext, quoteContextReaderMock.Object));
 
         // Act
         await projector.ProjectAsync(decisionEvent, TestContext.Current.CancellationToken);
@@ -135,7 +139,9 @@ public sealed class ReferralOperationProjectorTests : IDisposable
             EvidenceRequestId: null,
             Decision: "Declined");
 
-        var projector = new ReferralOperationProjector(dbContext, quoteContextReaderMock.Object);
+        var projector = new ReferralOperationProjector(
+            dbContext,
+            new EfReferralOperationRepository(dbContext, quoteContextReaderMock.Object));
 
         // Act — apply the same DecisionRecorded event twice.
         await projector.ProjectAsync(decisionEvent, TestContext.Current.CancellationToken);
@@ -159,6 +165,54 @@ public sealed class ReferralOperationProjectorTests : IDisposable
 
         Assert.Single(statusChangedEntries);
         Assert.Equal(ReferralOperationStatus.Closed, operation.Status);
+    }
+
+    [Fact]
+    public async Task Evidence_event_after_close_is_a_no_op_and_still_marked_applied()
+    {
+        // Arrange — close the operation via a decision event (self-heals then closes).
+        var projector = new ReferralOperationProjector(
+            dbContext,
+            new EfReferralOperationRepository(dbContext, quoteContextReaderMock.Object));
+
+        var decisionEvent = new ReferralOperationEvent(
+            SourceOutboxMessageId: Guid.NewGuid(),
+            Kind: ReferralOperationEventKind.DecisionRecorded,
+            QuoteId: quoteId,
+            ActorUserId: "underwriter-1",
+            OccurredAtUtc: referredAt.AddDays(1),
+            EvidenceRequestId: null,
+            Decision: "Approved");
+        await projector.ProjectAsync(decisionEvent, TestContext.Current.CancellationToken);
+
+        var lateEvidenceMessageId = Guid.NewGuid();
+        var lateEvidenceEvent = new ReferralOperationEvent(
+            SourceOutboxMessageId: lateEvidenceMessageId,
+            Kind: ReferralOperationEventKind.EvidenceRequestResponded,
+            QuoteId: quoteId,
+            ActorUserId: "broker-1",
+            OccurredAtUtc: referredAt.AddDays(2),
+            EvidenceRequestId: Guid.NewGuid(),
+            Decision: null);
+
+        // Act — an evidence event arriving after close must NOT throw (guarded no-op), so the late
+        // message cannot poison the shared dispatch loop.
+        await projector.ProjectAsync(lateEvidenceEvent, TestContext.Current.CancellationToken);
+
+        // Assert — operation stays Closed, no evidence timeline entry was added, and the late message
+        // is still marked applied (so it is not retried forever).
+        dbContext.ChangeTracker.Clear();
+
+        var operation = await dbContext.QuoteReferralOperations
+            .Include(op => op.TimelineEntries)
+            .SingleAsync(op => op.QuoteId == quoteId, TestContext.Current.CancellationToken);
+
+        Assert.Equal(ReferralOperationStatus.Closed, operation.Status);
+        Assert.DoesNotContain(operation.TimelineEntries,
+            entry => entry.EntryType == ReferralTimelineEntryType.EvidenceRequestResponded);
+
+        var markers = await dbContext.ReferralOperationProjectedMessages.ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Contains(markers, marker => marker.SourceOutboxMessageId == lateEvidenceMessageId);
     }
 
     public void Dispose()

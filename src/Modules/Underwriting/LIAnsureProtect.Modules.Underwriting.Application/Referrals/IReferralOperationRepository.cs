@@ -16,5 +16,13 @@ public interface IReferralOperationRepository
     /// <summary>True if an operation already exists for the quote (create-if-missing idempotency).</summary>
     Task<bool> ExistsForQuoteAsync(Guid quoteId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Loads the operation for the quote, or creates it (create-if-missing) via the quote read-back when
+    /// absent — so an underwriter action arriving before the QuoteGenerated projector runs self-heals
+    /// instead of 404ing. Does NOT save (the caller's SaveChangesAsync commits). Returns null only when
+    /// the quote itself does not exist.
+    /// </summary>
+    Task<QuoteReferralOperation?> EnsureExistsForQuoteAsync(Guid quoteId, CancellationToken cancellationToken);
+
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

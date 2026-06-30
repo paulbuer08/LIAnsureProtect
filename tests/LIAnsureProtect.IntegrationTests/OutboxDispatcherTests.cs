@@ -56,7 +56,9 @@ public sealed class OutboxDispatcherTests : IDisposable
             .ReturnsAsync((LIAnsureProtect.Modules.Underwriting.Application.ReferralQuoteContext?)null);
 
         projector = new NotificationInboxProjector(notificationsDbContext);
-        referralProjector = new ReferralOperationProjector(underwritingDbContext, quoteContextReaderStub.Object);
+        referralProjector = new ReferralOperationProjector(
+            underwritingDbContext,
+            new EfReferralOperationRepository(underwritingDbContext, quoteContextReaderStub.Object));
     }
 
     [Fact]

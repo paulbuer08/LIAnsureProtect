@@ -262,6 +262,32 @@ public sealed class UnderwritingReferralEndpointTests
     }
 
     [Fact]
+    public async Task Operations_Write_Action_Self_Heals_Operation_Without_Outbox_Pump()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        await SaveQuotesAsync(quote);
+        // Deliberately DO NOT pump the outbox: the QuoteGenerated projector has not created the referral
+        // operation yet. The write command must self-heal (create-if-missing) and succeed rather than 404 —
+        // this is the "no user-visible gap" guarantee for eventual consistency.
+
+        using var assignRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/operations/assign-to-me",
+            "Underwriter",
+            "underwriter-1");
+        using var assignResponse = await httpClient.SendAsync(assignRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, assignResponse.StatusCode);
+
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var underwritingDbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        var savedOperation = await underwritingDbContext.QuoteReferralOperations.SingleAsync(
+            saved => saved.QuoteId == quote.Id,
+            TestContext.Current.CancellationToken);
+        Assert.Equal("underwriter-1", savedOperation.AssignedUnderwriterUserId);
+    }
+
+    [Fact]
     public async Task Evidence_Request_Workflow_Creates_Owner_Response_And_Underwriter_Acceptance()
     {
         var quote = CreateReferredQuote("customer-1");
@@ -343,6 +369,9 @@ public sealed class UnderwritingReferralEndpointTests
         Assert.Contains("EvidenceRequestCreated", timelineContent);
         Assert.Contains("EvidenceRequestResponded", timelineContent);
         Assert.Contains("EvidenceRequestAccepted", timelineContent);
+        // Accepting evidence records BOTH an acceptance entry and a Satisfied review-decision entry,
+        // mirroring the legacy synchronous accept path (the projector emits both for the Accepted event).
+        Assert.Contains("EvidenceRequestReviewDecisionRecorded", timelineContent);
 
         using var scope = webApplicationFactory.Services.CreateScope();
         var submissionDbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();

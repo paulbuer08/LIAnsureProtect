@@ -67,7 +67,7 @@ public sealed class AssignQuoteReferralToMeCommandHandler(
         AssignQuoteReferralToMeCommand request,
         CancellationToken cancellationToken)
     {
-        var operation = await operations.GetByQuoteIdForUpdateAsync(request.QuoteId, cancellationToken);
+        var operation = await operations.EnsureExistsForQuoteAsync(request.QuoteId, cancellationToken);
         if (operation is null)
             return null;
 
@@ -87,7 +87,7 @@ public sealed class ReleaseQuoteReferralAssignmentCommandHandler(
         ReleaseQuoteReferralAssignmentCommand request,
         CancellationToken cancellationToken)
     {
-        var operation = await operations.GetByQuoteIdForUpdateAsync(request.QuoteId, cancellationToken);
+        var operation = await operations.EnsureExistsForQuoteAsync(request.QuoteId, cancellationToken);
         if (operation is null)
             return null;
 
@@ -107,7 +107,7 @@ public sealed class TriageQuoteReferralOperationCommandHandler(
         TriageQuoteReferralOperationCommand request,
         CancellationToken cancellationToken)
     {
-        var operation = await operations.GetByQuoteIdForUpdateAsync(request.QuoteId, cancellationToken);
+        var operation = await operations.EnsureExistsForQuoteAsync(request.QuoteId, cancellationToken);
         if (operation is null)
             return null;
 
@@ -132,7 +132,7 @@ public sealed class AddQuoteReferralNoteCommandHandler(
         AddQuoteReferralNoteCommand request,
         CancellationToken cancellationToken)
     {
-        var operation = await operations.GetByQuoteIdForUpdateAsync(request.QuoteId, cancellationToken);
+        var operation = await operations.EnsureExistsForQuoteAsync(request.QuoteId, cancellationToken);
         if (operation is null)
             return null;
 
@@ -157,7 +157,7 @@ public sealed class AddQuoteReferralTaskCommandHandler(
         AddQuoteReferralTaskCommand request,
         CancellationToken cancellationToken)
     {
-        var operation = await operations.GetByQuoteIdForUpdateAsync(request.QuoteId, cancellationToken);
+        var operation = await operations.EnsureExistsForQuoteAsync(request.QuoteId, cancellationToken);
         if (operation is null)
             return null;
 
@@ -181,7 +181,7 @@ public sealed class CompleteQuoteReferralTaskCommandHandler(
         CompleteQuoteReferralTaskCommand request,
         CancellationToken cancellationToken)
     {
-        var operation = await operations.GetByQuoteIdForUpdateAsync(request.QuoteId, cancellationToken);
+        var operation = await operations.EnsureExistsForQuoteAsync(request.QuoteId, cancellationToken);
         if (operation is null)
             return null;
 

@@ -1,4 +1,3 @@
-using LIAnsureProtect.Modules.Underwriting.Application;
 using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
 using LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 using Microsoft.EntityFrameworkCore;
@@ -7,12 +6,12 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 
 /// <summary>
 /// Projects Quoting-context events onto the referral operation aggregate. Idempotent on the source
-/// outbox-message id; create is additionally create-if-missing so a referred quote's operation appears
-/// with no user-visible gap, and close/evidence self-heal by ensuring the operation exists first.
+/// outbox-message id; create is create-if-missing (shared with the write-command self-heal via the
+/// repository) so a referred quote's operation appears with no user-visible gap.
 /// </summary>
 public sealed class ReferralOperationProjector(
     UnderwritingDbContext dbContext,
-    IUnderwritingQuoteContextReader quoteContextReader) : IReferralOperationProjector
+    IReferralOperationRepository operations) : IReferralOperationProjector
 {
     private const string SystemUserId = "system";
 
@@ -23,9 +22,12 @@ public sealed class ReferralOperationProjector(
         if (alreadyApplied)
             return;
 
-        var operation = await EnsureOperationAsync(referralEvent.QuoteId, cancellationToken);
+        // The quote is always committed before its outbox message is dispatched, so the read-back used by
+        // EnsureExistsForQuoteAsync is consistent. A null here means the quote does not exist (impossible
+        // for a real referral event), so there is nothing to apply and nothing to mark.
+        var operation = await operations.EnsureExistsForQuoteAsync(referralEvent.QuoteId, cancellationToken);
         if (operation is null)
-            return; // quote facts not yet readable; the dispatcher retries this message later.
+            return;
 
         Apply(referralEvent, operation);
 
@@ -34,36 +36,23 @@ public sealed class ReferralOperationProjector(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task<QuoteReferralOperation?> EnsureOperationAsync(Guid quoteId, CancellationToken cancellationToken)
-    {
-        var operation = await dbContext.QuoteReferralOperations
-            .Include(candidate => candidate.Notes)
-            .Include(candidate => candidate.Tasks)
-            .Include(candidate => candidate.TimelineEntries)
-            .SingleOrDefaultAsync(candidate => candidate.QuoteId == quoteId, cancellationToken);
-        if (operation is not null)
-            return operation;
-
-        var quote = await quoteContextReader.GetForReferralOperationAsync(quoteId, cancellationToken);
-        if (quote is null)
-            return null;
-
-        operation = QuoteReferralOperation.CreateDefault(
-            quote.QuoteId, quote.RiskTier, quote.ReferredAtUtc, quote.ExpiresAtUtc);
-        await dbContext.QuoteReferralOperations.AddAsync(operation, cancellationToken);
-        return operation;
-    }
-
     private static void Apply(ReferralOperationEvent referralEvent, QuoteReferralOperation operation)
     {
         var actor = string.IsNullOrWhiteSpace(referralEvent.ActorUserId) ? SystemUserId : referralEvent.ActorUserId;
         var at = referralEvent.OccurredAtUtc;
         var evidenceId = referralEvent.EvidenceRequestId ?? Guid.Empty;
 
+        // A closed operation accepts no further mutations (EnsureOpen throws). Ordered outbox delivery
+        // makes evidence-after-close impossible in practice, but guard anyway so a late or duplicate event
+        // no-ops (and is still marked applied) instead of throwing and poisoning the shared dispatch loop.
+        if (referralEvent.Kind != ReferralOperationEventKind.Created
+            && operation.Status == ReferralOperationStatus.Closed)
+            return;
+
         switch (referralEvent.Kind)
         {
             case ReferralOperationEventKind.Created:
-                break; // EnsureOperationAsync already created it.
+                break; // EnsureExistsForQuoteAsync already created it.
             case ReferralOperationEventKind.DecisionRecorded:
                 operation.CloseForDecision(actor, referralEvent.Decision ?? string.Empty, at);
                 break;
@@ -74,7 +63,10 @@ public sealed class ReferralOperationProjector(
                 operation.RecordEvidenceRequestResponded(evidenceId, actor, at);
                 break;
             case ReferralOperationEventKind.EvidenceRequestAccepted:
+                // Mirror the legacy accept path, which recorded BOTH an acceptance entry and a Satisfied
+                // review-decision entry.
                 operation.RecordEvidenceRequestAccepted(evidenceId, actor, at);
+                operation.RecordEvidenceRequestReviewDecision(evidenceId, "Satisfied", actor, at);
                 break;
             case ReferralOperationEventKind.EvidenceRequestReviewDecisionRecorded:
                 operation.RecordEvidenceRequestReviewDecision(evidenceId, referralEvent.Decision ?? string.Empty, actor, at);
