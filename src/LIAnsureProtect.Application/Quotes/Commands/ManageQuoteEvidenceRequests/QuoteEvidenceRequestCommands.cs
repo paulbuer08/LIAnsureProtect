@@ -139,14 +139,16 @@ public sealed class CreateQuoteEvidenceRequestCommandHandler(
         if (quote.Status != QuoteStatus.Referred)
             throw new InvalidOperationException("Evidence can only be requested while a quote is referred.");
 
-        var operation = await quoteRepository.GetReferralOperationForUpdateAsync(request.QuoteId, cancellationToken)
-            ?? throw new InvalidOperationException("Referral operations must exist before evidence can be requested.");
-
         var requestedAtUtc = DateTime.UtcNow;
+        // The referral operation is now owned by the Underwriting module and created asynchronously via
+        // the QuoteGenerated event projector, so it can no longer be loaded synchronously here. The
+        // evidence request's QuoteReferralOperationId is a vestigial 1:1 correlation column (nothing reads
+        // it; its cross-context FK is dropped in this milestone) that is removed when evidence carves into
+        // the module in M37 — so we correlate by the quote id until then.
         var evidenceRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.SubmissionId,
-            operation.Id,
+            quote.Id,
             quote.OwnerUserId,
             CurrentUserId.GetRequired(currentUser, "An authenticated underwriter user id is required to request evidence."),
             request.Category,
@@ -156,11 +158,6 @@ public sealed class CreateQuoteEvidenceRequestCommandHandler(
             requestedAtUtc);
 
         await quoteRepository.AddEvidenceRequestAsync(evidenceRequest, cancellationToken);
-        operation.RecordEvidenceRequestCreated(
-            evidenceRequest.Id,
-            evidenceRequest.RequestedByUserId,
-            requestedAtUtc);
-
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return QuoteEvidenceRequestResultFactory.FromRequest(evidenceRequest);
@@ -191,10 +188,6 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
         if (evidenceRequest is null)
             return null;
 
-        var operation = await quoteRepository.GetReferralOperationForUpdateAsync(
-            evidenceRequest.QuoteId,
-            cancellationToken)
-            ?? throw new InvalidOperationException("Referral operations must exist before evidence can be updated.");
         var respondedAtUtc = DateTime.UtcNow;
         var evidenceDocuments = await EvidenceDocumentUploadWorkflow.StoreAndScanDocumentsAsync(
             request.Documents,
@@ -213,10 +206,6 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
             evidenceDocuments.FirstOrDefault()?.OriginalFileName ?? request.AttachmentFileName,
             evidenceDocuments.FirstOrDefault()?.ContentType ?? request.AttachmentContentType,
             evidenceDocuments.FirstOrDefault()?.SizeBytes ?? request.AttachmentSizeBytes,
-            respondedAtUtc);
-        operation.RecordEvidenceRequestResponded(
-            evidenceRequest.Id,
-            ownerUserId,
             respondedAtUtc);
 
         if (evidenceDocuments.Count > 0)
@@ -302,10 +291,6 @@ public sealed class AcceptQuoteEvidenceRequestCommandHandler(
         if (evidenceRequest is null)
             return null;
 
-        var operation = await quoteRepository.GetReferralOperationForUpdateAsync(
-            request.QuoteId,
-            cancellationToken)
-            ?? throw new InvalidOperationException("Referral operations must exist before evidence can be reviewed.");
         var documents = await quoteRepository.ListEvidenceDocumentsForRequestsAsync(
             [evidenceRequest.Id],
             cancellationToken);
@@ -328,12 +313,6 @@ public sealed class AcceptQuoteEvidenceRequestCommandHandler(
             acceptedAtUtc,
             documents.Count,
             documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean));
-        operation.RecordEvidenceRequestAccepted(evidenceRequest.Id, underwriterUserId, acceptedAtUtc);
-        operation.RecordEvidenceRequestReviewDecision(
-            evidenceRequest.Id,
-            EvidenceReviewDecisionStatus.Satisfied,
-            underwriterUserId,
-            acceptedAtUtc);
         await quoteRepository.AddEvidenceRequestReviewAsync(review, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -358,10 +337,6 @@ public sealed class RecordQuoteEvidenceReviewDecisionCommandHandler(
         if (evidenceRequest is null)
             return null;
 
-        var operation = await quoteRepository.GetReferralOperationForUpdateAsync(
-            request.QuoteId,
-            cancellationToken)
-            ?? throw new InvalidOperationException("Referral operations must exist before evidence can be reviewed.");
         var documents = await quoteRepository.ListEvidenceDocumentsForRequestsAsync(
             [evidenceRequest.Id],
             cancellationToken);
@@ -377,7 +352,6 @@ public sealed class RecordQuoteEvidenceReviewDecisionCommandHandler(
         if (request.Decision == EvidenceReviewDecisionStatus.Satisfied)
         {
             evidenceRequest.Accept(underwriterUserId, request.Reason, reviewedAtUtc);
-            operation.RecordEvidenceRequestAccepted(evidenceRequest.Id, underwriterUserId, reviewedAtUtc);
         }
         else
         {
@@ -398,11 +372,6 @@ public sealed class RecordQuoteEvidenceReviewDecisionCommandHandler(
             reviewedAtUtc,
             documents.Count,
             documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean));
-        operation.RecordEvidenceRequestReviewDecision(
-            evidenceRequest.Id,
-            request.Decision,
-            underwriterUserId,
-            reviewedAtUtc);
         await quoteRepository.AddEvidenceRequestReviewAsync(review, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -427,17 +396,12 @@ public sealed class CancelQuoteEvidenceRequestCommandHandler(
         if (evidenceRequest is null)
             return null;
 
-        var operation = await quoteRepository.GetReferralOperationForUpdateAsync(
-            request.QuoteId,
-            cancellationToken)
-            ?? throw new InvalidOperationException("Referral operations must exist before evidence can be reviewed.");
         var underwriterUserId = CurrentUserId.GetRequired(
             currentUser,
             "An authenticated underwriter user id is required to cancel evidence.");
         var cancelledAtUtc = DateTime.UtcNow;
 
         evidenceRequest.Cancel(underwriterUserId, request.ReviewNotes, cancelledAtUtc);
-        operation.RecordEvidenceRequestCancelled(evidenceRequest.Id, underwriterUserId, cancelledAtUtc);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return QuoteEvidenceRequestResultFactory.FromRequest(evidenceRequest);
@@ -461,17 +425,12 @@ public sealed class FollowUpQuoteEvidenceRequestCommandHandler(
         if (evidenceRequest is null)
             return null;
 
-        var operation = await quoteRepository.GetReferralOperationForUpdateAsync(
-            request.QuoteId,
-            cancellationToken)
-            ?? throw new InvalidOperationException("Referral operations must exist before evidence can receive follow-up.");
         var underwriterUserId = CurrentUserId.GetRequired(
             currentUser,
             "An authenticated underwriter user id is required to follow up evidence.");
         var followedUpAtUtc = DateTime.UtcNow;
 
         evidenceRequest.RecordFollowUpSent(underwriterUserId, followedUpAtUtc);
-        operation.RecordEvidenceRequestFollowUpSent(evidenceRequest.Id, underwriterUserId, followedUpAtUtc);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return QuoteEvidenceRequestResultFactory.FromRequest(evidenceRequest);

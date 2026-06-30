@@ -1,8 +1,8 @@
-using LIAnsureProtect.Domain.Quotes;
+using LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace LIAnsureProtect.Infrastructure.Persistence.Configurations;
+namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 
 public sealed class QuoteReferralOperationConfiguration : IEntityTypeConfiguration<QuoteReferralOperation>
 {
@@ -62,11 +62,6 @@ public sealed class QuoteReferralOperationConfiguration : IEntityTypeConfigurati
                 operation.DueAtUtc
             })
             .HasDatabaseName("ix_quote_referral_operations_status_priority_due_at_utc");
-
-        builder.HasOne<Quote>()
-            .WithMany()
-            .HasForeignKey(operation => operation.QuoteId)
-            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Navigation(operation => operation.Notes)
             .UsePropertyAccessMode(PropertyAccessMode.Field);

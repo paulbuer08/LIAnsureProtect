@@ -1,6 +1,6 @@
-using LIAnsureProtect.Domain.Quotes;
+using LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 
-namespace LIAnsureProtect.UnitTests.Quotes;
+namespace LIAnsureProtect.UnitTests.Modules.Underwriting.Referrals;
 
 public sealed class QuoteReferralOperationTests
 {
@@ -12,7 +12,7 @@ public sealed class QuoteReferralOperationTests
 
         var operation = QuoteReferralOperation.CreateDefault(
             Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
-            CyberRiskTier.Severe,
+            "Severe",
             referredAtUtc,
             expiresAtUtc);
 
@@ -82,7 +82,7 @@ public sealed class QuoteReferralOperationTests
 
         operation.CloseForDecision(
             "underwriter-1",
-            QuoteUnderwritingDecision.Approved,
+            "Approved",
             closedAtUtc);
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -104,7 +104,7 @@ public sealed class QuoteReferralOperationTests
     {
         return QuoteReferralOperation.CreateDefault(
             Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
-            CyberRiskTier.High,
+            "High",
             new DateTime(2026, 6, 22, 8, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 7, 22, 8, 0, 0, DateTimeKind.Utc));
     }

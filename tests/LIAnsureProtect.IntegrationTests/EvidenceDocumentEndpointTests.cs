@@ -535,15 +535,12 @@ public sealed class EvidenceDocumentEndpointTests
         string ownerUserId)
     {
         var quote = CreateReferredQuote(ownerUserId);
-        var operation = QuoteReferralOperation.CreateDefault(
-            quote.Id,
-            quote.Quote.RiskTier,
-            quote.Quote.CreatedAtUtc,
-            quote.Quote.ExpiresAtUtc);
+        // QuoteReferralOperationId is now a plain correlation column (FK dropped in M36).
+        var operationId = Guid.NewGuid();
         var evidenceRequest = QuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
-            operation.Id,
+            operationId,
             ownerUserId,
             "underwriter-1",
             EvidenceRequestCategory.MultiFactorAuthentication,
@@ -556,7 +553,6 @@ public sealed class EvidenceDocumentEndpointTests
         var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
         await dbContext.Submissions.AddAsync(quote.Submission, TestContext.Current.CancellationToken);
         await dbContext.Quotes.AddAsync(quote.Quote, TestContext.Current.CancellationToken);
-        await dbContext.Set<QuoteReferralOperation>().AddAsync(operation, TestContext.Current.CancellationToken);
         await dbContext.Set<QuoteEvidenceRequest>().AddAsync(evidenceRequest, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 

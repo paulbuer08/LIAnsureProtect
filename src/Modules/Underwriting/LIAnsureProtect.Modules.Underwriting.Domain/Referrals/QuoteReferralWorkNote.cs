@@ -1,28 +1,26 @@
-namespace LIAnsureProtect.Domain.Quotes;
+namespace LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 
-public sealed class QuoteReferralTimelineEntry
+public sealed class QuoteReferralWorkNote
 {
-    private QuoteReferralTimelineEntry(
+    private QuoteReferralWorkNote(
         Guid id,
         Guid quoteReferralOperationId,
         Guid quoteId,
-        ReferralTimelineEntryType entryType,
-        string summary,
+        string note,
         string createdByUserId,
         DateTime createdAtUtc)
     {
         Id = id;
         QuoteReferralOperationId = quoteReferralOperationId;
         QuoteId = quoteId;
-        EntryType = entryType;
-        Summary = summary;
+        Note = note;
         CreatedByUserId = createdByUserId;
         CreatedAtUtc = createdAtUtc;
     }
 
-    private QuoteReferralTimelineEntry()
+    private QuoteReferralWorkNote()
     {
-        Summary = string.Empty;
+        Note = string.Empty;
         CreatedByUserId = string.Empty;
     }
 
@@ -32,28 +30,24 @@ public sealed class QuoteReferralTimelineEntry
 
     public Guid QuoteId { get; private set; }
 
-    public ReferralTimelineEntryType EntryType { get; private set; }
-
-    public string Summary { get; private set; }
+    public string Note { get; private set; }
 
     public string CreatedByUserId { get; private set; }
 
     public DateTime CreatedAtUtc { get; private set; }
 
-    internal static QuoteReferralTimelineEntry Record(
+    internal static QuoteReferralWorkNote Record(
         Guid operationId,
         Guid quoteId,
-        ReferralTimelineEntryType entryType,
-        string summary,
         string createdByUserId,
+        string note,
         DateTime createdAtUtc)
     {
-        return new QuoteReferralTimelineEntry(
+        return new QuoteReferralWorkNote(
             Guid.NewGuid(),
             operationId,
             quoteId,
-            entryType,
-            summary.Trim(),
+            note.Trim(),
             createdByUserId.Trim(),
             createdAtUtc);
     }
