@@ -1,5 +1,5 @@
-using LIAnsureProtect.Application.Quotes.Ai;
-using LIAnsureProtect.Infrastructure.Quotes.Ai;
+using LIAnsureProtect.Modules.Underwriting.Application.Ai;
+using LIAnsureProtect.Modules.Underwriting.Infrastructure.Ai;
 
 namespace LIAnsureProtect.IntegrationTests;
 

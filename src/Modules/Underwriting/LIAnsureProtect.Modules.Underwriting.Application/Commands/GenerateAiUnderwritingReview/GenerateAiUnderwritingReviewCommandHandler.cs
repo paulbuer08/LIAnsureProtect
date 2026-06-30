@@ -1,37 +1,39 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using LIAnsureProtect.Application.Common.Persistence;
+using LIAnsureProtect.Modules.Underwriting.Application.Ai;
+using LIAnsureProtect.Modules.Underwriting.Domain;
 using LIAnsureProtect.Platform.Abstractions.Security;
-using LIAnsureProtect.Application.Quotes.Ai;
-using LIAnsureProtect.Domain.Quotes;
 using MediatR;
 
-namespace LIAnsureProtect.Application.Quotes.Commands.GenerateAiUnderwritingReview;
+namespace LIAnsureProtect.Modules.Underwriting.Application.Commands.GenerateAiUnderwritingReview;
 
 public sealed class GenerateAiUnderwritingReviewCommandHandler(
-    IQuoteRepository quoteRepository,
+    IUnderwritingQuoteContextReader quoteContextReader,
     IAiReviewService aiReviewService,
-    IUnitOfWork unitOfWork,
+    IAiUnderwritingReviewRepository reviewRepository,
     ICurrentUser currentUser)
     : IRequestHandler<GenerateAiUnderwritingReviewCommand, GenerateAiUnderwritingReviewResult?>
 {
+    // The quote status that may receive advisory AI review. A string here is the cross-context contract;
+    // the module cannot reference the Quoting context's QuoteStatus enum.
+    private const string ReferredStatus = "Referred";
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<GenerateAiUnderwritingReviewResult?> Handle(
         GenerateAiUnderwritingReviewCommand request,
         CancellationToken cancellationToken)
     {
-        var quote = await quoteRepository.GetForUnderwritingReviewAsync(request.QuoteId, cancellationToken);
+        var quote = await quoteContextReader.GetForAiReviewAsync(request.QuoteId, cancellationToken);
         if (quote is null)
             return null;
 
-        if (quote.Status != QuoteStatus.Referred)
+        if (!string.Equals(quote.Status, ReferredStatus, StringComparison.Ordinal))
             throw new InvalidOperationException("Only referred quotes can receive advisory AI underwriting review.");
 
         var requestedAtUtc = DateTime.UtcNow;
-        var priorReviews = await quoteRepository.ListUnderwritingReviewsAsync(quote.Id, cancellationToken);
-        var providerRequest = CreateProviderRequest(quote, priorReviews ?? [], requestedAtUtc);
+        var providerRequest = CreateProviderRequest(quote, requestedAtUtc);
         var inputSnapshotHash = ComputeInputSnapshotHash(providerRequest);
         var requestedByUserId = GetRequiredCurrentUserId();
 
@@ -50,7 +52,7 @@ public sealed class GenerateAiUnderwritingReviewCommandHandler(
 
         var review = providerResult.IsSuccessful
             ? AiUnderwritingReview.Succeeded(
-                quote.Id,
+                quote.QuoteId,
                 requestedByUserId,
                 providerResult.ProviderName,
                 AiReviewConstants.PromptVersion,
@@ -68,7 +70,7 @@ public sealed class GenerateAiUnderwritingReviewCommandHandler(
                 requestedAtUtc,
                 providerResult.CompletedAtUtc)
             : AiUnderwritingReview.Failed(
-                quote.Id,
+                quote.QuoteId,
                 requestedByUserId,
                 providerResult.ProviderName,
                 AiReviewConstants.PromptVersion,
@@ -78,33 +80,28 @@ public sealed class GenerateAiUnderwritingReviewCommandHandler(
                 requestedAtUtc,
                 providerResult.CompletedAtUtc);
 
-        await quoteRepository.AddAiUnderwritingReviewAsync(review, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await reviewRepository.AddAsync(review, cancellationToken);
 
         return ToResult(review, quote);
     }
 
     private static AiReviewProviderRequest CreateProviderRequest(
-        Quote quote,
-        IReadOnlyCollection<QuoteUnderwritingReview> priorReviews,
+        UnderwritingQuoteContext quote,
         DateTime requestedAtUtc)
     {
         return new AiReviewProviderRequest(
-            quote.Id,
+            quote.QuoteId,
             quote.SubmissionId,
             quote.OwnerUserId,
             quote.Premium,
             quote.RequestedLimit,
             quote.Retention,
-            quote.RiskTier.ToString(),
-            quote.Status.ToString(),
+            quote.RiskTier,
+            quote.Status,
             quote.StrategyName,
-            SplitLines(quote.Subjectivities),
-            SplitLines(quote.ReferralReasons),
-            priorReviews
-                .OrderBy(review => review.CreatedAtUtc)
-                .Select(review => $"{review.Decision}: {review.Reason}")
-                .ToArray(),
+            quote.Subjectivities,
+            quote.ReferralReasons,
+            quote.PriorUnderwritingDecisions,
             AiReviewConstants.PromptVersion,
             AiReviewConstants.OutputSchemaVersion,
             requestedAtUtc);
@@ -112,7 +109,7 @@ public sealed class GenerateAiUnderwritingReviewCommandHandler(
 
     private static GenerateAiUnderwritingReviewResult ToResult(
         AiUnderwritingReview review,
-        Quote quote)
+        UnderwritingQuoteContext quote)
     {
         return new GenerateAiUnderwritingReviewResult(
             review.Id,
@@ -160,13 +157,5 @@ public sealed class GenerateAiUnderwritingReviewCommandHandler(
     private static IReadOnlyCollection<string> Deserialize(string json)
     {
         return JsonSerializer.Deserialize<IReadOnlyCollection<string>>(json, JsonOptions) ?? [];
-    }
-
-    private static IReadOnlyCollection<string> SplitLines(string value)
-    {
-        return value
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(line => !string.IsNullOrWhiteSpace(line))
-            .ToArray();
     }
 }

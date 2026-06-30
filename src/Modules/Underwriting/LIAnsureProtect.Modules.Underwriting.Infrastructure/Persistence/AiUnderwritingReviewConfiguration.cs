@@ -1,14 +1,14 @@
-using LIAnsureProtect.Domain.Quotes;
+using LIAnsureProtect.Modules.Underwriting.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace LIAnsureProtect.Infrastructure.Persistence.Configurations;
+namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 
-public sealed class AiUnderwritingReviewConfiguration
-    : IEntityTypeConfiguration<AiUnderwritingReview>
+public sealed class AiUnderwritingReviewConfiguration : IEntityTypeConfiguration<AiUnderwritingReview>
 {
     public void Configure(EntityTypeBuilder<AiUnderwritingReview> builder)
     {
+        // Schema comes from UnderwritingDbContext.HasDefaultSchema("underwriting").
         builder.ToTable("ai_underwriting_reviews");
 
         builder.HasKey(review => review.Id);
@@ -17,6 +17,7 @@ public sealed class AiUnderwritingReviewConfiguration
             .HasColumnName("id")
             .ValueGeneratedNever();
 
+        // Quote is referenced by id only (no cross-context navigation or foreign key).
         builder.Property(review => review.QuoteId)
             .HasColumnName("quote_id")
             .IsRequired();
@@ -113,23 +114,10 @@ public sealed class AiUnderwritingReviewConfiguration
             .HasColumnName("completed_at_utc")
             .IsRequired();
 
-        builder.HasIndex(review => new
-            {
-                review.QuoteId,
-                review.CreatedAtUtc
-            })
+        builder.HasIndex(review => new { review.QuoteId, review.CreatedAtUtc })
             .HasDatabaseName("ix_ai_underwriting_reviews_quote_id_created_at_utc");
 
-        builder.HasIndex(review => new
-            {
-                review.Status,
-                review.CreatedAtUtc
-            })
+        builder.HasIndex(review => new { review.Status, review.CreatedAtUtc })
             .HasDatabaseName("ix_ai_underwriting_reviews_status_created_at_utc");
-
-        builder.HasOne(review => review.Quote)
-            .WithMany()
-            .HasForeignKey(review => review.QuoteId)
-            .OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -23,6 +23,8 @@
     <ProjectReference Include="..\Platform\LIAnsureProtect.Platform.Abstractions\LIAnsureProtect.Platform.Abstractions.csproj" />
     <!-- Consumer seam: the outbox dispatcher feeds the Notifications module via its Application ports. -->
     <ProjectReference Include="..\Modules\Notifications\LIAnsureProtect.Modules.Notifications.Application\LIAnsureProtect.Modules.Notifications.Application.csproj" />
+    <!-- Provider seam: the Quoting side implements the Underwriting module's quote-read port. -->
+    <ProjectReference Include="..\Modules\Underwriting\LIAnsureProtect.Modules.Underwriting.Application\LIAnsureProtect.Modules.Underwriting.Application.csproj" />
   </ItemGroup>
 
 </Project>

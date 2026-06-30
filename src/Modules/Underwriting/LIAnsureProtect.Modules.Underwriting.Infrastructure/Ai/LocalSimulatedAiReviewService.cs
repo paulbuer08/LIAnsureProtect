@@ -1,6 +1,6 @@
-using LIAnsureProtect.Application.Quotes.Ai;
+using LIAnsureProtect.Modules.Underwriting.Application.Ai;
 
-namespace LIAnsureProtect.Infrastructure.Quotes.Ai;
+namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Ai;
 
 public sealed class LocalSimulatedAiReviewService : IAiReviewService
 {

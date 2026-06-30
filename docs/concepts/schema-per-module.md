@@ -57,7 +57,9 @@ So the rollout is:
 M32  Establish the PATTERN: ModuleDbContext base + this doc + tests. No tables move.
 M33  First real carve (DONE): the Notifications module gets its own NotificationsDbContext +
      `notifications` schema, inheriting ModuleDbContext.
-M34+ Carve the remaining contexts one per milestone, each always-green.
+M35  Underwriting carve begins (DONE): the AI review slice gets the UnderwritingDbContext +
+     `underwriting` schema, reading quote context through a cross-context port (no FK to quotes).
+M36+ Carve the remaining contexts/slices one per milestone, each always-green.
 ```
 
 ### Moving an existing table to its schema: `SET SCHEMA` vs. drop-and-recreate

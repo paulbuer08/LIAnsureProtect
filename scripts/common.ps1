@@ -94,4 +94,20 @@ function Assert-SubmissionMigrationsExist {
     if ($notificationsMigrationFiles.Count -eq 0) {
         Stop-MissingSubmissionMigrations "Expected at least one migration file in: $notificationsMigrationsDirectory`nFound only the model snapshot or no C# migration files."
     }
+
+    # The Underwriting module must have its committed migrations too (the `underwriting` schema).
+    $underwritingMigrationsDirectory = Join-Path $RepositoryRoot "src\Modules\Underwriting\LIAnsureProtect.Modules.Underwriting.Infrastructure\Migrations"
+
+    if (-not (Test-Path $underwritingMigrationsDirectory -PathType Container)) {
+        Stop-MissingSubmissionMigrations "Expected folder: $underwritingMigrationsDirectory"
+    }
+
+    $underwritingMigrationFiles = @(
+        Get-ChildItem -Path $underwritingMigrationsDirectory -Filter "*.cs" -File |
+            Where-Object { $_.Name -ne "UnderwritingDbContextModelSnapshot.cs" }
+    )
+
+    if ($underwritingMigrationFiles.Count -eq 0) {
+        Stop-MissingSubmissionMigrations "Expected at least one migration file in: $underwritingMigrationsDirectory`nFound only the model snapshot or no C# migration files."
+    }
 }

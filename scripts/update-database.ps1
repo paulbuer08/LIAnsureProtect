@@ -41,6 +41,18 @@ try {
         "--context",
         "NotificationsDbContext"
     )
+
+    Invoke-CheckedCommand "dotnet" @(
+        "ef",
+        "database",
+        "update",
+        "--project",
+        "src\Modules\Underwriting\LIAnsureProtect.Modules.Underwriting.Infrastructure\LIAnsureProtect.Modules.Underwriting.Infrastructure.csproj",
+        "--startup-project",
+        "src\LIAnsureProtect.Api\LIAnsureProtect.Api.csproj",
+        "--context",
+        "UnderwritingDbContext"
+    )
 }
 finally {
     [Environment]::SetEnvironmentVariable($efCommandLogLevelVariableName, $previousEfCommandLogLevel, "Process")

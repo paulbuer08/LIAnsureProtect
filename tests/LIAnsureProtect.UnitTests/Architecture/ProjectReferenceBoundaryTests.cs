@@ -23,18 +23,21 @@ public sealed class ProjectReferenceBoundaryTests
         "LIAnsureProtect.Application",
         "LIAnsureProtect.Domain",
         "LIAnsureProtect.Modules.Notifications.Application",
+        "LIAnsureProtect.Modules.Underwriting.Application",
         "LIAnsureProtect.Platform.Abstractions")]
     [InlineData(
         "src/LIAnsureProtect.Api/LIAnsureProtect.Api.csproj",
         "LIAnsureProtect.Application",
         "LIAnsureProtect.Infrastructure",
         "LIAnsureProtect.Modules.Notifications.Infrastructure",
+        "LIAnsureProtect.Modules.Underwriting.Infrastructure",
         "LIAnsureProtect.Platform")]
     [InlineData(
         "src/LIAnsureProtect.Worker/LIAnsureProtect.Worker.csproj",
         "LIAnsureProtect.Application",
         "LIAnsureProtect.Infrastructure",
         "LIAnsureProtect.Modules.Notifications.Infrastructure",
+        "LIAnsureProtect.Modules.Underwriting.Infrastructure",
         "LIAnsureProtect.Platform")]
     public void ProjectReferencesFollowCleanArchitectureDirection(
         string projectPath,

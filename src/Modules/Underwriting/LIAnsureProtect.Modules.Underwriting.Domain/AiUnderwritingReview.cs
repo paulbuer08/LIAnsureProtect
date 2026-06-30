@@ -1,5 +1,9 @@
-namespace LIAnsureProtect.Domain.Quotes;
+namespace LIAnsureProtect.Modules.Underwriting.Domain;
 
+/// <summary>
+/// Advisory AI underwriting review audit record. It references the quote by id only (no navigation/FK
+/// into the Quoting context's tables) — the modular-monolith rule. Owned by the Underwriting module.
+/// </summary>
 public sealed class AiUnderwritingReview
 {
     private AiUnderwritingReview(
@@ -67,8 +71,6 @@ public sealed class AiUnderwritingReview
     public Guid Id { get; private set; }
 
     public Guid QuoteId { get; private set; }
-
-    public Quote Quote { get; private set; } = null!;
 
     public string RequestedByUserId { get; private set; }
 

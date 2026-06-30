@@ -1,11 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using LIAnsureProtect.Application.Quotes.Ai;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.IntegrationTests.Security;
+using LIAnsureProtect.Modules.Underwriting.Application.Ai;
+using LIAnsureProtect.Modules.Underwriting.Domain;
+using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -26,31 +28,32 @@ public sealed class AiUnderwritingReviewEndpointTests
     private const string QueueEndpointPath = "/api/v1/underwriting/quote-referrals";
     private static readonly Uri TestServerBaseAddress = new("https://localhost");
 
-    private readonly SqliteConnection databaseConnection;
+    private readonly SqliteConnection submissionConnection;
+    private readonly SqliteConnection underwritingConnection;
     private readonly WebApplicationFactory<Program> webApplicationFactory;
     private readonly HttpClient httpClient;
 
     public AiUnderwritingReviewEndpointTests(WebApplicationFactory<Program> webApplicationFactory)
     {
-        databaseConnection = new SqliteConnection("DataSource=:memory:");
-        databaseConnection.Open();
+        submissionConnection = new SqliteConnection("DataSource=:memory:");
+        submissionConnection.Open();
+        underwritingConnection = new SqliteConnection("DataSource=:memory:");
+        underwritingConnection.Open();
 
         this.webApplicationFactory = webApplicationFactory.WithWebHostBuilder(builder =>
         {
-            builder.ConfigureLogging(logging =>
-            {
-                logging.ClearProviders();
-            });
+            builder.ConfigureLogging(logging => logging.ClearProviders());
 
             builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IDbContextOptionsConfiguration<SubmissionDbContext>>();
-                services.RemoveAll<DbContextOptions>();
                 services.RemoveAll<DbContextOptions<SubmissionDbContext>>();
-                services.AddDbContext<SubmissionDbContext>(options =>
-                {
-                    options.UseSqlite(databaseConnection);
-                });
+                services.AddDbContext<SubmissionDbContext>(options => options.UseSqlite(submissionConnection));
+
+                // The AI review audit now lives in the Underwriting module's own context/schema.
+                services.RemoveAll<IDbContextOptionsConfiguration<UnderwritingDbContext>>();
+                services.RemoveAll<DbContextOptions<UnderwritingDbContext>>();
+                services.AddDbContext<UnderwritingDbContext>(options => options.UseSqlite(underwritingConnection));
 
                 services
                     .AddAuthentication(TestAuthHandler.AuthenticationScheme)
@@ -61,8 +64,8 @@ public sealed class AiUnderwritingReviewEndpointTests
         });
 
         using var scope = this.webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
-        dbContext.Database.EnsureCreated();
+        scope.ServiceProvider.GetRequiredService<SubmissionDbContext>().Database.EnsureCreated();
+        scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>().Database.EnsureCreated();
 
         httpClient = this.webApplicationFactory.CreateClient(
             new WebApplicationFactoryClientOptions
@@ -115,19 +118,22 @@ public sealed class AiUnderwritingReviewEndpointTests
         Assert.Contains("quote.riskTier", root.GetProperty("citations").EnumerateArray().Select(value => value.GetString()));
 
         using var scope = webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
-        var savedQuote = await dbContext.Quotes.SingleAsync(
+        var submissionDbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedQuote = await submissionDbContext.Quotes.SingleAsync(
             saved => saved.Id == quote.Id,
             TestContext.Current.CancellationToken);
-        var aiReview = await dbContext.Set<AiUnderwritingReview>().SingleAsync(
+        var underwritingDbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        var aiReview = await underwritingDbContext.AiUnderwritingReviews.SingleAsync(
             review => review.QuoteId == quote.Id,
             TestContext.Current.CancellationToken);
 
+        // The quote (owned by the Quoting context) is unchanged ...
         Assert.Equal(QuoteStatus.Referred, savedQuote.Status);
         Assert.Equal(18_000m, savedQuote.Premium);
         Assert.Equal(10_000m, savedQuote.Retention);
         Assert.Equal("MFA evidence required.", savedQuote.Subjectivities);
         Assert.Null(savedQuote.ReviewedByUserId);
+        // ... and the advisory audit lives in the underwriting schema.
         Assert.Equal(AiUnderwritingReviewStatus.Succeeded, aiReview.Status);
         Assert.Equal("underwriter-1", aiReview.RequestedByUserId);
         Assert.Equal(AiReviewConstants.PromptVersion, aiReview.PromptVersion);
@@ -179,11 +185,12 @@ public sealed class AiUnderwritingReviewEndpointTests
         Assert.Equal(HttpStatusCode.OK, approveResponse.StatusCode);
 
         using var scope = webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
-        var savedQuote = await dbContext.Quotes.SingleAsync(
+        var submissionDbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedQuote = await submissionDbContext.Quotes.SingleAsync(
             saved => saved.Id == quote.Id,
             TestContext.Current.CancellationToken);
-        var aiReview = await dbContext.Set<AiUnderwritingReview>().SingleAsync(
+        var underwritingDbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        var aiReview = await underwritingDbContext.AiUnderwritingReviews.SingleAsync(
             review => review.QuoteId == quote.Id,
             TestContext.Current.CancellationToken);
 
@@ -274,6 +281,7 @@ public sealed class AiUnderwritingReviewEndpointTests
     {
         httpClient.Dispose();
         webApplicationFactory.Dispose();
-        databaseConnection.Dispose();
+        submissionConnection.Dispose();
+        underwritingConnection.Dispose();
     }
 }

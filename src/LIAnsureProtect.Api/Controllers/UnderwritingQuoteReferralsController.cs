@@ -1,10 +1,10 @@
 using LIAnsureProtect.Application.Common.Security;
-using LIAnsureProtect.Application.Quotes.Commands.GenerateAiUnderwritingReview;
 using LIAnsureProtect.Application.Quotes.Commands.ManageQuoteEvidenceRequests;
 using LIAnsureProtect.Application.Quotes.Commands.ManageQuoteReferralOperations;
 using LIAnsureProtect.Application.Quotes.Commands.UnderwriteQuoteReferral;
 using LIAnsureProtect.Application.Quotes.Queries.ListQuoteReferrals;
 using LIAnsureProtect.Domain.Quotes;
+using LIAnsureProtect.Modules.Underwriting.Application.Commands.GenerateAiUnderwritingReview;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

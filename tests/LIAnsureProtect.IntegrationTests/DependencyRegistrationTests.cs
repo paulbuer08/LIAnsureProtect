@@ -5,7 +5,6 @@ using LIAnsureProtect.Application.Documents;
 using LIAnsureProtect.Application.Policies;
 using LIAnsureProtect.Application.Policies.Binding;
 using LIAnsureProtect.Application.Quotes;
-using LIAnsureProtect.Application.Quotes.Ai;
 using LIAnsureProtect.Application.Quotes.RatingProviders;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure;
@@ -15,6 +14,10 @@ using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.Modules.Notifications.Application;
 using LIAnsureProtect.Modules.Notifications.Infrastructure;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
+using LIAnsureProtect.Modules.Underwriting.Application;
+using LIAnsureProtect.Modules.Underwriting.Application.Ai;
+using LIAnsureProtect.Modules.Underwriting.Infrastructure;
+using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +36,7 @@ public sealed class DependencyRegistrationTests
         // Act
         services.AddApplication();
         services.AddNotificationsModule("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
+        services.AddUnderwritingModule("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
         services.AddInfrastructure("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
         using var provider = services.BuildServiceProvider();
 
@@ -48,6 +52,7 @@ public sealed class DependencyRegistrationTests
 
         // Act
         services.AddNotificationsModule("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
+        services.AddUnderwritingModule("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
         services.AddInfrastructure("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
@@ -63,9 +68,15 @@ public sealed class DependencyRegistrationTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IIdempotencyRecordCleanup>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IRatingProviderClient>());
-        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IAiReviewService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IDocumentStorageService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IEvidenceDocumentScanner>());
+
+        // Underwriting module services: own DbContext, AI provider, AI review repo, and the Quoting-side
+        // quote-read adapter (registered in AddInfrastructure).
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IAiReviewService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IAiUnderwritingReviewRepository>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUnderwritingQuoteContextReader>());
 
         // Notifications module services (inbox read, projection, publishing) resolve from the module.
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<NotificationsDbContext>());
@@ -113,9 +124,6 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("ix_policies_owner_user_id_bound_at_utc", script);
         Assert.Contains("CREATE TABLE policy_binding_attempts", script);
         Assert.Contains("ix_policy_binding_attempts_policy_id_created_at_utc", script);
-        Assert.Contains("CREATE TABLE ai_underwriting_reviews", script);
-        Assert.Contains("ix_ai_underwriting_reviews_quote_id_created_at_utc", script);
-        Assert.Contains("ix_ai_underwriting_reviews_status_created_at_utc", script);
         Assert.Contains("CREATE TABLE quote_referral_operations", script);
         Assert.Contains("ux_quote_referral_operations_quote_id", script);
         Assert.Contains("ix_quote_referral_operations_status_priority_due_at_utc", script);
@@ -176,5 +184,26 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("CREATE TABLE notifications.team_notification_read_receipts", script);
         Assert.Contains("ix_team_notification_entries_source_outbox_message_id", script);
         Assert.Contains("ux_team_notification_read_receipts_entry_recipient", script);
+    }
+
+    [Fact]
+    public void UnderwritingModuleMigrationsCreateUnderwritingSchemaAndAiReviews()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddUnderwritingModule("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        var migrator = dbContext.GetInfrastructure().GetRequiredService<IMigrator>();
+
+        // Act
+        var script = migrator.GenerateScript();
+
+        // Assert: the AI review audit now lives in the module-owned "underwriting" schema.
+        Assert.Contains("CREATE SCHEMA underwriting", script);
+        Assert.Contains("CREATE TABLE underwriting.ai_underwriting_reviews", script);
+        Assert.Contains("ix_ai_underwriting_reviews_quote_id_created_at_utc", script);
+        Assert.Contains("ix_ai_underwriting_reviews_status_created_at_utc", script);
     }
 }

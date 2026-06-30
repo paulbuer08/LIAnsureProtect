@@ -1,4 +1,4 @@
-namespace LIAnsureProtect.Application.Quotes.Ai;
+namespace LIAnsureProtect.Modules.Underwriting.Application.Ai;
 
 public sealed record AiReviewProviderResult(
     string ProviderName,
