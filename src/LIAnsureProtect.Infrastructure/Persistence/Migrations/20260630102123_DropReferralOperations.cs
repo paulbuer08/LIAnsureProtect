@@ -1,0 +1,188 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
+{
+    /// <inheritdoc />
+    public partial class DropReferralOperations : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropForeignKey(
+                name: "FK_quote_evidence_requests_quote_referral_operations_quote_ref~",
+                table: "quote_evidence_requests");
+
+            migrationBuilder.DropTable(
+                name: "quote_referral_follow_up_tasks");
+
+            migrationBuilder.DropTable(
+                name: "quote_referral_timeline_entries");
+
+            migrationBuilder.DropTable(
+                name: "quote_referral_work_notes");
+
+            migrationBuilder.DropTable(
+                name: "quote_referral_operations");
+
+            migrationBuilder.DropIndex(
+                name: "IX_quote_evidence_requests_quote_referral_operation_id",
+                table: "quote_evidence_requests");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.CreateTable(
+                name: "quote_referral_operations",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    assigned_underwriter_user_id = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    closed_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    created_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    due_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    priority = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    quote_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    updated_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_quote_referral_operations", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_quote_referral_operations_quotes_quote_id",
+                        column: x => x.quote_id,
+                        principalTable: "quotes",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "quote_referral_follow_up_tasks",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    completed_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    completed_by_user_id = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    created_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    created_by_user_id = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    due_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    quote_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    quote_referral_operation_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    title = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_quote_referral_follow_up_tasks", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_quote_referral_follow_up_tasks_quote_referral_operations_qu~",
+                        column: x => x.quote_referral_operation_id,
+                        principalTable: "quote_referral_operations",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "quote_referral_timeline_entries",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    created_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    created_by_user_id = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    entry_type = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false),
+                    quote_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    quote_referral_operation_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    summary = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_quote_referral_timeline_entries", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_quote_referral_timeline_entries_quote_referral_operations_q~",
+                        column: x => x.quote_referral_operation_id,
+                        principalTable: "quote_referral_operations",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "quote_referral_work_notes",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    created_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    created_by_user_id = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    note = table.Column<string>(type: "text", nullable: false),
+                    quote_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    quote_referral_operation_id = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_quote_referral_work_notes", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_quote_referral_work_notes_quote_referral_operations_quote_r~",
+                        column: x => x.quote_referral_operation_id,
+                        principalTable: "quote_referral_operations",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_quote_evidence_requests_quote_referral_operation_id",
+                table: "quote_evidence_requests",
+                column: "quote_referral_operation_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_quote_referral_follow_up_tasks_quote_id_completed_due_at_utc",
+                table: "quote_referral_follow_up_tasks",
+                columns: new[] { "quote_id", "completed_at_utc", "due_at_utc" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_quote_referral_follow_up_tasks_quote_referral_operation_id",
+                table: "quote_referral_follow_up_tasks",
+                column: "quote_referral_operation_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_quote_referral_operations_status_priority_due_at_utc",
+                table: "quote_referral_operations",
+                columns: new[] { "status", "priority", "due_at_utc" });
+
+            migrationBuilder.CreateIndex(
+                name: "ux_quote_referral_operations_quote_id",
+                table: "quote_referral_operations",
+                column: "quote_id",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_quote_referral_timeline_entries_quote_id_created_at_utc",
+                table: "quote_referral_timeline_entries",
+                columns: new[] { "quote_id", "created_at_utc" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_quote_referral_timeline_entries_quote_referral_operation_id",
+                table: "quote_referral_timeline_entries",
+                column: "quote_referral_operation_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_quote_referral_work_notes_quote_id_created_at_utc",
+                table: "quote_referral_work_notes",
+                columns: new[] { "quote_id", "created_at_utc" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_quote_referral_work_notes_quote_referral_operation_id",
+                table: "quote_referral_work_notes",
+                column: "quote_referral_operation_id");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_quote_evidence_requests_quote_referral_operations_quote_ref~",
+                table: "quote_evidence_requests",
+                column: "quote_referral_operation_id",
+                principalTable: "quote_referral_operations",
+                principalColumn: "id",
+                onDelete: ReferentialAction.Restrict);
+        }
+    }
+}
