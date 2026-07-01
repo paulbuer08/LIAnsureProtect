@@ -1,6 +1,15 @@
 # Milestone 37 - Underwriting Evidence (foundation + request/review carve) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **For non-Claude agents (e.g. OpenAI Codex):** you do not have those skills — just execute the tasks
+> **in order, one at a time, inline**. After each task: run the task's build/test steps, and **commit
+> that task** before starting the next (this substitutes for the per-task review the Claude workflow
+> uses). Read `AGENTS.md` at the repo root first — it encodes the project's non-negotiable rules (no AI
+> attribution on commits, trunk-based PR flow, the verify-before-commit gates, the modular-monolith
+> boundary rules, and the strangler ordering). Also read `docs/dev/milestone-37-underwriting-evidence-design.md`
+> (the spec this plan implements) and the M35/M36 learnings docs for the carve pattern. Do not weaken
+> tests to force green; keep every commit building 0/0.
 
 **Goal:** Stand up the module-as-event-source foundation (a module-owned outbox + a source-agnostic, merge-ordered dispatcher) and carve the evidence **request + review** aggregates into the Underwriting module + `underwriting` schema; document-coupled use cases stay legacy and mutate the module request via one primitives-only inbound port.
 
