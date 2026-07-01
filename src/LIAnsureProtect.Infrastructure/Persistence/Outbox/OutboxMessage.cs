@@ -1,9 +1,10 @@
 using System.Text.Json;
 using LIAnsureProtect.Platform.Abstractions.DomainEvents;
+using LIAnsureProtect.Platform.Abstractions.Outbox;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 
-public sealed class OutboxMessage
+public sealed class OutboxMessage : IOutboxMessageView
 {
     private OutboxMessage(
         Guid id,
