@@ -122,7 +122,9 @@ problem above.
   1 PostgreSQL opt-in test skipped by design.
 - `dotnet ef migrations has-pending-model-changes` - clean for `SubmissionDbContext`,
   `NotificationsDbContext`, and `UnderwritingDbContext`.
-- Full local CI is still the final pre-PR gate for this branch.
+- Full local CI (`pwsh ./scripts/run-local-ci.ps1`) passed against fresh Docker PostgreSQL, backend
+  tests, frontend build/lint/tests, and Docker cleanup. Artifact:
+  `TestResults\local-ci-20260701-182841.zip`.
 
 ## What is next
 
