@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 
 namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Evidence.Documents;
 

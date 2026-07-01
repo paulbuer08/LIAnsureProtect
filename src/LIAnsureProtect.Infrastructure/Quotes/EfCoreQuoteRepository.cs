@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application.Quotes;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Infrastructure.Persistence;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 using Microsoft.EntityFrameworkCore;
 
 namespace LIAnsureProtect.Infrastructure.Quotes;

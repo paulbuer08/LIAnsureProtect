@@ -1,5 +1,6 @@
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

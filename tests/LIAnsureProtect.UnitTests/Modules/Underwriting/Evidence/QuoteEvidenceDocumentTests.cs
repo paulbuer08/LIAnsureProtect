@@ -1,6 +1,6 @@
-using LIAnsureProtect.Domain.Quotes;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 
-namespace LIAnsureProtect.UnitTests.Quotes;
+namespace LIAnsureProtect.UnitTests.Modules.Underwriting.Evidence;
 
 public sealed class QuoteEvidenceDocumentTests
 {

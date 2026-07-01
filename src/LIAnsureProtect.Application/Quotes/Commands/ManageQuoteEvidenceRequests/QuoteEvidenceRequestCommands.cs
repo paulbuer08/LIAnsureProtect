@@ -1,12 +1,10 @@
 using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Platform.Abstractions.Security;
-using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 using LIAnsureProtect.Platform.Abstractions.Documents;
 using MediatR;
-using LegacyEvidenceDocumentScanStatus = LIAnsureProtect.Domain.Quotes.EvidenceDocumentScanStatus;
-using ModuleEvidenceDocumentScanStatus = LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents.EvidenceDocumentScanStatus;
 
 namespace LIAnsureProtect.Application.Quotes.Commands.ManageQuoteEvidenceRequests;
 
@@ -205,7 +203,7 @@ public sealed class UploadReplacementEvidenceDocumentsCommandHandler(
         var existingDocuments = await quoteRepository.ListEvidenceDocumentsForRequestsAsync(
             [evidenceRequest.EvidenceRequestId],
             cancellationToken);
-        if (!existingDocuments.Any(document => document.ScanStatus is LegacyEvidenceDocumentScanStatus.Rejected or LegacyEvidenceDocumentScanStatus.Failed))
+        if (!existingDocuments.Any(document => document.ScanStatus is EvidenceDocumentScanStatus.Rejected or EvidenceDocumentScanStatus.Failed))
             throw new InvalidOperationException("Replacement evidence documents are only allowed after a rejected or failed security scan.");
 
         var uploadedAtUtc = DateTime.UtcNow;
@@ -280,7 +278,7 @@ public sealed class AcceptQuoteEvidenceRequestCommandHandler(
             underwriterUserId,
             request.ReviewNotes,
             documents.Count,
-            documents.Count(document => document.ScanStatus == LegacyEvidenceDocumentScanStatus.Clean),
+            documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean),
             acceptedAtUtc,
             cancellationToken);
         if (updatedRequest is null)
@@ -329,7 +327,7 @@ public sealed class RecordQuoteEvidenceReviewDecisionCommandHandler(
                 underwriterUserId,
                 request.Reason,
                 documents.Count,
-                documents.Count(document => document.ScanStatus == LegacyEvidenceDocumentScanStatus.Clean),
+                documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean),
                 reviewedAtUtc,
                 cancellationToken);
         }
@@ -343,7 +341,7 @@ public sealed class RecordQuoteEvidenceReviewDecisionCommandHandler(
                 request.RemediationGuidance,
                 underwriterUserId,
                 documents.Count,
-                documents.Count(document => document.ScanStatus == LegacyEvidenceDocumentScanStatus.Clean),
+                documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean),
                 reviewedAtUtc,
                 cancellationToken);
         }
@@ -706,7 +704,7 @@ internal static class EvidenceDocumentUploadWorkflow
                     cancellationToken);
 
                 evidenceDocument.RecordScanResult(
-                    ToLegacyScanStatus(scanResult.ScanStatus),
+                    scanResult.ScanStatus,
                     scanResult.ScannerProviderName,
                     scanResult.ScanResultCode,
                     scanResult.ScanResultReason,
@@ -718,17 +716,5 @@ internal static class EvidenceDocumentUploadWorkflow
         }
 
         return evidenceDocuments;
-    }
-
-    private static LegacyEvidenceDocumentScanStatus ToLegacyScanStatus(ModuleEvidenceDocumentScanStatus scanStatus)
-    {
-        return scanStatus switch
-        {
-            ModuleEvidenceDocumentScanStatus.PendingScan => LegacyEvidenceDocumentScanStatus.PendingScan,
-            ModuleEvidenceDocumentScanStatus.Clean => LegacyEvidenceDocumentScanStatus.Clean,
-            ModuleEvidenceDocumentScanStatus.Rejected => LegacyEvidenceDocumentScanStatus.Rejected,
-            ModuleEvidenceDocumentScanStatus.Failed => LegacyEvidenceDocumentScanStatus.Failed,
-            _ => throw new ArgumentOutOfRangeException(nameof(scanStatus), scanStatus, "Unknown evidence document scan status.")
-        };
     }
 }
