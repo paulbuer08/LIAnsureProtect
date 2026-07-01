@@ -10,40 +10,14 @@ public interface IQuoteRepository
         QuoteRatingProviderAttempt attempt,
         CancellationToken cancellationToken);
 
-    Task AddEvidenceRequestAsync(
-        QuoteEvidenceRequest evidenceRequest,
-        CancellationToken cancellationToken);
-
     Task AddEvidenceDocumentsAsync(
         IReadOnlyCollection<QuoteEvidenceDocument> evidenceDocuments,
         CancellationToken cancellationToken);
 
-    Task AddEvidenceRequestReviewAsync(
-        QuoteEvidenceRequestReview review,
-        CancellationToken cancellationToken);
-
     Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken);
-
-    Task<IReadOnlyCollection<QuoteEvidenceRequest>> ListEvidenceRequestsForQuotesAsync(
-        IReadOnlyCollection<Guid> quoteIds,
-        CancellationToken cancellationToken);
-
-    Task<IReadOnlyCollection<QuoteEvidenceRequest>> ListEvidenceRequestsForOwnerAsync(
-        string ownerUserId,
-        CancellationToken cancellationToken);
 
     Task<IReadOnlyCollection<QuoteEvidenceDocument>> ListEvidenceDocumentsForRequestsAsync(
         IReadOnlyCollection<Guid> evidenceRequestIds,
-        CancellationToken cancellationToken);
-
-    Task<QuoteEvidenceRequest?> GetEvidenceRequestForUnderwritingAsync(
-        Guid quoteId,
-        Guid evidenceRequestId,
-        CancellationToken cancellationToken);
-
-    Task<QuoteEvidenceRequest?> GetEvidenceRequestForOwnerAsync(
-        Guid evidenceRequestId,
-        string ownerUserId,
         CancellationToken cancellationToken);
 
     Task<QuoteEvidenceDocument?> GetEvidenceDocumentForOwnerAsync(

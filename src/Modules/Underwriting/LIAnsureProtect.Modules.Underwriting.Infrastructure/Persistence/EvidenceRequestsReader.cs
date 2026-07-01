@@ -6,6 +6,36 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 
 public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IEvidenceRequestsReader
 {
+    public async Task<EvidenceRequestSnapshot?> GetOwnerRequestAsync(
+        Guid evidenceRequestId,
+        string ownerUserId,
+        CancellationToken cancellationToken)
+    {
+        var request = await dbContext.Set<QuoteEvidenceRequest>()
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                evidenceRequest => evidenceRequest.Id == evidenceRequestId
+                    && evidenceRequest.OwnerUserId == ownerUserId,
+                cancellationToken);
+
+        return request is null ? null : ToSnapshot(request, DateTime.UtcNow);
+    }
+
+    public async Task<EvidenceRequestSnapshot?> GetUnderwritingRequestAsync(
+        Guid quoteId,
+        Guid evidenceRequestId,
+        CancellationToken cancellationToken)
+    {
+        var request = await dbContext.Set<QuoteEvidenceRequest>()
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                evidenceRequest => evidenceRequest.Id == evidenceRequestId
+                    && evidenceRequest.QuoteId == quoteId,
+                cancellationToken);
+
+        return request is null ? null : ToSnapshot(request, DateTime.UtcNow);
+    }
+
     public async Task<IReadOnlyCollection<EvidenceRequestOwnerItem>> GetOwnerRequestsAsync(
         string ownerUserId,
         CancellationToken cancellationToken)
@@ -38,6 +68,43 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
             .GroupBy(request => request.QuoteId)
             .Select(group => CreateSummary(group.Key, group.ToList(), nowUtc))
             .ToList();
+    }
+
+    private static EvidenceRequestSnapshot ToSnapshot(QuoteEvidenceRequest request, DateTime nowUtc)
+    {
+        return new EvidenceRequestSnapshot(
+            request.Id,
+            request.QuoteId,
+            request.SubmissionId,
+            request.OwnerUserId,
+            request.Category.ToString(),
+            request.Title,
+            request.Description,
+            request.DueAtUtc,
+            request.Status.ToString(),
+            request.Status == EvidenceRequestStatus.Open && request.DueAtUtc < nowUtc,
+            (request.DueAtUtc.Date - nowUtc.Date).Days,
+            request.RequestedByUserId,
+            request.RequestedAtUtc,
+            request.RespondedByUserId,
+            request.RespondentName,
+            request.RespondentTitle,
+            request.ResponseText,
+            request.AttachmentFileName,
+            request.AttachmentContentType,
+            request.AttachmentSizeBytes,
+            request.RespondedAtUtc,
+            request.AcceptedByUserId,
+            request.AcceptedAtUtc,
+            request.CancelledByUserId,
+            request.CancelledAtUtc,
+            request.ReviewNotes,
+            request.ReviewDecision.ToString(),
+            request.ReviewReason,
+            request.RemediationGuidance,
+            request.ReviewedByUserId,
+            request.ReviewedAtUtc,
+            request.UpdatedAtUtc);
     }
 
     private static EvidenceRequestOwnerItem ToOwnerItem(QuoteEvidenceRequest request, DateTime nowUtc)

@@ -65,7 +65,7 @@ public sealed class EvidenceRequestWriter(UnderwritingDbContext dbContext) : IEv
         Guid quoteId,
         Guid evidenceRequestId,
         string reviewedByUserId,
-        string reason,
+        string? reviewNotes,
         int documentCount,
         int cleanDocumentCount,
         DateTime reviewedAtUtc,
@@ -75,11 +75,11 @@ public sealed class EvidenceRequestWriter(UnderwritingDbContext dbContext) : IEv
         if (evidenceRequest is null)
             return null;
 
-        evidenceRequest.Accept(reviewedByUserId, reason, reviewedAtUtc);
+        evidenceRequest.Accept(reviewedByUserId, reviewNotes, reviewedAtUtc);
         var review = QuoteEvidenceRequestReview.Record(
             evidenceRequest,
             EvidenceReviewDecisionStatus.Satisfied,
-            reason,
+            reviewNotes ?? "Evidence accepted by underwriting.",
             null,
             reviewedByUserId,
             reviewedAtUtc,
@@ -157,6 +157,7 @@ public sealed class EvidenceRequestWriter(UnderwritingDbContext dbContext) : IEv
             request.Id,
             request.QuoteId,
             request.SubmissionId,
+            request.OwnerUserId,
             request.Category.ToString(),
             request.Title,
             request.Description,

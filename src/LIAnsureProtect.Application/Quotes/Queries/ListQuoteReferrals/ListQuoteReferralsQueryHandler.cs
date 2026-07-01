@@ -1,12 +1,13 @@
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence;
 using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
 using MediatR;
-using LIAnsureProtect.Domain.Quotes;
 
 namespace LIAnsureProtect.Application.Quotes.Queries.ListQuoteReferrals;
 
 public sealed class ListQuoteReferralsQueryHandler(
     IQuoteRepository quoteRepository,
-    IReferralOperationsReader referralOperationsReader)
+    IReferralOperationsReader referralOperationsReader,
+    IEvidenceRequestsReader evidenceRequestsReader)
     : IRequestHandler<ListQuoteReferralsQuery, ListQuoteReferralsResult>
 {
     public async Task<ListQuoteReferralsResult> Handle(
@@ -17,18 +18,16 @@ public sealed class ListQuoteReferralsQueryHandler(
         var operationSummaries = await referralOperationsReader.GetSummariesAsync(
             quotes.Select(quote => quote.Id).ToList(),
             cancellationToken);
-        var evidenceRequests = await quoteRepository.ListEvidenceRequestsForQuotesAsync(
+        var evidenceSummaries = await evidenceRequestsReader.GetSummariesAsync(
             quotes.Select(quote => quote.Id).ToList(),
             cancellationToken);
         var operationsByQuoteId = operationSummaries.ToDictionary(summary => summary.QuoteId);
-        var evidenceRequestsByQuoteId = evidenceRequests
-            .GroupBy(request => request.QuoteId)
-            .ToDictionary(group => group.Key, group => group.ToList());
+        var evidenceSummariesByQuoteId = evidenceSummaries.ToDictionary(summary => summary.QuoteId);
         var results = quotes
             .Select(quote =>
             {
                 operationsByQuoteId.TryGetValue(quote.Id, out var operationSummary);
-                evidenceRequestsByQuoteId.TryGetValue(quote.Id, out var quoteEvidenceRequests);
+                evidenceSummariesByQuoteId.TryGetValue(quote.Id, out var evidenceSummary);
 
                 return new QuoteReferralResult(
                     quote.Id,
@@ -51,7 +50,7 @@ public sealed class ListQuoteReferralsQueryHandler(
                         operationSummary.Status,
                         operationSummary.OpenTaskCount,
                         operationSummary.LatestTimelineAtUtc),
-                    CreateEvidenceSummary(quoteEvidenceRequests ?? []));
+                    CreateEvidenceSummary(evidenceSummary));
             })
             .ToList();
 
@@ -59,32 +58,32 @@ public sealed class ListQuoteReferralsQueryHandler(
     }
 
     private static QuoteReferralEvidenceSummaryResult CreateEvidenceSummary(
-        IReadOnlyCollection<QuoteEvidenceRequest> evidenceRequests)
+        EvidenceRequestSummaryItem? evidenceSummary)
     {
-        var openRequests = evidenceRequests
-            .Where(request => request.Status == EvidenceRequestStatus.Open)
-            .ToList();
+        if (evidenceSummary is null)
+        {
+            return new QuoteReferralEvidenceSummaryResult(
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                null,
+                false,
+                null);
+        }
 
         return new QuoteReferralEvidenceSummaryResult(
-            openRequests.Count,
-            evidenceRequests.Count(request => request.Status == EvidenceRequestStatus.Responded),
-            evidenceRequests.Count(request =>
-                request.Status == EvidenceRequestStatus.Responded
-                && request.ReviewDecision == EvidenceReviewDecisionStatus.NotReviewed),
-            evidenceRequests.Count(request => request.ReviewDecision == EvidenceReviewDecisionStatus.Satisfied),
-            evidenceRequests.Count(request =>
-                request.ReviewDecision is EvidenceReviewDecisionStatus.Insufficient
-                    or EvidenceReviewDecisionStatus.NeedsClarification),
-            openRequests.Count(request => request.DueAtUtc < DateTime.UtcNow),
-            openRequests
-                .OrderBy(request => request.DueAtUtc)
-                .Select(request => (DateTime?)request.DueAtUtc)
-                .FirstOrDefault(),
-            evidenceRequests.Any(request => request.Status is EvidenceRequestStatus.Open or EvidenceRequestStatus.Responded),
-            evidenceRequests
-                .OrderByDescending(request => request.UpdatedAtUtc)
-                .Select(request => (DateTime?)request.UpdatedAtUtc)
-                .FirstOrDefault());
+            evidenceSummary.OpenRequestCount,
+            evidenceSummary.RespondedRequestCount,
+            evidenceSummary.UnreviewedRespondedRequestCount,
+            evidenceSummary.SatisfiedRequestCount,
+            evidenceSummary.NeedsAttentionRequestCount,
+            evidenceSummary.OverdueRequestCount,
+            evidenceSummary.NextOpenDueAtUtc,
+            evidenceSummary.IsWaitingForInformation,
+            evidenceSummary.LatestEvidenceActivityAtUtc);
     }
 
     private static IReadOnlyCollection<string> SplitLines(string value)

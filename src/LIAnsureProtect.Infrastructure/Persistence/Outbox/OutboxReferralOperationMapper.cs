@@ -2,6 +2,8 @@ using System.Text.Json;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
+using ModuleQuoteEvidenceRequestAcceptedDomainEvent = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequestAcceptedDomainEvent;
+using ModuleQuoteEvidenceRequestRemediationRequiredDomainEvent = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequestRemediationRequiredDomainEvent;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 
@@ -12,18 +14,25 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 /// </summary>
 internal static class OutboxReferralOperationMapper
 {
+    private const string QuoteEvidenceRequestCreatedDomainEventType = "QuoteEvidenceRequestCreatedDomainEvent";
+    private const string QuoteEvidenceRequestRespondedDomainEventType = "QuoteEvidenceRequestRespondedDomainEvent";
+    private const string QuoteEvidenceRequestAcceptedDomainEventType = "QuoteEvidenceRequestAcceptedDomainEvent";
+    private const string QuoteEvidenceRequestCancelledDomainEventType = "QuoteEvidenceRequestCancelledDomainEvent";
+    private const string QuoteEvidenceRequestFollowUpSentDomainEventType = "QuoteEvidenceRequestFollowUpSentDomainEvent";
+    private const string QuoteEvidenceRequestRemediationRequiredDomainEventType = "QuoteEvidenceRequestRemediationRequiredDomainEvent";
+
     public static ReferralOperationEvent? TryMap(IOutboxMessageView outboxMessage)
     {
         return outboxMessage.Type switch
         {
             nameof(QuoteGeneratedDomainEvent) => MapGenerated(outboxMessage),
             nameof(QuoteUnderwritingDecisionRecordedDomainEvent) => MapDecision(outboxMessage),
-            nameof(QuoteEvidenceRequestCreatedDomainEvent) => MapEvidence(outboxMessage, ReferralOperationEventKind.EvidenceRequestCreated),
-            nameof(QuoteEvidenceRequestRespondedDomainEvent) => MapEvidence(outboxMessage, ReferralOperationEventKind.EvidenceRequestResponded),
-            nameof(QuoteEvidenceRequestAcceptedDomainEvent) => MapEvidenceAccepted(outboxMessage),
-            nameof(QuoteEvidenceRequestCancelledDomainEvent) => MapEvidence(outboxMessage, ReferralOperationEventKind.EvidenceRequestCancelled),
-            nameof(QuoteEvidenceRequestFollowUpSentDomainEvent) => MapEvidence(outboxMessage, ReferralOperationEventKind.EvidenceRequestFollowUpSent),
-            nameof(QuoteEvidenceRequestRemediationRequiredDomainEvent) => MapRemediation(outboxMessage),
+            QuoteEvidenceRequestCreatedDomainEventType => MapEvidence(outboxMessage, ReferralOperationEventKind.EvidenceRequestCreated),
+            QuoteEvidenceRequestRespondedDomainEventType => MapEvidence(outboxMessage, ReferralOperationEventKind.EvidenceRequestResponded),
+            QuoteEvidenceRequestAcceptedDomainEventType => MapEvidenceAccepted(outboxMessage),
+            QuoteEvidenceRequestCancelledDomainEventType => MapEvidence(outboxMessage, ReferralOperationEventKind.EvidenceRequestCancelled),
+            QuoteEvidenceRequestFollowUpSentDomainEventType => MapEvidence(outboxMessage, ReferralOperationEventKind.EvidenceRequestFollowUpSent),
+            QuoteEvidenceRequestRemediationRequiredDomainEventType => MapRemediation(outboxMessage),
             _ => null
         };
     }
@@ -64,7 +73,7 @@ internal static class OutboxReferralOperationMapper
 
     private static ReferralOperationEvent MapEvidenceAccepted(IOutboxMessageView outboxMessage)
     {
-        var domainEvent = Deserialize<QuoteEvidenceRequestAcceptedDomainEvent>(outboxMessage);
+        var domainEvent = Deserialize<ModuleQuoteEvidenceRequestAcceptedDomainEvent>(outboxMessage);
         return new ReferralOperationEvent(
             outboxMessage.Id, ReferralOperationEventKind.EvidenceRequestAccepted, domainEvent.QuoteId,
             domainEvent.AcceptedByUserId, domainEvent.OccurredAtUtc, domainEvent.EvidenceRequestId, null);
@@ -72,7 +81,7 @@ internal static class OutboxReferralOperationMapper
 
     private static ReferralOperationEvent MapRemediation(IOutboxMessageView outboxMessage)
     {
-        var domainEvent = Deserialize<QuoteEvidenceRequestRemediationRequiredDomainEvent>(outboxMessage);
+        var domainEvent = Deserialize<ModuleQuoteEvidenceRequestRemediationRequiredDomainEvent>(outboxMessage);
         return new ReferralOperationEvent(
             outboxMessage.Id, ReferralOperationEventKind.EvidenceRequestReviewDecisionRecorded, domainEvent.QuoteId,
             domainEvent.ReviewedByUserId, domainEvent.OccurredAtUtc, domainEvent.EvidenceRequestId,

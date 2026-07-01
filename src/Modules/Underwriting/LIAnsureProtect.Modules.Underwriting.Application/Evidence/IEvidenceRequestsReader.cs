@@ -2,6 +2,16 @@ namespace LIAnsureProtect.Modules.Underwriting.Application.Evidence;
 
 public interface IEvidenceRequestsReader
 {
+    Task<EvidenceRequestSnapshot?> GetOwnerRequestAsync(
+        Guid evidenceRequestId,
+        string ownerUserId,
+        CancellationToken cancellationToken);
+
+    Task<EvidenceRequestSnapshot?> GetUnderwritingRequestAsync(
+        Guid quoteId,
+        Guid evidenceRequestId,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyCollection<EvidenceRequestOwnerItem>> GetOwnerRequestsAsync(
         string ownerUserId,
         CancellationToken cancellationToken);

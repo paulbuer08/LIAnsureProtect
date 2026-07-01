@@ -19,25 +19,11 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         await dbContext.QuoteRatingProviderAttempts.AddAsync(attempt, cancellationToken);
     }
 
-    public async Task AddEvidenceRequestAsync(
-        QuoteEvidenceRequest evidenceRequest,
-        CancellationToken cancellationToken)
-    {
-        await dbContext.QuoteEvidenceRequests.AddAsync(evidenceRequest, cancellationToken);
-    }
-
     public async Task AddEvidenceDocumentsAsync(
         IReadOnlyCollection<QuoteEvidenceDocument> evidenceDocuments,
         CancellationToken cancellationToken)
     {
         await dbContext.QuoteEvidenceDocuments.AddRangeAsync(evidenceDocuments, cancellationToken);
-    }
-
-    public async Task AddEvidenceRequestReviewAsync(
-        QuoteEvidenceRequestReview review,
-        CancellationToken cancellationToken)
-    {
-        await dbContext.QuoteEvidenceRequestReviews.AddAsync(review, cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken)
@@ -46,28 +32,6 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
             .AsNoTracking()
             .Where(quote => quote.Status == QuoteStatus.Referred)
             .OrderBy(quote => quote.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<IReadOnlyCollection<QuoteEvidenceRequest>> ListEvidenceRequestsForQuotesAsync(
-        IReadOnlyCollection<Guid> quoteIds,
-        CancellationToken cancellationToken)
-    {
-        return await dbContext.QuoteEvidenceRequests
-            .AsNoTracking()
-            .Where(request => quoteIds.Contains(request.QuoteId))
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<IReadOnlyCollection<QuoteEvidenceRequest>> ListEvidenceRequestsForOwnerAsync(
-        string ownerUserId,
-        CancellationToken cancellationToken)
-    {
-        return await dbContext.QuoteEvidenceRequests
-            .AsNoTracking()
-            .Where(request => request.OwnerUserId == ownerUserId)
-            .OrderBy(request => request.DueAtUtc)
-            .ThenByDescending(request => request.RequestedAtUtc)
             .ToListAsync(cancellationToken);
     }
 
@@ -83,26 +47,6 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
             .Where(document => evidenceRequestIds.Contains(document.EvidenceRequestId))
             .OrderBy(document => document.UploadedAtUtc)
             .ToListAsync(cancellationToken);
-    }
-
-    public async Task<QuoteEvidenceRequest?> GetEvidenceRequestForUnderwritingAsync(
-        Guid quoteId,
-        Guid evidenceRequestId,
-        CancellationToken cancellationToken)
-    {
-        return await dbContext.QuoteEvidenceRequests.SingleOrDefaultAsync(
-            request => request.Id == evidenceRequestId && request.QuoteId == quoteId,
-            cancellationToken);
-    }
-
-    public async Task<QuoteEvidenceRequest?> GetEvidenceRequestForOwnerAsync(
-        Guid evidenceRequestId,
-        string ownerUserId,
-        CancellationToken cancellationToken)
-    {
-        return await dbContext.QuoteEvidenceRequests.SingleOrDefaultAsync(
-            request => request.Id == evidenceRequestId && request.OwnerUserId == ownerUserId,
-            cancellationToken);
     }
 
     public async Task<QuoteEvidenceDocument?> GetEvidenceDocumentForOwnerAsync(
