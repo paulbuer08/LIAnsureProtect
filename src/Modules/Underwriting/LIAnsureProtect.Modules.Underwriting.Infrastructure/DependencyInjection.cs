@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<IReferralOperationProjector, ReferralOperationProjector>();
         services.AddScoped<IOutboxSource, UnderwritingOutboxSource>();
         services.AddScoped<IEvidenceRequestRepository, EfEvidenceRequestRepository>();
+        services.AddScoped<IEvidenceDocumentRepository, EfEvidenceDocumentRepository>();
         services.AddScoped<IEvidenceRequestsReader, EvidenceRequestsReader>();
         services.AddScoped<IEvidenceRequestWriter, EvidenceRequestWriter>();
 
