@@ -2,12 +2,13 @@ using System.Text.Json;
 using LIAnsureProtect.Domain.Policies;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Modules.Notifications.Application;
+using LIAnsureProtect.Platform.Abstractions.Outbox;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 
 internal static class OutboxNotificationMapper
 {
-    public static NotificationMessage? TryMap(OutboxMessage outboxMessage)
+    public static NotificationMessage? TryMap(IOutboxMessageView outboxMessage)
     {
         return outboxMessage.Type switch
         {
@@ -25,7 +26,7 @@ internal static class OutboxNotificationMapper
         };
     }
 
-    private static NotificationMessage MapQuoteGenerated(OutboxMessage outboxMessage)
+    private static NotificationMessage MapQuoteGenerated(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteGeneratedDomainEvent>(outboxMessage);
         var isReferred = domainEvent.Status == QuoteStatus.Referred;
@@ -50,7 +51,7 @@ internal static class OutboxNotificationMapper
             });
     }
 
-    private static NotificationMessage MapUnderwritingDecision(OutboxMessage outboxMessage)
+    private static NotificationMessage MapUnderwritingDecision(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteUnderwritingDecisionRecordedDomainEvent>(outboxMessage);
 
@@ -71,7 +72,7 @@ internal static class OutboxNotificationMapper
             });
     }
 
-    private static NotificationMessage MapQuoteAccepted(OutboxMessage outboxMessage)
+    private static NotificationMessage MapQuoteAccepted(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteAcceptedDomainEvent>(outboxMessage);
 
@@ -91,7 +92,7 @@ internal static class OutboxNotificationMapper
             });
     }
 
-    private static NotificationMessage MapPolicyBound(OutboxMessage outboxMessage)
+    private static NotificationMessage MapPolicyBound(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<PolicyBoundDomainEvent>(outboxMessage);
 
@@ -113,7 +114,7 @@ internal static class OutboxNotificationMapper
             });
     }
 
-    private static NotificationMessage MapEvidenceRequestCreated(OutboxMessage outboxMessage)
+    private static NotificationMessage MapEvidenceRequestCreated(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteEvidenceRequestCreatedDomainEvent>(outboxMessage);
 
@@ -132,7 +133,7 @@ internal static class OutboxNotificationMapper
             new Dictionary<string, string>());
     }
 
-    private static NotificationMessage MapEvidenceRequestResponded(OutboxMessage outboxMessage)
+    private static NotificationMessage MapEvidenceRequestResponded(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteEvidenceRequestRespondedDomainEvent>(outboxMessage);
 
@@ -154,7 +155,7 @@ internal static class OutboxNotificationMapper
             });
     }
 
-    private static NotificationMessage MapEvidenceRequestAccepted(OutboxMessage outboxMessage)
+    private static NotificationMessage MapEvidenceRequestAccepted(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteEvidenceRequestAcceptedDomainEvent>(outboxMessage);
 
@@ -176,7 +177,7 @@ internal static class OutboxNotificationMapper
             });
     }
 
-    private static NotificationMessage MapEvidenceRequestCancelled(OutboxMessage outboxMessage)
+    private static NotificationMessage MapEvidenceRequestCancelled(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteEvidenceRequestCancelledDomainEvent>(outboxMessage);
 
@@ -198,7 +199,7 @@ internal static class OutboxNotificationMapper
             });
     }
 
-    private static NotificationMessage MapEvidenceRequestFollowUpSent(OutboxMessage outboxMessage)
+    private static NotificationMessage MapEvidenceRequestFollowUpSent(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteEvidenceRequestFollowUpSentDomainEvent>(outboxMessage);
 
@@ -220,7 +221,7 @@ internal static class OutboxNotificationMapper
             });
     }
 
-    private static NotificationMessage MapEvidenceRequestRemediationRequired(OutboxMessage outboxMessage)
+    private static NotificationMessage MapEvidenceRequestRemediationRequired(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteEvidenceRequestRemediationRequiredDomainEvent>(outboxMessage);
 
@@ -247,7 +248,7 @@ internal static class OutboxNotificationMapper
     }
 
     private static NotificationMessage CreateEvidenceMessage(
-        OutboxMessage outboxMessage,
+        IOutboxMessageView outboxMessage,
         string type,
         string audience,
         string ownerUserId,
@@ -295,7 +296,7 @@ internal static class OutboxNotificationMapper
     }
 
     private static NotificationMessage CreateMessage(
-        OutboxMessage outboxMessage,
+        IOutboxMessageView outboxMessage,
         string type,
         string audience,
         string ownerUserId,
@@ -316,7 +317,7 @@ internal static class OutboxNotificationMapper
             attributes);
     }
 
-    private static T Deserialize<T>(OutboxMessage outboxMessage)
+    private static T Deserialize<T>(IOutboxMessageView outboxMessage)
     {
         return JsonSerializer.Deserialize<T>(outboxMessage.Payload)
             ?? throw new InvalidOperationException($"Outbox message {outboxMessage.Id} payload could not be deserialized.");

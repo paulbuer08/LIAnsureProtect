@@ -16,6 +16,7 @@ using LIAnsureProtect.Infrastructure.Quotes.RatingProviders;
 using LIAnsureProtect.Infrastructure.Submissions;
 using LIAnsureProtect.Modules.Underwriting.Application;
 using LIAnsureProtect.Platform.Abstractions;
+using LIAnsureProtect.Platform.Abstractions.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
@@ -45,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IIdempotencyRecordCleanup, EfCoreIdempotencyRecordCleanup>();
         // OutboxDispatcher depends on the Notifications module's INotificationProjector and
         // INotificationPublisher, which AddNotificationsModule(...) registers in the composition root.
+        services.AddScoped<IOutboxSource, SubmissionOutboxSource>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
         services.AddOptions<DocumentStorageOptions>();
 

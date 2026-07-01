@@ -1,11 +1,11 @@
 using LIAnsureProtect.Modules.Notifications.Application;
 using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
-using Microsoft.EntityFrameworkCore;
+using LIAnsureProtect.Platform.Abstractions.Outbox;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 
 public sealed class OutboxDispatcher(
-    SubmissionDbContext dbContext,
+    IEnumerable<IOutboxSource> sources,
     INotificationProjector notificationProjector,
     INotificationPublisher notificationPublisher,
     IReferralOperationProjector referralOperationProjector) : IOutboxDispatcher
@@ -17,21 +17,30 @@ public sealed class OutboxDispatcher(
     public async Task<int> DispatchPendingMessagesAsync(CancellationToken cancellationToken)
     {
         var nowUtc = DateTime.UtcNow;
-        var pendingMessages = await dbContext.OutboxMessages
-            .Where(message => message.ProcessedAtUtc == null
-                && message.FailedAtUtc == null
-                && (message.NextAttemptAtUtc == null || message.NextAttemptAtUtc <= nowUtc))
-            .OrderBy(message => message.CreatedAtUtc)
-            .Take(BatchSize)
-            .ToListAsync(cancellationToken);
+        var sourceList = sources.ToList();
+        var pendingMessages = new List<(IOutboxMessageView Message, IOutboxSource Source)>();
+
+        foreach (var source in sourceList)
+        {
+            foreach (var message in await source.GetPendingAsync(BatchSize, nowUtc, cancellationToken))
+            {
+                pendingMessages.Add((message, source));
+            }
+        }
 
         if (pendingMessages.Count == 0)
             return 0;
 
+        var orderedMessages = pendingMessages
+            .OrderBy(item => item.Message.CreatedAtUtc)
+            .ToList();
+        var touchedSources = new HashSet<IOutboxSource>();
         var processedCount = 0;
 
-        foreach (var message in pendingMessages)
+        foreach (var (message, source) in orderedMessages)
         {
+            touchedSources.Add(source);
+
             var referralEvent = OutboxReferralOperationMapper.TryMap(message);
             if (referralEvent is not null)
                 await referralOperationProjector.ProjectAsync(referralEvent, cancellationToken);
@@ -72,7 +81,10 @@ public sealed class OutboxDispatcher(
                 exhausted);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        foreach (var source in touchedSources)
+        {
+            await source.SaveChangesAsync(cancellationToken);
+        }
 
         return processedCount;
     }

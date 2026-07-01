@@ -1,6 +1,7 @@
 using System.Text.Json;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
+using LIAnsureProtect.Platform.Abstractions.Outbox;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 
@@ -11,7 +12,7 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 /// </summary>
 internal static class OutboxReferralOperationMapper
 {
-    public static ReferralOperationEvent? TryMap(OutboxMessage outboxMessage)
+    public static ReferralOperationEvent? TryMap(IOutboxMessageView outboxMessage)
     {
         return outboxMessage.Type switch
         {
@@ -27,7 +28,7 @@ internal static class OutboxReferralOperationMapper
         };
     }
 
-    private static ReferralOperationEvent? MapGenerated(OutboxMessage outboxMessage)
+    private static ReferralOperationEvent? MapGenerated(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteGeneratedDomainEvent>(outboxMessage);
         if (domainEvent.Status != QuoteStatus.Referred)
@@ -38,7 +39,7 @@ internal static class OutboxReferralOperationMapper
             "system", domainEvent.OccurredAtUtc, null, null);
     }
 
-    private static ReferralOperationEvent MapDecision(OutboxMessage outboxMessage)
+    private static ReferralOperationEvent MapDecision(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteUnderwritingDecisionRecordedDomainEvent>(outboxMessage);
         return new ReferralOperationEvent(
@@ -46,7 +47,7 @@ internal static class OutboxReferralOperationMapper
             domainEvent.ReviewedByUserId, domainEvent.OccurredAtUtc, null, domainEvent.Decision.ToString());
     }
 
-    private static ReferralOperationEvent MapEvidence(OutboxMessage outboxMessage, ReferralOperationEventKind kind)
+    private static ReferralOperationEvent MapEvidence(IOutboxMessageView outboxMessage, ReferralOperationEventKind kind)
     {
         // QuoteEvidenceRequestCreated/Responded/Cancelled/FollowUpSent share the same shape we need:
         // EvidenceRequestId, QuoteId, an actor user id, OccurredAtUtc.
@@ -61,7 +62,7 @@ internal static class OutboxReferralOperationMapper
             outboxMessage.Id, kind, quoteId, actor, occurredAtUtc, evidenceRequestId, null);
     }
 
-    private static ReferralOperationEvent MapEvidenceAccepted(OutboxMessage outboxMessage)
+    private static ReferralOperationEvent MapEvidenceAccepted(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteEvidenceRequestAcceptedDomainEvent>(outboxMessage);
         return new ReferralOperationEvent(
@@ -69,7 +70,7 @@ internal static class OutboxReferralOperationMapper
             domainEvent.AcceptedByUserId, domainEvent.OccurredAtUtc, domainEvent.EvidenceRequestId, null);
     }
 
-    private static ReferralOperationEvent MapRemediation(OutboxMessage outboxMessage)
+    private static ReferralOperationEvent MapRemediation(IOutboxMessageView outboxMessage)
     {
         var domainEvent = Deserialize<QuoteEvidenceRequestRemediationRequiredDomainEvent>(outboxMessage);
         return new ReferralOperationEvent(
@@ -87,7 +88,7 @@ internal static class OutboxReferralOperationMapper
         _ => "system"
     };
 
-    private static T Deserialize<T>(OutboxMessage outboxMessage)
+    private static T Deserialize<T>(IOutboxMessageView outboxMessage)
         => JsonSerializer.Deserialize<T>(outboxMessage.Payload)
             ?? throw new InvalidOperationException($"Outbox message {outboxMessage.Id} payload could not be deserialized.");
 }

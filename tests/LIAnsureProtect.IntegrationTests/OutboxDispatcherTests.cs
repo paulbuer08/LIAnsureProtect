@@ -75,7 +75,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -105,7 +105,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -147,7 +147,7 @@ public sealed class OutboxDispatcherTests : IDisposable
 
         var publisher = new RecordingNotificationPublisher(
             NotificationPublishResult.TransientFailure("local notification provider is unavailable"));
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -183,7 +183,7 @@ public sealed class OutboxDispatcherTests : IDisposable
 
         var publisher = new RecordingNotificationPublisher(
             NotificationPublishResult.PermanentFailure("notification payload is not accepted by provider"));
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -223,7 +223,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -257,7 +257,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -289,7 +289,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -322,7 +322,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -363,7 +363,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var dispatcher = new OutboxDispatcher(dbContext, projector, new RecordingNotificationPublisher(), referralProjector);
+        var dispatcher = CreateDispatcher(new RecordingNotificationPublisher());
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
         notificationsDbContext.ChangeTracker.Clear();
@@ -396,7 +396,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var dispatcher = new OutboxDispatcher(dbContext, projector, new RecordingNotificationPublisher(), referralProjector);
+        var dispatcher = CreateDispatcher(new RecordingNotificationPublisher());
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
         notificationsDbContext.ChangeTracker.Clear();
@@ -441,7 +441,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await notificationsDbContext.NotificationInboxEntries.AddAsync(existingEntry, TestContext.Current.CancellationToken);
         await notificationsDbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var dispatcher = new OutboxDispatcher(dbContext, projector, new RecordingNotificationPublisher(), referralProjector);
+        var dispatcher = CreateDispatcher(new RecordingNotificationPublisher());
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
         notificationsDbContext.ChangeTracker.Clear();
@@ -458,6 +458,15 @@ public sealed class OutboxDispatcherTests : IDisposable
         submissionConnection.Dispose();
         notificationsConnection.Dispose();
         underwritingConnection.Dispose();
+    }
+
+    private OutboxDispatcher CreateDispatcher(INotificationPublisher publisher)
+    {
+        return new OutboxDispatcher(
+            [new SubmissionOutboxSource(dbContext)],
+            projector,
+            publisher,
+            referralProjector);
     }
 
     private sealed class RecordingNotificationPublisher(
