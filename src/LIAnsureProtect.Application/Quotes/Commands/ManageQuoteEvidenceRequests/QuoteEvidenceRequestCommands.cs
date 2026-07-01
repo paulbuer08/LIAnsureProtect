@@ -437,48 +437,6 @@ public sealed class DownloadUnderwritingEvidenceDocumentQueryHandler(
 
 public static class QuoteEvidenceRequestResultFactory
 {
-    public static QuoteEvidenceRequestResult FromRequest(
-        QuoteEvidenceRequest request,
-        IReadOnlyCollection<QuoteEvidenceDocument>? documents = null)
-    {
-        return new QuoteEvidenceRequestResult(
-            request.Id,
-            request.QuoteId,
-            request.SubmissionId,
-            request.Category.ToString(),
-            request.Title,
-            request.Description,
-            request.DueAtUtc,
-            request.Status.ToString(),
-            request.Status == EvidenceRequestStatus.Open && request.DueAtUtc < DateTime.UtcNow,
-            (request.DueAtUtc.Date - DateTime.UtcNow.Date).Days,
-            request.RequestedByUserId,
-            request.RequestedAtUtc,
-            request.RespondedByUserId,
-            request.RespondentName,
-            request.RespondentTitle,
-            request.ResponseText,
-            request.AttachmentFileName,
-            request.AttachmentContentType,
-            request.AttachmentSizeBytes,
-            request.RespondedAtUtc,
-            request.AcceptedByUserId,
-            request.AcceptedAtUtc,
-            request.CancelledByUserId,
-            request.CancelledAtUtc,
-            request.ReviewNotes,
-            request.ReviewDecision.ToString(),
-            request.ReviewReason,
-            request.RemediationGuidance,
-            request.ReviewedByUserId,
-            request.ReviewedAtUtc,
-            request.UpdatedAtUtc,
-            (documents ?? [])
-                .OrderBy(document => document.UploadedAtUtc)
-                .Select(FromDocument)
-                .ToList());
-    }
-
     public static QuoteEvidenceRequestResult FromSnapshot(
         EvidenceRequestSnapshot request,
         IReadOnlyCollection<QuoteEvidenceDocument>? documents = null)
