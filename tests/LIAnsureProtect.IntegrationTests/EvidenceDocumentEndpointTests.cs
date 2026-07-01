@@ -6,6 +6,7 @@ using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.IntegrationTests.Security;
+using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -17,6 +18,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using ModuleEvidenceRequestCategory = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceRequestCategory;
+using ModuleQuoteEvidenceRequest = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequest;
 
 namespace LIAnsureProtect.IntegrationTests;
 
@@ -27,6 +30,7 @@ public sealed class EvidenceDocumentEndpointTests
     private static readonly Uri TestServerBaseAddress = new("https://localhost");
 
     private readonly SqliteConnection databaseConnection;
+    private readonly SqliteConnection underwritingConnection;
     private readonly WebApplicationFactory<Program> webApplicationFactory;
     private readonly HttpClient httpClient;
     private readonly string storageRootPath;
@@ -35,6 +39,8 @@ public sealed class EvidenceDocumentEndpointTests
     {
         databaseConnection = new SqliteConnection("DataSource=:memory:");
         databaseConnection.Open();
+        underwritingConnection = new SqliteConnection("DataSource=:memory:");
+        underwritingConnection.Open();
         storageRootPath = Path.Combine(Path.GetTempPath(), "liansureprotect-evidence-documents", Guid.NewGuid().ToString("N"));
 
         this.webApplicationFactory = webApplicationFactory.WithWebHostBuilder(builder =>
@@ -62,6 +68,13 @@ public sealed class EvidenceDocumentEndpointTests
                     options.UseSqlite(databaseConnection);
                 });
 
+                services.RemoveAll<IDbContextOptionsConfiguration<UnderwritingDbContext>>();
+                services.RemoveAll<DbContextOptions<UnderwritingDbContext>>();
+                services.AddDbContext<UnderwritingDbContext>(options =>
+                {
+                    options.UseSqlite(underwritingConnection);
+                });
+
                 services
                     .AddAuthentication(TestAuthHandler.AuthenticationScheme)
                     .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
@@ -73,6 +86,8 @@ public sealed class EvidenceDocumentEndpointTests
         using var scope = this.webApplicationFactory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
         dbContext.Database.EnsureCreated();
+        var underwritingDbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        underwritingDbContext.Database.EnsureCreated();
 
         httpClient = this.webApplicationFactory.CreateClient(
             new WebApplicationFactoryClientOptions
@@ -531,19 +546,16 @@ public sealed class EvidenceDocumentEndpointTests
         return request;
     }
 
-    private async Task<(SeededQuote Quote, QuoteEvidenceRequest EvidenceRequest)> SeedOpenEvidenceRequestAsync(
+    private async Task<(SeededQuote Quote, ModuleQuoteEvidenceRequest EvidenceRequest)> SeedOpenEvidenceRequestAsync(
         string ownerUserId)
     {
         var quote = CreateReferredQuote(ownerUserId);
-        // QuoteReferralOperationId is now a plain correlation column (FK dropped in M36).
-        var operationId = Guid.NewGuid();
-        var evidenceRequest = QuoteEvidenceRequest.Create(
+        var evidenceRequest = ModuleQuoteEvidenceRequest.Create(
             quote.Id,
             quote.Quote.SubmissionId,
-            operationId,
             ownerUserId,
             "underwriter-1",
-            EvidenceRequestCategory.MultiFactorAuthentication,
+            ModuleEvidenceRequestCategory.MultiFactorAuthentication,
             "Confirm MFA rollout",
             "Please provide current MFA rollout evidence for privileged and email access.",
             new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
@@ -553,8 +565,11 @@ public sealed class EvidenceDocumentEndpointTests
         var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
         await dbContext.Submissions.AddAsync(quote.Submission, TestContext.Current.CancellationToken);
         await dbContext.Quotes.AddAsync(quote.Quote, TestContext.Current.CancellationToken);
-        await dbContext.Set<QuoteEvidenceRequest>().AddAsync(evidenceRequest, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var underwritingDbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        await underwritingDbContext.Set<ModuleQuoteEvidenceRequest>().AddAsync(evidenceRequest, TestContext.Current.CancellationToken);
+        await underwritingDbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         return (quote, evidenceRequest);
     }
@@ -600,6 +615,7 @@ public sealed class EvidenceDocumentEndpointTests
         httpClient.Dispose();
         webApplicationFactory.Dispose();
         databaseConnection.Dispose();
+        underwritingConnection.Dispose();
 
         if (Directory.Exists(storageRootPath))
             Directory.Delete(storageRootPath, recursive: true);

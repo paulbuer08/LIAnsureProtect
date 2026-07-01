@@ -36,7 +36,7 @@ public sealed class EvidenceRequestWriter(UnderwritingDbContext dbContext) : IEv
         return ToSnapshot(evidenceRequest);
     }
 
-    public Task<EvidenceRequestSnapshot?> RecordSupplementalResponseAsync(
+    public async Task<EvidenceRequestSnapshot?> RecordSupplementalResponseAsync(
         Guid evidenceRequestId,
         string ownerUserId,
         string respondentName,
@@ -48,8 +48,11 @@ public sealed class EvidenceRequestWriter(UnderwritingDbContext dbContext) : IEv
         DateTime respondedAtUtc,
         CancellationToken cancellationToken)
     {
-        return RecordResponseAsync(
-            evidenceRequestId,
+        var evidenceRequest = await GetForOwnerAsync(evidenceRequestId, ownerUserId, cancellationToken);
+        if (evidenceRequest is null)
+            return null;
+
+        evidenceRequest.RecordSupplementalResponse(
             ownerUserId,
             respondentName,
             respondentTitle,
@@ -57,8 +60,10 @@ public sealed class EvidenceRequestWriter(UnderwritingDbContext dbContext) : IEv
             attachmentFileName,
             attachmentContentType,
             attachmentSizeBytes,
-            respondedAtUtc,
-            cancellationToken);
+            respondedAtUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToSnapshot(evidenceRequest);
     }
 
     public async Task<EvidenceRequestSnapshot?> AcceptAsync(
