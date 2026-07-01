@@ -3,6 +3,7 @@ using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Application.Documents;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence;
+using LIAnsureProtect.Platform.Abstractions.Documents;
 using MediatR;
 
 namespace LIAnsureProtect.Application.Quotes.Commands.ManageQuoteEvidenceRequests;

@@ -16,6 +16,7 @@ using LIAnsureProtect.Infrastructure.Quotes.RatingProviders;
 using LIAnsureProtect.Infrastructure.Submissions;
 using LIAnsureProtect.Modules.Underwriting.Application;
 using LIAnsureProtect.Platform.Abstractions;
+using LIAnsureProtect.Platform.Abstractions.Documents;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

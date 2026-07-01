@@ -1,4 +1,4 @@
-namespace LIAnsureProtect.Application.Documents;
+namespace LIAnsureProtect.Platform.Abstractions.Documents;
 
 public interface IDocumentStorageService
 {
