@@ -8,6 +8,8 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 38 - Underwriting Evidence Documents planning branch and docs.
+- Milestone 38 design and implementation plan for moving evidence document metadata, upload/download/replacement workflows, scanner ports, clean-only gates, and document read models into the Underwriting module while preserving current API behavior.
 - Milestone 37 - Underwriting Evidence (third slice of the Underwriting carve).
 - Module-owned Underwriting outbox table (`underwriting.outbox_messages`) plus source-agnostic dispatcher plumbing (`IOutboxSource`/`IOutboxMessageView`) that merge-orders pending messages by `CreatedAtUtc` across legacy and module outboxes.
 - `QuoteEvidenceRequest`, `QuoteEvidenceRequestReview`, evidence request/review enums, and evidence lifecycle domain events moved into `Modules/Underwriting/...Domain/Evidence`; module Application/Infrastructure now own evidence request commands, readers, repositories, and the primitive `IEvidenceRequestWriter` seam used by legacy document handlers.
@@ -23,6 +25,7 @@ The format follows simple milestone-based entries.
 
 ### Changed
 
+- Corrected the future roadmap direction after the M35-M37 Underwriting carve split: M38 is now Underwriting Evidence Documents, not the older Claims placeholder; Claims stays later after underwriting/quoting seams are cleaner.
 - Evidence create/cancel/follow-up and request/review reads now use module commands/readers; document-coupled respond/replacement/accept/review/download handlers stay legacy but fetch module request snapshots before document storage and call `IEvidenceRequestWriter` after storage/scan gates.
 - Evidence notifications and referral-operation projection now deserialize module evidence events from either outbox source; dispatcher integration tests cover module evidence events ordered before legacy quote decision events.
 - Legacy `quote_evidence_requests` and `quote_evidence_request_reviews` are deleted from `SubmissionDbContext`; `quote_evidence_documents.evidence_request_id` is now a scalar correlation id until document metadata moves in Milestone 38.

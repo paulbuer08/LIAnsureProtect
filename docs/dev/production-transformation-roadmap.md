@@ -96,22 +96,25 @@ events); in-process module event bus now → outbox → SNS/SQS later.
 **Phase 0 — Upfront structural refactor (behavior-preserving):**
 - **M32** — Platform & module skeleton + deploy-profile switch (`src/Modules/<Context>/…`, `src/Platform`,
   schema-per-module pattern, ports/adapters composition, module-architecture tests).
-- **M33** — Notifications module + **team inbox** (per-user read receipts; the deferred feature, in its proper home).
-- **M34** — Underwriting module carved from `Quotes`.
-- **M35** — Rating + Quoting + Policy modules/schemas.
-- **M36** — Accounts/Companies + Product Catalog (Cyber-only data).
-- **M37** — Multi-tenancy (org + territory scoping) + AuthZ hardening.
-- **M38** — Claims module skeleton (FNOL + lifecycle).
+- **M33** — Notifications module carve (personal inbox read model moved behind module contracts).
+- **M34** — Notifications team inbox (first feature built inside a carved module).
+- **M35** — Underwriting module: advisory AI review carve.
+- **M36** — Underwriting referral operations carve.
+- **M37** — Underwriting evidence request/review carve + module outbox + source-agnostic dispatcher foundation.
+- **M38** — Underwriting evidence document carve (document metadata, scanner, upload/download/replacement gates).
+- **M39** — Quoting decision boundary: prepare/begin the `Quote`/`QuoteUnderwritingReview` carve instead of forcing
+  final approve/decline/adjust into Underwriting.
+- **M40** — Dispatcher integration-event decoupling / mapper registry, replacing transitional host-side event mapping.
 
 **Phase 1 — Production cross-cutting (local/docker, LocalStack):**
-- **M39** Observability · **M40** Real async messaging (outbox→SNS/SQS, DLQ) + integration-event contracts (+ optional S3 archive) ·
-  **M41** Caching + rate limiting · **M42** Documents → S3 (Valet Key, KMS, scan pipeline, retention/legal hold).
+- **M41** Observability · **M42** Documents → S3 (Valet Key, KMS, scan pipeline, retention/legal hold) ·
+  **M43** Real async messaging (outbox→SNS/SQS, DLQ) + optional S3 event archive · **M44** Caching + rate limiting.
 
 **Phase 2 — AWS infrastructure (Terraform, guided-manual):**
-- **M43** TF foundation (state, IAM+OIDC, VPC, KMS, Secrets Manager) · **M44** Data+storage (Aurora, ElastiCache, S3) ·
-  **M45** Compute+edge (ECR, EKS+Fargate, ALB/Ingress, CloudFront+WAF; Lambda+EventBridge+Step Functions) ·
-  **M46** Identity (Cognito option) · **M47** CD pipeline (Actions→ECR→EKS blue/green, gated migrations, smoke tests) ·
-  **M48** Security & compliance (GuardDuty/Security Hub/Config/Inspector/Macie/CloudTrail/WAF/rotation).
+- **M45** TF foundation (state, IAM+OIDC, VPC, KMS, Secrets Manager) · **M46** Data+storage (Aurora, ElastiCache, S3) ·
+  **M47** Compute+edge (ECR, EKS+Fargate, ALB/Ingress, CloudFront+WAF; Lambda+EventBridge+Step Functions) ·
+  **M48** Identity (Cognito option) · **M49** CD pipeline (Actions→ECR→EKS blue/green, gated migrations, smoke tests) ·
+  **M50** Security & compliance (GuardDuty/Security Hub/Config/Inspector/Macie/CloudTrail/WAF/rotation).
 
 **Phase 3 — Later (after a working production deployment):** other specialty products, AI/RAG (Bedrock + pgvector),
 analytics (S3 data-lake + Glue + Athena/QuickSight), partner API, payments/e-sign.

@@ -1044,6 +1044,14 @@ state moves first. The legacy `quote_evidence_requests` and `quote_evidence_requ
 are dropped; `quote_evidence_documents.evidence_request_id` remains as a scalar correlation id until
 the document aggregate moves in Milestone 38.
 
+Milestone 38 plans the follow-up document carve. Generic private object storage becomes a Platform
+abstraction, evidence scanning becomes an Underwriting module port, and the document metadata table
+moves from `public.quote_evidence_documents` to `underwriting.quote_evidence_documents`. The public
+routes stay the same, but upload, replacement, download, accept, review, and document-aware owner reads
+become module Application workflows. That removes the temporary M37 `IEvidenceRequestWriter` seam and
+lets request state, review audit rows, document metadata, and module outbox events save through the
+same `UnderwritingDbContext`.
+
 This keeps the workflow realistic for cyber underwriting while still deferring production S3 provisioning, AWS GuardDuty/EventBridge wiring, durable download audit, OCR, embeddings, RAG, notification inboxes, scheduled reminder automation, autonomous AI document review, legal hold, policy binding, final quote approval automation, multi-reviewer approval chains, and a full malware analyst console to separate milestones.
 
 These tables are separate from `quotes` because they answer operational questions instead of quote-term questions:
