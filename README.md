@@ -91,6 +91,8 @@ Milestone 35 is implemented as `Milestone 35 - Underwriting Module: AI Review`, 
 
 Milestone 36 is implemented as `Milestone 36 - Underwriting Referral Operations`, the second slice of the Underwriting carve and the most entangled so far. The `QuoteReferralOperation` aggregate (referral queue/SLA + work notes + follow-up tasks + timeline) moves into the Underwriting module and the `underwriting` schema — its tables join the existing `UnderwritingDbContext` (no fourth context). The cross-context hand-offs are **event-driven**: the outbox dispatcher now also feeds a module `IReferralOperationProjector` (idempotent on the source outbox-message id, create-if-missing) that reacts to existing quote/decision/evidence events to create, close, and project activity onto the operation — so creation/closure are eventually consistent (mitigated so there's no user-visible gap). The underwriter's own actions stay synchronous module commands; the queue/timeline reads stay legacy behind an `IReferralOperationsReader` port. The evidence→operation cross-schema FK is dropped (reference by id only; evidence carves in M37). This milestone also establishes [Async / Await and Eventing Conventions](docs/dev/async-and-eventing-conventions.md) as a global best practice. See [Milestone 36 Design](docs/dev/milestone-36-underwriting-referral-operations-design.md) and [Milestone 36 Learnings](docs/dev/milestone-36-underwriting-referral-operations-learnings.md).
 
+Milestone 37 is implemented as `Milestone 37 - Underwriting Evidence`, the third Underwriting carve slice. Evidence **requests and reviews** now live in the Underwriting module and `underwriting` schema, with module-owned request/review aggregates, commands, readers, repositories, and outbox events. The dispatcher can drain both the legacy and module outbox sources in `CreatedAtUtc` order, so evidence notifications and referral-operation projection keep their event ordering as the source moves. Evidence documents deliberately remain legacy for Milestone 38: document upload/download/replacement handlers fetch primitive module request snapshots before storing/scanning files, then call `IEvidenceRequestWriter` after storage to update module request/review state. See [Milestone 37 Design](docs/dev/milestone-37-underwriting-evidence-design.md) and [Milestone 37 Learnings](docs/dev/milestone-37-underwriting-evidence-learnings.md).
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -162,6 +164,14 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 30 Evidence Review Outcome Notification Foundation Learnings](docs/dev/milestone-30-evidence-review-outcome-notification-foundation-learnings.md)
 - [Milestone 31 Notification Inbox Read Model Foundation Handoff & Planning](docs/dev/milestone-31-notification-inbox-read-model-foundation-handoff.md)
 - [Milestone 31 Notification Inbox Read Model Foundation Learnings](docs/dev/milestone-31-notification-inbox-read-model-foundation-learnings.md)
+- [Milestone 32 Platform & Module Skeleton Learnings](docs/dev/milestone-32-platform-module-skeleton-learnings.md)
+- [Milestone 33 Notifications Module Learnings](docs/dev/milestone-33-notifications-module-learnings.md)
+- [Milestone 34 Notifications Team Inbox Learnings](docs/dev/milestone-34-notifications-team-inbox-learnings.md)
+- [Milestone 35 Underwriting AI Review Module Learnings](docs/dev/milestone-35-underwriting-ai-review-module-learnings.md)
+- [Milestone 36 Underwriting Referral Operations Design](docs/dev/milestone-36-underwriting-referral-operations-design.md)
+- [Milestone 36 Underwriting Referral Operations Learnings](docs/dev/milestone-36-underwriting-referral-operations-learnings.md)
+- [Milestone 37 Underwriting Evidence Design](docs/dev/milestone-37-underwriting-evidence-design.md)
+- [Milestone 37 Underwriting Evidence Learnings](docs/dev/milestone-37-underwriting-evidence-learnings.md)
 - [GitHub Repository, CI/CD, and Automation](docs/dev/github-repository-and-automation.md)
 - [Production Transformation Roadmap](docs/dev/production-transformation-roadmap.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)

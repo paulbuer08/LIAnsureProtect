@@ -48,13 +48,13 @@ Current architecture guard tests read the project files and verify the intended 
 - Platform.Abstractions references no project (the shared-kernel ports depend on nothing).
 - Platform references Platform.Abstractions only.
 - Domain references Platform.Abstractions (for the shared domain-event base).
-- Application references Domain.
-- Infrastructure references Application, Domain, and Platform.Abstractions.
-- Api references Application, Infrastructure, and Platform.
-- Worker references Application, Infrastructure, and Platform.
+- Application references Domain, plus the Underwriting module Application during the strangler read/write seams.
+- Infrastructure references Application, Domain, selected module Application projects, the Underwriting module Domain for centralized event deserialization during the M37 cut-over, and Platform.Abstractions.
+- Api references Application, Infrastructure, module Infrastructure projects, and Platform.
+- Worker references Application, Infrastructure, module Infrastructure projects, and Platform.
 
 A module-boundary ratchet test also discovers any `src/Modules/*` project and proves no module
-references another module or a legacy layer (it passes trivially until the first module is carved).
+references another module or a legacy layer.
 
 ## Modular Monolith And Platform (Milestone 32)
 
@@ -98,6 +98,14 @@ id) → publish → mark the outbox row processed — so the cross-context hando
 transaction. Because there are now two `DbContext`s, every `dotnet ef` command takes `--context` and
 the dev scripts + CI apply both contexts' migrations. Full integration-event decoupling of the
 dispatcher is scheduled for Milestone 40.
+
+Milestones 35 through 37 carve the Underwriting module in slices instead of one risky move. The module
+already owns `UnderwritingDbContext` and the `underwriting` schema. Advisory AI review moved first,
+then referral operations, then evidence request/review state. M37 also adds a module-owned outbox table
+inside `UnderwritingDbContext`; the legacy dispatcher now drains all registered `IOutboxSource`s and
+merge-orders pending messages by `CreatedAtUtc`. That lets a module evidence event and a legacy quote
+decision event flow through notifications/referral projection in causal order even while the overall
+outbox mapping remains centralized in legacy Infrastructure.
 
 ## Application Use Case Pattern
 
@@ -1025,6 +1033,16 @@ quote_evidence_request_reviews
 `Satisfied` maps to the existing accepted evidence lifecycle. `Insufficient` and `NeedsClarification` keep the request visible and respondable for the owner. They also raise `QuoteEvidenceRequestRemediationRequiredDomainEvent`, which the local outbox dispatcher maps to an `evidence_request.remediation_required` notification for the customer/broker owner. A supplemental owner response clears the current review decision back to `NotReviewed`, but prior review rows remain immutable audit evidence.
 
 The remediation notification is action-oriented but still safe for a local audit trail. It carries workflow identifiers, category, decision, review reason, remediation guidance, requested-by user id, reviewed-by user id, due date, and `actionRequired=true`. It does not carry document content, storage keys, raw file bytes, production delivery details, notification preferences, or messaging-thread data.
+
+Milestone 37 moves the evidence **request and review** ownership into the Underwriting module. The same
+HTTP workflows remain, but the request/review aggregates, request/review tables, and evidence domain
+events now live in the `underwriting` schema. Legacy document-coupled handlers still own document
+storage and scanning for this milestone; they fetch request facts through `IEvidenceRequestsReader`,
+store/scan documents in the legacy document table, then update module request/review state through
+`IEvidenceRequestWriter`. This keeps document bytes and scan metadata stable while the request/review
+state moves first. The legacy `quote_evidence_requests` and `quote_evidence_request_reviews` tables
+are dropped; `quote_evidence_documents.evidence_request_id` remains as a scalar correlation id until
+the document aggregate moves in Milestone 38.
 
 This keeps the workflow realistic for cyber underwriting while still deferring production S3 provisioning, AWS GuardDuty/EventBridge wiring, durable download audit, OCR, embeddings, RAG, notification inboxes, scheduled reminder automation, autonomous AI document review, legal hold, policy binding, final quote approval automation, multi-reviewer approval chains, and a full malware analyst console to separate milestones.
 

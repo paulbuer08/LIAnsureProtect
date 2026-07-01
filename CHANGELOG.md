@@ -8,6 +8,11 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 37 - Underwriting Evidence (third slice of the Underwriting carve).
+- Module-owned Underwriting outbox table (`underwriting.outbox_messages`) plus source-agnostic dispatcher plumbing (`IOutboxSource`/`IOutboxMessageView`) that merge-orders pending messages by `CreatedAtUtc` across legacy and module outboxes.
+- `QuoteEvidenceRequest`, `QuoteEvidenceRequestReview`, evidence request/review enums, and evidence lifecycle domain events moved into `Modules/Underwriting/...Domain/Evidence`; module Application/Infrastructure now own evidence request commands, readers, repositories, and the primitive `IEvidenceRequestWriter` seam used by legacy document handlers.
+- `CreateUnderwritingOutbox`, `CreateEvidenceRequests`, `DropEvidenceDocumentRequestForeignKey`, and `DropEvidenceRequests` migrations, moving request/review state into the `underwriting` schema while leaving evidence documents in legacy for the next carve.
+- Milestone 37 design spec and learning notes.
 - Milestone 36 - Underwriting Referral Operations (second slice of the Underwriting carve).
 - `QuoteReferralOperation` (+ work notes, follow-up tasks, timeline, and the `ReferralOperationStatus`/`ReferralPriority`/`ReferralTimelineEntryType` enums) moved into `Modules/Underwriting/...Domain/Referrals`; its four tables + a `referral_operation_projected_messages` dedupe table joined `UnderwritingDbContext` in the `underwriting` schema (no fourth context; scripts/guard/CI unchanged).
 - Event-driven hand-offs: the outbox dispatcher now also fans out to a new module `IReferralOperationProjector` (idempotent on the source outbox-message id; create-if-missing self-heal via `IUnderwritingQuoteContextReader.GetForReferralOperationAsync`), reacting to existing `QuoteGenerated`(Referred)→create, `QuoteUnderwritingDecisionRecorded`→close, and the six `QuoteEvidenceRequest*`→timeline/status events. The underwriter's own actions moved into the module as synchronous MediatR commands (`ManageReferralOperations`).
@@ -18,6 +23,9 @@ The format follows simple milestone-based entries.
 
 ### Changed
 
+- Evidence create/cancel/follow-up and request/review reads now use module commands/readers; document-coupled respond/replacement/accept/review/download handlers stay legacy but fetch module request snapshots before document storage and call `IEvidenceRequestWriter` after storage/scan gates.
+- Evidence notifications and referral-operation projection now deserialize module evidence events from either outbox source; dispatcher integration tests cover module evidence events ordered before legacy quote decision events.
+- Legacy `quote_evidence_requests` and `quote_evidence_request_reviews` are deleted from `SubmissionDbContext`; `quote_evidence_documents.evidence_request_id` is now a scalar correlation id until document metadata moves in Milestone 38.
 - Removed the referral-operation methods (`AddReferralOperationAsync`, `ListReferralOperationsAsync`, `GetReferralOperationForUpdateAsync`) from `IQuoteRepository`/`EfCoreQuoteRepository`; deleted the legacy `QuoteReferralOperation` aggregate, child entities, enums, and EF configs from the legacy `Quotes` context.
 - Create/close/evidence projection of the referral operation are now **eventually consistent** (the legacy synchronous writes were removed; the module projector applies them after the Worker dispatches). Integration tests pump the outbox dispatcher (`PumpOutboxAsync`) — no assertions weakened.
 - Evidence-create decoupled from the referral operation: the cross-schema `quote_evidence_requests` → `quote_referral_operations` FK is dropped (reference by id only); the `quote_referral_operation_id` column is retained (vestigial, correlated by quote id) and is removed when evidence carves in M37.
