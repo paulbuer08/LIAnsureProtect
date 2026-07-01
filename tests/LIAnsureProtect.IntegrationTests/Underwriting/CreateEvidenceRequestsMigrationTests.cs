@@ -39,6 +39,18 @@ public sealed class CreateEvidenceRequestsMigrationTests
         Assert.Contains("ix_quote_evidence_request_reviews_quote_reviewed_at_utc", script);
         Assert.Contains("REFERENCES underwriting.quote_evidence_requests", script);
 
+        Assert.Contains("CREATE TABLE underwriting.quote_evidence_documents", script);
+        Assert.Contains("ix_quote_evidence_documents_request_uploaded_at_utc", script);
+        Assert.Contains("ix_quote_evidence_documents_owner_request", script);
+        Assert.Contains("ux_quote_evidence_documents_storage_key", script);
+        Assert.Contains("scan_status", script);
+        Assert.Contains("scanner_provider_name", script);
+        Assert.Contains("scan_result_code", script);
+        Assert.Contains("scan_result_reason", script);
+        Assert.Contains("scanned_at_utc", script);
+        Assert.Contains("sha256", script);
+        Assert.Contains("ix_quote_evidence_documents_scan_status_uploaded_at_utc", script);
+
         Assert.DoesNotContain("REFERENCES public.quotes", script);
         Assert.DoesNotContain("REFERENCES public.submissions", script);
         Assert.DoesNotContain("REFERENCES quotes", script);

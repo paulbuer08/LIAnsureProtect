@@ -4,7 +4,6 @@ using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
-using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 using Microsoft.EntityFrameworkCore;
 
 namespace LIAnsureProtect.Infrastructure.Persistence;
@@ -18,8 +17,6 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
     public DbSet<QuoteRatingProviderAttempt> QuoteRatingProviderAttempts => Set<QuoteRatingProviderAttempt>();
 
     public DbSet<QuoteUnderwritingReview> QuoteUnderwritingReviews => Set<QuoteUnderwritingReview>();
-
-    public DbSet<QuoteEvidenceDocument> QuoteEvidenceDocuments => Set<QuoteEvidenceDocument>();
 
     public DbSet<Policy> Policies => Set<Policy>();
 

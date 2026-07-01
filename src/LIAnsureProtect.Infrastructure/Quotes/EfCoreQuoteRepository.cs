@@ -24,7 +24,7 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         IReadOnlyCollection<QuoteEvidenceDocument> evidenceDocuments,
         CancellationToken cancellationToken)
     {
-        await dbContext.QuoteEvidenceDocuments.AddRangeAsync(evidenceDocuments, cancellationToken);
+        await dbContext.Set<QuoteEvidenceDocument>().AddRangeAsync(evidenceDocuments, cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken)
@@ -43,7 +43,7 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         if (evidenceRequestIds.Count == 0)
             return [];
 
-        return await dbContext.QuoteEvidenceDocuments
+        return await dbContext.Set<QuoteEvidenceDocument>()
             .AsNoTracking()
             .Where(document => evidenceRequestIds.Contains(document.EvidenceRequestId))
             .OrderBy(document => document.UploadedAtUtc)
@@ -56,7 +56,7 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         string ownerUserId,
         CancellationToken cancellationToken)
     {
-        return await dbContext.QuoteEvidenceDocuments
+        return await dbContext.Set<QuoteEvidenceDocument>()
             .AsNoTracking()
             .SingleOrDefaultAsync(
                 document => document.Id == documentId
@@ -71,7 +71,7 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         Guid documentId,
         CancellationToken cancellationToken)
     {
-        return await dbContext.QuoteEvidenceDocuments
+        return await dbContext.Set<QuoteEvidenceDocument>()
             .AsNoTracking()
             .SingleOrDefaultAsync(
                 document => document.Id == documentId
