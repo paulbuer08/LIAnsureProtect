@@ -7,6 +7,7 @@ using LIAnsureProtect.Modules.Notifications.Domain;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Underwriting.Application;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
+using LIAnsureProtect.Platform.Abstractions.Outbox;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Moq;
@@ -450,6 +451,109 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Single(entries);
     }
 
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Drains_Both_Sources()
+    {
+        using var secondaryConnection = new SqliteConnection("DataSource=:memory:");
+        secondaryConnection.Open();
+        using var secondaryDbContext = new SubmissionDbContext(
+            new DbContextOptionsBuilder<SubmissionDbContext>().UseSqlite(secondaryConnection).Options);
+        secondaryDbContext.Database.EnsureCreated();
+
+        var firstEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("936b174c-1394-46a7-8063-1103a6ac9bf4"),
+            Guid.Parse("b9e152bc-3589-4c5a-b8af-83cc112609e8"),
+            "customer-1",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 6, 21, 5, 0, 0, DateTimeKind.Utc));
+        var firstMessage = OutboxMessage.FromDomainEvent(
+            firstEvent,
+            new DateTime(2026, 6, 21, 5, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(firstMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var secondEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("a6cf84c9-a544-43e7-9f7d-7657861ee4e3"),
+            Guid.Parse("bbfe1508-c030-4a91-b6f0-748187dd083d"),
+            "customer-2",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 6, 21, 5, 1, 0, DateTimeKind.Utc));
+        var secondMessage = OutboxMessage.FromDomainEvent(
+            secondEvent,
+            new DateTime(2026, 6, 21, 5, 1, 5, DateTimeKind.Utc));
+        await secondaryDbContext.OutboxMessages.AddAsync(secondMessage, TestContext.Current.CancellationToken);
+        await secondaryDbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = CreateDispatcher(
+            publisher,
+            new SubmissionOutboxSource(dbContext),
+            new SubmissionOutboxSource(secondaryDbContext));
+
+        var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        secondaryDbContext.ChangeTracker.Clear();
+        var savedFirst = await dbContext.OutboxMessages.SingleAsync(
+            message => message.Id == firstMessage.Id,
+            TestContext.Current.CancellationToken);
+        var savedSecond = await secondaryDbContext.OutboxMessages.SingleAsync(
+            message => message.Id == secondMessage.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, processedCount);
+        Assert.Equal(2, publisher.PublishedMessages.Count);
+        Assert.NotNull(savedFirst.ProcessedAtUtc);
+        Assert.NotNull(savedSecond.ProcessedAtUtc);
+    }
+
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Processes_Messages_In_CreatedAtUtc_Order_Across_Sources()
+    {
+        using var secondaryConnection = new SqliteConnection("DataSource=:memory:");
+        secondaryConnection.Open();
+        using var secondaryDbContext = new SubmissionDbContext(
+            new DbContextOptionsBuilder<SubmissionDbContext>().UseSqlite(secondaryConnection).Options);
+        secondaryDbContext.Database.EnsureCreated();
+
+        var laterEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("6598dcbb-2953-44eb-96f2-84ca3598ca75"),
+            Guid.Parse("dd3f4cfb-1f78-460f-b709-a120266cd9c3"),
+            "customer-later",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 6, 21, 5, 2, 0, DateTimeKind.Utc));
+        var laterMessage = OutboxMessage.FromDomainEvent(
+            laterEvent,
+            new DateTime(2026, 6, 21, 5, 2, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(laterMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var earlierEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("f8bc3602-f5ea-4f1a-a063-2ee5f5f8b545"),
+            Guid.Parse("403974b5-76ab-458d-85f7-cb4ef31f2751"),
+            "customer-earlier",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 6, 21, 5, 1, 0, DateTimeKind.Utc));
+        var earlierMessage = OutboxMessage.FromDomainEvent(
+            earlierEvent,
+            new DateTime(2026, 6, 21, 5, 1, 5, DateTimeKind.Utc));
+        await secondaryDbContext.OutboxMessages.AddAsync(earlierMessage, TestContext.Current.CancellationToken);
+        await secondaryDbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = CreateDispatcher(
+            publisher,
+            new SubmissionOutboxSource(dbContext),
+            new SubmissionOutboxSource(secondaryDbContext));
+
+        await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        Assert.Collection(
+            publisher.PublishedMessages,
+            message => Assert.Equal(earlierMessage.Id, message.OutboxMessageId),
+            message => Assert.Equal(laterMessage.Id, message.OutboxMessageId));
+    }
+
     public void Dispose()
     {
         dbContext.Dispose();
@@ -462,8 +566,15 @@ public sealed class OutboxDispatcherTests : IDisposable
 
     private OutboxDispatcher CreateDispatcher(INotificationPublisher publisher)
     {
+        return CreateDispatcher(publisher, new SubmissionOutboxSource(dbContext));
+    }
+
+    private OutboxDispatcher CreateDispatcher(
+        INotificationPublisher publisher,
+        params IOutboxSource[] sources)
+    {
         return new OutboxDispatcher(
-            [new SubmissionOutboxSource(dbContext)],
+            sources,
             projector,
             publisher,
             referralProjector);
