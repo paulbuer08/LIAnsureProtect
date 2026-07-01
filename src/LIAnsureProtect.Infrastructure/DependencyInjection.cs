@@ -1,6 +1,5 @@
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
-using LIAnsureProtect.Application.Documents;
 using LIAnsureProtect.Application.Policies;
 using LIAnsureProtect.Application.Policies.Binding;
 using LIAnsureProtect.Application.Quotes;
@@ -65,7 +64,6 @@ public static class DependencyInjection
             default:
                 throw new NotSupportedException($"Unsupported Platform:Profile '{profile}'.");
         }
-        services.AddScoped<IEvidenceDocumentScanner, LocalDeterministicEvidenceDocumentScanner>();
         services.AddScoped<IPolicyBindingProviderClient, SimulatedPolicyBindingProviderClient>();
         // Quoting-side adapter for the Underwriting module's cross-context quote-read port.
         services.AddScoped<IUnderwritingQuoteContextReader, QuoteUnderwritingContextReader>();

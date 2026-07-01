@@ -1,7 +1,6 @@
 using LIAnsureProtect.Application;
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
-using LIAnsureProtect.Application.Documents;
 using LIAnsureProtect.Application.Policies;
 using LIAnsureProtect.Application.Policies.Binding;
 using LIAnsureProtect.Application.Quotes;
@@ -16,6 +15,7 @@ using LIAnsureProtect.Modules.Notifications.Infrastructure;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Underwriting.Application;
 using LIAnsureProtect.Modules.Underwriting.Application.Ai;
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 using LIAnsureProtect.Platform.Abstractions.Documents;

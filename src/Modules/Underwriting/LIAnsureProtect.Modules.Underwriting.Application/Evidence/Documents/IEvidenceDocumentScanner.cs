@@ -1,6 +1,4 @@
-using LIAnsureProtect.Domain.Quotes;
-
-namespace LIAnsureProtect.Application.Documents;
+namespace LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
 
 public interface IEvidenceDocumentScanner
 {
@@ -22,3 +20,11 @@ public sealed record EvidenceDocumentScanResult(
     string ScanResultReason,
     string Sha256,
     DateTime ScannedAtUtc);
+
+public enum EvidenceDocumentScanStatus
+{
+    PendingScan = 0,
+    Clean = 1,
+    Rejected = 2,
+    Failed = 3
+}
