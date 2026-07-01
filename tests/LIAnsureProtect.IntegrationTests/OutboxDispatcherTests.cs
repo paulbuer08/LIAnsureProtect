@@ -7,6 +7,14 @@ using LIAnsureProtect.Modules.Notifications.Domain;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Underwriting.Application;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
+using LIAnsureProtect.Platform.Abstractions.Outbox;
+using ModuleEvidenceRequestCategory = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceRequestCategory;
+using ModuleEvidenceReviewDecisionStatus = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceReviewDecisionStatus;
+using ModuleOutboxMessage = LIAnsureProtect.Platform.Outbox.ModuleOutboxMessage;
+using ModuleQuoteEvidenceRequestCreatedDomainEvent = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequestCreatedDomainEvent;
+using ModuleQuoteEvidenceRequestFollowUpSentDomainEvent = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequestFollowUpSentDomainEvent;
+using ModuleQuoteEvidenceRequestRemediationRequiredDomainEvent = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequestRemediationRequiredDomainEvent;
+using ModuleQuoteEvidenceRequestRespondedDomainEvent = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequestRespondedDomainEvent;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Moq;
@@ -75,7 +83,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -105,7 +113,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -147,7 +155,7 @@ public sealed class OutboxDispatcherTests : IDisposable
 
         var publisher = new RecordingNotificationPublisher(
             NotificationPublishResult.TransientFailure("local notification provider is unavailable"));
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -183,7 +191,7 @@ public sealed class OutboxDispatcherTests : IDisposable
 
         var publisher = new RecordingNotificationPublisher(
             NotificationPublishResult.PermanentFailure("notification payload is not accepted by provider"));
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -207,13 +215,13 @@ public sealed class OutboxDispatcherTests : IDisposable
     [Fact]
     public async Task DispatchPendingMessagesAsync_Publishes_Evidence_Request_Created_Notification_To_Owner()
     {
-        var domainEvent = new QuoteEvidenceRequestCreatedDomainEvent(
+        var domainEvent = new ModuleQuoteEvidenceRequestCreatedDomainEvent(
             Guid.Parse("c3d23aa4-c01f-4ff4-851c-bd4c26ce1635"),
             Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
             Guid.Parse("6d3f563f-595c-4ad6-90ef-5d7d75066763"),
             "customer-1",
             "underwriter-1",
-            EvidenceRequestCategory.MultiFactorAuthentication,
+            ModuleEvidenceRequestCategory.MultiFactorAuthentication,
             new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc));
         var outboxMessage = OutboxMessage.FromDomainEvent(
@@ -223,7 +231,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -240,14 +248,14 @@ public sealed class OutboxDispatcherTests : IDisposable
     [Fact]
     public async Task DispatchPendingMessagesAsync_Publishes_Evidence_Response_Notification_To_Underwriting()
     {
-        var domainEvent = new QuoteEvidenceRequestRespondedDomainEvent(
+        var domainEvent = new ModuleQuoteEvidenceRequestRespondedDomainEvent(
             Guid.Parse("c3d23aa4-c01f-4ff4-851c-bd4c26ce1635"),
             Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
             Guid.Parse("6d3f563f-595c-4ad6-90ef-5d7d75066763"),
             "customer-1",
             "underwriter-1",
             "customer-1",
-            EvidenceRequestCategory.MultiFactorAuthentication,
+            ModuleEvidenceRequestCategory.MultiFactorAuthentication,
             new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc));
         var outboxMessage = OutboxMessage.FromDomainEvent(
@@ -257,7 +265,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -272,14 +280,14 @@ public sealed class OutboxDispatcherTests : IDisposable
     [Fact]
     public async Task DispatchPendingMessagesAsync_Publishes_Evidence_Follow_Up_Notification_To_Owner()
     {
-        var domainEvent = new QuoteEvidenceRequestFollowUpSentDomainEvent(
+        var domainEvent = new ModuleQuoteEvidenceRequestFollowUpSentDomainEvent(
             Guid.Parse("c3d23aa4-c01f-4ff4-851c-bd4c26ce1635"),
             Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
             Guid.Parse("6d3f563f-595c-4ad6-90ef-5d7d75066763"),
             "customer-1",
             "underwriter-1",
             "underwriter-2",
-            EvidenceRequestCategory.MultiFactorAuthentication,
+            ModuleEvidenceRequestCategory.MultiFactorAuthentication,
             new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 6, 26, 9, 0, 0, DateTimeKind.Utc));
         var outboxMessage = OutboxMessage.FromDomainEvent(
@@ -289,7 +297,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -302,15 +310,15 @@ public sealed class OutboxDispatcherTests : IDisposable
     [Fact]
     public async Task DispatchPendingMessagesAsync_Publishes_Evidence_Remediation_Required_Notification_To_Owner()
     {
-        var domainEvent = new QuoteEvidenceRequestRemediationRequiredDomainEvent(
+        var domainEvent = new ModuleQuoteEvidenceRequestRemediationRequiredDomainEvent(
             Guid.Parse("c3d23aa4-c01f-4ff4-851c-bd4c26ce1635"),
             Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
             Guid.Parse("6d3f563f-595c-4ad6-90ef-5d7d75066763"),
             "customer-1",
             "underwriter-1",
             "underwriter-2",
-            EvidenceRequestCategory.MultiFactorAuthentication,
-            EvidenceReviewDecisionStatus.NeedsClarification,
+            ModuleEvidenceRequestCategory.MultiFactorAuthentication,
+            ModuleEvidenceReviewDecisionStatus.NeedsClarification,
             "The response does not confirm privileged account MFA scope.",
             "Please confirm whether MFA applies to all administrator and service-owner accounts.",
             new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
@@ -322,7 +330,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var publisher = new RecordingNotificationPublisher();
-        var dispatcher = new OutboxDispatcher(dbContext, projector, publisher, referralProjector);
+        var dispatcher = CreateDispatcher(publisher);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -363,7 +371,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var dispatcher = new OutboxDispatcher(dbContext, projector, new RecordingNotificationPublisher(), referralProjector);
+        var dispatcher = CreateDispatcher(new RecordingNotificationPublisher());
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
         notificationsDbContext.ChangeTracker.Clear();
@@ -380,14 +388,14 @@ public sealed class OutboxDispatcherTests : IDisposable
     [Fact]
     public async Task DispatchPendingMessagesAsync_Does_Not_Write_Inbox_Entry_For_Operations_Notification()
     {
-        var domainEvent = new QuoteEvidenceRequestRespondedDomainEvent(
+        var domainEvent = new ModuleQuoteEvidenceRequestRespondedDomainEvent(
             Guid.Parse("c3d23aa4-c01f-4ff4-851c-bd4c26ce1635"),
             Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
             Guid.Parse("6d3f563f-595c-4ad6-90ef-5d7d75066763"),
             "customer-1",
             "underwriter-1",
             "customer-1",
-            EvidenceRequestCategory.MultiFactorAuthentication,
+            ModuleEvidenceRequestCategory.MultiFactorAuthentication,
             new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc));
         var outboxMessage = OutboxMessage.FromDomainEvent(
@@ -396,7 +404,7 @@ public sealed class OutboxDispatcherTests : IDisposable
         await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var dispatcher = new OutboxDispatcher(dbContext, projector, new RecordingNotificationPublisher(), referralProjector);
+        var dispatcher = CreateDispatcher(new RecordingNotificationPublisher());
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
         notificationsDbContext.ChangeTracker.Clear();
@@ -441,13 +449,183 @@ public sealed class OutboxDispatcherTests : IDisposable
         await notificationsDbContext.NotificationInboxEntries.AddAsync(existingEntry, TestContext.Current.CancellationToken);
         await notificationsDbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var dispatcher = new OutboxDispatcher(dbContext, projector, new RecordingNotificationPublisher(), referralProjector);
+        var dispatcher = CreateDispatcher(new RecordingNotificationPublisher());
         await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
         notificationsDbContext.ChangeTracker.Clear();
         var entries = await notificationsDbContext.NotificationInboxEntries
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Single(entries);
+    }
+
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Drains_Both_Sources()
+    {
+        using var secondaryConnection = new SqliteConnection("DataSource=:memory:");
+        secondaryConnection.Open();
+        using var secondaryDbContext = new SubmissionDbContext(
+            new DbContextOptionsBuilder<SubmissionDbContext>().UseSqlite(secondaryConnection).Options);
+        secondaryDbContext.Database.EnsureCreated();
+
+        var firstEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("936b174c-1394-46a7-8063-1103a6ac9bf4"),
+            Guid.Parse("b9e152bc-3589-4c5a-b8af-83cc112609e8"),
+            "customer-1",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 6, 21, 5, 0, 0, DateTimeKind.Utc));
+        var firstMessage = OutboxMessage.FromDomainEvent(
+            firstEvent,
+            new DateTime(2026, 6, 21, 5, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(firstMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var secondEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("a6cf84c9-a544-43e7-9f7d-7657861ee4e3"),
+            Guid.Parse("bbfe1508-c030-4a91-b6f0-748187dd083d"),
+            "customer-2",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 6, 21, 5, 1, 0, DateTimeKind.Utc));
+        var secondMessage = OutboxMessage.FromDomainEvent(
+            secondEvent,
+            new DateTime(2026, 6, 21, 5, 1, 5, DateTimeKind.Utc));
+        await secondaryDbContext.OutboxMessages.AddAsync(secondMessage, TestContext.Current.CancellationToken);
+        await secondaryDbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = CreateDispatcher(
+            publisher,
+            new SubmissionOutboxSource(dbContext),
+            new SubmissionOutboxSource(secondaryDbContext));
+
+        var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        secondaryDbContext.ChangeTracker.Clear();
+        var savedFirst = await dbContext.OutboxMessages.SingleAsync(
+            message => message.Id == firstMessage.Id,
+            TestContext.Current.CancellationToken);
+        var savedSecond = await secondaryDbContext.OutboxMessages.SingleAsync(
+            message => message.Id == secondMessage.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, processedCount);
+        Assert.Equal(2, publisher.PublishedMessages.Count);
+        Assert.NotNull(savedFirst.ProcessedAtUtc);
+        Assert.NotNull(savedSecond.ProcessedAtUtc);
+    }
+
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Processes_Messages_In_CreatedAtUtc_Order_Across_Sources()
+    {
+        using var secondaryConnection = new SqliteConnection("DataSource=:memory:");
+        secondaryConnection.Open();
+        using var secondaryDbContext = new SubmissionDbContext(
+            new DbContextOptionsBuilder<SubmissionDbContext>().UseSqlite(secondaryConnection).Options);
+        secondaryDbContext.Database.EnsureCreated();
+
+        var laterEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("6598dcbb-2953-44eb-96f2-84ca3598ca75"),
+            Guid.Parse("dd3f4cfb-1f78-460f-b709-a120266cd9c3"),
+            "customer-later",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 6, 21, 5, 2, 0, DateTimeKind.Utc));
+        var laterMessage = OutboxMessage.FromDomainEvent(
+            laterEvent,
+            new DateTime(2026, 6, 21, 5, 2, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(laterMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var earlierEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("f8bc3602-f5ea-4f1a-a063-2ee5f5f8b545"),
+            Guid.Parse("403974b5-76ab-458d-85f7-cb4ef31f2751"),
+            "customer-earlier",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 6, 21, 5, 1, 0, DateTimeKind.Utc));
+        var earlierMessage = OutboxMessage.FromDomainEvent(
+            earlierEvent,
+            new DateTime(2026, 6, 21, 5, 1, 5, DateTimeKind.Utc));
+        await secondaryDbContext.OutboxMessages.AddAsync(earlierMessage, TestContext.Current.CancellationToken);
+        await secondaryDbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = CreateDispatcher(
+            publisher,
+            new SubmissionOutboxSource(dbContext),
+            new SubmissionOutboxSource(secondaryDbContext));
+
+        await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        Assert.Collection(
+            publisher.PublishedMessages,
+            message => Assert.Equal(earlierMessage.Id, message.OutboxMessageId),
+            message => Assert.Equal(laterMessage.Id, message.OutboxMessageId));
+    }
+
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Processes_Module_Evidence_Before_Legacy_Decision_By_CreatedAtUtc()
+    {
+        var quoteId = Guid.Parse("833d61c3-9fa5-4e75-b9bb-a06354746265");
+        var submissionId = Guid.Parse("b0d9017d-ef32-41df-9827-4658b2465e8a");
+        var evidenceEvent = new ModuleQuoteEvidenceRequestCreatedDomainEvent(
+            Guid.Parse("272a446f-465c-499c-9a60-78f264d816d2"),
+            quoteId,
+            submissionId,
+            "customer-1",
+            "underwriter-1",
+            ModuleEvidenceRequestCategory.MultiFactorAuthentication,
+            new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc));
+        var evidenceMessage = ModuleOutboxMessage.FromDomainEvent(
+            evidenceEvent,
+            new DateTime(2026, 6, 22, 9, 0, 5, DateTimeKind.Utc));
+        await underwritingDbContext.OutboxMessages.AddAsync(evidenceMessage, TestContext.Current.CancellationToken);
+        await underwritingDbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var decisionEvent = new QuoteUnderwritingDecisionRecordedDomainEvent(
+            quoteId,
+            submissionId,
+            "customer-1",
+            "underwriter-2",
+            QuoteUnderwritingDecision.Approved,
+            new DateTime(2026, 6, 22, 9, 1, 0, DateTimeKind.Utc));
+        var decisionMessage = OutboxMessage.FromDomainEvent(
+            decisionEvent,
+            new DateTime(2026, 6, 22, 9, 1, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(decisionMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = CreateDispatcher(
+            publisher,
+            new SubmissionOutboxSource(dbContext),
+            new UnderwritingOutboxSource(underwritingDbContext));
+
+        var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        underwritingDbContext.ChangeTracker.Clear();
+        var savedEvidenceMessage = await underwritingDbContext.OutboxMessages.SingleAsync(
+            message => message.Id == evidenceMessage.Id,
+            TestContext.Current.CancellationToken);
+        var savedDecisionMessage = await dbContext.OutboxMessages.SingleAsync(
+            message => message.Id == decisionMessage.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, processedCount);
+        Assert.Collection(
+            publisher.PublishedMessages,
+            message =>
+            {
+                Assert.Equal(evidenceMessage.Id, message.OutboxMessageId);
+                Assert.Equal(NotificationMessageTypes.EvidenceRequestCreated, message.Type);
+            },
+            message =>
+            {
+                Assert.Equal(decisionMessage.Id, message.OutboxMessageId);
+                Assert.Equal(NotificationMessageTypes.QuoteUnderwritingDecisionRecorded, message.Type);
+            });
+        Assert.NotNull(savedEvidenceMessage.ProcessedAtUtc);
+        Assert.NotNull(savedDecisionMessage.ProcessedAtUtc);
     }
 
     public void Dispose()
@@ -458,6 +636,22 @@ public sealed class OutboxDispatcherTests : IDisposable
         submissionConnection.Dispose();
         notificationsConnection.Dispose();
         underwritingConnection.Dispose();
+    }
+
+    private OutboxDispatcher CreateDispatcher(INotificationPublisher publisher)
+    {
+        return CreateDispatcher(publisher, new SubmissionOutboxSource(dbContext));
+    }
+
+    private OutboxDispatcher CreateDispatcher(
+        INotificationPublisher publisher,
+        params IOutboxSource[] sources)
+    {
+        return new OutboxDispatcher(
+            sources,
+            projector,
+            publisher,
+            referralProjector);
     }
 
     private sealed class RecordingNotificationPublisher(

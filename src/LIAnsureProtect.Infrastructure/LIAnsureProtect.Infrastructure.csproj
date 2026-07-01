@@ -25,6 +25,8 @@
     <ProjectReference Include="..\Modules\Notifications\LIAnsureProtect.Modules.Notifications.Application\LIAnsureProtect.Modules.Notifications.Application.csproj" />
     <!-- Provider seam: the Quoting side implements the Underwriting module's quote-read port. -->
     <ProjectReference Include="..\Modules\Underwriting\LIAnsureProtect.Modules.Underwriting.Application\LIAnsureProtect.Modules.Underwriting.Application.csproj" />
+    <!-- Transitional dispatcher seam: centralized mappers deserialize module-owned evidence events in M37. -->
+    <ProjectReference Include="..\Modules\Underwriting\LIAnsureProtect.Modules.Underwriting.Domain\LIAnsureProtect.Modules.Underwriting.Domain.csproj" />
   </ItemGroup>
 
 </Project>

@@ -3,6 +3,7 @@ using System;
 using LIAnsureProtect.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SubmissionDbContext))]
-    partial class SubmissionDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260701101037_DropEvidenceDocumentRequestForeignKey")]
+    partial class DropEvidenceDocumentRequestForeignKey
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -403,6 +406,251 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                     b.ToTable("quote_evidence_documents", (string)null);
                 });
 
+            modelBuilder.Entity("LIAnsureProtect.Domain.Quotes.QuoteEvidenceRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AcceptedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at_utc");
+
+                    b.Property<string>("AcceptedByUserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("accepted_by_user_id");
+
+                    b.Property<string>("AttachmentContentType")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("attachment_content_type");
+
+                    b.Property<string>("AttachmentFileName")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("attachment_file_name");
+
+                    b.Property<long?>("AttachmentSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("attachment_size_bytes");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at_utc");
+
+                    b.Property<string>("CancelledByUserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("cancelled_by_user_id");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("category");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<DateTime>("DueAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_at_utc");
+
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<Guid>("QuoteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("quote_id");
+
+                    b.Property<Guid>("QuoteReferralOperationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("quote_referral_operation_id");
+
+                    b.Property<string>("RemediationGuidance")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("remediation_guidance");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.Property<string>("RequestedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<DateTime?>("RespondedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("responded_at_utc");
+
+                    b.Property<string>("RespondedByUserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("responded_by_user_id");
+
+                    b.Property<string>("RespondentName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("respondent_name");
+
+                    b.Property<string>("RespondentTitle")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("respondent_title");
+
+                    b.Property<string>("ResponseText")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("response_text");
+
+                    b.Property<string>("ReviewDecision")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("NotReviewed")
+                        .HasColumnName("review_decision");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("review_notes");
+
+                    b.Property<string>("ReviewReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("review_reason");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at_utc");
+
+                    b.Property<string>("ReviewedByUserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("reviewed_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submission_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubmissionId");
+
+                    b.HasIndex("OwnerUserId", "Status", "DueAtUtc")
+                        .HasDatabaseName("ix_quote_evidence_requests_owner_status_due_at_utc");
+
+                    b.HasIndex("QuoteId", "Status", "UpdatedAtUtc")
+                        .HasDatabaseName("ix_quote_evidence_requests_quote_status_updated_at_utc");
+
+                    b.ToTable("quote_evidence_requests", (string)null);
+                });
+
+            modelBuilder.Entity("LIAnsureProtect.Domain.Quotes.QuoteEvidenceRequestReview", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("category");
+
+                    b.Property<int>("CleanDocumentCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("clean_document_count");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("decision");
+
+                    b.Property<int>("DocumentCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("document_count");
+
+                    b.Property<Guid>("EvidenceRequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evidence_request_id");
+
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<Guid>("QuoteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("quote_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("RemediationGuidance")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("remediation_guidance");
+
+                    b.Property<DateTime>("ReviewedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at_utc");
+
+                    b.Property<string>("ReviewedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("reviewed_by_user_id");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submission_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubmissionId");
+
+                    b.HasIndex("EvidenceRequestId", "ReviewedAtUtc")
+                        .HasDatabaseName("ix_quote_evidence_request_reviews_request_reviewed_at_utc");
+
+                    b.HasIndex("QuoteId", "ReviewedAtUtc")
+                        .HasDatabaseName("ix_quote_evidence_request_reviews_quote_reviewed_at_utc");
+
+                    b.ToTable("quote_evidence_request_reviews", (string)null);
+                });
+
             modelBuilder.Entity("LIAnsureProtect.Domain.Quotes.QuoteRatingProviderAttempt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -785,6 +1033,42 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("LIAnsureProtect.Domain.Quotes.QuoteEvidenceDocument", b =>
                 {
+                    b.HasOne("LIAnsureProtect.Domain.Quotes.Quote", null)
+                        .WithMany()
+                        .HasForeignKey("QuoteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LIAnsureProtect.Domain.Submissions.Submission", null)
+                        .WithMany()
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LIAnsureProtect.Domain.Quotes.QuoteEvidenceRequest", b =>
+                {
+                    b.HasOne("LIAnsureProtect.Domain.Quotes.Quote", null)
+                        .WithMany()
+                        .HasForeignKey("QuoteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LIAnsureProtect.Domain.Submissions.Submission", null)
+                        .WithMany()
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LIAnsureProtect.Domain.Quotes.QuoteEvidenceRequestReview", b =>
+                {
+                    b.HasOne("LIAnsureProtect.Domain.Quotes.QuoteEvidenceRequest", null)
+                        .WithMany()
+                        .HasForeignKey("EvidenceRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("LIAnsureProtect.Domain.Quotes.Quote", null)
                         .WithMany()
                         .HasForeignKey("QuoteId")

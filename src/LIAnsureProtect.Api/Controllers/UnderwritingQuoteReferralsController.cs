@@ -2,8 +2,8 @@ using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Application.Quotes.Commands.ManageQuoteEvidenceRequests;
 using LIAnsureProtect.Application.Quotes.Commands.UnderwriteQuoteReferral;
 using LIAnsureProtect.Application.Quotes.Queries.ListQuoteReferrals;
-using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Modules.Underwriting.Application.Commands.GenerateAiUnderwritingReview;
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Commands.ManageEvidenceRequests;
 using LIAnsureProtect.Modules.Underwriting.Application.Referrals.Commands.ManageReferralOperations;
 using LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 using MediatR;
@@ -12,6 +12,9 @@ using Microsoft.AspNetCore.Mvc;
 using ApplicationValidationException = LIAnsureProtect.Application.Common.Exceptions.ValidationException;
 using GetQuoteReferralTimelineQuery = LIAnsureProtect.Application.Quotes.Commands.ManageQuoteReferralOperations.GetQuoteReferralTimelineQuery;
 using QuoteReferralTimelineResult = LIAnsureProtect.Application.Quotes.Commands.ManageQuoteReferralOperations.QuoteReferralTimelineResult;
+using EvidenceRequestCategory = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceRequestCategory;
+using EvidenceReviewDecisionStatus = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceReviewDecisionStatus;
+using ModuleQuoteEvidenceRequestResult = LIAnsureProtect.Modules.Underwriting.Application.Evidence.QuoteEvidenceRequestResult;
 using ReferralOperationStatus = LIAnsureProtect.Modules.Underwriting.Domain.Referrals.ReferralOperationStatus;
 using ReferralPriority = LIAnsureProtect.Modules.Underwriting.Domain.Referrals.ReferralPriority;
 
@@ -39,8 +42,8 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status201Created)]
-    public async Task<ActionResult<QuoteEvidenceRequestResult>> CreateEvidenceRequest(
+    [ProducesResponseType<ModuleQuoteEvidenceRequestResult>(StatusCodes.Status201Created)]
+    public async Task<ActionResult<ModuleQuoteEvidenceRequestResult>> CreateEvidenceRequest(
         Guid quoteId,
         CreateQuoteEvidenceRequestRequest request,
         CancellationToken cancellationToken)
@@ -113,7 +116,7 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
             new RecordQuoteEvidenceReviewDecisionCommand(
                 quoteId,
                 evidenceRequestId,
-                decision,
+                decision.ToString(),
                 request.Reason,
                 request.RemediationGuidance),
             cancellationToken);
@@ -124,14 +127,14 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<QuoteEvidenceRequestResult>> CancelEvidenceRequest(
+    [ProducesResponseType<ModuleQuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleQuoteEvidenceRequestResult>> CancelEvidenceRequest(
         Guid quoteId,
         Guid evidenceRequestId,
         ReviewQuoteEvidenceRequestRequest request,
         CancellationToken cancellationToken)
     {
-        return await ExecuteEvidenceReviewAsync(
+        return await ExecuteEvidenceRequestAsync(
             new CancelQuoteEvidenceRequestCommand(quoteId, evidenceRequestId, request.ReviewNotes),
             cancellationToken);
     }
@@ -141,13 +144,13 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<QuoteEvidenceRequestResult>> FollowUpEvidenceRequest(
+    [ProducesResponseType<ModuleQuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleQuoteEvidenceRequestResult>> FollowUpEvidenceRequest(
         Guid quoteId,
         Guid evidenceRequestId,
         CancellationToken cancellationToken)
     {
-        return await ExecuteEvidenceReviewAsync(
+        return await ExecuteEvidenceRequestAsync(
             new FollowUpQuoteEvidenceRequestCommand(quoteId, evidenceRequestId),
             cancellationToken);
     }
@@ -509,6 +512,34 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
             return Conflict(CreateProblemDetails(
                 StatusCodes.Status409Conflict,
                 "Evidence request cannot be reviewed.",
+                exception.Message));
+        }
+    }
+
+    private async Task<ActionResult<ModuleQuoteEvidenceRequestResult>> ExecuteEvidenceRequestAsync(
+        IRequest<ModuleQuoteEvidenceRequestResult?> command,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(command, cancellationToken);
+
+            return result is null
+                ? NotFound()
+                : Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Evidence request is invalid.",
+                exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Evidence request cannot be updated.",
                 exception.Message));
         }
     }

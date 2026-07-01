@@ -1,6 +1,6 @@
-using LIAnsureProtect.Domain.Quotes;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
 
-namespace LIAnsureProtect.UnitTests.Quotes;
+namespace LIAnsureProtect.UnitTests.Modules.Underwriting.Evidence;
 
 public sealed class QuoteEvidenceRequestTests
 {
@@ -13,7 +13,6 @@ public sealed class QuoteEvidenceRequestTests
         var request = QuoteEvidenceRequest.Create(
             quoteId: Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
             submissionId: Guid.Parse("6d3f563f-595c-4ad6-90ef-5d7d75066763"),
-            quoteReferralOperationId: Guid.Parse("51de5b32-a53d-4bba-998d-3289ba18db0a"),
             ownerUserId: "customer-1",
             requestedByUserId: "underwriter-1",
             category: EvidenceRequestCategory.MultiFactorAuthentication,
@@ -325,7 +324,6 @@ public sealed class QuoteEvidenceRequestTests
         return QuoteEvidenceRequest.Create(
             Guid.Parse("8cfa936a-37a9-4048-8fb9-16a71fc5776b"),
             Guid.Parse("6d3f563f-595c-4ad6-90ef-5d7d75066763"),
-            Guid.Parse("51de5b32-a53d-4bba-998d-3289ba18db0a"),
             "customer-1",
             "underwriter-1",
             EvidenceRequestCategory.MultiFactorAuthentication,

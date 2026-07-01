@@ -2,11 +2,14 @@ using System.Text.Json;
 using LIAnsureProtect.Platform.Abstractions.DomainEvents;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
 
-namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
+namespace LIAnsureProtect.Platform.Outbox;
 
-public sealed class OutboxMessage : IOutboxMessageView
+/// <summary>
+/// Reusable transactional-outbox row for module contexts.
+/// </summary>
+public sealed class ModuleOutboxMessage : IOutboxMessageView
 {
-    private OutboxMessage(
+    private ModuleOutboxMessage(
         Guid id,
         string type,
         string payload,
@@ -20,7 +23,7 @@ public sealed class OutboxMessage : IOutboxMessageView
         CreatedAtUtc = createdAtUtc;
     }
 
-    private OutboxMessage()
+    private ModuleOutboxMessage()
     {
         Type = string.Empty;
         Payload = string.Empty;
@@ -85,13 +88,13 @@ public sealed class OutboxMessage : IOutboxMessageView
         Error = failureReason.Trim();
     }
 
-    public static OutboxMessage FromDomainEvent(
+    public static ModuleOutboxMessage FromDomainEvent(
         IDomainEvent domainEvent,
         DateTime createdAtUtc)
     {
         var eventType = domainEvent.GetType();
 
-        return new OutboxMessage(
+        return new ModuleOutboxMessage(
             Guid.NewGuid(),
             eventType.Name,
             JsonSerializer.Serialize(domainEvent, eventType),

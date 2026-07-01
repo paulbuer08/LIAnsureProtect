@@ -113,11 +113,6 @@ public sealed class QuoteEvidenceDocumentConfiguration : IEntityTypeConfiguratio
             .IsUnique()
             .HasDatabaseName("ux_quote_evidence_documents_storage_key");
 
-        builder.HasOne<QuoteEvidenceRequest>()
-            .WithMany()
-            .HasForeignKey(document => document.EvidenceRequestId)
-            .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasOne<Quote>()
             .WithMany()
             .HasForeignKey(document => document.QuoteId)

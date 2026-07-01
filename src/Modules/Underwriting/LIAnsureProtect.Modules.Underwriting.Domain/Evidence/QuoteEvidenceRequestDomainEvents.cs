@@ -1,6 +1,6 @@
 using LIAnsureProtect.Platform.Abstractions.DomainEvents;
 
-namespace LIAnsureProtect.Domain.Quotes;
+namespace LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
 
 public sealed record QuoteEvidenceRequestCreatedDomainEvent(
     Guid EvidenceRequestId,

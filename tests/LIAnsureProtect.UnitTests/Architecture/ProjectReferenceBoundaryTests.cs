@@ -27,6 +27,7 @@ public sealed class ProjectReferenceBoundaryTests
         "LIAnsureProtect.Domain",
         "LIAnsureProtect.Modules.Notifications.Application",
         "LIAnsureProtect.Modules.Underwriting.Application",
+        "LIAnsureProtect.Modules.Underwriting.Domain",
         "LIAnsureProtect.Platform.Abstractions")]
     [InlineData(
         "src/LIAnsureProtect.Api/LIAnsureProtect.Api.csproj",

@@ -1,9 +1,8 @@
-using LIAnsureProtect.Domain.Quotes;
-using LIAnsureProtect.Domain.Submissions;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace LIAnsureProtect.Infrastructure.Persistence.Configurations;
+namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 
 public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration<QuoteEvidenceRequest>
 {
@@ -25,10 +24,6 @@ public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration
 
         builder.Property(request => request.SubmissionId)
             .HasColumnName("submission_id")
-            .IsRequired();
-
-        builder.Property(request => request.QuoteReferralOperationId)
-            .HasColumnName("quote_referral_operation_id")
             .IsRequired();
 
         builder.Property(request => request.OwnerUserId)
@@ -160,19 +155,5 @@ public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration
                 request.UpdatedAtUtc
             })
             .HasDatabaseName("ix_quote_evidence_requests_quote_status_updated_at_utc");
-
-        builder.HasOne<Quote>()
-            .WithMany()
-            .HasForeignKey(request => request.QuoteId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        // QuoteReferralOperationId is a plain correlation column — the FK to QuoteReferralOperation was
-        // dropped in M36 because the referral aggregate now lives in the Underwriting module's own context
-        // and the column is removed in M37 when evidence carves into the module.
-
-        builder.HasOne<Submission>()
-            .WithMany()
-            .HasForeignKey(request => request.SubmissionId)
-            .OnDelete(DeleteBehavior.Restrict);
     }
 }

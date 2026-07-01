@@ -1,4 +1,4 @@
-namespace LIAnsureProtect.Domain.Quotes;
+namespace LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
 
 public sealed class QuoteEvidenceRequestReview
 {

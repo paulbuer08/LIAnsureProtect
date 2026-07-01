@@ -1,9 +1,8 @@
-using LIAnsureProtect.Domain.Quotes;
-using LIAnsureProtect.Domain.Submissions;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace LIAnsureProtect.Infrastructure.Persistence.Configurations;
+namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 
 public sealed class QuoteEvidenceRequestReviewConfiguration : IEntityTypeConfiguration<QuoteEvidenceRequestReview>
 {
@@ -89,16 +88,6 @@ public sealed class QuoteEvidenceRequestReviewConfiguration : IEntityTypeConfigu
         builder.HasOne<QuoteEvidenceRequest>()
             .WithMany()
             .HasForeignKey(review => review.EvidenceRequestId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne<Quote>()
-            .WithMany()
-            .HasForeignKey(review => review.QuoteId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne<Submission>()
-            .WithMany()
-            .HasForeignKey(review => review.SubmissionId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

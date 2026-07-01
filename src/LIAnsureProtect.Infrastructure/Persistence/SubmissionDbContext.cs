@@ -18,11 +18,7 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
 
     public DbSet<QuoteUnderwritingReview> QuoteUnderwritingReviews => Set<QuoteUnderwritingReview>();
 
-    public DbSet<QuoteEvidenceRequest> QuoteEvidenceRequests => Set<QuoteEvidenceRequest>();
-
     public DbSet<QuoteEvidenceDocument> QuoteEvidenceDocuments => Set<QuoteEvidenceDocument>();
-
-    public DbSet<QuoteEvidenceRequestReview> QuoteEvidenceRequestReviews => Set<QuoteEvidenceRequestReview>();
 
     public DbSet<Policy> Policies => Set<Policy>();
 

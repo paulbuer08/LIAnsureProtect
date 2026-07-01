@@ -1,6 +1,6 @@
 using LIAnsureProtect.Platform.Abstractions.DomainEvents;
 
-namespace LIAnsureProtect.Domain.Quotes;
+namespace LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
 
 public sealed class QuoteEvidenceRequest : IHasDomainEvents
 {
@@ -10,7 +10,6 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         Guid id,
         Guid quoteId,
         Guid submissionId,
-        Guid quoteReferralOperationId,
         string ownerUserId,
         string requestedByUserId,
         EvidenceRequestCategory category,
@@ -22,7 +21,6 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         Id = id;
         QuoteId = quoteId;
         SubmissionId = submissionId;
-        QuoteReferralOperationId = quoteReferralOperationId;
         OwnerUserId = ownerUserId;
         RequestedByUserId = requestedByUserId;
         Category = category;
@@ -44,8 +42,6 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
     public Guid QuoteId { get; private set; }
 
     public Guid SubmissionId { get; private set; }
-
-    public Guid QuoteReferralOperationId { get; private set; }
 
     public string OwnerUserId { get; private set; } = string.Empty;
 
@@ -106,7 +102,6 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
     public static QuoteEvidenceRequest Create(
         Guid quoteId,
         Guid submissionId,
-        Guid quoteReferralOperationId,
         string ownerUserId,
         string requestedByUserId,
         EvidenceRequestCategory category,
@@ -117,7 +112,6 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
     {
         ValidateGuid(quoteId, nameof(quoteId), "Quote id is required.");
         ValidateGuid(submissionId, nameof(submissionId), "Submission id is required.");
-        ValidateGuid(quoteReferralOperationId, nameof(quoteReferralOperationId), "Quote referral operation id is required.");
         var trimmedOwnerUserId = ValidateRequired(ownerUserId, nameof(ownerUserId), "Owner user id is required.");
         var trimmedRequestedByUserId = ValidateRequired(requestedByUserId, nameof(requestedByUserId), "Requested-by user id is required.");
         var trimmedTitle = ValidateRequired(title, nameof(title), "Evidence request title is required.");
@@ -130,7 +124,6 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             Guid.NewGuid(),
             quoteId,
             submissionId,
-            quoteReferralOperationId,
             trimmedOwnerUserId,
             trimmedRequestedByUserId,
             category,
@@ -164,32 +157,39 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
     {
         EnsureCanRespond();
 
-        RespondedByUserId = ValidateRequired(respondedByUserId, nameof(respondedByUserId), "Responded-by user id is required.");
-        RespondentName = ValidateRequired(respondentName, nameof(respondentName), "Respondent name is required.");
-        RespondentTitle = ValidateRequired(respondentTitle, nameof(respondentTitle), "Respondent title is required.");
-        ResponseText = ValidateRequired(responseText, nameof(responseText), "Evidence response text is required.");
+        RecordResponseDetails(
+            respondedByUserId,
+            respondentName,
+            respondentTitle,
+            responseText,
+            attachmentFileName,
+            attachmentContentType,
+            attachmentSizeBytes,
+            respondedAtUtc);
+    }
 
-        if (attachmentSizeBytes is < 0)
-            throw new InvalidOperationException("Attachment size cannot be negative.");
+    public void RecordSupplementalResponse(
+        string respondedByUserId,
+        string respondentName,
+        string respondentTitle,
+        string responseText,
+        string? attachmentFileName,
+        string? attachmentContentType,
+        long? attachmentSizeBytes,
+        DateTime respondedAtUtc)
+    {
+        if (Status != EvidenceRequestStatus.Responded)
+            throw new InvalidOperationException("Supplemental evidence can only be uploaded after an evidence response.");
 
-        AttachmentFileName = NormalizeOptional(attachmentFileName);
-        AttachmentContentType = NormalizeOptional(attachmentContentType);
-        AttachmentSizeBytes = attachmentSizeBytes;
-        RespondedAtUtc = respondedAtUtc;
-        UpdatedAtUtc = respondedAtUtc;
-        Status = EvidenceRequestStatus.Responded;
-        ResetReviewDecision();
-
-        domainEvents.Add(new QuoteEvidenceRequestRespondedDomainEvent(
-            Id,
-            QuoteId,
-            SubmissionId,
-            OwnerUserId,
-            RequestedByUserId,
-            RespondedByUserId,
-            Category,
-            DueAtUtc,
-            respondedAtUtc));
+        RecordResponseDetails(
+            respondedByUserId,
+            respondentName,
+            respondentTitle,
+            responseText,
+            attachmentFileName,
+            attachmentContentType,
+            attachmentSizeBytes,
+            respondedAtUtc);
     }
 
     public void Accept(string acceptedByUserId, string? reviewNotes, DateTime acceptedAtUtc)
@@ -326,6 +326,44 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         }
 
         throw new InvalidOperationException("Evidence request is already closed.");
+    }
+
+    private void RecordResponseDetails(
+        string respondedByUserId,
+        string respondentName,
+        string respondentTitle,
+        string responseText,
+        string? attachmentFileName,
+        string? attachmentContentType,
+        long? attachmentSizeBytes,
+        DateTime respondedAtUtc)
+    {
+        RespondedByUserId = ValidateRequired(respondedByUserId, nameof(respondedByUserId), "Responded-by user id is required.");
+        RespondentName = ValidateRequired(respondentName, nameof(respondentName), "Respondent name is required.");
+        RespondentTitle = ValidateRequired(respondentTitle, nameof(respondentTitle), "Respondent title is required.");
+        ResponseText = ValidateRequired(responseText, nameof(responseText), "Evidence response text is required.");
+
+        if (attachmentSizeBytes is < 0)
+            throw new InvalidOperationException("Attachment size cannot be negative.");
+
+        AttachmentFileName = NormalizeOptional(attachmentFileName);
+        AttachmentContentType = NormalizeOptional(attachmentContentType);
+        AttachmentSizeBytes = attachmentSizeBytes;
+        RespondedAtUtc = respondedAtUtc;
+        UpdatedAtUtc = respondedAtUtc;
+        Status = EvidenceRequestStatus.Responded;
+        ResetReviewDecision();
+
+        domainEvents.Add(new QuoteEvidenceRequestRespondedDomainEvent(
+            Id,
+            QuoteId,
+            SubmissionId,
+            OwnerUserId,
+            RequestedByUserId,
+            RespondedByUserId,
+            Category,
+            DueAtUtc,
+            respondedAtUtc));
     }
 
     private void EnsureOpenOrResponded()
