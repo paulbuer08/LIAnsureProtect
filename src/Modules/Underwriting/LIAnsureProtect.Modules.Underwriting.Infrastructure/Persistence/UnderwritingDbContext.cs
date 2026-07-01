@@ -1,4 +1,5 @@
 using LIAnsureProtect.Modules.Underwriting.Domain;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
 using LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 using LIAnsureProtect.Platform.Abstractions.DomainEvents;
 using LIAnsureProtect.Platform.Outbox;
@@ -23,6 +24,10 @@ public sealed class UnderwritingDbContext(DbContextOptions<UnderwritingDbContext
 
     public DbSet<ReferralOperationProjectedMessage> ReferralOperationProjectedMessages
         => Set<ReferralOperationProjectedMessage>();
+
+    public DbSet<QuoteEvidenceRequest> QuoteEvidenceRequests => Set<QuoteEvidenceRequest>();
+
+    public DbSet<QuoteEvidenceRequestReview> QuoteEvidenceRequestReviews => Set<QuoteEvidenceRequestReview>();
 
     public DbSet<ModuleOutboxMessage> OutboxMessages => Set<ModuleOutboxMessage>();
 
