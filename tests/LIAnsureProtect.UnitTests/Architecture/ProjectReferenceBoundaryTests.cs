@@ -123,6 +123,34 @@ public sealed class ProjectReferenceBoundaryTests
         }
     }
 
+    [Fact]
+    public void QuoteReferralDecisionCommandsLiveInQuotingBoundary()
+    {
+        var legacyDecisionPath = Path.Combine(
+            RepositoryRoot,
+            "src",
+            "LIAnsureProtect.Application",
+            "Quotes",
+            "Commands",
+            "UnderwriteQuoteReferral");
+        var legacyDecisionFiles = Directory.Exists(legacyDecisionPath)
+            ? Directory.EnumerateFiles(legacyDecisionPath, "*.cs", SearchOption.AllDirectories).ToArray()
+            : [];
+
+        var quotingDecisionPath = Path.Combine(
+            RepositoryRoot,
+            "src",
+            "Modules",
+            "Quoting",
+            "LIAnsureProtect.Modules.Quoting.Application",
+            "ReferralDecisions");
+
+        Assert.Empty(legacyDecisionFiles);
+        Assert.True(File.Exists(Path.Combine(quotingDecisionPath, "ApproveQuoteReferralCommand.cs")));
+        Assert.True(File.Exists(Path.Combine(quotingDecisionPath, "DeclineQuoteReferralCommand.cs")));
+        Assert.True(File.Exists(Path.Combine(quotingDecisionPath, "AdjustQuoteReferralCommand.cs")));
+    }
+
     private static string[] ReadReferencedProjectNames(string fullProjectPath)
         => XDocument.Load(fullProjectPath)
             .Descendants("ProjectReference")
