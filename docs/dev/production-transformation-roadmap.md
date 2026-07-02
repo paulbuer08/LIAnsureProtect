@@ -112,6 +112,45 @@ events); in-process module event bus now → outbox → SNS/SQS later.
   **M42** Documents → S3 (Valet Key, KMS, scan pipeline, retention/legal hold) ·
   **M43** Real async messaging (outbox→SNS/SQS, DLQ) + optional S3 event archive · **M44** Caching + rate limiting.
 
+### Fully-baked next-milestone plans (detailed 2026-07-02 after the post-M41 solidification audit)
+
+**M42 — Documents To S3.** Goal: swap the private document byte-store adapter from local
+filesystem to S3 **without touching any business flow** (the Chapter 8 evidence flow diagram in
+`docs/encyclopedia/` must stay valid). Scope: an `S3DocumentStorageService` implementing the
+existing `Platform.Abstractions.Documents` contracts, selected by `Platform:Profile=Aws` (the
+today-fail-fast branch becomes real); LocalStack-backed integration tests so the adapter is
+tested without an AWS bill; SSE-KMS encryption settings and private-bucket assumptions expressed
+in configuration; Valet-Key (presigned URL) download path prepared behind the same download
+endpoints (feature-flagged — API streaming stays the default until CloudFront exists); document
+metadata, scan trust state, and clean-only gates unchanged. Acceptance: all existing evidence
+tests green against both adapters; encyclopedia Chapter 2/8 updated.
+
+**M43 — Real async messaging.** Goal: the outbox stops being only-polled and starts publishing
+integration events to SNS→SQS (LocalStack locally), with the Worker consuming from SQS; DLQ +
+redrive documented; per-event contract records versioned (the analytics foundation); optional S3
+event-archive sink behind a flag. The dispatcher/consumer/mapper-registry shape from M40 is the
+extension point — publishing becomes one more registered consumer, and in-process projection
+remains for the module seams that need read-your-writes. Acceptance: at-least-once + idempotent
+consumers proven by tests that kill the worker mid-batch; encyclopedia Chapter 10 updated.
+
+**M44 — Caching + rate limiting.** Goal: `ICacheService` port + Redis cache-aside for
+rebuildable reads (reference data, queue summaries — never documents/PII), ASP.NET Core rate
+limiting on the public API (fixed-window per user + stricter on unsafe POSTs), and security
+headers middleware. Acceptance: cache invalidation tests, 429 behavior tests, encyclopedia
+Chapters 2/3/11 updated.
+
+### Tooling decisions recorded (2026-07-02)
+
+- **`IHttpClientFactory` / typed clients + `Microsoft.Extensions.Http.Resilience`** — already the
+  project standard since M19 (`RatingProviderHttpClient`); every future outbound HTTP integration
+  (S3 presign checks, webhook callers, partner APIs) must use a typed client with the standard
+  resilience handler. No retrofit needed.
+- **Ansible** — evaluated alongside Terraform and **deferred**: the target runtime is
+  EKS/Fargate containers plus managed services, so there are no long-lived VMs for configuration
+  management to own; Terraform (+ Helm charts applied in M47) covers provisioning and workload
+  config. Revisit only if EC2-based components (self-managed runners, bastions) enter the
+  architecture — then Ansible would own OS-level config while Terraform keeps provisioning.
+
 **Phase 2 — AWS infrastructure (Terraform, guided-manual):**
 - **M45** TF foundation (state, IAM+OIDC, VPC, KMS, Secrets Manager) · **M46** Data+storage (Aurora, ElastiCache, S3) ·
   **M47** Compute+edge (ECR, EKS+Fargate, ALB/Ingress, CloudFront+WAF; Lambda+EventBridge+Step Functions) ·

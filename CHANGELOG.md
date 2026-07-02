@@ -8,6 +8,16 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Living encyclopedia under `docs/encyclopedia/` (12 chapters: big picture, technology stack, architecture, design-patterns catalog, and code-mirroring flow chapters for identity/login, submission intake, quoting/rating, underwriting/evidence/AI, acceptance/binding, notifications/background processing, and observability/operations), plus the per-milestone rule that every milestone updates the affected chapters in the same PR.
+- Fully-baked M42–M44 plans and recorded tooling decisions (IHttpClientFactory already standard; Ansible deferred in favor of Terraform-only IaC) in `docs/dev/production-transformation-roadmap.md`.
+- Integration coverage proving a throwing outbox consumer leaves its message pending with retry metadata while the rest of the batch still processes and saves.
+
+### Fixed
+
+- Worker outbox poll loop now survives transient failures (database restart, network blip) by logging and retrying on the next poll instead of stopping the host.
+- Outbox dispatcher now isolates consumer exceptions per message (converted to transient failures with retry metadata) and isolates each source's save, so one failure cannot abort the batch or lose other sources' dispatch state.
+- Post-M41 CodeQL `cs/log-forging` merge blocker: client-supplied `X-Correlation-ID` values are sanitized with a strict `Regex.Replace` allowlist and request path/method log-scope values are stripped of CR/LF (merged as part of Milestone 41 via PR #32).
+
 - Milestone 41 - Observability design, implementation plan, implementation, and learning notes.
 - Shared Platform observability names for API/Worker service names, `ActivitySource`, `Meter`, `X-Correlation-ID`, and dispatcher metrics.
 - API request correlation middleware that echoes caller-provided `X-Correlation-ID` values or generates one when missing, then places correlation details into structured log scopes.
