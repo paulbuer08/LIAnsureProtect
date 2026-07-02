@@ -8,6 +8,7 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 39 - Quoting Decision Boundary planning branch, design, and implementation plan.
 - Milestone 38 - Underwriting Evidence Documents (fourth slice of the Underwriting carve).
 - Generic private document storage contracts moved to `LIAnsureProtect.Platform.Abstractions.Documents`, so modules can use private object storage without referencing legacy Application.
 - Underwriting-owned evidence document scanner port and local deterministic scanner adapter, with scanner results using the module `EvidenceDocumentScanStatus`.
