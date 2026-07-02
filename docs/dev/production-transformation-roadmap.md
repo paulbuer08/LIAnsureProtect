@@ -113,7 +113,10 @@ events); in-process module event bus now → outbox → SNS/SQS later.
   LocalStack-tested; Valet-Key presigned URLs, provisioning, and S3-triggered scan deferred to M46/M47) ·
   **M43** Real async messaging (**implemented**: `SnsNotificationPublisher` behind the notification
   publisher port, versioned envelope → SNS → SQS + DLQ, LocalStack-tested; always-on SQS consumer and
-  optional S3 event archive deferred) · **M44** Caching + rate limiting.
+  optional S3 event archive deferred) · **M44** Caching + rate limiting (**implemented**: `ICacheService`
+  in-memory/Redis by profile + opt-in `CachingBehavior`, API rate limiting → 429, security headers;
+  Redis tested via local Docker. No production read cached yet by deliberate design — mechanism ready
+  for invalidation-paired adoption).
 
 ### Fully-baked next-milestone plans (detailed 2026-07-02 after the post-M41 solidification audit)
 

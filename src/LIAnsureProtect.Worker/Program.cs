@@ -1,5 +1,6 @@
 using LIAnsureProtect.Application;
 using LIAnsureProtect.Infrastructure;
+using LIAnsureProtect.Infrastructure.Caching;
 using LIAnsureProtect.Infrastructure.Documents;
 using LIAnsureProtect.Modules.Notifications.Infrastructure;
 using LIAnsureProtect.Modules.Quoting.Infrastructure;
@@ -21,6 +22,7 @@ builder.Services.AddUnderwritingModule(databaseConnectionString, platformProfile
 builder.Services.AddApplication();
 builder.Services.Configure<DocumentStorageOptions>(builder.Configuration.GetSection("DocumentStorage"));
 builder.Services.Configure<NotificationPublisherOptions>(builder.Configuration.GetSection("Notifications"));
+builder.Services.Configure<CacheOptions>(builder.Configuration.GetSection("Cache"));
 builder.Services.AddInfrastructure(databaseConnectionString, platformProfile);
 builder.Services.AddHostedService<Worker>();
 

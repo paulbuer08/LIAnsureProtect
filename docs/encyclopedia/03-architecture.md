@@ -115,6 +115,7 @@ adapter:
 | `IAiReviewService` | `LocalSimulatedAiReviewService` | Bedrock (Phase 3) |
 | `IEvidenceDocumentScanner` | Local deterministic scanner | S3-triggered Lambda scan (M42) |
 | `IRatingProviderClient` | Typed `HttpClient` + simulated handler | Same client, real endpoint |
+| `ICacheService` | `InMemoryCacheService` (memory) | `RedisCacheService` — **live (M44)**, Redis/ElastiCache, tested via local Docker Redis |
 | Identity | Auth0 (works in both) | Auth0 or Cognito (M48) |
 
 The not-yet-implemented AWS branches **fail fast** with a clear exception until their milestone

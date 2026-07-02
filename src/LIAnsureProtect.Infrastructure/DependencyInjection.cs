@@ -24,9 +24,12 @@ using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
 using LIAnsureProtect.Platform.Abstractions;
 using LIAnsureProtect.Platform.Abstractions.Documents;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
+using LIAnsureProtect.Platform.Abstractions.Caching;
+using LIAnsureProtect.Infrastructure.Caching;
 using Amazon;
 using Amazon.S3;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
@@ -81,6 +84,31 @@ public static class DependencyInjection
         services.AddScoped<IOutboxMessageConsumer, NotificationOutboxMessageConsumer>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
         services.AddOptions<DocumentStorageOptions>();
+
+        // Ports & Adapters: the cache adapter is chosen by the active deployment profile.
+        // Local uses in-process memory; Aws uses Redis (ElastiCache in real deployments).
+        services.AddOptions<CacheOptions>();
+        switch (profile)
+        {
+            case PlatformProfile.Local:
+                services.AddMemoryCache();
+                services.AddSingleton<ICacheService, InMemoryCacheService>();
+                break;
+            case PlatformProfile.Aws:
+                services.AddStackExchangeRedisCache(_ => { });
+                // Fail fast on a missing connection string when the Redis cache is first materialized.
+                services.AddOptions<RedisCacheOptions>().Configure<IOptions<CacheOptions>>((redis, cacheOptions) =>
+                {
+                    redis.Configuration = string.IsNullOrWhiteSpace(cacheOptions.Value.RedisConnectionString)
+                        ? throw new InvalidOperationException(
+                            "Cache:RedisConnectionString is required when Platform:Profile=Aws.")
+                        : cacheOptions.Value.RedisConnectionString;
+                });
+                services.AddSingleton<ICacheService, RedisCacheService>();
+                break;
+            default:
+                throw new NotSupportedException($"Unsupported Platform:Profile '{profile}'.");
+        }
 
         // Ports & Adapters: the document-storage adapter is chosen by the active deployment profile.
         // This is the first concrete proof of the Local <-> AWS switch; more ports follow in later milestones.

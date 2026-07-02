@@ -36,5 +36,20 @@ services:
       timeout: 5s
       retries: 20
 
+  # Redis for the M44 distributed cache adapter (ElastiCache stand-in). Opt-in like LocalStack:
+  # starts only under the "aws-local" profile, so the default dev/CI flow is unaffected.
+  #   docker compose --profile aws-local up -d
+  redis:
+    image: redis:7-alpine
+    container_name: liansureprotect-redis
+    profiles: ["aws-local"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
 volumes:
   liansureprotect-postgres-data:
