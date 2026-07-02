@@ -1,5 +1,4 @@
 using LIAnsureProtect.Domain.Quotes;
-using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 
 namespace LIAnsureProtect.Application.Quotes;
 
@@ -11,27 +10,7 @@ public interface IQuoteRepository
         QuoteRatingProviderAttempt attempt,
         CancellationToken cancellationToken);
 
-    Task AddEvidenceDocumentsAsync(
-        IReadOnlyCollection<QuoteEvidenceDocument> evidenceDocuments,
-        CancellationToken cancellationToken);
-
     Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken);
-
-    Task<IReadOnlyCollection<QuoteEvidenceDocument>> ListEvidenceDocumentsForRequestsAsync(
-        IReadOnlyCollection<Guid> evidenceRequestIds,
-        CancellationToken cancellationToken);
-
-    Task<QuoteEvidenceDocument?> GetEvidenceDocumentForOwnerAsync(
-        Guid evidenceRequestId,
-        Guid documentId,
-        string ownerUserId,
-        CancellationToken cancellationToken);
-
-    Task<QuoteEvidenceDocument?> GetEvidenceDocumentForUnderwritingAsync(
-        Guid quoteId,
-        Guid evidenceRequestId,
-        Guid documentId,
-        CancellationToken cancellationToken);
 
     Task<Quote?> GetForUnderwritingReviewAsync(Guid quoteId, CancellationToken cancellationToken);
 

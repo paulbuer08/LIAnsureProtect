@@ -44,7 +44,6 @@ public static class DependencyInjection
         services.AddScoped<IEvidenceRequestRepository, EfEvidenceRequestRepository>();
         services.AddScoped<IEvidenceDocumentRepository, EfEvidenceDocumentRepository>();
         services.AddScoped<IEvidenceRequestsReader, EvidenceRequestsReader>();
-        services.AddScoped<IEvidenceRequestWriter, EvidenceRequestWriter>();
 
         // Ports & Adapters: the advisory AI provider is chosen by the active deployment profile.
         switch (profile)
