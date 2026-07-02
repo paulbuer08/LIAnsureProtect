@@ -8,6 +8,11 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 42 - Documents To S3: `S3DocumentStorageService` (AWS SDK for .NET, `AWSSDK.S3`) implementing the existing `IDocumentStorageService` port, selected under `Platform:Profile=Aws`, with SSE-KMS encryption when a KMS key is configured. Public routes, EF models, schemas, and the frontend are unchanged — only the storage adapter differs.
+- Extended `DocumentStorageOptions` with an `S3` sub-section (bucket, service URL, path-style, region, KMS key, optional static credentials) so the same adapter targets real AWS or LocalStack by configuration alone.
+- Profile-scoped `localstack` service in `docker-compose.yml` (`docker compose --profile aws-local up -d`) plus an env-gated LocalStack round-trip integration test, so the S3 adapter is developed and tested with no AWS account or bill; the required CI job stays green because the test is skipped by default.
+- Milestone 42 design and learning notes; encyclopedia Chapters 2, 3, and 8 updated to show S3 as a live document-storage adapter.
+
 - Living encyclopedia under `docs/encyclopedia/` (12 chapters: big picture, technology stack, architecture, design-patterns catalog, and code-mirroring flow chapters for identity/login, submission intake, quoting/rating, underwriting/evidence/AI, acceptance/binding, notifications/background processing, and observability/operations), plus the per-milestone rule that every milestone updates the affected chapters in the same PR.
 - Fully-baked M42–M44 plans and recorded tooling decisions (IHttpClientFactory already standard; Ansible deferred in favor of Terraform-only IaC) in `docs/dev/production-transformation-roadmap.md`.
 - Integration coverage proving a throwing outbox consumer leaves its message pending with retry metadata while the rest of the batch still processes and saves.

@@ -24,9 +24,12 @@ using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
 using LIAnsureProtect.Platform.Abstractions;
 using LIAnsureProtect.Platform.Abstractions.Documents;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
+using Amazon;
+using Amazon.S3;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Options;
 
 namespace LIAnsureProtect.Infrastructure;
 
@@ -87,9 +90,37 @@ public static class DependencyInjection
                 services.AddScoped<IDocumentStorageService, LocalDocumentStorageService>();
                 break;
             case PlatformProfile.Aws:
-                throw new NotSupportedException(
-                    "The AWS document storage adapter (S3) arrives in Milestone 42. " +
-                    "Set Platform:Profile=Local until then.");
+                // The same S3 adapter targets real AWS or a local S3-compatible service (LocalStack),
+                // decided purely by DocumentStorage:S3 configuration. Fail fast on a missing bucket.
+                services.AddSingleton<IAmazonS3>(serviceProvider =>
+                {
+                    var s3Options = serviceProvider.GetRequiredService<IOptions<DocumentStorageOptions>>().Value.S3
+                        ?? throw new InvalidOperationException(
+                            "DocumentStorage:S3 configuration is required when Platform:Profile=Aws.");
+                    if (string.IsNullOrWhiteSpace(s3Options.BucketName))
+                        throw new InvalidOperationException(
+                            "DocumentStorage:S3:BucketName is required when Platform:Profile=Aws.");
+
+                    var s3Config = new AmazonS3Config();
+                    if (!string.IsNullOrWhiteSpace(s3Options.ServiceUrl))
+                    {
+                        // LocalStack / S3-compatible endpoint.
+                        s3Config.ServiceURL = s3Options.ServiceUrl;
+                        s3Config.ForcePathStyle = s3Options.ForcePathStyle;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(s3Options.Region))
+                    {
+                        s3Config.RegionEndpoint = RegionEndpoint.GetBySystemName(s3Options.Region);
+                    }
+
+                    // Static creds only for LocalStack; empty in real AWS so the default credential
+                    // chain (task/instance role) is used — no static keys in the cloud.
+                    return string.IsNullOrWhiteSpace(s3Options.AccessKeyId)
+                        ? new AmazonS3Client(s3Config)
+                        : new AmazonS3Client(s3Options.AccessKeyId, s3Options.SecretAccessKey, s3Config);
+                });
+                services.AddScoped<IDocumentStorageService, S3DocumentStorageService>();
+                break;
             default:
                 throw new NotSupportedException($"Unsupported Platform:Profile '{profile}'.");
         }
