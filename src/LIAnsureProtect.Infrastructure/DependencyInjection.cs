@@ -13,6 +13,7 @@ using LIAnsureProtect.Infrastructure.Policies;
 using LIAnsureProtect.Infrastructure.Quotes;
 using LIAnsureProtect.Infrastructure.Quotes.RatingProviders;
 using LIAnsureProtect.Infrastructure.Submissions;
+using LIAnsureProtect.Modules.Quoting.Application.ReferralDecisions;
 using LIAnsureProtect.Modules.Underwriting.Application;
 using LIAnsureProtect.Platform.Abstractions;
 using LIAnsureProtect.Platform.Abstractions.Documents;
@@ -40,6 +41,7 @@ public static class DependencyInjection
 
         services.AddScoped<ISubmissionRepository, EfCoreSubmissionRepository>();
         services.AddScoped<IQuoteRepository, EfCoreQuoteRepository>();
+        services.AddScoped<IQuoteReferralDecisionService, QuoteReferralDecisionService>();
         services.AddScoped<IPolicyRepository, EfCorePolicyRepository>();
         services.AddScoped<IUnitOfWork, EfCoreUnitOfWork>();
         services.AddScoped<IIdempotencyService, EfCoreIdempotencyService>();

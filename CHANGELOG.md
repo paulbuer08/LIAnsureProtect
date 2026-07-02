@@ -8,6 +8,12 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 39 - Quoting Decision Boundary planning branch, design, and implementation plan.
+- Milestone 39 - Quoting Decision Boundary implementation and learning notes.
+- `src/Modules/Quoting/{Domain,Application,Infrastructure}` module skeleton, registered in the solution and host composition roots.
+- Quoting-owned final referral decision commands (`ApproveQuoteReferralCommand`, `DeclineQuoteReferralCommand`, `AdjustQuoteReferralCommand`), validators, handlers, result DTO, and `IQuoteReferralDecisionService` port under `Modules/Quoting/...Application/ReferralDecisions`.
+- Legacy Infrastructure `QuoteReferralDecisionService` adapter that keeps the current `Quote` aggregate, `QuoteUnderwritingReview` audit row, and `SubmissionDbContext` persistence seam in place while Quoting owns the Application boundary.
+- Integration coverage proving approve, decline, and adjust decisions still project through the outbox dispatcher and close Underwriting referral operations after the dispatcher is pumped.
 - Milestone 38 - Underwriting Evidence Documents (fourth slice of the Underwriting carve).
 - Generic private document storage contracts moved to `LIAnsureProtect.Platform.Abstractions.Documents`, so modules can use private object storage without referencing legacy Application.
 - Underwriting-owned evidence document scanner port and local deterministic scanner adapter, with scanner results using the module `EvidenceDocumentScanStatus`.
@@ -31,6 +37,9 @@ The format follows simple milestone-based entries.
 
 ### Changed
 
+- Final quote referral decision authority is now explicit as a Quoting boundary. The public underwriting workbench routes remain stable, but they send Quoting module commands instead of legacy Application quote commands.
+- The obsolete legacy decision-command path under `LIAnsureProtect.Application/Quotes/Commands/UnderwriteQuoteReferral` is removed and guarded by an architecture test so duplicate command paths do not return.
+- The Quoting module is intentionally boundary-only in M39: quote tables, rating attempts, acceptance, binding, and `QuoteUnderwritingReview` persistence still remain in legacy Domain/Infrastructure until a later Quoting carve.
 - Corrected the future roadmap direction after the M35-M37 Underwriting carve split: M38 is now Underwriting Evidence Documents, not the older Claims placeholder; Claims stays later after underwriting/quoting seams are cleaner.
 - Evidence create/cancel/follow-up and request/review reads now use module commands/readers. The M37 document-coupled respond/replacement/accept/review/download handlers were moved into the Underwriting module in M38, so request state, review audit, document metadata, and module outbox capture save through `UnderwritingDbContext`.
 - Evidence notifications and referral-operation projection now deserialize module evidence events from either outbox source; dispatcher integration tests cover module evidence events ordered before legacy quote decision events.

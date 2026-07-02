@@ -24,6 +24,8 @@ using ModuleEvidenceReviewDecisionStatus = LIAnsureProtect.Modules.Underwriting.
 using ModuleOutboxMessage = LIAnsureProtect.Platform.Outbox.ModuleOutboxMessage;
 using ModuleQuoteEvidenceRequest = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequest;
 using ModuleQuoteEvidenceRequestReview = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequestReview;
+using ModuleReferralOperationStatus = LIAnsureProtect.Modules.Underwriting.Domain.Referrals.ReferralOperationStatus;
+using ModuleReferralTimelineEntryType = LIAnsureProtect.Modules.Underwriting.Domain.Referrals.ReferralTimelineEntryType;
 
 namespace LIAnsureProtect.IntegrationTests;
 
@@ -869,6 +871,9 @@ public sealed class UnderwritingReferralEndpointTests
         Assert.Equal(quote.Premium, review.PremiumBefore);
         Assert.Equal(quote.Premium, review.PremiumAfter);
         Assert.Contains(quote.Id.ToString(), outboxMessage.Payload);
+
+        await PumpOutboxAsync(webApplicationFactory, TestContext.Current.CancellationToken);
+        await AssertReferralDecisionProjectedAsync(quote.Id, "Approved");
     }
 
     [Fact]
@@ -918,6 +923,9 @@ public sealed class UnderwritingReferralEndpointTests
 
         Assert.Equal(QuoteStatus.Declined, savedQuote.Status);
         Assert.Equal(1, reviewCount);
+
+        await PumpOutboxAsync(webApplicationFactory, TestContext.Current.CancellationToken);
+        await AssertReferralDecisionProjectedAsync(quote.Id, "Declined");
     }
 
     [Fact]
@@ -968,6 +976,8 @@ public sealed class UnderwritingReferralEndpointTests
         Assert.Equal(HttpStatusCode.Conflict, noteResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, timelineResponse.StatusCode);
         Assert.Contains("DecisionRecorded", timelineContent);
+
+        await AssertReferralDecisionProjectedAsync(quote.Id, "Approved");
     }
 
     [Fact]
@@ -1011,6 +1021,9 @@ public sealed class UnderwritingReferralEndpointTests
         Assert.Equal(24_000m, review.PremiumAfter);
         Assert.Equal(quote.Retention, review.RetentionBefore);
         Assert.Equal(50_000m, review.RetentionAfter);
+
+        await PumpOutboxAsync(webApplicationFactory, TestContext.Current.CancellationToken);
+        await AssertReferralDecisionProjectedAsync(quote.Id, "Adjusted");
     }
 
     [Fact]
@@ -1093,6 +1106,24 @@ public sealed class UnderwritingReferralEndpointTests
         using var scope = factory.Services.CreateScope();
         var dispatcher = scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>();
         while (await dispatcher.DispatchPendingMessagesAsync(ct) > 0) { }
+    }
+
+    private async Task AssertReferralDecisionProjectedAsync(Guid quoteId, string decision)
+    {
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        var operation = await dbContext.QuoteReferralOperations
+            .Include(candidate => candidate.TimelineEntries)
+            .SingleAsync(
+                candidate => candidate.QuoteId == quoteId,
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(ModuleReferralOperationStatus.Closed, operation.Status);
+        Assert.NotNull(operation.ClosedAtUtc);
+        Assert.Contains(
+            operation.TimelineEntries,
+            entry => entry.EntryType == ModuleReferralTimelineEntryType.StatusChanged
+                && entry.Summary.Contains($"final underwriting decision {decision}", StringComparison.Ordinal));
     }
 
     private static SeededQuote CreateReferredQuote(

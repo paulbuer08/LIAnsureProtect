@@ -95,6 +95,8 @@ Milestone 37 is implemented as `Milestone 37 - Underwriting Evidence`, the third
 
 Milestone 38 is implemented as `Milestone 38 - Underwriting Evidence Documents`, the fourth Underwriting carve slice. It completes the M37 temporary seam by moving generic private document storage contracts to Platform.Abstractions, moving the evidence scanner port/local scanner and document aggregate into Underwriting, moving document metadata into `underwriting.quote_evidence_documents`, and making upload/replacement/download/accept/review/owner-list document workflows module Application handlers. Public routes and React behavior stayed stable, while `IQuoteRepository` is quote-focused again and the temporary `IEvidenceRequestWriter` seam is gone. See [Milestone 38 Design](docs/dev/milestone-38-underwriting-evidence-documents-design.md), [Milestone 38 Plan](docs/superpowers/plans/2026-07-01-milestone-38-underwriting-evidence-documents.md), and [Milestone 38 Learnings](docs/dev/milestone-38-underwriting-evidence-documents-learnings.md).
 
+Milestone 39 is implemented as `Milestone 39 - Quoting Decision Boundary`. It adds the Quoting module skeleton and moves final referral decision commands into Quoting Application while keeping public underwriting workbench routes stable. The legacy `Quote` aggregate, `QuoteUnderwritingReview`, and quote tables stay in `SubmissionDbContext` for now behind a Quoting-owned port implemented by legacy Infrastructure. Underwriting remains the operational referral/evidence context and consumes final decisions through the existing outbox projection. See [Milestone 39 Design](docs/dev/milestone-39-quoting-decision-boundary-design.md), [Milestone 39 Plan](docs/superpowers/plans/2026-07-02-milestone-39-quoting-decision-boundary.md), and [Milestone 39 Learnings](docs/dev/milestone-39-quoting-decision-boundary-learnings.md).
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -177,6 +179,9 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 38 Underwriting Evidence Documents Design](docs/dev/milestone-38-underwriting-evidence-documents-design.md)
 - [Milestone 38 Underwriting Evidence Documents Plan](docs/superpowers/plans/2026-07-01-milestone-38-underwriting-evidence-documents.md)
 - [Milestone 38 Underwriting Evidence Documents Learnings](docs/dev/milestone-38-underwriting-evidence-documents-learnings.md)
+- [Milestone 39 Quoting Decision Boundary Design](docs/dev/milestone-39-quoting-decision-boundary-design.md)
+- [Milestone 39 Quoting Decision Boundary Plan](docs/superpowers/plans/2026-07-02-milestone-39-quoting-decision-boundary.md)
+- [Milestone 39 Quoting Decision Boundary Learnings](docs/dev/milestone-39-quoting-decision-boundary-learnings.md)
 - [GitHub Repository, CI/CD, and Automation](docs/dev/github-repository-and-automation.md)
 - [Production Transformation Roadmap](docs/dev/production-transformation-roadmap.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)

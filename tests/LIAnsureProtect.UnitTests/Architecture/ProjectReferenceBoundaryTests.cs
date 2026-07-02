@@ -26,6 +26,7 @@ public sealed class ProjectReferenceBoundaryTests
         "LIAnsureProtect.Application",
         "LIAnsureProtect.Domain",
         "LIAnsureProtect.Modules.Notifications.Application",
+        "LIAnsureProtect.Modules.Quoting.Application",
         "LIAnsureProtect.Modules.Underwriting.Application",
         "LIAnsureProtect.Modules.Underwriting.Domain",
         "LIAnsureProtect.Platform.Abstractions")]
@@ -34,6 +35,7 @@ public sealed class ProjectReferenceBoundaryTests
         "LIAnsureProtect.Application",
         "LIAnsureProtect.Infrastructure",
         "LIAnsureProtect.Modules.Notifications.Infrastructure",
+        "LIAnsureProtect.Modules.Quoting.Infrastructure",
         "LIAnsureProtect.Modules.Underwriting.Infrastructure",
         "LIAnsureProtect.Platform")]
     [InlineData(
@@ -41,8 +43,20 @@ public sealed class ProjectReferenceBoundaryTests
         "LIAnsureProtect.Application",
         "LIAnsureProtect.Infrastructure",
         "LIAnsureProtect.Modules.Notifications.Infrastructure",
+        "LIAnsureProtect.Modules.Quoting.Infrastructure",
         "LIAnsureProtect.Modules.Underwriting.Infrastructure",
         "LIAnsureProtect.Platform")]
+    [InlineData(
+        "src/Modules/Quoting/LIAnsureProtect.Modules.Quoting.Domain/LIAnsureProtect.Modules.Quoting.Domain.csproj",
+        "LIAnsureProtect.Platform.Abstractions")]
+    [InlineData(
+        "src/Modules/Quoting/LIAnsureProtect.Modules.Quoting.Application/LIAnsureProtect.Modules.Quoting.Application.csproj",
+        "LIAnsureProtect.Modules.Quoting.Domain",
+        "LIAnsureProtect.Platform.Abstractions")]
+    [InlineData(
+        "src/Modules/Quoting/LIAnsureProtect.Modules.Quoting.Infrastructure/LIAnsureProtect.Modules.Quoting.Infrastructure.csproj",
+        "LIAnsureProtect.Modules.Quoting.Application",
+        "LIAnsureProtect.Modules.Quoting.Domain")]
     public void ProjectReferencesFollowCleanArchitectureDirection(
         string projectPath,
         params string[] expectedReferencedProjects)
@@ -107,6 +121,34 @@ public sealed class ProjectReferenceBoundaryTests
                     $"Module '{context}' references '{referenced}', which is not its own context or the Platform shared kernel.");
             }
         }
+    }
+
+    [Fact]
+    public void QuoteReferralDecisionCommandsLiveInQuotingBoundary()
+    {
+        var legacyDecisionPath = Path.Combine(
+            RepositoryRoot,
+            "src",
+            "LIAnsureProtect.Application",
+            "Quotes",
+            "Commands",
+            "UnderwriteQuoteReferral");
+        var legacyDecisionFiles = Directory.Exists(legacyDecisionPath)
+            ? Directory.EnumerateFiles(legacyDecisionPath, "*.cs", SearchOption.AllDirectories).ToArray()
+            : [];
+
+        var quotingDecisionPath = Path.Combine(
+            RepositoryRoot,
+            "src",
+            "Modules",
+            "Quoting",
+            "LIAnsureProtect.Modules.Quoting.Application",
+            "ReferralDecisions");
+
+        Assert.Empty(legacyDecisionFiles);
+        Assert.True(File.Exists(Path.Combine(quotingDecisionPath, "ApproveQuoteReferralCommand.cs")));
+        Assert.True(File.Exists(Path.Combine(quotingDecisionPath, "DeclineQuoteReferralCommand.cs")));
+        Assert.True(File.Exists(Path.Combine(quotingDecisionPath, "AdjustQuoteReferralCommand.cs")));
     }
 
     private static string[] ReadReferencedProjectNames(string fullProjectPath)

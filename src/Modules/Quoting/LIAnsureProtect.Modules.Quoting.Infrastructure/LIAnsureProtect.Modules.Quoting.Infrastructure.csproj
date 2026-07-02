@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>LIAnsureProtect.Modules.Quoting.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LIAnsureProtect.Modules.Quoting.Application\LIAnsureProtect.Modules.Quoting.Application.csproj" />
+    <ProjectReference Include="..\LIAnsureProtect.Modules.Quoting.Domain\LIAnsureProtect.Modules.Quoting.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

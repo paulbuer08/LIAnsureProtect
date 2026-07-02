@@ -1,12 +1,10 @@
-using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using MediatR;
 
-namespace LIAnsureProtect.Application.Quotes.Commands.UnderwriteQuoteReferral;
+namespace LIAnsureProtect.Modules.Quoting.Application.ReferralDecisions;
 
 public sealed class AdjustQuoteReferralCommandHandler(
-    IQuoteRepository quoteRepository,
-    IUnitOfWork unitOfWork,
+    IQuoteReferralDecisionService decisionService,
     ICurrentUser currentUser)
     : IRequestHandler<AdjustQuoteReferralCommand, UnderwriteQuoteReferralResult?>
 {
@@ -14,24 +12,16 @@ public sealed class AdjustQuoteReferralCommandHandler(
         AdjustQuoteReferralCommand request,
         CancellationToken cancellationToken)
     {
-        var quote = await quoteRepository.GetForUnderwritingReviewAsync(request.QuoteId, cancellationToken);
-        if (quote is null)
-            return null;
-
-        var reviewedAtUtc = DateTime.UtcNow;
-        var reviewedByUserId = GetRequiredCurrentUserId();
-        var review = quote.AdjustReferral(
-            reviewedByUserId,
+        return await decisionService.AdjustAsync(
+            request.QuoteId,
+            GetRequiredCurrentUserId(),
             request.AdjustedPremium,
             request.AdjustedRetention,
             request.UpdatedSubjectivities,
             request.Reason,
             request.Notes,
-            reviewedAtUtc);
-        await quoteRepository.AddUnderwritingReviewAsync(review, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return UnderwriteQuoteReferralResultFactory.FromQuote(quote);
+            DateTime.UtcNow,
+            cancellationToken);
     }
 
     private string GetRequiredCurrentUserId()
