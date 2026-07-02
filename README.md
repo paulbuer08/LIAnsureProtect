@@ -99,6 +99,8 @@ Milestone 39 is implemented as `Milestone 39 - Quoting Decision Boundary`. It ad
 
 Milestone 40 is implemented as `Milestone 40 - Dispatcher Integration Event Decoupling`. It keeps the existing local outbox behavior but removes the dispatcher's direct dependency on centralized static event mappers. The dispatcher now drains registered outbox sources, merge-orders rows by `CreatedAtUtc`, and runs registered consumers for referral-operation projection and notification projection/publishing. Event-specific mapping moved into registered mapper classes behind `OutboxMessageMapperRegistry<TOutput>`. Public routes, frontend behavior, schemas, and quote/rating/policy persistence stayed unchanged. See [Milestone 40 Design](docs/dev/milestone-40-dispatcher-integration-event-decoupling-design.md), [Milestone 40 Plan](docs/superpowers/plans/2026-07-02-milestone-40-dispatcher-integration-event-decoupling.md), and [Milestone 40 Learnings](docs/dev/milestone-40-dispatcher-integration-event-decoupling-learnings.md).
 
+Milestone 41 is implemented as `Milestone 41 - Observability`. It adds the first production-shaped visibility baseline without adding a telemetry backend yet: API request correlation via `X-Correlation-ID`, explicit liveness/readiness routes, readiness checks for all three EF Core contexts, and native .NET dispatcher activities/metrics/logs for the local outbox path. Public business routes, database schemas, and module boundaries stayed unchanged. See [Milestone 41 Design](docs/dev/milestone-41-observability-design.md), [Milestone 41 Plan](docs/superpowers/plans/2026-07-02-milestone-41-observability.md), and [Milestone 41 Learnings](docs/dev/milestone-41-observability-learnings.md).
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -187,6 +189,9 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 40 Dispatcher Integration Event Decoupling Design](docs/dev/milestone-40-dispatcher-integration-event-decoupling-design.md)
 - [Milestone 40 Dispatcher Integration Event Decoupling Plan](docs/superpowers/plans/2026-07-02-milestone-40-dispatcher-integration-event-decoupling.md)
 - [Milestone 40 Dispatcher Integration Event Decoupling Learnings](docs/dev/milestone-40-dispatcher-integration-event-decoupling-learnings.md)
+- [Milestone 41 Observability Design](docs/dev/milestone-41-observability-design.md)
+- [Milestone 41 Observability Plan](docs/superpowers/plans/2026-07-02-milestone-41-observability.md)
+- [Milestone 41 Observability Learnings](docs/dev/milestone-41-observability-learnings.md)
 - [GitHub Repository, CI/CD, and Automation](docs/dev/github-repository-and-automation.md)
 - [Production Transformation Roadmap](docs/dev/production-transformation-roadmap.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)

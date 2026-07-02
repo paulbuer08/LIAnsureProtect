@@ -108,7 +108,8 @@ events); in-process module event bus now → outbox → SNS/SQS later.
   dispatcher-owned event mapping with registered consumers and mapper registries.
 
 **Phase 1 — Production cross-cutting (local/docker, LocalStack):**
-- **M41** Observability · **M42** Documents → S3 (Valet Key, KMS, scan pipeline, retention/legal hold) ·
+- **M41** Observability (implemented: correlation, health/readiness, native dispatcher logs/traces/metrics) ·
+  **M42** Documents → S3 (Valet Key, KMS, scan pipeline, retention/legal hold) ·
   **M43** Real async messaging (outbox→SNS/SQS, DLQ) + optional S3 event archive · **M44** Caching + rate limiting.
 
 **Phase 2 — AWS infrastructure (Terraform, guided-manual):**
