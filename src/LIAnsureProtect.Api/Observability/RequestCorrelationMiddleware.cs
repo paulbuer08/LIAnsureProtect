@@ -23,13 +23,21 @@ public sealed class RequestCorrelationMiddleware(
         await next(context);
     }
 
+    private const int MaxCorrelationIdLength = 64;
+
     private static string ResolveCorrelationId(HttpContext context)
     {
         if (context.Request.Headers.TryGetValue(ObservabilityNames.CorrelationIdHeaderName, out var values))
         {
-            var value = values.FirstOrDefault();
-            if (!string.IsNullOrWhiteSpace(value))
-                return value.Trim();
+            // Client-supplied value: rebuild it from an allowlist of characters so it can
+            // never carry newlines or control characters into logs or response headers.
+            var sanitized = new string((values.FirstOrDefault() ?? string.Empty)
+                .Where(static c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.')
+                .Take(MaxCorrelationIdLength)
+                .ToArray());
+
+            if (sanitized.Length > 0)
+                return sanitized;
         }
 
         return Guid.NewGuid().ToString("N");

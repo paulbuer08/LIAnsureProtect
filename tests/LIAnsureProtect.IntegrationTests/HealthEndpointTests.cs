@@ -135,6 +135,23 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
 
 
     [Fact]
+    public async Task Request_With_Unsafe_Correlation_Header_Returns_Sanitized_Correlation_Header()
+    {
+        // Arrange
+        using var request = new HttpRequestMessage(HttpMethod.Get, RootEndpointPath);
+        request.Headers.TryAddWithoutValidation(CorrelationIdHeaderName, "forged%0d%0aentry<script>!;id-1");
+
+        // Act
+        using var response = await _httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(response.Headers.TryGetValues(CorrelationIdHeaderName, out var values));
+        Assert.Equal("forged0d0aentryscriptid-1", Assert.Single(values));
+    }
+
+
+
+    [Fact]
     public async Task Request_Without_Correlation_Header_Returns_Generated_Correlation_Header()
     {
         // Act
