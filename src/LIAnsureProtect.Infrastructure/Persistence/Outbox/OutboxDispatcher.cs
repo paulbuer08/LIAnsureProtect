@@ -67,7 +67,24 @@ public sealed class OutboxDispatcher(
 
             foreach (var consumer in consumerList)
             {
-                var result = await consumer.ConsumeAsync(message, nowUtc, cancellationToken);
+                OutboxMessageConsumerResult result;
+                try
+                {
+                    result = await consumer.ConsumeAsync(message, nowUtc, cancellationToken);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    // A throwing consumer must not abort the whole batch: record the failure on
+                    // this message (so retry metadata persists) and let the other messages run.
+                    result = OutboxMessageConsumerResult.TransientFailure(
+                        $"{consumer.GetType().Name} threw {exception.GetType().Name}: {exception.Message}");
+                    logger.LogError(
+                        exception,
+                        "Outbox message consumer {OutboxConsumer} threw while processing {OutboxMessageType}.",
+                        consumer.GetType().Name,
+                        message.Type);
+                }
+
                 if (result.Status == OutboxMessageConsumerStatus.NotHandled)
                     continue;
 
@@ -112,7 +129,19 @@ public sealed class OutboxDispatcher(
 
         foreach (var source in touchedSources)
         {
-            await source.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await source.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                // Losing one source's marks is safe (consumers are idempotent, so re-delivery
+                // repeats no side effects) - but the other sources' marks must still be saved.
+                logger.LogError(
+                    exception,
+                    "Failed to save outbox dispatch state for {OutboxSource}. Its messages will be re-delivered.",
+                    source.GetType().Name);
+            }
         }
 
         batchActivity?.SetTag("outbox.processed_message_count", processedCount);

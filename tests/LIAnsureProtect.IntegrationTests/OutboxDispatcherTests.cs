@@ -703,6 +703,64 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.NotNull(savedDecisionMessage.ProcessedAtUtc);
     }
 
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Records_Retry_And_Continues_Batch_When_Consumer_Throws()
+    {
+        // First message: handled by a consumer that throws (simulating an unexpected crash).
+        var submittedEvent = new SubmissionSubmittedDomainEvent(
+            Guid.Parse("0b7cbb95-98a1-4f7d-b1cc-3ac6ff09b101"),
+            "test-user-1",
+            new DateTime(2026, 7, 2, 8, 0, 0, DateTimeKind.Utc));
+        var throwingMessage = OutboxMessage.FromDomainEvent(
+            submittedEvent,
+            new DateTime(2026, 7, 2, 8, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(throwingMessage, TestContext.Current.CancellationToken);
+
+        // Second message: not handled by the throwing consumer; must still be processed.
+        var quoteEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("34e6ee9d-4a52-4f0f-b9e8-4e9dc80c2a02"),
+            Guid.Parse("41b706ff-5e19-486e-b12f-0a742f5a2b03"),
+            "customer-1",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 7, 2, 8, 1, 0, DateTimeKind.Utc));
+        var healthyMessage = OutboxMessage.FromDomainEvent(
+            quoteEvent,
+            new DateTime(2026, 7, 2, 8, 1, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(healthyMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = new OutboxDispatcher(
+            [new SubmissionOutboxSource(dbContext)],
+            [
+                new ThrowingOutboxConsumer(),
+                new NotificationOutboxMessageConsumer(CreateNotificationRegistry(), projector, publisher)
+            ],
+            NullLogger<OutboxDispatcher>.Instance);
+
+        var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var savedThrowing = await dbContext.OutboxMessages.SingleAsync(
+            message => message.Id == throwingMessage.Id,
+            TestContext.Current.CancellationToken);
+        var savedHealthy = await dbContext.OutboxMessages.SingleAsync(
+            message => message.Id == healthyMessage.Id,
+            TestContext.Current.CancellationToken);
+
+        // The throwing message is left pending with retry metadata (a transient failure) ...
+        Assert.Equal(1, processedCount);
+        Assert.Null(savedThrowing.ProcessedAtUtc);
+        Assert.Equal(1, savedThrowing.PublishAttemptCount);
+        Assert.NotNull(savedThrowing.NextAttemptAtUtc);
+        Assert.Null(savedThrowing.FailedAtUtc);
+        Assert.Contains(nameof(ThrowingOutboxConsumer), savedThrowing.Error);
+
+        // ... while the healthy message in the same batch is still processed and saved.
+        Assert.NotNull(savedHealthy.ProcessedAtUtc);
+        Assert.Single(publisher.PublishedMessages);
+    }
+
     public void Dispose()
     {
         dbContext.Dispose();
@@ -778,6 +836,20 @@ public sealed class OutboxDispatcherTests : IDisposable
 
             HandledMessages.Add(outboxMessage.Id);
             return Task.FromResult(OutboxMessageConsumerResult.Succeeded());
+        }
+    }
+
+    private sealed class ThrowingOutboxConsumer : IOutboxMessageConsumer
+    {
+        public Task<OutboxMessageConsumerResult> ConsumeAsync(
+            IOutboxMessageView outboxMessage,
+            DateTime nowUtc,
+            CancellationToken cancellationToken)
+        {
+            if (outboxMessage.Type != nameof(SubmissionSubmittedDomainEvent))
+                return Task.FromResult(OutboxMessageConsumerResult.NotHandled());
+
+            throw new InvalidOperationException("Simulated consumer crash.");
         }
     }
 

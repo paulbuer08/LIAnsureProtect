@@ -17,33 +17,44 @@ public sealed class Worker(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            using var scope = serviceScopeFactory.CreateScope();
-            var dispatcher = scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>();
-            var processedCount = await dispatcher.DispatchPendingMessagesAsync(stoppingToken);
-
-            if (processedCount > 0)
+            try
             {
-                logger.LogInformation(
-                    "Processed {ProcessedOutboxMessageCount} outbox message(s).",
-                    processedCount);
-            }
+                using var scope = serviceScopeFactory.CreateScope();
+                var dispatcher = scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>();
+                var processedCount = await dispatcher.DispatchPendingMessagesAsync(stoppingToken);
 
-            var nowUtc = DateTime.UtcNow;
-            if (nowUtc >= nextIdempotencyCleanupAtUtc)
-            {
-                var cleanup = scope.ServiceProvider.GetRequiredService<IIdempotencyRecordCleanup>();
-                var deletedCount = await cleanup.DeleteExpiredCompletedRecordsAsync(
-                    nowUtc.Subtract(CompletedIdempotencyRecordRetention),
-                    stoppingToken);
-
-                if (deletedCount > 0)
+                if (processedCount > 0)
                 {
                     logger.LogInformation(
-                        "Deleted {DeletedIdempotencyRecordCount} expired completed idempotency record(s).",
-                        deletedCount);
+                        "Processed {ProcessedOutboxMessageCount} outbox message(s).",
+                        processedCount);
                 }
 
-                nextIdempotencyCleanupAtUtc = nowUtc.Add(IdempotencyCleanupInterval);
+                var nowUtc = DateTime.UtcNow;
+                if (nowUtc >= nextIdempotencyCleanupAtUtc)
+                {
+                    var cleanup = scope.ServiceProvider.GetRequiredService<IIdempotencyRecordCleanup>();
+                    var deletedCount = await cleanup.DeleteExpiredCompletedRecordsAsync(
+                        nowUtc.Subtract(CompletedIdempotencyRecordRetention),
+                        stoppingToken);
+
+                    if (deletedCount > 0)
+                    {
+                        logger.LogInformation(
+                            "Deleted {DeletedIdempotencyRecordCount} expired completed idempotency record(s).",
+                            deletedCount);
+                    }
+
+                    nextIdempotencyCleanupAtUtc = nowUtc.Add(IdempotencyCleanupInterval);
+                }
+            }
+            catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
+            {
+                // A transient failure (database restart, network blip) must not stop the host:
+                // log it and try again on the next poll. Shutdown cancellation still propagates.
+                logger.LogError(
+                    exception,
+                    "Outbox worker poll iteration failed. Retrying on the next poll.");
             }
 
             await Task.Delay(PollInterval, stoppingToken);
