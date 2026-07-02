@@ -111,16 +111,17 @@ adapter:
 | Port | Local adapter (today) | AWS adapter |
 |---|---|---|
 | `IDocumentStorageService` | `LocalDocumentStorageService` (filesystem) | `S3DocumentStorageService` — **live (M42)**, S3 + SSE-KMS, tested via LocalStack; presigned URLs prepared for M47 |
-| `INotificationPublisher` | `LocalNotificationPublisher` | SNS (M43) |
+| `INotificationPublisher` | `LocalNotificationPublisher` | `SnsNotificationPublisher` — **live (M43)**, publishes a versioned envelope to SNS → SQS + DLQ, tested via LocalStack |
 | `IAiReviewService` | `LocalSimulatedAiReviewService` | Bedrock (Phase 3) |
 | `IEvidenceDocumentScanner` | Local deterministic scanner | S3-triggered Lambda scan (M42) |
 | `IRatingProviderClient` | Typed `HttpClient` + simulated handler | Same client, real endpoint |
 | Identity | Auth0 (works in both) | Auth0 or Cognito (M48) |
 
 The not-yet-implemented AWS branches **fail fast** with a clear exception until their milestone
-lands — a misconfigured profile can never silently run with the wrong adapter. The **document
-storage** branch is the first one fully wired: `Platform:Profile=Aws` selects
-`S3DocumentStorageService` (M42), and a missing bucket still fails fast at composition.
+lands — a misconfigured profile can never silently run with the wrong adapter. Two branches are
+now fully wired: **document storage** selects `S3DocumentStorageService` (M42) and **notification
+publishing** selects `SnsNotificationPublisher` (M43); each still fails fast at composition if its
+bucket/topic is missing.
 
 **Why this matters:** the same container image runs locally and in AWS; only configuration and
 which Terraform you apply differ. Tests exercise business logic against local adapters with full

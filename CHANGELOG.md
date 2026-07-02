@@ -8,6 +8,11 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 43 - Real Async Messaging: `SnsNotificationPublisher` (AWS SDK for .NET, `AWSSDK.SimpleNotificationService`) implementing the existing `INotificationPublisher` port, selected under `Platform:Profile=Aws`. Notifications from the outbox are now published as a versioned JSON envelope (with `type`/`audience` SNS message attributes) to an SNS topic that fans out to an SQS queue with a DLQ. The outbox, dispatcher, retry/poison handling, in-process projection, EF models, schemas, endpoints, and frontend are unchanged — only the outbound publish becomes a real network call.
+- `NotificationPublisherOptions` (`Sns` sub-section: topic ARN, service URL, region, optional static credentials) bound from the `Notifications` config section, so the same adapter targets real AWS or LocalStack by configuration alone.
+- Opt-in LocalStack SNS→SQS+DLQ round-trip integration test and an expanded profile-scoped `localstack` service (`SERVICES: s3,sns,sqs`); env-gated (`LIANSUREPROTECT_RUN_SNS_TESTS`) so the required CI job stays green.
+- Milestone 43 design and learning notes; encyclopedia Chapters 2, 3, and 10 updated to show SNS/SQS as the live notification bus.
+
 - Milestone 42 - Documents To S3: `S3DocumentStorageService` (AWS SDK for .NET, `AWSSDK.S3`) implementing the existing `IDocumentStorageService` port, selected under `Platform:Profile=Aws`, with SSE-KMS encryption when a KMS key is configured. Public routes, EF models, schemas, and the frontend are unchanged — only the storage adapter differs.
 - Extended `DocumentStorageOptions` with an `S3` sub-section (bucket, service URL, path-style, region, KMS key, optional static credentials) so the same adapter targets real AWS or LocalStack by configuration alone.
 - Profile-scoped `localstack` service in `docker-compose.yml` (`docker compose --profile aws-local up -d`) plus an env-gated LocalStack round-trip integration test, so the S3 adapter is developed and tested with no AWS account or bill; the required CI job stays green because the test is skipped by default.

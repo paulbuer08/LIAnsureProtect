@@ -41,9 +41,10 @@ marked as *planned*.
 |---|---|---|
 | **PostgreSQL (Docker locally)** | In use | The single **system of record**. One database, schema-per-module (`public` legacy, `notifications`, `underwriting`). pgvector image ready for later AI/RAG. |
 | **Document storage — local filesystem *and* S3** | In use | Two adapters behind the one `Platform.Abstractions.Documents` port: `LocalDocumentStorageService` (filesystem) under `Platform:Profile=Local`, and `S3DocumentStorageService` (AWS SDK, SSE-KMS) under `Platform:Profile=Aws` (M42). The S3 adapter is developed and round-trip tested against **LocalStack** — no AWS account, no bill. |
-| **LocalStack (Docker, opt-in)** | In use (dev/test) | Emulates AWS S3 on `localhost` so the S3 adapter runs with no cloud cost. Profile-scoped compose service (`docker compose --profile aws-local up -d`); the round-trip test is env-gated and skipped in normal CI. |
+| **SNS + SQS (message bus)** | In use | `SnsNotificationPublisher` (M43) publishes notifications from the outbox to an SNS topic that fans out to an SQS queue with a DLQ, under `Platform:Profile=Aws`. In-process projection (inbox) stays for read-your-writes; only the outbound publish hits the bus. Developed/tested via LocalStack. |
+| **LocalStack (Docker, opt-in)** | In use (dev/test) | Emulates AWS **S3, SNS, and SQS** on `localhost` so those adapters run with no cloud cost. Profile-scoped compose service (`docker compose --profile aws-local up -d`); the round-trip tests are env-gated and skipped in normal CI. |
 | **Redis (ElastiCache)** | Planned (M44) | Cache-aside for rebuildable data only — never documents or claim details. |
-| **SNS/SQS, DynamoDB** | Planned (M43+) | Real async messaging behind the outbox, notification read-model options. (S3 landed in M42.) |
+| **DynamoDB** | Planned | Optional notification read-model store. (S3 landed in M42; SNS/SQS in M43.) |
 
 ## Tooling, CI/CD & security automation
 

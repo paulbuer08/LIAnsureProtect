@@ -36,6 +36,7 @@ builder.Services.AddQuotingModule();
 builder.Services.AddUnderwritingModule(databaseConnectionString, platformProfile);
 builder.Services.AddApplication();
 builder.Services.Configure<DocumentStorageOptions>(builder.Configuration.GetSection("DocumentStorage"));
+builder.Services.Configure<NotificationPublisherOptions>(builder.Configuration.GetSection("Notifications"));
 builder.Services.AddInfrastructure(databaseConnectionString, platformProfile);
 builder.Services
     .AddControllers()

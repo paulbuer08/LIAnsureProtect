@@ -4,6 +4,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="AWSSDK.S3" Version="4.0.100.1" />
+    <PackageVersion Include="AWSSDK.SimpleNotificationService" Version="4.0.100.1" />
+    <PackageVersion Include="AWSSDK.SQS" Version="4.0.100.1" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
