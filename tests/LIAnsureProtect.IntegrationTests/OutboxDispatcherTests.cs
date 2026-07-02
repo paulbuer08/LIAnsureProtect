@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
@@ -11,6 +12,7 @@ using LIAnsureProtect.Modules.Notifications.Domain;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Underwriting.Application;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
+using LIAnsureProtect.Platform.Abstractions.Observability;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
 using ModuleEvidenceRequestCategory = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceRequestCategory;
 using ModuleEvidenceReviewDecisionStatus = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceReviewDecisionStatus;
@@ -21,6 +23,7 @@ using ModuleQuoteEvidenceRequestRemediationRequiredDomainEvent = LIAnsureProtect
 using ModuleQuoteEvidenceRequestRespondedDomainEvent = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequestRespondedDomainEvent;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace LIAnsureProtect.IntegrationTests;
@@ -102,6 +105,43 @@ public sealed class OutboxDispatcherTests : IDisposable
     }
 
     [Fact]
+    public async Task DispatchPendingMessagesAsync_Records_Processed_Message_Metric()
+    {
+        var processedMessages = 0L;
+        using var meterListener = new MeterListener();
+        meterListener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (instrument.Meter.Name == ObservabilityNames.MeterName
+                && instrument.Name == ObservabilityNames.OutboxDispatchProcessedMessagesMetric)
+            {
+                listener.EnableMeasurementEvents(instrument);
+            }
+        };
+        meterListener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
+        {
+            if (instrument.Name == ObservabilityNames.OutboxDispatchProcessedMessagesMetric)
+                Interlocked.Add(ref processedMessages, measurement);
+        });
+        meterListener.Start();
+
+        var domainEvent = new SubmissionSubmittedDomainEvent(
+            Guid.Parse("d5a5f4dd-061c-468e-b8f7-01999c4af901"),
+            "test-user-1",
+            new DateTime(2026, 7, 2, 2, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            domainEvent,
+            new DateTime(2026, 7, 2, 2, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var dispatcher = CreateDispatcher(new RecordingNotificationPublisher());
+
+        await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(processedMessages >= 1);
+    }
+
+    [Fact]
     public async Task DispatchPendingMessagesAsync_Uses_Registered_Consumer_For_Matched_Message()
     {
         var domainEvent = new SubmissionSubmittedDomainEvent(
@@ -117,7 +157,8 @@ public sealed class OutboxDispatcherTests : IDisposable
         var consumer = new RecordingOutboxConsumer();
         var dispatcher = new OutboxDispatcher(
             [new SubmissionOutboxSource(dbContext)],
-            [consumer]);
+            [consumer],
+            NullLogger<OutboxDispatcher>.Instance);
 
         var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
 
@@ -686,7 +727,8 @@ public sealed class OutboxDispatcherTests : IDisposable
             [
                 new ReferralOperationOutboxMessageConsumer(CreateReferralRegistry(), referralProjector),
                 new NotificationOutboxMessageConsumer(CreateNotificationRegistry(), projector, publisher)
-            ]);
+            ],
+            NullLogger<OutboxDispatcher>.Instance);
     }
 
     private static OutboxMessageMapperRegistry<NotificationMessage> CreateNotificationRegistry()

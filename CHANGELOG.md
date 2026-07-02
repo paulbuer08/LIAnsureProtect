@@ -8,6 +8,13 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 41 - Observability design, implementation plan, implementation, and learning notes.
+- Shared Platform observability names for API/Worker service names, `ActivitySource`, `Meter`, `X-Correlation-ID`, and dispatcher metrics.
+- API request correlation middleware that echoes caller-provided `X-Correlation-ID` values or generates one when missing, then places correlation details into structured log scopes.
+- Explicit health probe routes: `/api/v1/health/live` and `/api/v1/health/ready`, while keeping `/api/v1/health` stable.
+- Readiness checks for `SubmissionDbContext`, `NotificationsDbContext`, and `UnderwritingDbContext`.
+- Native dispatcher diagnostics with structured batch/failure logs, `ActivitySource` spans, counters for batches/pending/processed/failed messages, and a dispatch duration histogram.
+- Integration coverage for correlation headers, liveness/readiness routes, and dispatcher processed-message metric emission.
 - Milestone 40 - Dispatcher Integration Event Decoupling design, implementation plan, implementation, and learning notes.
 - Platform outbox consumer contract (`IOutboxMessageConsumer`, `OutboxMessageConsumerResult`, and status values) so new outbox side effects plug into dispatch by registration.
 - Notification and referral-operation outbox consumers that preserve the current inbox projection, publishing, retry, poison, and referral-operation projection behavior behind registered consumers.
@@ -42,6 +49,8 @@ The format follows simple milestone-based entries.
 
 ### Changed
 
+- `OutboxDispatcher` now emits low-cardinality observability signals around the existing dispatch flow without changing ordering, retry, poison, projection, or publishing behavior.
+- Kept M41 intentionally local and backend-agnostic: no CloudWatch/X-Ray/Datadog/OpenTelemetry exporter, AWS credentials, EF migration, or public business route change.
 - `OutboxDispatcher` now drains `IOutboxSource`s, merge-orders rows by `CreatedAtUtc`, runs registered `IOutboxMessageConsumer`s, and centralizes only processing/retry/poison metadata. It no longer directly invokes static notification/referral mapper switches.
 - Removed the old centralized `OutboxNotificationMapper` and `OutboxReferralOperationMapper` static classes. Event-specific mapping now lives in registered mapper classes keyed by the existing outbox row `Type` value, so no schema or migration was needed.
 - Kept M40 intentionally narrow: public API routes, React behavior, EF models, database schemas, and quote/rating/policy persistence are unchanged.

@@ -143,6 +143,23 @@ projection behavior while making the dispatcher open to new integration consumer
 core loop. It also keeps the milestone narrow: no quote/rating/policy tables moved, no public routes
 changed, and no EF migration was needed.
 
+Milestone 41 adds the first production-shaped observability baseline around the host and dispatcher
+path without introducing a telemetry backend yet. The Platform shared-kernel contracts define stable
+observability names (`ActivitySource`, `Meter`, metric names, and `X-Correlation-ID`). The API adds
+request correlation middleware that echoes or generates `X-Correlation-ID`, places correlation details
+in the request log scope, keeps `/api/v1/health` stable, and adds explicit probe routes:
+
+```text
+GET /api/v1/health/live
+GET /api/v1/health/ready
+```
+
+Readiness checks all three current EF Core contexts: `SubmissionDbContext`, `NotificationsDbContext`,
+and `UnderwritingDbContext`. The dispatcher now emits native .NET activities, structured logs, counters
+for batches/pending/processed/failed messages, and a duration histogram. Exporters and dashboards
+remain later infrastructure work; M41 exposes the signals that OpenTelemetry, CloudWatch, X-Ray, or
+Datadog can subscribe to later.
+
 ## Application Use Case Pattern
 
 Milestone 4 - Application Use Case Foundation introduced practical CQRS with MediatR and FluentValidation.
