@@ -13,6 +13,8 @@ public static class DependencyInjection
         {
             configuration.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
             configuration.AddOpenBehavior(typeof(ValidationBehavior<,>));
+            // Cache-aside for requests that opt in via ICacheableRequest; inert for everything else.
+            configuration.AddOpenBehavior(typeof(CachingBehavior<,>));
         });
 
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);

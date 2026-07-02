@@ -43,7 +43,7 @@ marked as *planned*.
 | **Document storage — local filesystem *and* S3** | In use | Two adapters behind the one `Platform.Abstractions.Documents` port: `LocalDocumentStorageService` (filesystem) under `Platform:Profile=Local`, and `S3DocumentStorageService` (AWS SDK, SSE-KMS) under `Platform:Profile=Aws` (M42). The S3 adapter is developed and round-trip tested against **LocalStack** — no AWS account, no bill. |
 | **SNS + SQS (message bus)** | In use | `SnsNotificationPublisher` (M43) publishes notifications from the outbox to an SNS topic that fans out to an SQS queue with a DLQ, under `Platform:Profile=Aws`. In-process projection (inbox) stays for read-your-writes; only the outbound publish hits the bus. Developed/tested via LocalStack. |
 | **LocalStack (Docker, opt-in)** | In use (dev/test) | Emulates AWS **S3, SNS, and SQS** on `localhost` so those adapters run with no cloud cost. Profile-scoped compose service (`docker compose --profile aws-local up -d`); the round-trip tests are env-gated and skipped in normal CI. |
-| **Redis (ElastiCache)** | Planned (M44) | Cache-aside for rebuildable data only — never documents or claim details. |
+| **Redis cache (ElastiCache)** | In use | `ICacheService` cache-aside (M44): `InMemoryCacheService` (Local) / `RedisCacheService` (Aws) behind the one port. Opt-in per query via `ICacheableRequest` + `CachingBehavior`; rebuildable non-PII data only. Tested against local Docker Redis — no AWS account. |
 | **DynamoDB** | Planned | Optional notification read-model store. (S3 landed in M42; SNS/SQS in M43.) |
 
 ## Tooling, CI/CD & security automation

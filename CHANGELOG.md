@@ -8,6 +8,12 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 44 - Caching + Rate Limiting: `ICacheService` cache-aside port with `InMemoryCacheService` (Local) and `RedisCacheService` (Aws, StackExchange.Redis) selected by `Platform:Profile`; an opt-in `CachingBehavior` MediatR behavior driven by an `ICacheableRequest` marker (rebuildable, non-PII data only). No production read is cached yet by deliberate choice — the mechanism is delivered and tested, and adoption on a specific read is a later, invalidation-paired follow-up.
+- API rate limiting: a global fixed-window limiter partitioned per authenticated user (client-IP fallback), stricter for unsafe methods, returning HTTP 429 with `ProblemDetails` + `Retry-After`; limits are config-driven (`RateLimiting:*`) with generous defaults.
+- `SecurityHeadersMiddleware` adding `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy`, and `Permissions-Policy` to every response.
+- Profile-scoped `redis` compose service and an env-gated Redis round-trip test (`LIANSUREPROTECT_RUN_REDIS_TESTS`); the required CI job stays green because it is skipped by default.
+- Milestone 44 design and learning notes; encyclopedia Chapters 2, 3, and 11 updated for caching, rate limiting, and security headers.
+
 - Milestone 43 - Real Async Messaging: `SnsNotificationPublisher` (AWS SDK for .NET, `AWSSDK.SimpleNotificationService`) implementing the existing `INotificationPublisher` port, selected under `Platform:Profile=Aws`. Notifications from the outbox are now published as a versioned JSON envelope (with `type`/`audience` SNS message attributes) to an SNS topic that fans out to an SQS queue with a DLQ. The outbox, dispatcher, retry/poison handling, in-process projection, EF models, schemas, endpoints, and frontend are unchanged — only the outbound publish becomes a real network call.
 - `NotificationPublisherOptions` (`Sns` sub-section: topic ARN, service URL, region, optional static credentials) bound from the `Notifications` config section, so the same adapter targets real AWS or LocalStack by configuration alone.
 - Opt-in LocalStack SNS→SQS+DLQ round-trip integration test and an expanded profile-scoped `localstack` service (`SERVICES: s3,sns,sqs`); env-gated (`LIANSUREPROTECT_RUN_SNS_TESTS`) so the required CI job stays green.

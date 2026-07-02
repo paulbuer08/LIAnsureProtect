@@ -57,14 +57,31 @@ in the AWS phase is configuration, not rework.
 | Startup fail-fast | `Program.cs` guards | Missing/`http://` Auth authority, missing audience, unknown platform profile, or an AWS adapter not yet implemented all refuse to boot with a clear message — misconfiguration is loud, not silent. |
 | ProblemDetails everywhere | `AddProblemDetails` + controller helpers | Errors are RFC-7807 JSON with correlation ID available on the response header. |
 
+## Resiliency & hardening (M44)
+
+Three capabilities keep the API fast and safe under load:
+
+| Capability | Where | What it does |
+|---|---|---|
+| **Caching** | `ICacheService` (`Platform.Abstractions.Caching`) → `InMemoryCacheService` (Local) / `RedisCacheService` (Aws) | Cache-aside for **rebuildable, non-PII** data. A query opts in by implementing `ICacheableRequest` (key + TTL); the `CachingBehavior` MediatR behavior then serves it from cache. `RemoveAsync` is the invalidation hook. **Nothing production is cached yet by deliberate choice** — current reads are per-user/PII or freshness-critical live queues; the mechanism is ready for deliberate per-read adoption with write-triggered invalidation. |
+| **Rate limiting** | `Program.cs` global `PartitionedRateLimiter` | Fixed-window per caller (authenticated user id, client-IP fallback), **stricter for unsafe methods**. Over the limit → **429** with `ProblemDetails` + `Retry-After`. Limits come from `RateLimitingOptions` (read per request), generous by default, tightened in production via `RateLimiting:*` config. |
+| **Security headers** | `SecurityHeadersMiddleware` | Every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, a locked-down `Content-Security-Policy`, and a restrictive `Permissions-Policy`. |
+
+The cache adapter follows the same **Local ⇄ AWS profile switch** as S3 (M42) and SNS (M43): local
+in-memory vs Redis (ElastiCache), chosen by `Platform:Profile`, fail-fast on a missing Redis
+connection. Redis is developed/tested against a local Docker container (`docker compose --profile
+aws-local up -d redis`) — no AWS account.
+
 ## Verifying it locally
 
 ```
 GET  /api/v1/health/live      → 200 "Healthy"
 GET  /api/v1/health/ready     → 200 once Docker PostgreSQL is up (503 otherwise)
-GET  / (any request)          → response carries X-Correlation-ID
+GET  / (any request)          → response carries X-Correlation-ID + security headers
+POST (flood beyond the limit) → 429 Too Many Requests (ProblemDetails + Retry-After)
 ```
 
-`HealthEndpointTests` and `OutboxDispatcherTests` pin all of this behavior (correlation echo,
+`HealthEndpointTests` and `OutboxDispatcherTests` pin the observability behavior (correlation echo,
 sanitization, generated IDs, probe routes, dispatcher metrics emission, retry/poison metadata,
-batch isolation).
+batch isolation); `SecurityAndRateLimitingEndpointTests` and the `Caching` tests pin the M44
+hardening (headers present, 429 on flood, cache hit/miss/invalidation).
