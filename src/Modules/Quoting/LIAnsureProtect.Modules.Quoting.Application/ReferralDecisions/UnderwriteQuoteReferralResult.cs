@@ -1,4 +1,4 @@
-namespace LIAnsureProtect.Application.Quotes.Commands.UnderwriteQuoteReferral;
+namespace LIAnsureProtect.Modules.Quoting.Application.ReferralDecisions;
 
 public sealed record UnderwriteQuoteReferralResult(
     Guid QuoteId,

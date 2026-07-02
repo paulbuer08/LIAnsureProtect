@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace LIAnsureProtect.Application.Quotes.Commands.UnderwriteQuoteReferral;
+namespace LIAnsureProtect.Modules.Quoting.Application.ReferralDecisions;
 
 public sealed class DeclineQuoteReferralCommandValidator : AbstractValidator<DeclineQuoteReferralCommand>
 {
