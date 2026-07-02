@@ -1,9 +1,8 @@
-using LIAnsureProtect.Domain.Quotes;
-using LIAnsureProtect.Domain.Submissions;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace LIAnsureProtect.Infrastructure.Persistence.Configurations;
+namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 
 public sealed class QuoteEvidenceDocumentConfiguration : IEntityTypeConfiguration<QuoteEvidenceDocument>
 {
@@ -112,15 +111,5 @@ public sealed class QuoteEvidenceDocumentConfiguration : IEntityTypeConfiguratio
         builder.HasIndex(document => document.StorageKey)
             .IsUnique()
             .HasDatabaseName("ux_quote_evidence_documents_storage_key");
-
-        builder.HasOne<Quote>()
-            .WithMany()
-            .HasForeignKey(document => document.QuoteId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne<Submission>()
-            .WithMany()
-            .HasForeignKey(document => document.SubmissionId)
-            .OnDelete(DeleteBehavior.Restrict);
     }
 }

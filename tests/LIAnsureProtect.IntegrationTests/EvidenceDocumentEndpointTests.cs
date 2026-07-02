@@ -6,6 +6,7 @@ using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.IntegrationTests.Security;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -125,8 +126,31 @@ public sealed class EvidenceDocumentEndpointTests
             Assert.False(string.IsNullOrWhiteSpace(document.GetProperty("sha256").GetString()));
         });
 
+        using var ownerListRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            "/api/v1/evidence-requests",
+            "Customer",
+            "customer-1");
+        using var ownerListResponse = await httpClient.SendAsync(ownerListRequest, TestContext.Current.CancellationToken);
+        var ownerListContent = await ownerListResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var ownerListPayload = JsonDocument.Parse(ownerListContent);
+        var ownerListDocuments = ownerListPayload.RootElement
+            .GetProperty("evidenceRequests")[0]
+            .GetProperty("documents")
+            .EnumerateArray()
+            .ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, ownerListResponse.StatusCode);
+        Assert.Equal(5, ownerListDocuments.Length);
+        Assert.All(ownerListDocuments, document => Assert.False(document.TryGetProperty("storageKey", out _)));
+        Assert.All(ownerListDocuments, document =>
+        {
+            Assert.Equal("Clean", document.GetProperty("scanStatus").GetString());
+            Assert.True(document.GetProperty("isDownloadAvailable").GetBoolean());
+        });
+
         using var scope = webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
         var savedDocuments = await dbContext.Set<QuoteEvidenceDocument>()
             .Where(document => document.EvidenceRequestId == evidenceRequest.Id)
             .OrderBy(document => document.OriginalFileName)
@@ -192,7 +216,7 @@ public sealed class EvidenceDocumentEndpointTests
             && !document.GetProperty("isDownloadAvailable").GetBoolean());
 
         using var scope = webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
         var savedDocuments = await dbContext.Set<QuoteEvidenceDocument>()
             .Where(document => document.EvidenceRequestId == evidenceRequest.Id)
             .ToListAsync(TestContext.Current.CancellationToken);
@@ -409,7 +433,7 @@ public sealed class EvidenceDocumentEndpointTests
             && document.GetProperty("scanStatus").GetString() == "Clean");
 
         using var scope = webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
         Assert.Equal(
             2,
             await dbContext.Set<QuoteEvidenceDocument>()

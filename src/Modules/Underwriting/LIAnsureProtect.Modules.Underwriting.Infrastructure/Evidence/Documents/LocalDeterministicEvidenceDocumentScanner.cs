@@ -1,9 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
-using LIAnsureProtect.Application.Documents;
-using LIAnsureProtect.Domain.Quotes;
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 
-namespace LIAnsureProtect.Infrastructure.Documents;
+namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Evidence.Documents;
 
 public sealed class LocalDeterministicEvidenceDocumentScanner : IEvidenceDocumentScanner
 {

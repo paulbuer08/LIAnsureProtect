@@ -1,4 +1,5 @@
 using LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 
 namespace LIAnsureProtect.Modules.Underwriting.Application.Evidence;
 
@@ -56,7 +57,9 @@ public sealed record QuoteEvidenceDocumentResult(
 
 internal static class QuoteEvidenceRequestResultFactory
 {
-    public static QuoteEvidenceRequestResult FromRequest(QuoteEvidenceRequest request)
+    public static QuoteEvidenceRequestResult FromRequest(
+        QuoteEvidenceRequest request,
+        IReadOnlyCollection<QuoteEvidenceDocument>? documents = null)
     {
         return new QuoteEvidenceRequestResult(
             request.Id,
@@ -90,10 +93,15 @@ internal static class QuoteEvidenceRequestResultFactory
             request.ReviewedByUserId,
             request.ReviewedAtUtc,
             request.UpdatedAtUtc,
-            []);
+            (documents ?? [])
+                .OrderBy(document => document.UploadedAtUtc)
+                .Select(FromDocument)
+                .ToList());
     }
 
-    public static QuoteEvidenceRequestResult FromOwnerItem(EvidenceRequestOwnerItem item)
+    public static QuoteEvidenceRequestResult FromOwnerItem(
+        EvidenceRequestOwnerItem item,
+        IReadOnlyCollection<QuoteEvidenceDocument>? documents = null)
     {
         return new QuoteEvidenceRequestResult(
             item.EvidenceRequestId,
@@ -127,7 +135,28 @@ internal static class QuoteEvidenceRequestResultFactory
             item.ReviewedByUserId,
             item.ReviewedAtUtc,
             item.UpdatedAtUtc,
-            []);
+            (documents ?? [])
+                .OrderBy(document => document.UploadedAtUtc)
+                .Select(FromDocument)
+                .ToList());
+    }
+
+    private static QuoteEvidenceDocumentResult FromDocument(QuoteEvidenceDocument document)
+    {
+        return new QuoteEvidenceDocumentResult(
+            document.Id,
+            document.OriginalFileName,
+            document.ContentType,
+            document.SizeBytes,
+            document.UploadedByUserId,
+            document.UploadedAtUtc,
+            document.ScanStatus.ToString(),
+            document.ScannerProviderName,
+            document.ScanResultCode,
+            document.ScanResultReason,
+            document.ScannedAtUtc,
+            document.Sha256,
+            document.IsDownloadAvailable);
     }
 }
 

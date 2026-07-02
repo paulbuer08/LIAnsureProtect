@@ -1,11 +1,10 @@
-using LIAnsureProtect.Application.Common.Persistence;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
+using LIAnsureProtect.Platform.Abstractions.Documents;
 using LIAnsureProtect.Platform.Abstractions.Security;
-using LIAnsureProtect.Application.Documents;
-using LIAnsureProtect.Domain.Quotes;
-using LIAnsureProtect.Modules.Underwriting.Application.Evidence;
 using MediatR;
 
-namespace LIAnsureProtect.Application.Quotes.Commands.ManageQuoteEvidenceRequests;
+namespace LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
 
 public sealed record RespondToQuoteEvidenceRequestCommand(
     Guid EvidenceRequestId,
@@ -33,8 +32,6 @@ public sealed record RecordQuoteEvidenceReviewDecisionCommand(
     string Reason,
     string? RemediationGuidance) : IRequest<QuoteEvidenceRequestResult?>;
 
-public sealed record ListOwnerEvidenceRequestsQuery : IRequest<ListOwnerEvidenceRequestsResult>;
-
 public sealed record DownloadOwnerEvidenceDocumentQuery(
     Guid EvidenceRequestId,
     Guid DocumentId) : IRequest<EvidenceDocumentDownloadResult?>;
@@ -43,58 +40,6 @@ public sealed record DownloadUnderwritingEvidenceDocumentQuery(
     Guid QuoteId,
     Guid EvidenceRequestId,
     Guid DocumentId) : IRequest<EvidenceDocumentDownloadResult?>;
-
-public sealed record ListOwnerEvidenceRequestsResult(
-    IReadOnlyCollection<QuoteEvidenceRequestResult> EvidenceRequests);
-
-public sealed record QuoteEvidenceRequestResult(
-    Guid EvidenceRequestId,
-    Guid QuoteId,
-    Guid SubmissionId,
-    string Category,
-    string Title,
-    string Description,
-    DateTime DueAtUtc,
-    string Status,
-    bool IsOverdue,
-    int DaysUntilDue,
-    string RequestedByUserId,
-    DateTime RequestedAtUtc,
-    string? RespondedByUserId,
-    string? RespondentName,
-    string? RespondentTitle,
-    string? ResponseText,
-    string? AttachmentFileName,
-    string? AttachmentContentType,
-    long? AttachmentSizeBytes,
-    DateTime? RespondedAtUtc,
-    string? AcceptedByUserId,
-    DateTime? AcceptedAtUtc,
-    string? CancelledByUserId,
-    DateTime? CancelledAtUtc,
-    string? ReviewNotes,
-    string ReviewDecision,
-    string? ReviewReason,
-    string? RemediationGuidance,
-    string? ReviewedByUserId,
-    DateTime? ReviewedAtUtc,
-    DateTime UpdatedAtUtc,
-    IReadOnlyCollection<QuoteEvidenceDocumentResult> Documents);
-
-public sealed record QuoteEvidenceDocumentResult(
-    Guid DocumentId,
-    string OriginalFileName,
-    string ContentType,
-    long SizeBytes,
-    string UploadedByUserId,
-    DateTime UploadedAtUtc,
-    string ScanStatus,
-    string? ScannerProviderName,
-    string? ScanResultCode,
-    string? ScanResultReason,
-    DateTime? ScannedAtUtc,
-    string? Sha256,
-    bool IsDownloadAvailable);
 
 public sealed record EvidenceDocumentUpload(
     string OriginalFileName,
@@ -108,11 +53,9 @@ public sealed record EvidenceDocumentDownloadResult(
     Stream Content);
 
 public sealed class RespondToQuoteEvidenceRequestCommandHandler(
-    IQuoteRepository quoteRepository,
-    IUnitOfWork unitOfWork,
+    IEvidenceRequestRepository evidenceRequestRepository,
+    IEvidenceDocumentRepository evidenceDocumentRepository,
     ICurrentUser currentUser,
-    IEvidenceRequestsReader evidenceRequestsReader,
-    IEvidenceRequestWriter evidenceRequestWriter,
     IDocumentStorageService documentStorageService,
     IEvidenceDocumentScanner evidenceDocumentScanner)
     : IRequestHandler<RespondToQuoteEvidenceRequestCommand, QuoteEvidenceRequestResult?>
@@ -123,10 +66,10 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
     {
         EvidenceDocumentUploadWorkflow.ValidateDocumentUploads(request.Documents);
 
-        var ownerUserId = CurrentUserId.GetRequired(
+        var ownerUserId = CurrentEvidenceUser.GetRequiredUserId(
             currentUser,
             "An authenticated owner user id is required to respond to evidence requests.");
-        var evidenceRequest = await evidenceRequestsReader.GetOwnerRequestAsync(
+        var evidenceRequest = await evidenceRequestRepository.GetForOwnerAsync(
             request.EvidenceRequestId,
             ownerUserId,
             cancellationToken);
@@ -136,7 +79,7 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
         var respondedAtUtc = DateTime.UtcNow;
         var evidenceDocuments = await EvidenceDocumentUploadWorkflow.StoreAndScanDocumentsAsync(
             request.Documents,
-            EvidenceDocumentRequestFacts.FromSnapshot(evidenceRequest),
+            EvidenceDocumentRequestFacts.FromRequest(evidenceRequest),
             ownerUserId,
             respondedAtUtc,
             documentStorageService,
@@ -145,12 +88,10 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
 
         if (evidenceDocuments.Count > 0)
         {
-            await quoteRepository.AddEvidenceDocumentsAsync(evidenceDocuments, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await evidenceDocumentRepository.AddDocumentsAsync(evidenceDocuments, cancellationToken);
         }
 
-        var updatedRequest = await evidenceRequestWriter.RecordResponseAsync(
-            request.EvidenceRequestId,
+        evidenceRequest.Respond(
             ownerUserId,
             request.RespondentName,
             request.RespondentTitle,
@@ -158,21 +99,18 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
             evidenceDocuments.FirstOrDefault()?.OriginalFileName ?? request.AttachmentFileName,
             evidenceDocuments.FirstOrDefault()?.ContentType ?? request.AttachmentContentType,
             evidenceDocuments.FirstOrDefault()?.SizeBytes ?? request.AttachmentSizeBytes,
-            respondedAtUtc,
-            cancellationToken);
-        if (updatedRequest is null)
-            return null;
+            respondedAtUtc);
 
-        return QuoteEvidenceRequestResultFactory.FromSnapshot(updatedRequest, evidenceDocuments);
+        await evidenceRequestRepository.SaveChangesAsync(cancellationToken);
+
+        return QuoteEvidenceRequestResultFactory.FromRequest(evidenceRequest, evidenceDocuments);
     }
 }
 
 public sealed class UploadReplacementEvidenceDocumentsCommandHandler(
-    IQuoteRepository quoteRepository,
-    IUnitOfWork unitOfWork,
+    IEvidenceRequestRepository evidenceRequestRepository,
+    IEvidenceDocumentRepository evidenceDocumentRepository,
     ICurrentUser currentUser,
-    IEvidenceRequestsReader evidenceRequestsReader,
-    IEvidenceRequestWriter evidenceRequestWriter,
     IDocumentStorageService documentStorageService,
     IEvidenceDocumentScanner evidenceDocumentScanner)
     : IRequestHandler<UploadReplacementEvidenceDocumentsCommand, QuoteEvidenceRequestResult?>
@@ -186,21 +124,21 @@ public sealed class UploadReplacementEvidenceDocumentsCommandHandler(
 
         EvidenceDocumentUploadWorkflow.ValidateDocumentUploads(request.Documents);
 
-        var ownerUserId = CurrentUserId.GetRequired(
+        var ownerUserId = CurrentEvidenceUser.GetRequiredUserId(
             currentUser,
             "An authenticated owner user id is required to upload replacement evidence documents.");
-        var evidenceRequest = await evidenceRequestsReader.GetOwnerRequestAsync(
+        var evidenceRequest = await evidenceRequestRepository.GetForOwnerAsync(
             request.EvidenceRequestId,
             ownerUserId,
             cancellationToken);
         if (evidenceRequest is null)
             return null;
 
-        if (!string.Equals(evidenceRequest.Status, EvidenceRequestStatuses.Responded, StringComparison.Ordinal))
+        if (evidenceRequest.Status != EvidenceRequestStatus.Responded)
             throw new InvalidOperationException("Replacement evidence documents can only be uploaded after an evidence response.");
 
-        var existingDocuments = await quoteRepository.ListEvidenceDocumentsForRequestsAsync(
-            [evidenceRequest.EvidenceRequestId],
+        var existingDocuments = await evidenceDocumentRepository.ListForRequestsAsync(
+            [evidenceRequest.Id],
             cancellationToken);
         if (!existingDocuments.Any(document => document.ScanStatus is EvidenceDocumentScanStatus.Rejected or EvidenceDocumentScanStatus.Failed))
             throw new InvalidOperationException("Replacement evidence documents are only allowed after a rejected or failed security scan.");
@@ -208,7 +146,7 @@ public sealed class UploadReplacementEvidenceDocumentsCommandHandler(
         var uploadedAtUtc = DateTime.UtcNow;
         var replacementDocuments = await EvidenceDocumentUploadWorkflow.StoreAndScanDocumentsAsync(
             request.Documents,
-            EvidenceDocumentRequestFacts.FromSnapshot(evidenceRequest),
+            EvidenceDocumentRequestFacts.FromRequest(evidenceRequest),
             ownerUserId,
             uploadedAtUtc,
             documentStorageService,
@@ -217,12 +155,10 @@ public sealed class UploadReplacementEvidenceDocumentsCommandHandler(
 
         if (replacementDocuments.Count > 0)
         {
-            await quoteRepository.AddEvidenceDocumentsAsync(replacementDocuments, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await evidenceDocumentRepository.AddDocumentsAsync(replacementDocuments, cancellationToken);
         }
 
-        var updatedRequest = await evidenceRequestWriter.RecordSupplementalResponseAsync(
-            request.EvidenceRequestId,
+        evidenceRequest.RecordSupplementalResponse(
             ownerUserId,
             evidenceRequest.RespondentName ?? string.Empty,
             evidenceRequest.RespondentTitle ?? string.Empty,
@@ -230,161 +166,136 @@ public sealed class UploadReplacementEvidenceDocumentsCommandHandler(
             replacementDocuments.FirstOrDefault()?.OriginalFileName ?? evidenceRequest.AttachmentFileName,
             replacementDocuments.FirstOrDefault()?.ContentType ?? evidenceRequest.AttachmentContentType,
             replacementDocuments.FirstOrDefault()?.SizeBytes ?? evidenceRequest.AttachmentSizeBytes,
-            uploadedAtUtc,
-            cancellationToken);
-        if (updatedRequest is null)
-            return null;
+            uploadedAtUtc);
 
-        return QuoteEvidenceRequestResultFactory.FromSnapshot(
-            updatedRequest,
+        await evidenceRequestRepository.SaveChangesAsync(cancellationToken);
+
+        return QuoteEvidenceRequestResultFactory.FromRequest(
+            evidenceRequest,
             existingDocuments.Concat(replacementDocuments).ToList());
     }
 }
 
 public sealed class AcceptQuoteEvidenceRequestCommandHandler(
-    IQuoteRepository quoteRepository,
-    ICurrentUser currentUser,
-    IEvidenceRequestsReader evidenceRequestsReader,
-    IEvidenceRequestWriter evidenceRequestWriter)
+    IEvidenceRequestRepository evidenceRequestRepository,
+    IEvidenceDocumentRepository evidenceDocumentRepository,
+    ICurrentUser currentUser)
     : IRequestHandler<AcceptQuoteEvidenceRequestCommand, QuoteEvidenceRequestResult?>
 {
     public async Task<QuoteEvidenceRequestResult?> Handle(
         AcceptQuoteEvidenceRequestCommand request,
         CancellationToken cancellationToken)
     {
-        var evidenceRequest = await evidenceRequestsReader.GetUnderwritingRequestAsync(
+        var evidenceRequest = await evidenceRequestRepository.GetForUnderwritingAsync(
             request.QuoteId,
             request.EvidenceRequestId,
             cancellationToken);
         if (evidenceRequest is null)
             return null;
 
-        var documents = await quoteRepository.ListEvidenceDocumentsForRequestsAsync(
-            [evidenceRequest.EvidenceRequestId],
+        var documents = await evidenceDocumentRepository.ListForRequestsAsync(
+            [evidenceRequest.Id],
             cancellationToken);
         EvidenceReviewDocumentGate.EnsureReviewDocumentsAreTrusted(
             documents,
             "Only clean evidence documents can be accepted.");
 
-        var underwriterUserId = CurrentUserId.GetRequired(
+        var underwriterUserId = CurrentEvidenceUser.GetRequiredUserId(
             currentUser,
             "An authenticated underwriter user id is required to accept evidence.");
         var acceptedAtUtc = DateTime.UtcNow;
 
-        var updatedRequest = await evidenceRequestWriter.AcceptAsync(
-            request.QuoteId,
-            request.EvidenceRequestId,
+        evidenceRequest.Accept(underwriterUserId, request.ReviewNotes, acceptedAtUtc);
+        var review = QuoteEvidenceRequestReview.Record(
+            evidenceRequest,
+            EvidenceReviewDecisionStatus.Satisfied,
+            request.ReviewNotes ?? "Evidence accepted by underwriting.",
+            null,
             underwriterUserId,
-            request.ReviewNotes,
-            documents.Count,
-            documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean),
             acceptedAtUtc,
-            cancellationToken);
-        if (updatedRequest is null)
-            return null;
+            documents.Count,
+            documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean));
+        await evidenceRequestRepository.AddReviewAsync(review, cancellationToken);
+        await evidenceRequestRepository.SaveChangesAsync(cancellationToken);
 
-        return QuoteEvidenceRequestResultFactory.FromSnapshot(updatedRequest, documents);
+        return QuoteEvidenceRequestResultFactory.FromRequest(evidenceRequest, documents);
     }
 }
 
 public sealed class RecordQuoteEvidenceReviewDecisionCommandHandler(
-    IQuoteRepository quoteRepository,
-    ICurrentUser currentUser,
-    IEvidenceRequestsReader evidenceRequestsReader,
-    IEvidenceRequestWriter evidenceRequestWriter)
+    IEvidenceRequestRepository evidenceRequestRepository,
+    IEvidenceDocumentRepository evidenceDocumentRepository,
+    ICurrentUser currentUser)
     : IRequestHandler<RecordQuoteEvidenceReviewDecisionCommand, QuoteEvidenceRequestResult?>
 {
     public async Task<QuoteEvidenceRequestResult?> Handle(
         RecordQuoteEvidenceReviewDecisionCommand request,
         CancellationToken cancellationToken)
     {
-        var evidenceRequest = await evidenceRequestsReader.GetUnderwritingRequestAsync(
+        var evidenceRequest = await evidenceRequestRepository.GetForUnderwritingAsync(
             request.QuoteId,
             request.EvidenceRequestId,
             cancellationToken);
         if (evidenceRequest is null)
             return null;
 
-        var documents = await quoteRepository.ListEvidenceDocumentsForRequestsAsync(
-            [evidenceRequest.EvidenceRequestId],
+        var documents = await evidenceDocumentRepository.ListForRequestsAsync(
+            [evidenceRequest.Id],
             cancellationToken);
         EvidenceReviewDocumentGate.EnsureReviewDocumentsAreTrusted(
             documents,
             "Only clean evidence documents can support a review decision.");
 
-        var underwriterUserId = CurrentUserId.GetRequired(
+        var underwriterUserId = CurrentEvidenceUser.GetRequiredUserId(
             currentUser,
             "An authenticated underwriter user id is required to review evidence.");
         var reviewedAtUtc = DateTime.UtcNow;
 
-        EvidenceRequestSnapshot? updatedRequest;
-        if (string.Equals(request.Decision, EvidenceReviewDecisionStatuses.Satisfied, StringComparison.Ordinal))
+        if (string.Equals(request.Decision, EvidenceReviewDecisionStatus.Satisfied.ToString(), StringComparison.Ordinal))
         {
-            updatedRequest = await evidenceRequestWriter.AcceptAsync(
-                request.QuoteId,
-                request.EvidenceRequestId,
-                underwriterUserId,
+            evidenceRequest.Accept(underwriterUserId, request.Reason, reviewedAtUtc);
+            var satisfiedReview = QuoteEvidenceRequestReview.Record(
+                evidenceRequest,
+                EvidenceReviewDecisionStatus.Satisfied,
                 request.Reason,
-                documents.Count,
-                documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean),
+                null,
+                underwriterUserId,
                 reviewedAtUtc,
-                cancellationToken);
+                documents.Count,
+                documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean));
+            await evidenceRequestRepository.AddReviewAsync(satisfiedReview, cancellationToken);
         }
         else
         {
-            updatedRequest = await evidenceRequestWriter.RecordReviewDecisionAsync(
-                request.QuoteId,
-                request.EvidenceRequestId,
-                request.Decision,
+            if (!Enum.TryParse<EvidenceReviewDecisionStatus>(request.Decision, ignoreCase: false, out var parsedDecision))
+                throw new ArgumentException("Evidence review decision is not supported.", nameof(request.Decision));
+
+            evidenceRequest.RecordReviewDecision(
+                parsedDecision,
                 request.Reason,
                 request.RemediationGuidance,
                 underwriterUserId,
-                documents.Count,
-                documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean),
+                reviewedAtUtc);
+            var review = QuoteEvidenceRequestReview.Record(
+                evidenceRequest,
+                parsedDecision,
+                request.Reason,
+                request.RemediationGuidance,
+                underwriterUserId,
                 reviewedAtUtc,
-                cancellationToken);
+                documents.Count,
+                documents.Count(document => document.ScanStatus == EvidenceDocumentScanStatus.Clean));
+            await evidenceRequestRepository.AddReviewAsync(review, cancellationToken);
         }
-        if (updatedRequest is null)
-            return null;
 
-        return QuoteEvidenceRequestResultFactory.FromSnapshot(updatedRequest, documents);
-    }
-}
+        await evidenceRequestRepository.SaveChangesAsync(cancellationToken);
 
-public sealed class ListOwnerEvidenceRequestsQueryHandler(
-    IQuoteRepository quoteRepository,
-    IEvidenceRequestsReader evidenceRequestsReader,
-    ICurrentUser currentUser)
-    : IRequestHandler<ListOwnerEvidenceRequestsQuery, ListOwnerEvidenceRequestsResult>
-{
-    public async Task<ListOwnerEvidenceRequestsResult> Handle(
-        ListOwnerEvidenceRequestsQuery request,
-        CancellationToken cancellationToken)
-    {
-        var ownerUserId = CurrentUserId.GetRequired(
-            currentUser,
-            "An authenticated owner user id is required to list evidence requests.");
-        var evidenceRequests = await evidenceRequestsReader.GetOwnerRequestsAsync(
-            ownerUserId,
-            cancellationToken);
-        var documents = await quoteRepository.ListEvidenceDocumentsForRequestsAsync(
-            evidenceRequests.Select(evidenceRequest => evidenceRequest.EvidenceRequestId).ToList(),
-            cancellationToken);
-        var documentsByRequestId = documents
-            .GroupBy(document => document.EvidenceRequestId)
-            .ToDictionary(group => group.Key, group => (IReadOnlyCollection<QuoteEvidenceDocument>)group.ToList());
-
-        return new ListOwnerEvidenceRequestsResult(
-            evidenceRequests
-                .Select(evidenceRequest => QuoteEvidenceRequestResultFactory.FromOwnerItem(
-                    evidenceRequest,
-                    documentsByRequestId.GetValueOrDefault(evidenceRequest.EvidenceRequestId) ?? []))
-                .ToList());
+        return QuoteEvidenceRequestResultFactory.FromRequest(evidenceRequest, documents);
     }
 }
 
 public sealed class DownloadOwnerEvidenceDocumentQueryHandler(
-    IQuoteRepository quoteRepository,
+    IEvidenceDocumentRepository evidenceDocumentRepository,
     ICurrentUser currentUser,
     IDocumentStorageService documentStorageService)
     : IRequestHandler<DownloadOwnerEvidenceDocumentQuery, EvidenceDocumentDownloadResult?>
@@ -393,10 +304,10 @@ public sealed class DownloadOwnerEvidenceDocumentQueryHandler(
         DownloadOwnerEvidenceDocumentQuery request,
         CancellationToken cancellationToken)
     {
-        var ownerUserId = CurrentUserId.GetRequired(
+        var ownerUserId = CurrentEvidenceUser.GetRequiredUserId(
             currentUser,
             "An authenticated owner user id is required to download evidence documents.");
-        var document = await quoteRepository.GetEvidenceDocumentForOwnerAsync(
+        var document = await evidenceDocumentRepository.GetForOwnerAsync(
             request.EvidenceRequestId,
             request.DocumentId,
             ownerUserId,
@@ -412,7 +323,7 @@ public sealed class DownloadOwnerEvidenceDocumentQueryHandler(
 }
 
 public sealed class DownloadUnderwritingEvidenceDocumentQueryHandler(
-    IQuoteRepository quoteRepository,
+    IEvidenceDocumentRepository evidenceDocumentRepository,
     IDocumentStorageService documentStorageService)
     : IRequestHandler<DownloadUnderwritingEvidenceDocumentQuery, EvidenceDocumentDownloadResult?>
 {
@@ -420,7 +331,7 @@ public sealed class DownloadUnderwritingEvidenceDocumentQueryHandler(
         DownloadUnderwritingEvidenceDocumentQuery request,
         CancellationToken cancellationToken)
     {
-        var document = await quoteRepository.GetEvidenceDocumentForUnderwritingAsync(
+        var document = await evidenceDocumentRepository.GetForUnderwritingAsync(
             request.QuoteId,
             request.EvidenceRequestId,
             request.DocumentId,
@@ -435,175 +346,19 @@ public sealed class DownloadUnderwritingEvidenceDocumentQueryHandler(
     }
 }
 
-public static class QuoteEvidenceRequestResultFactory
-{
-    public static QuoteEvidenceRequestResult FromSnapshot(
-        EvidenceRequestSnapshot request,
-        IReadOnlyCollection<QuoteEvidenceDocument>? documents = null)
-    {
-        return new QuoteEvidenceRequestResult(
-            request.EvidenceRequestId,
-            request.QuoteId,
-            request.SubmissionId,
-            request.Category,
-            request.Title,
-            request.Description,
-            request.DueAtUtc,
-            request.Status,
-            request.IsOverdue,
-            request.DaysUntilDue,
-            request.RequestedByUserId,
-            request.RequestedAtUtc,
-            request.RespondedByUserId,
-            request.RespondentName,
-            request.RespondentTitle,
-            request.ResponseText,
-            request.AttachmentFileName,
-            request.AttachmentContentType,
-            request.AttachmentSizeBytes,
-            request.RespondedAtUtc,
-            request.AcceptedByUserId,
-            request.AcceptedAtUtc,
-            request.CancelledByUserId,
-            request.CancelledAtUtc,
-            request.ReviewNotes,
-            request.ReviewDecision,
-            request.ReviewReason,
-            request.RemediationGuidance,
-            request.ReviewedByUserId,
-            request.ReviewedAtUtc,
-            request.UpdatedAtUtc,
-            (documents ?? [])
-                .OrderBy(document => document.UploadedAtUtc)
-                .Select(FromDocument)
-                .ToList());
-    }
-
-    public static QuoteEvidenceRequestResult FromOwnerItem(
-        EvidenceRequestOwnerItem request,
-        IReadOnlyCollection<QuoteEvidenceDocument>? documents = null)
-    {
-        return new QuoteEvidenceRequestResult(
-            request.EvidenceRequestId,
-            request.QuoteId,
-            request.SubmissionId,
-            request.Category,
-            request.Title,
-            request.Description,
-            request.DueAtUtc,
-            request.Status,
-            request.IsOverdue,
-            request.DaysUntilDue,
-            request.RequestedByUserId,
-            request.RequestedAtUtc,
-            request.RespondedByUserId,
-            request.RespondentName,
-            request.RespondentTitle,
-            request.ResponseText,
-            request.AttachmentFileName,
-            request.AttachmentContentType,
-            request.AttachmentSizeBytes,
-            request.RespondedAtUtc,
-            request.AcceptedByUserId,
-            request.AcceptedAtUtc,
-            request.CancelledByUserId,
-            request.CancelledAtUtc,
-            request.ReviewNotes,
-            request.ReviewDecision,
-            request.ReviewReason,
-            request.RemediationGuidance,
-            request.ReviewedByUserId,
-            request.ReviewedAtUtc,
-            request.UpdatedAtUtc,
-            (documents ?? [])
-                .OrderBy(document => document.UploadedAtUtc)
-                .Select(FromDocument)
-                .ToList());
-    }
-
-    private static QuoteEvidenceDocumentResult FromDocument(QuoteEvidenceDocument document)
-    {
-        return new QuoteEvidenceDocumentResult(
-            document.Id,
-            document.OriginalFileName,
-            document.ContentType,
-            document.SizeBytes,
-            document.UploadedByUserId,
-            document.UploadedAtUtc,
-            document.ScanStatus.ToString(),
-            document.ScannerProviderName,
-            document.ScanResultCode,
-            document.ScanResultReason,
-            document.ScannedAtUtc,
-            document.Sha256,
-            document.IsDownloadAvailable);
-    }
-}
-
 internal sealed record EvidenceDocumentRequestFacts(
     Guid EvidenceRequestId,
     Guid QuoteId,
     Guid SubmissionId,
     string OwnerUserId)
 {
-    public static EvidenceDocumentRequestFacts FromSnapshot(EvidenceRequestSnapshot snapshot)
+    public static EvidenceDocumentRequestFacts FromRequest(QuoteEvidenceRequest request)
     {
         return new EvidenceDocumentRequestFacts(
-            snapshot.EvidenceRequestId,
-            snapshot.QuoteId,
-            snapshot.SubmissionId,
-            snapshot.OwnerUserId);
-    }
-}
-
-internal static class EvidenceRequestStatuses
-{
-    public const string Responded = "Responded";
-}
-
-internal static class EvidenceReviewDecisionStatuses
-{
-    public const string Satisfied = "Satisfied";
-}
-
-internal static class EvidenceReviewDocumentGate
-{
-    public static void EnsureReviewDocumentsAreTrusted(
-        IReadOnlyCollection<QuoteEvidenceDocument> documents,
-        string message)
-    {
-        if (documents.Any(document => !document.IsDownloadAvailable))
-            throw new InvalidOperationException(message);
-    }
-}
-
-internal static class EvidenceDocumentDownloadResultFactory
-{
-    public static async Task<EvidenceDocumentDownloadResult?> OpenDocumentAsync(
-        IDocumentStorageService documentStorageService,
-        QuoteEvidenceDocument document,
-        CancellationToken cancellationToken)
-    {
-        if (!document.IsDownloadAvailable)
-            throw new InvalidOperationException($"Evidence document scan status is {document.ScanStatus} and is not trusted for download.");
-
-        var download = await documentStorageService.OpenReadAsync(document.StorageKey, cancellationToken);
-        return download is null
-            ? null
-            : new EvidenceDocumentDownloadResult(
-                document.OriginalFileName,
-                document.ContentType,
-                download.Content);
-    }
-}
-
-internal static class CurrentUserId
-{
-    public static string GetRequired(ICurrentUser currentUser, string message)
-    {
-        return string.IsNullOrWhiteSpace(currentUser.UserId)
-            ? throw new InvalidOperationException(message)
-            : currentUser.UserId;
+            request.Id,
+            request.QuoteId,
+            request.SubmissionId,
+            request.OwnerUserId);
     }
 }
 
@@ -628,7 +383,7 @@ internal static class EvidenceDocumentUploadWorkflow
     public static void ValidateDocumentUploads(IReadOnlyCollection<EvidenceDocumentUpload> documents)
     {
         if (documents.Count > MaximumDocumentCount)
-            throw new ArgumentException($"Evidence responses can include up to 5 files.", nameof(documents));
+            throw new ArgumentException("Evidence responses can include up to 5 files.", nameof(documents));
 
         if (documents.Sum(document => document.SizeBytes) > MaximumTotalDocumentSizeBytes)
             throw new ArgumentException("Evidence response documents cannot exceed 50 MB in total.", nameof(documents));
@@ -715,5 +470,36 @@ internal static class EvidenceDocumentUploadWorkflow
         }
 
         return evidenceDocuments;
+    }
+}
+
+internal static class EvidenceReviewDocumentGate
+{
+    public static void EnsureReviewDocumentsAreTrusted(
+        IReadOnlyCollection<QuoteEvidenceDocument> documents,
+        string message)
+    {
+        if (documents.Any(document => !document.IsDownloadAvailable))
+            throw new InvalidOperationException(message);
+    }
+}
+
+internal static class EvidenceDocumentDownloadResultFactory
+{
+    public static async Task<EvidenceDocumentDownloadResult?> OpenDocumentAsync(
+        IDocumentStorageService documentStorageService,
+        QuoteEvidenceDocument document,
+        CancellationToken cancellationToken)
+    {
+        if (!document.IsDownloadAvailable)
+            throw new InvalidOperationException($"Evidence document scan status is {document.ScanStatus} and is not trusted for download.");
+
+        var download = await documentStorageService.OpenReadAsync(document.StorageKey, cancellationToken);
+        return download is null
+            ? null
+            : new EvidenceDocumentDownloadResult(
+                document.OriginalFileName,
+                document.ContentType,
+                download.Content);
     }
 }

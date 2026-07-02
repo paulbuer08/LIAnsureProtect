@@ -1,4 +1,4 @@
-using LIAnsureProtect.Application.Documents;
+using LIAnsureProtect.Platform.Abstractions.Documents;
 using Microsoft.Extensions.Options;
 
 namespace LIAnsureProtect.Infrastructure.Documents;

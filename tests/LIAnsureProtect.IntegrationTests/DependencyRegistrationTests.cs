@@ -1,7 +1,6 @@
 using LIAnsureProtect.Application;
 using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Persistence;
-using LIAnsureProtect.Application.Documents;
 using LIAnsureProtect.Application.Policies;
 using LIAnsureProtect.Application.Policies.Binding;
 using LIAnsureProtect.Application.Quotes;
@@ -16,8 +15,10 @@ using LIAnsureProtect.Modules.Notifications.Infrastructure;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Underwriting.Application;
 using LIAnsureProtect.Modules.Underwriting.Application.Ai;
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
+using LIAnsureProtect.Platform.Abstractions.Documents;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,6 +71,7 @@ public sealed class DependencyRegistrationTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IRatingProviderClient>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IDocumentStorageService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IEvidenceDocumentScanner>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IEvidenceDocumentRepository>());
 
         // Underwriting module services: own DbContext, AI provider, AI review repo, and the Quoting-side
         // quote-read adapter (registered in AddInfrastructure).
@@ -146,17 +148,7 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("ix_quote_evidence_request_reviews_quote_reviewed_at_utc", script);
         Assert.Contains("document_count", script);
         Assert.Contains("clean_document_count", script);
-        Assert.Contains("CREATE TABLE quote_evidence_documents", script);
-        Assert.Contains("ix_quote_evidence_documents_request_uploaded_at_utc", script);
-        Assert.Contains("ix_quote_evidence_documents_owner_request", script);
-        Assert.Contains("ux_quote_evidence_documents_storage_key", script);
-        Assert.Contains("scan_status", script);
-        Assert.Contains("scanner_provider_name", script);
-        Assert.Contains("scan_result_code", script);
-        Assert.Contains("scan_result_reason", script);
-        Assert.Contains("scanned_at_utc", script);
-        Assert.Contains("sha256", script);
-        Assert.Contains("ix_quote_evidence_documents_scan_status_uploaded_at_utc", script);
+        Assert.Contains("DROP TABLE quote_evidence_documents", script);
     }
 
     [Fact]

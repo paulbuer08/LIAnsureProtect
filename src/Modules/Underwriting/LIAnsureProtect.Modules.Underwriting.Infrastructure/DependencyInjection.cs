@@ -1,8 +1,10 @@
 using LIAnsureProtect.Modules.Underwriting.Application;
 using LIAnsureProtect.Modules.Underwriting.Application.Ai;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence;
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
 using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Ai;
+using LIAnsureProtect.Modules.Underwriting.Infrastructure.Evidence.Documents;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 using LIAnsureProtect.Platform.Abstractions;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
@@ -40,14 +42,15 @@ public static class DependencyInjection
         services.AddScoped<IReferralOperationProjector, ReferralOperationProjector>();
         services.AddScoped<IOutboxSource, UnderwritingOutboxSource>();
         services.AddScoped<IEvidenceRequestRepository, EfEvidenceRequestRepository>();
+        services.AddScoped<IEvidenceDocumentRepository, EfEvidenceDocumentRepository>();
         services.AddScoped<IEvidenceRequestsReader, EvidenceRequestsReader>();
-        services.AddScoped<IEvidenceRequestWriter, EvidenceRequestWriter>();
 
         // Ports & Adapters: the advisory AI provider is chosen by the active deployment profile.
         switch (profile)
         {
             case PlatformProfile.Local:
                 services.AddScoped<IAiReviewService, LocalSimulatedAiReviewService>();
+                services.AddScoped<IEvidenceDocumentScanner, LocalDeterministicEvidenceDocumentScanner>();
                 break;
             case PlatformProfile.Aws:
                 throw new NotSupportedException(

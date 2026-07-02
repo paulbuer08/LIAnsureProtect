@@ -1,8 +1,8 @@
-using LIAnsureProtect.Application.Documents;
 using LIAnsureProtect.Infrastructure;
 using LIAnsureProtect.Infrastructure.Documents;
 using LIAnsureProtect.Platform;
 using LIAnsureProtect.Platform.Abstractions;
+using LIAnsureProtect.Platform.Abstractions.Documents;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

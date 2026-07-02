@@ -1034,15 +1034,18 @@ quote_evidence_request_reviews
 
 The remediation notification is action-oriented but still safe for a local audit trail. It carries workflow identifiers, category, decision, review reason, remediation guidance, requested-by user id, reviewed-by user id, due date, and `actionRequired=true`. It does not carry document content, storage keys, raw file bytes, production delivery details, notification preferences, or messaging-thread data.
 
-Milestone 37 moves the evidence **request and review** ownership into the Underwriting module. The same
-HTTP workflows remain, but the request/review aggregates, request/review tables, and evidence domain
-events now live in the `underwriting` schema. Legacy document-coupled handlers still own document
-storage and scanning for this milestone; they fetch request facts through `IEvidenceRequestsReader`,
-store/scan documents in the legacy document table, then update module request/review state through
-`IEvidenceRequestWriter`. This keeps document bytes and scan metadata stable while the request/review
-state moves first. The legacy `quote_evidence_requests` and `quote_evidence_request_reviews` tables
-are dropped; `quote_evidence_documents.evidence_request_id` remains as a scalar correlation id until
-the document aggregate moves in Milestone 38.
+Milestone 37 moved the evidence **request and review** ownership into the Underwriting module. The same
+HTTP workflows remained, but the request/review aggregates, request/review tables, and evidence domain
+events moved into the `underwriting` schema. It deliberately left document storage/scanning behind a
+temporary seam so request/review state could move first.
+
+Milestone 38 completed that follow-up document carve. Generic private object storage is now a Platform
+abstraction (`LIAnsureProtect.Platform.Abstractions.Documents`), evidence scanning is an Underwriting
+module port, and document metadata moved from `public.quote_evidence_documents` to
+`underwriting.quote_evidence_documents`. The public routes stayed the same, but upload, replacement,
+download, accept, review, and document-aware owner reads are now module Application workflows. The
+temporary M37 `IEvidenceRequestWriter` seam is gone, and request state, review audit rows, document
+metadata, and module outbox events save through the same `UnderwritingDbContext`.
 
 This keeps the workflow realistic for cyber underwriting while still deferring production S3 provisioning, AWS GuardDuty/EventBridge wiring, durable download audit, OCR, embeddings, RAG, notification inboxes, scheduled reminder automation, autonomous AI document review, legal hold, policy binding, final quote approval automation, multi-reviewer approval chains, and a full malware analyst console to separate milestones.
 

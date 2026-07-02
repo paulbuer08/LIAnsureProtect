@@ -18,8 +18,6 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
 
     public DbSet<QuoteUnderwritingReview> QuoteUnderwritingReviews => Set<QuoteUnderwritingReview>();
 
-    public DbSet<QuoteEvidenceDocument> QuoteEvidenceDocuments => Set<QuoteEvidenceDocument>();
-
     public DbSet<Policy> Policies => Set<Policy>();
 
     public DbSet<PolicyBindingAttempt> PolicyBindingAttempts => Set<PolicyBindingAttempt>();

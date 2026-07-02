@@ -1,6 +1,6 @@
-using LIAnsureProtect.Domain.Quotes;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 
-namespace LIAnsureProtect.Application.Documents;
+namespace LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
 
 public interface IEvidenceDocumentScanner
 {
