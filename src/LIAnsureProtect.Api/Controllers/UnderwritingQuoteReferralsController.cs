@@ -1,9 +1,9 @@
 using LIAnsureProtect.Application.Common.Security;
-using LIAnsureProtect.Application.Quotes.Commands.ManageQuoteEvidenceRequests;
 using LIAnsureProtect.Application.Quotes.Commands.UnderwriteQuoteReferral;
 using LIAnsureProtect.Application.Quotes.Queries.ListQuoteReferrals;
 using LIAnsureProtect.Modules.Underwriting.Application.Commands.GenerateAiUnderwritingReview;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Commands.ManageEvidenceRequests;
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
 using LIAnsureProtect.Modules.Underwriting.Application.Referrals.Commands.ManageReferralOperations;
 using LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 using MediatR;
@@ -81,8 +81,8 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<QuoteEvidenceRequestResult>> AcceptEvidenceRequest(
+    [ProducesResponseType<ModuleQuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleQuoteEvidenceRequestResult>> AcceptEvidenceRequest(
         Guid quoteId,
         Guid evidenceRequestId,
         ReviewQuoteEvidenceRequestRequest request,
@@ -99,8 +99,8 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<QuoteEvidenceRequestResult>> RecordEvidenceReviewDecision(
+    [ProducesResponseType<ModuleQuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleQuoteEvidenceRequestResult>> RecordEvidenceReviewDecision(
         Guid quoteId,
         Guid evidenceRequestId,
         RecordQuoteEvidenceReviewDecisionRequest request,
@@ -488,8 +488,8 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
         }
     }
 
-    private async Task<ActionResult<QuoteEvidenceRequestResult>> ExecuteEvidenceReviewAsync(
-        IRequest<QuoteEvidenceRequestResult?> command,
+    private async Task<ActionResult<ModuleQuoteEvidenceRequestResult>> ExecuteEvidenceReviewAsync(
+        IRequest<ModuleQuoteEvidenceRequestResult?> command,
         CancellationToken cancellationToken)
     {
         try

@@ -1,3 +1,4 @@
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using MediatR;
 
@@ -7,6 +8,7 @@ public sealed record ListOwnerEvidenceRequestsQuery : IRequest<ListOwnerEvidence
 
 public sealed class ListOwnerEvidenceRequestsQueryHandler(
     IEvidenceRequestsReader reader,
+    IEvidenceDocumentRepository evidenceDocumentRepository,
     ICurrentUser currentUser)
     : IRequestHandler<ListOwnerEvidenceRequestsQuery, ListOwnerEvidenceRequestsResult>
 {
@@ -18,10 +20,17 @@ public sealed class ListOwnerEvidenceRequestsQueryHandler(
             currentUser,
             "An authenticated owner user id is required to list evidence requests.");
         var evidenceRequests = await reader.GetOwnerRequestsAsync(ownerUserId, cancellationToken);
+        var evidenceRequestIds = evidenceRequests
+            .Select(evidenceRequest => evidenceRequest.EvidenceRequestId)
+            .ToList();
+        var documents = await evidenceDocumentRepository.ListForRequestsAsync(evidenceRequestIds, cancellationToken);
+        var documentsByRequestId = documents.ToLookup(document => document.EvidenceRequestId);
 
         return new ListOwnerEvidenceRequestsResult(
             evidenceRequests
-                .Select(QuoteEvidenceRequestResultFactory.FromOwnerItem)
+                .Select(evidenceRequest => QuoteEvidenceRequestResultFactory.FromOwnerItem(
+                    evidenceRequest,
+                    documentsByRequestId[evidenceRequest.EvidenceRequestId].ToList()))
                 .ToList());
     }
 }

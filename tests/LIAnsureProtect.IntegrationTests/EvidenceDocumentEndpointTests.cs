@@ -127,7 +127,7 @@ public sealed class EvidenceDocumentEndpointTests
         });
 
         using var scope = webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
         var savedDocuments = await dbContext.Set<QuoteEvidenceDocument>()
             .Where(document => document.EvidenceRequestId == evidenceRequest.Id)
             .OrderBy(document => document.OriginalFileName)
@@ -193,7 +193,7 @@ public sealed class EvidenceDocumentEndpointTests
             && !document.GetProperty("isDownloadAvailable").GetBoolean());
 
         using var scope = webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
         var savedDocuments = await dbContext.Set<QuoteEvidenceDocument>()
             .Where(document => document.EvidenceRequestId == evidenceRequest.Id)
             .ToListAsync(TestContext.Current.CancellationToken);
@@ -410,7 +410,7 @@ public sealed class EvidenceDocumentEndpointTests
             && document.GetProperty("scanStatus").GetString() == "Clean");
 
         using var scope = webApplicationFactory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
         Assert.Equal(
             2,
             await dbContext.Set<QuoteEvidenceDocument>()

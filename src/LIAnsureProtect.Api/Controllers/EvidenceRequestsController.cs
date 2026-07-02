@@ -1,8 +1,10 @@
 using LIAnsureProtect.Application.Common.Security;
-using LIAnsureProtect.Application.Quotes.Commands.ManageQuoteEvidenceRequests;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ModuleEvidence = LIAnsureProtect.Modules.Underwriting.Application.Evidence;
+using ModuleEvidenceDocuments = LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
+using ModuleOwnerEvidenceRequests = LIAnsureProtect.Modules.Underwriting.Application.Evidence.Queries.ListOwnerEvidenceRequests;
 
 namespace LIAnsureProtect.Api.Controllers;
 
@@ -14,10 +16,10 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType<ListOwnerEvidenceRequestsResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ListOwnerEvidenceRequestsResult>> List(CancellationToken cancellationToken)
+    [ProducesResponseType<ModuleEvidence.ListOwnerEvidenceRequestsResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleEvidence.ListOwnerEvidenceRequestsResult>> List(CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new ListOwnerEvidenceRequestsQuery(), cancellationToken);
+        var result = await sender.Send(new ModuleOwnerEvidenceRequests.ListOwnerEvidenceRequestsQuery(), cancellationToken);
 
         return Ok(result);
     }
@@ -29,8 +31,8 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<QuoteEvidenceRequestResult>> Respond(
+    [ProducesResponseType<ModuleEvidence.QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleEvidence.QuoteEvidenceRequestResult>> Respond(
         Guid evidenceRequestId,
         RespondToEvidenceRequestRequest request,
         CancellationToken cancellationToken)
@@ -38,7 +40,7 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
         try
         {
             var result = await sender.Send(
-                new RespondToQuoteEvidenceRequestCommand(
+                new ModuleEvidenceDocuments.RespondToQuoteEvidenceRequestCommand(
                     evidenceRequestId,
                     request.RespondentName,
                     request.RespondentTitle,
@@ -74,8 +76,8 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<QuoteEvidenceRequestResult>> RespondWithDocuments(
+    [ProducesResponseType<ModuleEvidence.QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleEvidence.QuoteEvidenceRequestResult>> RespondWithDocuments(
         Guid evidenceRequestId,
         [FromForm] RespondToEvidenceRequestFormRequest request,
         CancellationToken cancellationToken)
@@ -83,7 +85,7 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
         try
         {
             var result = await sender.Send(
-                new RespondToQuoteEvidenceRequestCommand(
+                new ModuleEvidenceDocuments.RespondToQuoteEvidenceRequestCommand(
                     evidenceRequestId,
                     request.RespondentName,
                     request.RespondentTitle,
@@ -92,7 +94,7 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
                     null,
                     null,
                     request.Attachments
-                        .Select(file => new EvidenceDocumentUpload(
+                        .Select(file => new ModuleEvidenceDocuments.EvidenceDocumentUpload(
                             file.FileName,
                             file.ContentType,
                             file.Length,
@@ -132,7 +134,7 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
         try
         {
             var result = await sender.Send(
-                new DownloadOwnerEvidenceDocumentQuery(evidenceRequestId, documentId),
+                new ModuleEvidenceDocuments.DownloadOwnerEvidenceDocumentQuery(evidenceRequestId, documentId),
                 cancellationToken);
 
             return result is null
@@ -155,8 +157,8 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    [ProducesResponseType<QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<QuoteEvidenceRequestResult>> UploadReplacementDocuments(
+    [ProducesResponseType<ModuleEvidence.QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleEvidence.QuoteEvidenceRequestResult>> UploadReplacementDocuments(
         Guid evidenceRequestId,
         [FromForm] UploadReplacementEvidenceDocumentsFormRequest request,
         CancellationToken cancellationToken)
@@ -164,10 +166,10 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
         try
         {
             var result = await sender.Send(
-                new UploadReplacementEvidenceDocumentsCommand(
+                new ModuleEvidenceDocuments.UploadReplacementEvidenceDocumentsCommand(
                     evidenceRequestId,
                     request.Attachments
-                        .Select(file => new EvidenceDocumentUpload(
+                        .Select(file => new ModuleEvidenceDocuments.EvidenceDocumentUpload(
                             file.FileName,
                             file.ContentType,
                             file.Length,
