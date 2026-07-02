@@ -18,6 +18,11 @@
     <Project Path="src/Modules/Notifications/LIAnsureProtect.Modules.Notifications.Application/LIAnsureProtect.Modules.Notifications.Application.csproj" Id="6ff933d8-0fa3-423e-b936-a190ba985913" />
     <Project Path="src/Modules/Notifications/LIAnsureProtect.Modules.Notifications.Infrastructure/LIAnsureProtect.Modules.Notifications.Infrastructure.csproj" Id="14d27c0c-17f1-4325-88fb-19f6b7f9d971" />
   </Folder>
+  <Folder Name="/src/Modules/Quoting/">
+    <Project Path="src/Modules/Quoting/LIAnsureProtect.Modules.Quoting.Domain/LIAnsureProtect.Modules.Quoting.Domain.csproj" Id="9256697a-472c-43f0-9d13-340b8456aa33" />
+    <Project Path="src/Modules/Quoting/LIAnsureProtect.Modules.Quoting.Application/LIAnsureProtect.Modules.Quoting.Application.csproj" Id="23d6a0ac-ed1e-431a-a7e2-d9d0c9cc6bd7" />
+    <Project Path="src/Modules/Quoting/LIAnsureProtect.Modules.Quoting.Infrastructure/LIAnsureProtect.Modules.Quoting.Infrastructure.csproj" Id="850a9298-3307-475b-ae71-1dba36ba222d" />
+  </Folder>
   <Folder Name="/src/Modules/Underwriting/">
     <Project Path="src/Modules/Underwriting/LIAnsureProtect.Modules.Underwriting.Domain/LIAnsureProtect.Modules.Underwriting.Domain.csproj" Id="9960cd92-f734-4f80-8448-571ba9814389" />
     <Project Path="src/Modules/Underwriting/LIAnsureProtect.Modules.Underwriting.Application/LIAnsureProtect.Modules.Underwriting.Application.csproj" Id="56377f8b-4913-4172-bc1b-21178e582c89" />
