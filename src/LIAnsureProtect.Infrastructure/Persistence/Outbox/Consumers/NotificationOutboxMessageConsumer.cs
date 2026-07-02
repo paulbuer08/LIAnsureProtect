@@ -1,9 +1,11 @@
 using LIAnsureProtect.Modules.Notifications.Application;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox.Consumers;
 
 public sealed class NotificationOutboxMessageConsumer(
+    OutboxMessageMapperRegistry<NotificationMessage> registry,
     INotificationProjector notificationProjector,
     INotificationPublisher notificationPublisher) : IOutboxMessageConsumer
 {
@@ -12,8 +14,7 @@ public sealed class NotificationOutboxMessageConsumer(
         DateTime nowUtc,
         CancellationToken cancellationToken)
     {
-        var notificationMessage = OutboxNotificationMapper.TryMap(outboxMessage);
-        if (notificationMessage is null)
+        if (!registry.TryMap(outboxMessage, out var notificationMessage) || notificationMessage is null)
             return OutboxMessageConsumerResult.NotHandled();
 
         // Project into the Notifications module's inbox before publishing and before the dispatcher

@@ -2,6 +2,9 @@ using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox.Consumers;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping.Notifications;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping.ReferralOperations;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.Modules.Notifications.Application;
 using LIAnsureProtect.Modules.Notifications.Domain;
@@ -681,8 +684,41 @@ public sealed class OutboxDispatcherTests : IDisposable
         return new OutboxDispatcher(
             sources,
             [
-                new ReferralOperationOutboxMessageConsumer(referralProjector),
-                new NotificationOutboxMessageConsumer(projector, publisher)
+                new ReferralOperationOutboxMessageConsumer(CreateReferralRegistry(), referralProjector),
+                new NotificationOutboxMessageConsumer(CreateNotificationRegistry(), projector, publisher)
+            ]);
+    }
+
+    private static OutboxMessageMapperRegistry<NotificationMessage> CreateNotificationRegistry()
+    {
+        return new OutboxMessageMapperRegistry<NotificationMessage>(
+            [
+                new QuoteGeneratedNotificationMapper(),
+                new QuoteUnderwritingDecisionRecordedNotificationMapper(),
+                new QuoteAcceptedNotificationMapper(),
+                new PolicyBoundNotificationMapper(),
+                new EvidenceRequestCreatedNotificationMapper(),
+                new EvidenceRequestRespondedNotificationMapper(),
+                new EvidenceRequestAcceptedNotificationMapper(),
+                new EvidenceRequestCancelledNotificationMapper(),
+                new EvidenceRequestFollowUpSentNotificationMapper(),
+                new EvidenceRequestRemediationRequiredNotificationMapper()
+            ]);
+    }
+
+    private static OutboxMessageMapperRegistry<LIAnsureProtect.Modules.Underwriting.Application.Referrals.ReferralOperationEvent>
+        CreateReferralRegistry()
+    {
+        return new OutboxMessageMapperRegistry<LIAnsureProtect.Modules.Underwriting.Application.Referrals.ReferralOperationEvent>(
+            [
+                new QuoteGeneratedReferralOperationMapper(),
+                new QuoteUnderwritingDecisionReferralOperationMapper(),
+                new EvidenceRequestCreatedReferralOperationMapper(),
+                new EvidenceRequestRespondedReferralOperationMapper(),
+                new EvidenceRequestAcceptedReferralOperationMapper(),
+                new EvidenceRequestCancelledReferralOperationMapper(),
+                new EvidenceRequestFollowUpSentReferralOperationMapper(),
+                new EvidenceRequestRemediationRequiredReferralOperationMapper()
             ]);
     }
 
