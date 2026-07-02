@@ -1,6 +1,7 @@
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox.Consumers;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.Modules.Notifications.Application;
 using LIAnsureProtect.Modules.Notifications.Domain;
@@ -95,6 +96,36 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Equal(1, processedCount);
         Assert.NotNull(savedMessage.ProcessedAtUtc);
         Assert.Null(savedMessage.Error);
+    }
+
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Uses_Registered_Consumer_For_Matched_Message()
+    {
+        var domainEvent = new SubmissionSubmittedDomainEvent(
+            Guid.Parse("5f801a6b-4fa8-44f3-859d-3f1663f6b801"),
+            "test-user-1",
+            new DateTime(2026, 7, 2, 1, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            domainEvent,
+            new DateTime(2026, 7, 2, 1, 0, 5, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var consumer = new RecordingOutboxConsumer();
+        var dispatcher = new OutboxDispatcher(
+            [new SubmissionOutboxSource(dbContext)],
+            [consumer]);
+
+        var processedCount = await dispatcher.DispatchPendingMessagesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var savedMessage = await dbContext.OutboxMessages.SingleAsync(
+            message => message.Id == outboxMessage.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, processedCount);
+        Assert.Equal([outboxMessage.Id], consumer.HandledMessages);
+        Assert.NotNull(savedMessage.ProcessedAtUtc);
     }
 
     [Fact]
@@ -649,9 +680,27 @@ public sealed class OutboxDispatcherTests : IDisposable
     {
         return new OutboxDispatcher(
             sources,
-            projector,
-            publisher,
-            referralProjector);
+            [
+                new ReferralOperationOutboxMessageConsumer(referralProjector),
+                new NotificationOutboxMessageConsumer(projector, publisher)
+            ]);
+    }
+
+    private sealed class RecordingOutboxConsumer : IOutboxMessageConsumer
+    {
+        public List<Guid> HandledMessages { get; } = [];
+
+        public Task<OutboxMessageConsumerResult> ConsumeAsync(
+            IOutboxMessageView outboxMessage,
+            DateTime nowUtc,
+            CancellationToken cancellationToken)
+        {
+            if (outboxMessage.Type != nameof(SubmissionSubmittedDomainEvent))
+                return Task.FromResult(OutboxMessageConsumerResult.NotHandled());
+
+            HandledMessages.Add(outboxMessage.Id);
+            return Task.FromResult(OutboxMessageConsumerResult.Succeeded());
+        }
     }
 
     private sealed class RecordingNotificationPublisher(

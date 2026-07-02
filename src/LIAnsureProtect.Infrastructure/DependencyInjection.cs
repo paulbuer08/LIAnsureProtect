@@ -8,6 +8,7 @@ using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure.Documents;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox.Consumers;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.Infrastructure.Policies;
 using LIAnsureProtect.Infrastructure.Quotes;
@@ -49,6 +50,8 @@ public static class DependencyInjection
         // OutboxDispatcher depends on the Notifications module's INotificationProjector and
         // INotificationPublisher, which AddNotificationsModule(...) registers in the composition root.
         services.AddScoped<IOutboxSource, SubmissionOutboxSource>();
+        services.AddScoped<IOutboxMessageConsumer, ReferralOperationOutboxMessageConsumer>();
+        services.AddScoped<IOutboxMessageConsumer, NotificationOutboxMessageConsumer>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
         services.AddOptions<DocumentStorageOptions>();
 
