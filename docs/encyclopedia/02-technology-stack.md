@@ -40,9 +40,10 @@ marked as *planned*.
 | Store | Status | Role |
 |---|---|---|
 | **PostgreSQL (Docker locally)** | In use | The single **system of record**. One database, schema-per-module (`public` legacy, `notifications`, `underwriting`). pgvector image ready for later AI/RAG. |
-| **Local filesystem document store** | In use | `LocalDocumentStorageService` behind the `Platform.Abstractions.Documents` contracts — private evidence documents. Swapped for S3 in M42 (the port stays, the adapter changes). |
+| **Document storage — local filesystem *and* S3** | In use | Two adapters behind the one `Platform.Abstractions.Documents` port: `LocalDocumentStorageService` (filesystem) under `Platform:Profile=Local`, and `S3DocumentStorageService` (AWS SDK, SSE-KMS) under `Platform:Profile=Aws` (M42). The S3 adapter is developed and round-trip tested against **LocalStack** — no AWS account, no bill. |
+| **LocalStack (Docker, opt-in)** | In use (dev/test) | Emulates AWS S3 on `localhost` so the S3 adapter runs with no cloud cost. Profile-scoped compose service (`docker compose --profile aws-local up -d`); the round-trip test is env-gated and skipped in normal CI. |
 | **Redis (ElastiCache)** | Planned (M44) | Cache-aside for rebuildable data only — never documents or claim details. |
-| **S3, SNS/SQS, DynamoDB** | Planned (M42/M43+) | Documents (Valet-Key presigned URLs), real async messaging behind the outbox, notification read-model options. |
+| **SNS/SQS, DynamoDB** | Planned (M43+) | Real async messaging behind the outbox, notification read-model options. (S3 landed in M42.) |
 
 ## Tooling, CI/CD & security automation
 

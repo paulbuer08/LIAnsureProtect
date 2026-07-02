@@ -95,7 +95,7 @@ sequenceDiagram
     actor Owner
     participant Ctrl as EvidenceRequestsController.RespondWithDocuments<br/>POST /respond (multipart/form-data)
     participant H as RespondToQuoteEvidenceRequestCommand handler<br/>(Underwriting module Application)
-    participant Store as IDocumentStorageService<br/>(LocalDocumentStorageService today, S3 in M42)
+    participant Store as IDocumentStorageService<br/>(Local filesystem or S3+SSE-KMS by profile)
     participant Scan as IEvidenceDocumentScanner<br/>(local deterministic scanner)
     participant Db as underwriting.quote_evidence_documents
 
@@ -111,9 +111,12 @@ sequenceDiagram
 ```
 
 Downloads (`.../documents/{documentId}/download` on both controllers) stream through the API with
-ownership/role checks — file bytes are private; storage keys never leak to the browser. In M42
-the storage adapter becomes S3 (Valet-Key presigned URLs) — **this flow diagram stays valid**
-because only the adapter behind `IDocumentStorageService` changes.
+ownership/role checks — file bytes are private; storage keys never leak to the browser. As of
+**M42**, the adapter behind `IDocumentStorageService` is either the local filesystem
+(`Platform:Profile=Local`) or **S3 with SSE-KMS** (`Platform:Profile=Aws`,
+`S3DocumentStorageService`) — **this flow diagram stays valid** because only the adapter changes,
+not the handlers. Browser-direct presigned "Valet Key" downloads are prepared for M47 (they need
+CloudFront); until then, API streaming is the default for both adapters.
 
 ## E. The advisory AI review
 

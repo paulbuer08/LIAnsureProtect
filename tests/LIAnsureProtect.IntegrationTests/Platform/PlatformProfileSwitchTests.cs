@@ -31,14 +31,37 @@ public sealed class PlatformProfileSwitchTests
     }
 
     [Fact]
-    public void AwsProfileFailsFastUntilTheAdapterArrives()
+    public void AwsProfileWiresTheS3DocumentStorageAdapter()
     {
         var services = new ServiceCollection();
+        services.Configure<DocumentStorageOptions>(options => options.S3 = new S3DocumentStorageOptions
+        {
+            BucketName = "liansureprotect-evidence-test",
+            ServiceUrl = "http://localhost:4566",
+            ForcePathStyle = true,
+            AccessKeyId = "test",
+            SecretAccessKey = "test"
+        });
+        services.AddInfrastructure(TestConnectionString, PlatformProfile.Aws);
 
-        var exception = Assert.Throws<NotSupportedException>(
-            () => services.AddInfrastructure(TestConnectionString, PlatformProfile.Aws));
+        using var provider = services.BuildServiceProvider();
+        var storage = provider.GetRequiredService<IDocumentStorageService>();
 
-        Assert.Contains("Milestone 42", exception.Message);
+        Assert.IsType<S3DocumentStorageService>(storage);
+    }
+
+    [Fact]
+    public void AwsProfileFailsFastWhenBucketMissing()
+    {
+        var services = new ServiceCollection();
+        services.AddInfrastructure(TestConnectionString, PlatformProfile.Aws);
+
+        using var provider = services.BuildServiceProvider();
+
+        // No DocumentStorage:S3 configured → resolving the storage adapter must fail fast rather
+        // than silently mis-wire a bucketless S3 client.
+        Assert.Throws<InvalidOperationException>(
+            () => provider.GetRequiredService<IDocumentStorageService>());
     }
 
     [Theory]
