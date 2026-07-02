@@ -53,6 +53,55 @@ dotnet test tests\LIAnsureProtect.IntegrationTests\LIAnsureProtect.IntegrationTe
   - `IQuoteRepository.AddUnderwritingReviewAsync`
 - Write down the smallest viable movement path in this plan before code changes continue.
 
+Baseline recorded on 2026-07-02 from isolated worktree `C:\Users\Poy\.codex\worktrees\01c1\LIAnsureProtect`
+at `baf52bd`:
+
+- `git status --short --branch` reported a clean detached worktree (`## HEAD (no branch)`). The named
+  branch `feat/milestone-39-quoting-decision-boundary` is checked out in the source workspace, so this
+  worktree will keep ordered commits on detached `HEAD` and push that head to the milestone branch.
+- The first `dotnet build LIAnsureProtect.slnx --no-restore` failed before compilation because the
+  isolated worktree did not yet have `project.assets.json` files. `dotnet restore LIAnsureProtect.slnx`
+  was run once to create NuGet assets for this worktree.
+- `dotnet build LIAnsureProtect.slnx --no-restore` then passed with `0 Warning(s), 0 Error(s)`.
+- `dotnet test tests\LIAnsureProtect.UnitTests\LIAnsureProtect.UnitTests.csproj --no-build --filter "QuoteUnderwritingReviewTests|ProjectReferenceBoundaryTests"`
+  passed: 12 tests.
+- `dotnet test tests\LIAnsureProtect.IntegrationTests\LIAnsureProtect.IntegrationTests.csproj --no-build --filter UnderwritingReferralEndpointTests`
+  passed: 20 tests.
+
+Inventory result:
+
+- Final decision command DTOs, validators, result records, and handlers currently live in legacy
+  `src/LIAnsureProtect.Application/Quotes/Commands/UnderwriteQuoteReferral`.
+- `UnderwritingQuoteReferralsController` owns the stable public routes and sends the three command
+  records through MediatR.
+- The handlers call `IQuoteRepository.GetForUnderwritingReviewAsync(...)`, mutate the legacy
+  `Quote` aggregate with `ApproveReferral(...)`, `DeclineReferral(...)`, or `AdjustReferral(...)`,
+  add the returned `QuoteUnderwritingReview` through `IQuoteRepository.AddUnderwritingReviewAsync(...)`,
+  then commit through legacy `IUnitOfWork`.
+- `Quote`, `QuoteUnderwritingReview`, and `QuoteUnderwritingDecisionRecordedDomainEvent` remain in
+  legacy Domain, with persistence in `SubmissionDbContext`. This is intentional for M39 because table
+  movement is out of scope.
+- `OutboxNotificationMapper` and `OutboxReferralOperationMapper` consume
+  `QuoteUnderwritingDecisionRecordedDomainEvent`; these are intentional legacy/host-side consumers and
+  should not move in M39.
+- Tests directly asserting this behavior are `QuoteUnderwritingReviewTests`,
+  `UnderwritingReferralEndpointTests`, and dispatcher tests that use the decision event.
+
+Smallest viable movement path:
+
+1. Add a Quoting module skeleton with Domain/Application/Infrastructure projects and exact architecture
+   allow-list coverage, but no `QuotingDbContext` and no table move.
+2. Register a Quoting module composition method that scans the Quoting Application assembly for MediatR
+   handlers and FluentValidation validators.
+3. Move the three final referral decision command DTOs, validators, handlers, and result mapping into
+   Quoting Application. This makes the Application boundary Quoting-owned while deliberately leaving
+   the legacy `Quote` aggregate, `QuoteUnderwritingReview`, `IQuoteRepository`, and `IUnitOfWork` in
+   place as the current persistence seam.
+4. Update the API controller namespace import only; keep route templates, authorization policy,
+   request/response DTOs, and React behavior stable.
+5. Add focused pump-then-assert integration coverage for decision projection into Underwriting referral
+   operations, then remove any obsolete legacy command namespace/files.
+
 Commit:
 
 ```text
