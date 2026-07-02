@@ -107,6 +107,22 @@ merge-orders pending messages by `CreatedAtUtc`. That lets a module evidence eve
 decision event flow through notifications/referral projection in causal order even while the overall
 outbox mapping remains centralized in legacy Infrastructure.
 
+Milestone 39 introduces the Quoting module boundary without moving quote tables yet:
+
+```text
+src/Modules/Quoting/
+├─ LIAnsureProtect.Modules.Quoting.Domain
+├─ LIAnsureProtect.Modules.Quoting.Application      ← final referral decision commands + port
+└─ LIAnsureProtect.Modules.Quoting.Infrastructure   ← module composition root
+```
+
+The final approve/decline/adjust command contracts now live in Quoting Application, and the API sends
+those commands while keeping the existing underwriting workbench routes. The legacy Infrastructure layer
+implements the Quoting-owned `IQuoteReferralDecisionService` port until the `Quote` aggregate and quote
+tables can move in a later, larger Quoting carve. This keeps the module rule intact: Quoting does not
+reference legacy layers; legacy Infrastructure references the module Application port while it still owns
+the current persistence adapter.
+
 ## Application Use Case Pattern
 
 Milestone 4 - Application Use Case Foundation introduced practical CQRS with MediatR and FluentValidation.
@@ -1057,6 +1073,12 @@ These tables are separate from `quotes` because they answer operational question
 - `quote_referral_timeline_entries` answers: "What operational evidence changed over time?"
 
 Operations mutations are allowed only while the quote is still `Referred`. Final approve, decline, or adjust actions close the operation and add operational status-change evidence; the formal final decision entry shown in the timeline is projected from `quote_underwriting_reviews`. Reviewed quotes can still expose their timeline history. `Escalated` and `WaitingForInformation` are internal workflow statuses only in this milestone. They do not enforce underwriting authority, send broker/customer notifications, or request documents.
+
+Milestone 39 clarifies this authority split in code. Final approve, decline, and adjust decisions are
+Quoting commands because they mutate quote terms and final quote decision state. Underwriting remains a
+consumer: after the Quoting decision is saved, `QuoteUnderwritingDecisionRecordedDomainEvent` flows
+through the dispatcher and closes/projects the Underwriting referral operation. Tests now cover approve,
+decline, and adjust with an explicit dispatcher pump before asserting the Underwriting module state.
 
 The React workbench now shows assignment, priority, SLA status, operations status, open task count, and the latest operations timestamp in the queue. The selected referral detail keeps three concepts visually separate: advisory AI, referral operations notes/tasks/timeline, and final manual approve/decline/adjust actions.
 
