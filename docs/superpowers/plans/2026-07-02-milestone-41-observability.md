@@ -18,8 +18,8 @@
   - API host-edge middleware for `X-Correlation-ID` and structured request log scopes.
 - Modify `src/LIAnsureProtect.Api/Program.cs`
   - Add correlation middleware, explicit live/ready health routes, and readiness checks.
-- Create `src/LIAnsureProtect.Infrastructure/Health/DbContextHealthCheck.cs`
-  - Generic EF Core readiness check used by the API composition root.
+- Create `src/LIAnsureProtect.Api/Observability/DbContextHealthCheck.cs`
+  - Generic EF Core readiness check owned by the API host edge.
 - Create `src/LIAnsureProtect.Infrastructure/Persistence/Outbox/OutboxDispatcherDiagnostics.cs`
   - Native metric/activity helper for the local dispatcher.
 - Modify `src/LIAnsureProtect.Infrastructure/Persistence/Outbox/OutboxDispatcher.cs`
@@ -90,7 +90,7 @@ git commit -m "docs: start observability milestone"
 **Files:**
 - Create: `src/Platform/LIAnsureProtect.Platform.Abstractions/Observability/ObservabilityNames.cs`
 - Create: `src/LIAnsureProtect.Api/Observability/RequestCorrelationMiddleware.cs`
-- Create: `src/LIAnsureProtect.Infrastructure/Health/DbContextHealthCheck.cs`
+- Create: `src/LIAnsureProtect.Api/Observability/DbContextHealthCheck.cs`
 - Modify: `src/LIAnsureProtect.Api/Program.cs`
 - Modify: `tests/LIAnsureProtect.IntegrationTests/HealthEndpointTests.cs`
 
@@ -164,14 +164,14 @@ public sealed class RequestCorrelationMiddleware(
 
 - [ ] **Step 3: Add generic DbContext readiness check**
 
-Create `DbContextHealthCheck.cs`:
+Create `DbContextHealthCheck.cs` in the API observability folder:
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace LIAnsureProtect.Infrastructure.Health;
+namespace LIAnsureProtect.Api.Observability;
 
 public sealed class DbContextHealthCheck<TContext>(IServiceScopeFactory scopeFactory) : IHealthCheck
     where TContext : DbContext
@@ -278,7 +278,7 @@ Expected: `0 Warning(s), 0 Error(s)`.
 Run:
 
 ```powershell
-git add -- src/Platform/LIAnsureProtect.Platform.Abstractions/Observability/ObservabilityNames.cs src/LIAnsureProtect.Api/Observability/RequestCorrelationMiddleware.cs src/LIAnsureProtect.Infrastructure/Health/DbContextHealthCheck.cs src/LIAnsureProtect.Api/Program.cs tests/LIAnsureProtect.IntegrationTests/HealthEndpointTests.cs
+git add -- src/Platform/LIAnsureProtect.Platform.Abstractions/Observability/ObservabilityNames.cs src/LIAnsureProtect.Api/Observability/RequestCorrelationMiddleware.cs src/LIAnsureProtect.Api/Observability/DbContextHealthCheck.cs src/LIAnsureProtect.Api/Program.cs tests/LIAnsureProtect.IntegrationTests/HealthEndpointTests.cs docs/superpowers/plans/2026-07-02-milestone-41-observability.md
 git commit -m "feat(observability): add correlation and readiness checks"
 ```
 

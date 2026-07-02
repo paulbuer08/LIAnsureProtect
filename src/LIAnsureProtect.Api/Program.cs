@@ -1,14 +1,20 @@
 using System.Text.Json.Serialization;
 using LIAnsureProtect.Application;
+using LIAnsureProtect.Api.Observability;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Api.Security;
 using LIAnsureProtect.Infrastructure;
 using LIAnsureProtect.Infrastructure.Documents;
+using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Notifications.Infrastructure;
+using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Quoting.Infrastructure;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure;
+using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 using LIAnsureProtect.Platform;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 
 
@@ -97,7 +103,12 @@ builder.Services.AddAuthorization(AuthorizationPolicies.AddApplicationAuthorizat
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
-builder.Services.AddHealthChecks();
+builder.Services
+    .AddHealthChecks()
+    .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
+    .AddCheck<DbContextHealthCheck<SubmissionDbContext>>("submission-db", tags: ["ready", "database"])
+    .AddCheck<DbContextHealthCheck<NotificationsDbContext>>("notifications-db", tags: ["ready", "database"])
+    .AddCheck<DbContextHealthCheck<UnderwritingDbContext>>("underwriting-db", tags: ["ready", "database"]);
 
 var app = builder.Build();
 if (app.Logger.IsEnabled(LogLevel.Information))
@@ -119,6 +130,7 @@ else
 
 app.UseHttpsRedirection();
 app.UseCors(LocalFrontendCorsPolicy);
+app.UseMiddleware<RequestCorrelationMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -128,7 +140,18 @@ app.MapGet("/", () => Results.Ok(new
     status = "Running"
 }));
 
-app.MapHealthChecks("/api/v1/health");
+app.MapHealthChecks("/api/v1/health", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live")
+});
+app.MapHealthChecks("/api/v1/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live")
+});
+app.MapHealthChecks("/api/v1/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
 app.MapControllers();
 
 
