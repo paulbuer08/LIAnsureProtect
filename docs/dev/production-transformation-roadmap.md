@@ -104,7 +104,8 @@ events); in-process module event bus now → outbox → SNS/SQS later.
 - **M38** — Underwriting evidence document carve (document metadata, scanner, upload/download/replacement gates).
 - **M39** — Quoting decision boundary: prepare/begin the `Quote`/`QuoteUnderwritingReview` carve instead of forcing
   final approve/decline/adjust into Underwriting.
-- **M40** — Dispatcher integration-event decoupling / mapper registry, replacing transitional host-side event mapping.
+- **M40** — Dispatcher integration-event decoupling / mapper registry, replacing transitional host-side
+  dispatcher-owned event mapping with registered consumers and mapper registries.
 
 **Phase 1 — Production cross-cutting (local/docker, LocalStack):**
 - **M41** Observability · **M42** Documents → S3 (Valet Key, KMS, scan pipeline, retention/legal hold) ·

@@ -1,14 +1,10 @@
-using LIAnsureProtect.Modules.Notifications.Application;
-using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
 
 namespace LIAnsureProtect.Infrastructure.Persistence.Outbox;
 
 public sealed class OutboxDispatcher(
     IEnumerable<IOutboxSource> sources,
-    INotificationProjector notificationProjector,
-    INotificationPublisher notificationPublisher,
-    IReferralOperationProjector referralOperationProjector) : IOutboxDispatcher
+    IEnumerable<IOutboxMessageConsumer> consumers) : IOutboxDispatcher
 {
     private const int BatchSize = 20;
     private const int MaxPublishAttempts = 3;
@@ -18,6 +14,7 @@ public sealed class OutboxDispatcher(
     {
         var nowUtc = DateTime.UtcNow;
         var sourceList = sources.ToList();
+        var consumerList = consumers.ToList();
         var pendingMessages = new List<(IOutboxMessageView Message, IOutboxSource Source)>();
 
         foreach (var source in sourceList)
@@ -41,44 +38,44 @@ public sealed class OutboxDispatcher(
         {
             touchedSources.Add(source);
 
-            var referralEvent = OutboxReferralOperationMapper.TryMap(message);
-            if (referralEvent is not null)
-                await referralOperationProjector.ProjectAsync(referralEvent, cancellationToken);
+            var providerMessageId = string.Empty;
+            var failed = false;
 
-            var notificationMessage = OutboxNotificationMapper.TryMap(message);
-            if (notificationMessage is null)
+            foreach (var consumer in consumerList)
             {
-                message.MarkProcessed(nowUtc);
-                processedCount++;
-                continue;
-            }
+                var result = await consumer.ConsumeAsync(message, nowUtc, cancellationToken);
+                if (result.Status == OutboxMessageConsumerStatus.NotHandled)
+                    continue;
 
-            // Project into the Notifications module's inbox (its own context/transaction, idempotent on
-            // the source outbox message id) BEFORE publishing and before marking this row processed.
-            // This ordering makes the cross-context handoff safe without a distributed transaction:
-            // a crash anywhere just re-delivers, and the unique index dedupes the inbox entry.
-            await notificationProjector.ProjectAsync(notificationMessage, cancellationToken);
+                if (result.Status == OutboxMessageConsumerStatus.Succeeded)
+                {
+                    if (!string.IsNullOrWhiteSpace(result.ProviderMessageId))
+                        providerMessageId = result.ProviderMessageId;
 
-            var publishResult = await notificationPublisher.PublishAsync(
-                notificationMessage,
-                cancellationToken);
+                    continue;
+                }
 
-            if (publishResult.IsSuccess)
-            {
-                message.MarkPublishSucceeded(
+                var nextAttemptNumber = message.PublishAttemptCount + 1;
+                var exhausted = result.Status == OutboxMessageConsumerStatus.PermanentFailure
+                    || nextAttemptNumber >= MaxPublishAttempts;
+                message.MarkPublishFailed(
                     nowUtc,
-                    publishResult.ProviderMessageId ?? string.Empty);
-                processedCount++;
-                continue;
+                    result.FailureReason ?? "Outbox message consumer failed.",
+                    exhausted ? null : nowUtc.Add(RetryDelay),
+                    exhausted);
+                failed = true;
+                break;
             }
 
-            var nextAttemptNumber = message.PublishAttemptCount + 1;
-            var exhausted = !publishResult.IsTransient || nextAttemptNumber >= MaxPublishAttempts;
-            message.MarkPublishFailed(
-                nowUtc,
-                publishResult.FailureReason ?? "Notification publish failed.",
-                exhausted ? null : nowUtc.Add(RetryDelay),
-                exhausted);
+            if (failed)
+                continue;
+
+            if (string.IsNullOrWhiteSpace(providerMessageId))
+                message.MarkProcessed(nowUtc);
+            else
+                message.MarkPublishSucceeded(nowUtc, providerMessageId);
+
+            processedCount++;
         }
 
         foreach (var source in touchedSources)

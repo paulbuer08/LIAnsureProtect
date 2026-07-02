@@ -97,6 +97,8 @@ Milestone 38 is implemented as `Milestone 38 - Underwriting Evidence Documents`,
 
 Milestone 39 is implemented as `Milestone 39 - Quoting Decision Boundary`. It adds the Quoting module skeleton and moves final referral decision commands into Quoting Application while keeping public underwriting workbench routes stable. The legacy `Quote` aggregate, `QuoteUnderwritingReview`, and quote tables stay in `SubmissionDbContext` for now behind a Quoting-owned port implemented by legacy Infrastructure. Underwriting remains the operational referral/evidence context and consumes final decisions through the existing outbox projection. See [Milestone 39 Design](docs/dev/milestone-39-quoting-decision-boundary-design.md), [Milestone 39 Plan](docs/superpowers/plans/2026-07-02-milestone-39-quoting-decision-boundary.md), and [Milestone 39 Learnings](docs/dev/milestone-39-quoting-decision-boundary-learnings.md).
 
+Milestone 40 is implemented as `Milestone 40 - Dispatcher Integration Event Decoupling`. It keeps the existing local outbox behavior but removes the dispatcher's direct dependency on centralized static event mappers. The dispatcher now drains registered outbox sources, merge-orders rows by `CreatedAtUtc`, and runs registered consumers for referral-operation projection and notification projection/publishing. Event-specific mapping moved into registered mapper classes behind `OutboxMessageMapperRegistry<TOutput>`. Public routes, frontend behavior, schemas, and quote/rating/policy persistence stayed unchanged. See [Milestone 40 Design](docs/dev/milestone-40-dispatcher-integration-event-decoupling-design.md), [Milestone 40 Plan](docs/superpowers/plans/2026-07-02-milestone-40-dispatcher-integration-event-decoupling.md), and [Milestone 40 Learnings](docs/dev/milestone-40-dispatcher-integration-event-decoupling-learnings.md).
+
 ## Local Run
 
 Run a fresh dependency stack, apply migrations, build, and start the API from the repository root:
@@ -182,6 +184,9 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 - [Milestone 39 Quoting Decision Boundary Design](docs/dev/milestone-39-quoting-decision-boundary-design.md)
 - [Milestone 39 Quoting Decision Boundary Plan](docs/superpowers/plans/2026-07-02-milestone-39-quoting-decision-boundary.md)
 - [Milestone 39 Quoting Decision Boundary Learnings](docs/dev/milestone-39-quoting-decision-boundary-learnings.md)
+- [Milestone 40 Dispatcher Integration Event Decoupling Design](docs/dev/milestone-40-dispatcher-integration-event-decoupling-design.md)
+- [Milestone 40 Dispatcher Integration Event Decoupling Plan](docs/superpowers/plans/2026-07-02-milestone-40-dispatcher-integration-event-decoupling.md)
+- [Milestone 40 Dispatcher Integration Event Decoupling Learnings](docs/dev/milestone-40-dispatcher-integration-event-decoupling-learnings.md)
 - [GitHub Repository, CI/CD, and Automation](docs/dev/github-repository-and-automation.md)
 - [Production Transformation Roadmap](docs/dev/production-transformation-roadmap.md)
 - [Pattern Roadmap After Milestone 11](docs/dev/pattern-roadmap-after-milestone-11.md)

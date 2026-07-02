@@ -8,6 +8,11 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Milestone 40 - Dispatcher Integration Event Decoupling design, implementation plan, implementation, and learning notes.
+- Platform outbox consumer contract (`IOutboxMessageConsumer`, `OutboxMessageConsumerResult`, and status values) so new outbox side effects plug into dispatch by registration.
+- Notification and referral-operation outbox consumers that preserve the current inbox projection, publishing, retry, poison, and referral-operation projection behavior behind registered consumers.
+- Mapper registry infrastructure (`IOutboxMessageMapper<TOutput>`, `OutboxMessageMapperRegistry<TOutput>`, and JSON helper) plus event-specific mapper classes for notification messages and referral-operation events.
+- Dispatcher extension-point test proving a custom registered consumer can handle a source outbox row without editing `OutboxDispatcher`.
 - Milestone 39 - Quoting Decision Boundary planning branch, design, and implementation plan.
 - Milestone 39 - Quoting Decision Boundary implementation and learning notes.
 - `src/Modules/Quoting/{Domain,Application,Infrastructure}` module skeleton, registered in the solution and host composition roots.
@@ -37,6 +42,9 @@ The format follows simple milestone-based entries.
 
 ### Changed
 
+- `OutboxDispatcher` now drains `IOutboxSource`s, merge-orders rows by `CreatedAtUtc`, runs registered `IOutboxMessageConsumer`s, and centralizes only processing/retry/poison metadata. It no longer directly invokes static notification/referral mapper switches.
+- Removed the old centralized `OutboxNotificationMapper` and `OutboxReferralOperationMapper` static classes. Event-specific mapping now lives in registered mapper classes keyed by the existing outbox row `Type` value, so no schema or migration was needed.
+- Kept M40 intentionally narrow: public API routes, React behavior, EF models, database schemas, and quote/rating/policy persistence are unchanged.
 - Final quote referral decision authority is now explicit as a Quoting boundary. The public underwriting workbench routes remain stable, but they send Quoting module commands instead of legacy Application quote commands.
 - The obsolete legacy decision-command path under `LIAnsureProtect.Application/Quotes/Commands/UnderwriteQuoteReferral` is removed and guarded by an architecture test so duplicate command paths do not return.
 - The Quoting module is intentionally boundary-only in M39: quote tables, rating attempts, acceptance, binding, and `QuoteUnderwritingReview` persistence still remain in legacy Domain/Infrastructure until a later Quoting carve.

@@ -8,13 +8,19 @@ using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure.Documents;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Infrastructure.Persistence.Idempotency;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox.Consumers;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping.Notifications;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping.ReferralOperations;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.Infrastructure.Policies;
 using LIAnsureProtect.Infrastructure.Quotes;
 using LIAnsureProtect.Infrastructure.Quotes.RatingProviders;
 using LIAnsureProtect.Infrastructure.Submissions;
+using LIAnsureProtect.Modules.Notifications.Application;
 using LIAnsureProtect.Modules.Quoting.Application.ReferralDecisions;
 using LIAnsureProtect.Modules.Underwriting.Application;
+using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
 using LIAnsureProtect.Platform.Abstractions;
 using LIAnsureProtect.Platform.Abstractions.Documents;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
@@ -49,6 +55,27 @@ public static class DependencyInjection
         // OutboxDispatcher depends on the Notifications module's INotificationProjector and
         // INotificationPublisher, which AddNotificationsModule(...) registers in the composition root.
         services.AddScoped<IOutboxSource, SubmissionOutboxSource>();
+        services.AddScoped(typeof(OutboxMessageMapperRegistry<>));
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, QuoteGeneratedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, QuoteUnderwritingDecisionRecordedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, QuoteAcceptedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, PolicyBoundNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestCreatedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestRespondedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestAcceptedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestCancelledNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestFollowUpSentNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestRemediationRequiredNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, QuoteGeneratedReferralOperationMapper>();
+        services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, QuoteUnderwritingDecisionReferralOperationMapper>();
+        services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, EvidenceRequestCreatedReferralOperationMapper>();
+        services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, EvidenceRequestRespondedReferralOperationMapper>();
+        services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, EvidenceRequestAcceptedReferralOperationMapper>();
+        services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, EvidenceRequestCancelledReferralOperationMapper>();
+        services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, EvidenceRequestFollowUpSentReferralOperationMapper>();
+        services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, EvidenceRequestRemediationRequiredReferralOperationMapper>();
+        services.AddScoped<IOutboxMessageConsumer, ReferralOperationOutboxMessageConsumer>();
+        services.AddScoped<IOutboxMessageConsumer, NotificationOutboxMessageConsumer>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
         services.AddOptions<DocumentStorageOptions>();
 
