@@ -111,7 +111,9 @@ events); in-process module event bus now → outbox → SNS/SQS later.
 - **M41** Observability (implemented: correlation, health/readiness, native dispatcher logs/traces/metrics) ·
   **M42** Documents → S3 (**implemented**: `S3DocumentStorageService` behind the storage port, SSE-KMS,
   LocalStack-tested; Valet-Key presigned URLs, provisioning, and S3-triggered scan deferred to M46/M47) ·
-  **M43** Real async messaging (outbox→SNS/SQS, DLQ) + optional S3 event archive · **M44** Caching + rate limiting.
+  **M43** Real async messaging (**implemented**: `SnsNotificationPublisher` behind the notification
+  publisher port, versioned envelope → SNS → SQS + DLQ, LocalStack-tested; always-on SQS consumer and
+  optional S3 event archive deferred) · **M44** Caching + rate limiting.
 
 ### Fully-baked next-milestone plans (detailed 2026-07-02 after the post-M41 solidification audit)
 

@@ -42,7 +42,7 @@ flowchart TB
     NC --> NREG["OutboxMessageMapperRegistry&lt;NotificationMessage&gt;\n(one mapper class per event type)"]
     NREG --> PROJ["NotificationInboxProjector\n(idempotent, BEFORE publish)"]
     PROJ --> INBOX[("notifications.notification_inbox_entries\n+ team_notification_entries")]
-    NREG --> PUB["INotificationPublisher\n(LocalNotificationPublisher → SNS in M43)"]
+    NREG --> PUB["INotificationPublisher\n(Local no-op, or SnsNotificationPublisher →\nSNS → SQS + DLQ under Platform:Profile=Aws)"]
 
     RC --> RREG["OutboxMessageMapperRegistry&lt;ReferralOperationEvent&gt;"]
     RREG --> RPROJ["ReferralOperationProjector\n(idempotent + self-healing)"]
@@ -62,7 +62,8 @@ flowchart TB
 | **Retry with backoff** | A transient failure calls `OutboxMessage.MarkPublishFailed` — attempt count + `NextAttemptAtUtc` (+5 min). Sources only return rows whose next attempt is due. |
 | **Poison messages don't jam the queue** | After 3 attempts (or a permanent failure) the row parks with `FailedAtUtc` + the error text, and dispatch moves on. |
 | **A crashing consumer can't kill the batch** | The dispatcher converts consumer exceptions into transient failures on that message only; each source's `SaveChangesAsync` is isolated; the Worker loop catches and retries transient iteration failures instead of stopping the host. |
-| **Project before publish** | The inbox entry is written *before* the publisher runs, so "the API shows it" never depends on the (future SNS) publish succeeding. |
+| **Project before publish** | The inbox entry is written *before* the publisher runs, so "the API shows it" never depends on the SNS publish succeeding. |
+| **Publish goes to a real bus (M43)** | Under `Platform:Profile=Aws`, `SnsNotificationPublisher` publishes a versioned JSON envelope to an SNS topic (with `type`/`audience` message attributes for subscription filters); the topic fans out to an SQS queue with a DLQ. The SNS message id is recorded on the outbox row's `ProviderMessageId`, and a transient SNS error reuses the existing retry/poison path. In-process projection is unchanged — only the outbound publish is networked. Locally, `LocalNotificationPublisher` is a no-op. |
 | **Open for extension** | New side effects = a new mapper class + registration (`OutboxMessageMapperRegistry<TOutput>`), or a whole new `IOutboxMessageConsumer` — the dispatcher is never edited (M40). |
 
 ## Personal inbox vs team inbox

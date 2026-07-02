@@ -27,7 +27,7 @@ services:
     container_name: liansureprotect-localstack
     profiles: ["aws-local"]
     environment:
-      SERVICES: s3
+      SERVICES: s3,sns,sqs
     ports:
       - "4566:4566"
     healthcheck:
