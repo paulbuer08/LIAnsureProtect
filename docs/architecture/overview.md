@@ -96,8 +96,7 @@ because it knows other contexts' domain events) feeds the module through the `IN
 port using **idempotent ordered projection** — project to the inbox (idempotent on the source outbox
 id) → publish → mark the outbox row processed — so the cross-context handoff needs no distributed
 transaction. Because there are now two `DbContext`s, every `dotnet ef` command takes `--context` and
-the dev scripts + CI apply both contexts' migrations. Full integration-event decoupling of the
-dispatcher is scheduled for Milestone 40.
+the dev scripts + CI apply both contexts' migrations.
 
 Milestones 35 through 37 carve the Underwriting module in slices instead of one risky move. The module
 already owns `UnderwritingDbContext` and the `underwriting` schema. Advisory AI review moved first,
@@ -122,6 +121,27 @@ implements the Quoting-owned `IQuoteReferralDecisionService` port until the `Quo
 tables can move in a later, larger Quoting carve. This keeps the module rule intact: Quoting does not
 reference legacy layers; legacy Infrastructure references the module Application port while it still owns
 the current persistence adapter.
+
+Milestone 40 decouples the dispatcher consumer side. `OutboxDispatcher` no longer directly calls
+central static mapper switches. It drains every registered `IOutboxSource`, merge-orders rows by
+`CreatedAtUtc`, and hands each row to registered `IOutboxMessageConsumer` implementations:
+
+```text
+OutboxDispatcher
+  -> ReferralOperationOutboxMessageConsumer
+       -> OutboxMessageMapperRegistry<ReferralOperationEvent>
+       -> IReferralOperationProjector
+  -> NotificationOutboxMessageConsumer
+       -> OutboxMessageMapperRegistry<NotificationMessage>
+       -> INotificationProjector
+       -> INotificationPublisher
+```
+
+The event-specific mapping logic is now split into registered mapper classes keyed by the existing
+outbox `Type` string. This preserves current ordering, retry, poison, notification, and referral
+projection behavior while making the dispatcher open to new integration consumers without editing its
+core loop. It also keeps the milestone narrow: no quote/rating/policy tables moved, no public routes
+changed, and no EF migration was needed.
 
 ## Application Use Case Pattern
 
