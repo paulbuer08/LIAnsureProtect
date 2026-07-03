@@ -1,5 +1,10 @@
 # Run The App
 
+> **⚠️ Historical snapshot (Milestone 9).** The current, maintained guide is
+> [docs/guides/running-the-app.md](../guides/running-the-app.md), with the role-by-role UI
+> walkthrough in [docs/guides/manual-testing-guide.md](../guides/manual-testing-guide.md).
+> This file is kept for its still-valid troubleshooting catalog and Auth0 manual-token appendix.
+
 This guide explains how to run everything that exists in LIAnsureProtect up to `Milestone 9 - Submission Intake UI Foundation`.
 
 At this point, the runnable app is:

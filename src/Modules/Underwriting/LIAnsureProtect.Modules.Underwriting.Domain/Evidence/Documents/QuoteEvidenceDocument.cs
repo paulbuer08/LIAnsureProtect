@@ -2,33 +2,8 @@ namespace LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 
 public sealed class QuoteEvidenceDocument
 {
-    private QuoteEvidenceDocument(
-        Guid id,
-        Guid evidenceRequestId,
-        Guid quoteId,
-        Guid submissionId,
-        string ownerUserId,
-        string originalFileName,
-        string contentType,
-        long sizeBytes,
-        string storageKey,
-        string uploadedByUserId,
-        DateTime uploadedAtUtc)
-    {
-        Id = id;
-        EvidenceRequestId = evidenceRequestId;
-        QuoteId = quoteId;
-        SubmissionId = submissionId;
-        OwnerUserId = ownerUserId;
-        OriginalFileName = originalFileName;
-        ContentType = contentType;
-        SizeBytes = sizeBytes;
-        StorageKey = storageKey;
-        UploadedByUserId = uploadedByUserId;
-        UploadedAtUtc = uploadedAtUtc;
-        ScanStatus = EvidenceDocumentScanStatus.PendingScan;
-    }
-
+    // The only constructor: EF Core materializes through it, and the Create factory assigns
+    // state via the private property setters — no parameter-heavy constructor to maintain.
     private QuoteEvidenceDocument()
     {
     }
@@ -88,18 +63,21 @@ public sealed class QuoteEvidenceDocument
         if (sizeBytes <= 0)
             throw new ArgumentException("Evidence document size must be greater than zero.", nameof(sizeBytes));
 
-        return new QuoteEvidenceDocument(
-            Guid.NewGuid(),
-            evidenceRequestId,
-            quoteId,
-            submissionId,
-            ValidateRequired(ownerUserId, nameof(ownerUserId), "Owner user id is required."),
-            ValidateRequired(originalFileName, nameof(originalFileName), "Original file name is required."),
-            ValidateRequired(contentType, nameof(contentType), "Content type is required."),
-            sizeBytes,
-            ValidateRequired(storageKey, nameof(storageKey), "Storage key is required."),
-            ValidateRequired(uploadedByUserId, nameof(uploadedByUserId), "Uploaded-by user id is required."),
-            uploadedAtUtc);
+        return new QuoteEvidenceDocument
+        {
+            Id = Guid.NewGuid(),
+            EvidenceRequestId = evidenceRequestId,
+            QuoteId = quoteId,
+            SubmissionId = submissionId,
+            OwnerUserId = ValidateRequired(ownerUserId, nameof(ownerUserId), "Owner user id is required."),
+            OriginalFileName = ValidateRequired(originalFileName, nameof(originalFileName), "Original file name is required."),
+            ContentType = ValidateRequired(contentType, nameof(contentType), "Content type is required."),
+            SizeBytes = sizeBytes,
+            StorageKey = ValidateRequired(storageKey, nameof(storageKey), "Storage key is required."),
+            UploadedByUserId = ValidateRequired(uploadedByUserId, nameof(uploadedByUserId), "Uploaded-by user id is required."),
+            UploadedAtUtc = uploadedAtUtc,
+            ScanStatus = EvidenceDocumentScanStatus.PendingScan
+        };
     }
 
     public void RecordScanResult(

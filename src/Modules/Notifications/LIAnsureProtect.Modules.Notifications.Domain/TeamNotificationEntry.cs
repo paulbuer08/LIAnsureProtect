@@ -9,28 +9,8 @@ public sealed class TeamNotificationEntry
 {
     private readonly List<TeamNotificationReadReceipt> _readReceipts = [];
 
-    private TeamNotificationEntry(
-        Guid id,
-        string audience,
-        string type,
-        string subjectReferenceType,
-        string subjectReferenceId,
-        string attributesJson,
-        Guid sourceOutboxMessageId,
-        DateTime occurredAtUtc,
-        DateTime createdAtUtc)
-    {
-        Id = id;
-        Audience = audience;
-        Type = type;
-        SubjectReferenceType = subjectReferenceType;
-        SubjectReferenceId = subjectReferenceId;
-        AttributesJson = attributesJson;
-        SourceOutboxMessageId = sourceOutboxMessageId;
-        OccurredAtUtc = occurredAtUtc;
-        CreatedAtUtc = createdAtUtc;
-    }
-
+    // The only constructor: EF Core materializes through it, and the Create factory assigns
+    // state via the private property setters — no parameter-heavy constructor to maintain.
     private TeamNotificationEntry()
     {
         Audience = string.Empty;
@@ -82,15 +62,17 @@ public sealed class TeamNotificationEntry
         DateTime occurredAtUtc,
         DateTime createdAtUtc)
     {
-        return new TeamNotificationEntry(
-            Guid.NewGuid(),
-            audience,
-            type,
-            subjectReferenceType,
-            subjectReferenceId,
-            attributesJson,
-            sourceOutboxMessageId,
-            occurredAtUtc,
-            createdAtUtc);
+        return new TeamNotificationEntry
+        {
+            Id = Guid.NewGuid(),
+            Audience = audience,
+            Type = type,
+            SubjectReferenceType = subjectReferenceType,
+            SubjectReferenceId = subjectReferenceId,
+            AttributesJson = attributesJson,
+            SourceOutboxMessageId = sourceOutboxMessageId,
+            OccurredAtUtc = occurredAtUtc,
+            CreatedAtUtc = createdAtUtc
+        };
     }
 }

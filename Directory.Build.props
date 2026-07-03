@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    Solution-wide quality gate (post-M44 deep audit):
+    - AnalysisLevel latest-recommended turns on the stricter .NET analyzer set (perf, correctness,
+      API-usage rules) beyond the default level.
+    - TreatWarningsAsErrors makes any warning fail the build, so CI enforces a zero-warning
+      solution permanently instead of letting warnings accumulate.
+    Intentional, documented exclusions (generated code / test naming) live in .editorconfig.
+  -->
+  <PropertyGroup>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

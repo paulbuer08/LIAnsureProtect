@@ -6,54 +6,9 @@ public sealed class Quote : IHasDomainEvents
 {
     private readonly List<IDomainEvent> domainEvents = [];
 
-    private Quote(
-        Guid id,
-        Guid submissionId,
-        string ownerUserId,
-        decimal premium,
-        decimal requestedLimit,
-        decimal retention,
-        CyberRiskTier riskTier,
-        QuoteStatus status,
-        string strategyName,
-        string subjectivities,
-        string referralReasons,
-        DateTime createdAtUtc,
-        DateTime expiresAtUtc,
-        string? reviewedByUserId = null,
-        DateTime? reviewedAtUtc = null,
-        string? underwritingDecisionReason = null,
-        string? underwritingDecisionNotes = null,
-        string? acceptedByUserId = null,
-        string? acceptedByName = null,
-        string? acceptedByTitle = null,
-        bool subjectivitiesAcknowledged = false,
-        DateTime? acceptedAtUtc = null)
-    {
-        Id = id;
-        SubmissionId = submissionId;
-        OwnerUserId = ownerUserId;
-        Premium = premium;
-        RequestedLimit = requestedLimit;
-        Retention = retention;
-        RiskTier = riskTier;
-        Status = status;
-        StrategyName = strategyName;
-        Subjectivities = subjectivities;
-        ReferralReasons = referralReasons;
-        CreatedAtUtc = createdAtUtc;
-        ExpiresAtUtc = expiresAtUtc;
-        ReviewedByUserId = reviewedByUserId;
-        ReviewedAtUtc = reviewedAtUtc;
-        UnderwritingDecisionReason = underwritingDecisionReason;
-        UnderwritingDecisionNotes = underwritingDecisionNotes;
-        AcceptedByUserId = acceptedByUserId;
-        AcceptedByName = acceptedByName;
-        AcceptedByTitle = acceptedByTitle;
-        SubjectivitiesAcknowledged = subjectivitiesAcknowledged;
-        AcceptedAtUtc = acceptedAtUtc;
-    }
-
+    // The only constructor: EF Core materializes through it, and the Generate factory assigns
+    // state via the private property setters. Keeping construction property-based (instead of a
+    // 20+ parameter constructor) keeps the aggregate honest as decision/acceptance fields grow.
     private Quote()
     {
         OwnerUserId = string.Empty;
@@ -139,20 +94,22 @@ public sealed class Quote : IHasDomainEvents
             ? QuoteStatus.Quoted
             : QuoteStatus.Referred;
 
-        var quote = new Quote(
-            Guid.NewGuid(),
-            submissionId,
-            ownerUserId,
-            premium,
-            requestedLimit,
-            retention,
-            riskTier,
-            status,
-            strategyName,
-            JoinLines(subjectivities),
-            JoinLines(referralReasons),
-            createdAtUtc,
-            createdAtUtc.AddDays(30));
+        var quote = new Quote
+        {
+            Id = Guid.NewGuid(),
+            SubmissionId = submissionId,
+            OwnerUserId = ownerUserId,
+            Premium = premium,
+            RequestedLimit = requestedLimit,
+            Retention = retention,
+            RiskTier = riskTier,
+            Status = status,
+            StrategyName = strategyName,
+            Subjectivities = JoinLines(subjectivities),
+            ReferralReasons = JoinLines(referralReasons),
+            CreatedAtUtc = createdAtUtc,
+            ExpiresAtUtc = createdAtUtc.AddDays(30)
+        };
 
         quote.domainEvents.Add(new QuoteGeneratedDomainEvent(
             quote.Id,

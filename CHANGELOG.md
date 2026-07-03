@@ -8,6 +8,20 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Post-M44 deep audit (`docs/dev/post-m44-deep-audit.md`): solution-wide quality gate via `Directory.Build.props` (`AnalysisLevel=latest-recommended`, `TreatWarningsAsErrors=true`) — the solution now builds with zero warnings at the strict level and CI enforces it permanently. Documented `.editorconfig` exclusions only for EF-generated migrations (CA1861) and underscore test naming (CA1707).
+- Evidence reference-data endpoint `GET /api/v1/evidence-requests/reference` (categories + upload rules from the new single-source `EvidenceDocumentUploadRules`) — the **first production cache-aside adoption** (`ICacheableRequest`, versioned key, 1h TTL). `ICacheableRequest` moved to the Platform shared kernel so modules can opt in without referencing the legacy Application layer.
+- Living guides: `docs/guides/running-the-app.md` (complete current run manual incl. one-time Auth0 setup) and `docs/guides/manual-testing-guide.md` (role-by-role UI walkthrough with generic personas); `src/LIAnsureProtect.Web/.env.example`; the Milestone-9-era run guide is banner-marked historical.
+- Fully-baked spec for the proposed Referral Queue Hardening milestone (optimistic concurrency + short-TTL cached queue): `docs/dev/referral-queue-hardening-spec.md`.
+
+### Changed
+
+- Refactored ten domain entities (`Quote`, `Policy`, `AiUnderwritingReview`, `QuoteRatingProviderAttempt`, `QuoteUnderwritingReview`, `QuoteEvidenceRequest`, `QuoteEvidenceRequestReview`, `QuoteEvidenceDocument`, `NotificationInboxEntry`, `TeamNotificationEntry`) from parameter-heavy private constructors (up to 22 parameters, SonarLint S107) to factory property assignment over the single EF-used parameterless constructor. Behavior unchanged; all tests green.
+- Hot-path logging in `OutboxDispatcher`, `Worker`, and API startup converted to source-generated `[LoggerMessage]` methods (CA1848/CA1873).
+
+### Fixed
+
+- Two `ArgumentException` calls passing property paths as `paramName` (CA2208) in evidence document commands; culture-sensitive `Retry-After` header formatting (CA1305) in the rate limiter; assorted concrete-type (CA1859) and static-member (CA1822) analyzer findings.
+
 - Milestone 44 - Caching + Rate Limiting: `ICacheService` cache-aside port with `InMemoryCacheService` (Local) and `RedisCacheService` (Aws, StackExchange.Redis) selected by `Platform:Profile`; an opt-in `CachingBehavior` MediatR behavior driven by an `ICacheableRequest` marker (rebuildable, non-PII data only). No production read is cached yet by deliberate choice — the mechanism is delivered and tested, and adoption on a specific read is a later, invalidation-paired follow-up.
 - API rate limiting: a global fixed-window limiter partitioned per authenticated user (client-IP fallback), stricter for unsafe methods, returning HTTP 429 with `ProblemDetails` + `Retry-After`; limits are config-driven (`RateLimiting:*`) with generous defaults.
 - `SecurityHeadersMiddleware` adding `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy`, and `Permissions-Policy` to every response.

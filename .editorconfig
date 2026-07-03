@@ -19,3 +19,15 @@ trim_trailing_whitespace = false
 
 [*.{yml,yaml,json}]
 indent_size = 2
+
+# --- Documented analyzer exclusions (see docs/dev/post-m44-deep-audit.md) ---
+
+# EF Core migrations are scaffolded, append-only history. Editing them for style/perf rules
+# (constant array arguments) would churn generated code for zero runtime benefit.
+[{src,tests}/**/Migrations/*.cs]
+dotnet_diagnostic.CA1861.severity = none
+
+# Test method names deliberately use the industry-standard underscore convention
+# (Given_When_Then / Does_X_When_Y) for readability in test output.
+[tests/**.cs]
+dotnet_diagnostic.CA1707.severity = none

@@ -55,7 +55,7 @@ public sealed class QuoteUnderwritingContextReader(IQuoteRepository quoteReposit
             quote.ExpiresAtUtc);
     }
 
-    private static IReadOnlyCollection<string> SplitLines(string value)
+    private static string[] SplitLines(string value)
     {
         return value
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

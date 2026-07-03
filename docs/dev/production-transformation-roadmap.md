@@ -115,8 +115,13 @@ events); in-process module event bus now → outbox → SNS/SQS later.
   publisher port, versioned envelope → SNS → SQS + DLQ, LocalStack-tested; always-on SQS consumer and
   optional S3 event archive deferred) · **M44** Caching + rate limiting (**implemented**: `ICacheService`
   in-memory/Redis by profile + opt-in `CachingBehavior`, API rate limiting → 429, security headers;
-  Redis tested via local Docker. No production read cached yet by deliberate design — mechanism ready
-  for invalidation-paired adoption).
+  Redis tested via local Docker. First production adoption landed post-M44: the evidence
+  reference-data query/endpoint. The referral queue itself is specced separately — see below).
+
+**Proposed small milestone (unscheduled, one session): Referral Queue Hardening** — optimistic
+concurrency on referral assignment (xmin token, 409 + refetch UX) **then** a 10s shared cache on
+`ListQuoteReferralsQuery` with write-triggered invalidation. Fully-baked spec:
+`docs/dev/referral-queue-hardening-spec.md`. Recommended slot: immediately before or after M45.
 
 ### Fully-baked next-milestone plans (detailed 2026-07-02 after the post-M41 solidification audit)
 

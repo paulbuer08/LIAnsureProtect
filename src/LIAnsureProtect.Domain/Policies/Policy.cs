@@ -7,44 +7,8 @@ public sealed class Policy : IHasDomainEvents
 {
     private readonly List<IDomainEvent> domainEvents = [];
 
-    private Policy(
-        Guid id,
-        Guid quoteId,
-        Guid submissionId,
-        string ownerUserId,
-        string policyNumber,
-        decimal premium,
-        decimal requestedLimit,
-        decimal retention,
-        DateTime effectiveDateUtc,
-        DateTime expirationDateUtc,
-        PolicyStatus status,
-        string boundByUserId,
-        DateTime boundAtUtc,
-        DateTime createdAtUtc,
-        string quoteStatusAtBind,
-        string quoteRiskTierAtBind,
-        string quoteSubjectivitiesAtBind)
-    {
-        Id = id;
-        QuoteId = quoteId;
-        SubmissionId = submissionId;
-        OwnerUserId = ownerUserId;
-        PolicyNumber = policyNumber;
-        Premium = premium;
-        RequestedLimit = requestedLimit;
-        Retention = retention;
-        EffectiveDateUtc = effectiveDateUtc;
-        ExpirationDateUtc = expirationDateUtc;
-        Status = status;
-        BoundByUserId = boundByUserId;
-        BoundAtUtc = boundAtUtc;
-        CreatedAtUtc = createdAtUtc;
-        QuoteStatusAtBind = quoteStatusAtBind;
-        QuoteRiskTierAtBind = quoteRiskTierAtBind;
-        QuoteSubjectivitiesAtBind = quoteSubjectivitiesAtBind;
-    }
-
+    // The only constructor: EF Core materializes through it, and the BindFromAcceptedQuote factory
+    // assigns state via the private property setters — no parameter-heavy constructor to maintain.
     private Policy()
     {
         OwnerUserId = string.Empty;
@@ -112,24 +76,26 @@ public sealed class Policy : IHasDomainEvents
         if (effectiveDateUtc == default)
             throw new ArgumentException("Effective date is required.", nameof(effectiveDateUtc));
 
-        var policy = new Policy(
-            Guid.NewGuid(),
-            quote.Id,
-            quote.SubmissionId,
-            quote.OwnerUserId,
-            policyNumber.Trim(),
-            quote.Premium,
-            quote.RequestedLimit,
-            quote.Retention,
-            effectiveDateUtc,
-            effectiveDateUtc.AddYears(1),
-            PolicyStatus.Bound,
-            boundByUserId.Trim(),
-            boundAtUtc,
-            boundAtUtc,
-            quote.Status.ToString(),
-            quote.RiskTier.ToString(),
-            quote.Subjectivities);
+        var policy = new Policy
+        {
+            Id = Guid.NewGuid(),
+            QuoteId = quote.Id,
+            SubmissionId = quote.SubmissionId,
+            OwnerUserId = quote.OwnerUserId,
+            PolicyNumber = policyNumber.Trim(),
+            Premium = quote.Premium,
+            RequestedLimit = quote.RequestedLimit,
+            Retention = quote.Retention,
+            EffectiveDateUtc = effectiveDateUtc,
+            ExpirationDateUtc = effectiveDateUtc.AddYears(1),
+            Status = PolicyStatus.Bound,
+            BoundByUserId = boundByUserId.Trim(),
+            BoundAtUtc = boundAtUtc,
+            CreatedAtUtc = boundAtUtc,
+            QuoteStatusAtBind = quote.Status.ToString(),
+            QuoteRiskTierAtBind = quote.RiskTier.ToString(),
+            QuoteSubjectivitiesAtBind = quote.Subjectivities
+        };
 
         policy.domainEvents.Add(new PolicyBoundDomainEvent(
             policy.Id,

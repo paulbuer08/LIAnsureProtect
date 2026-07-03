@@ -486,7 +486,7 @@ public sealed class EvidenceDocumentEndpointTests
         Assert.Contains("up to 5 files", content);
     }
 
-    private HttpRequestMessage CreateAuthenticatedMultipartResponse(
+    private static HttpRequestMessage CreateAuthenticatedMultipartResponse(
         Guid evidenceRequestId,
         string role,
         string userId,
@@ -516,7 +516,7 @@ public sealed class EvidenceDocumentEndpointTests
         return request;
     }
 
-    private HttpRequestMessage CreateAuthenticatedReplacementUpload(
+    private static HttpRequestMessage CreateAuthenticatedReplacementUpload(
         Guid evidenceRequestId,
         string role,
         string userId,
@@ -598,7 +598,7 @@ public sealed class EvidenceDocumentEndpointTests
         return (quote, evidenceRequest);
     }
 
-    private static IReadOnlyCollection<EvidenceFile> CreateEvidenceFiles(int count)
+    private static List<EvidenceFile> CreateEvidenceFiles(int count)
     {
         return Enumerable.Range(1, count)
             .Select(index => new EvidenceFile(

@@ -86,7 +86,7 @@ public sealed class ListQuoteReferralsQueryHandler(
             evidenceSummary.LatestEvidenceActivityAtUtc);
     }
 
-    private static IReadOnlyCollection<string> SplitLines(string value)
+    private static List<string> SplitLines(string value)
     {
         return value
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

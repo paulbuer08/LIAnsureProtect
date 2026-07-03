@@ -1,4 +1,4 @@
-namespace LIAnsureProtect.Application.Common.Caching;
+namespace LIAnsureProtect.Platform.Abstractions.Caching;
 
 /// <summary>
 /// A request opts into cache-aside by implementing this. Only mark <b>rebuildable, non-PII</b>
@@ -12,3 +12,4 @@ public interface ICacheableRequest
     /// <summary>How long the cached response stays fresh.</summary>
     TimeSpan CacheTtl { get; }
 }
+

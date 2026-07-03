@@ -6,33 +6,8 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
 {
     private readonly List<IDomainEvent> domainEvents = [];
 
-    private QuoteEvidenceRequest(
-        Guid id,
-        Guid quoteId,
-        Guid submissionId,
-        string ownerUserId,
-        string requestedByUserId,
-        EvidenceRequestCategory category,
-        string title,
-        string description,
-        DateTime dueAtUtc,
-        DateTime requestedAtUtc)
-    {
-        Id = id;
-        QuoteId = quoteId;
-        SubmissionId = submissionId;
-        OwnerUserId = ownerUserId;
-        RequestedByUserId = requestedByUserId;
-        Category = category;
-        Title = title;
-        Description = description;
-        DueAtUtc = dueAtUtc;
-        RequestedAtUtc = requestedAtUtc;
-        UpdatedAtUtc = requestedAtUtc;
-        Status = EvidenceRequestStatus.Open;
-        ReviewDecision = EvidenceReviewDecisionStatus.NotReviewed;
-    }
-
+    // The only constructor: EF Core materializes through it, and the Create factory assigns
+    // state via the private property setters — no parameter-heavy constructor to maintain.
     private QuoteEvidenceRequest()
     {
     }
@@ -120,17 +95,22 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         if (dueAtUtc < requestedAtUtc)
             throw new InvalidOperationException("Evidence request due date cannot be before request creation.");
 
-        var evidenceRequest = new QuoteEvidenceRequest(
-            Guid.NewGuid(),
-            quoteId,
-            submissionId,
-            trimmedOwnerUserId,
-            trimmedRequestedByUserId,
-            category,
-            trimmedTitle,
-            trimmedDescription,
-            dueAtUtc,
-            requestedAtUtc);
+        var evidenceRequest = new QuoteEvidenceRequest
+        {
+            Id = Guid.NewGuid(),
+            QuoteId = quoteId,
+            SubmissionId = submissionId,
+            OwnerUserId = trimmedOwnerUserId,
+            RequestedByUserId = trimmedRequestedByUserId,
+            Category = category,
+            Title = trimmedTitle,
+            Description = trimmedDescription,
+            DueAtUtc = dueAtUtc,
+            RequestedAtUtc = requestedAtUtc,
+            UpdatedAtUtc = requestedAtUtc,
+            Status = EvidenceRequestStatus.Open,
+            ReviewDecision = EvidenceReviewDecisionStatus.NotReviewed
+        };
 
         evidenceRequest.domainEvents.Add(new QuoteEvidenceRequestCreatedDomainEvent(
             evidenceRequest.Id,
