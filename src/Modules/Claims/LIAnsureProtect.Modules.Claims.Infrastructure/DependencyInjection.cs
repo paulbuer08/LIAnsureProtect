@@ -36,6 +36,7 @@ public static class DependencyInjection
 
         services.AddScoped<IClaimRepository, EfClaimRepository>();
         services.AddScoped<IClaimsReader, ClaimsReader>();
+        services.AddScoped<IClaimsAdjudicationReader, ClaimsAdjudicationReader>();
         services.AddScoped<IOutboxSource, ClaimsOutboxSource>();
 
         services.AddMediatR(configuration =>

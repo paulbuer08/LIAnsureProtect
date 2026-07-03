@@ -20,6 +20,8 @@ public sealed class Claim : IHasDomainEvents
 {
     private readonly List<IDomainEvent> domainEvents = [];
     private readonly List<ClaimTimelineEntry> timelineEntries = [];
+    private readonly List<ClaimWorkNote> workNotes = [];
+    private readonly List<ClaimInformationRequest> informationRequests = [];
 
     // The only constructor: EF Core materializes through it, and the File factory assigns state
     // via the private property setters.
@@ -51,6 +53,13 @@ public sealed class Claim : IHasDomainEvents
 
     public ClaimStatus Status { get; private set; }
 
+    /// <summary>
+    /// The adjuster currently working the file. Assignment is a guarded claim (M44.5): the
+    /// domain rejects a second adjuster, same-adjuster re-clicks are idempotent, and release is
+    /// the explicit hand-over. True races are caught by the <see cref="Version"/> token at save.
+    /// </summary>
+    public string? AssignedAdjusterUserId { get; private set; }
+
     public string PolicyNumberAtFiling { get; private set; }
 
     public DateTime PolicyEffectiveAtFiling { get; private set; }
@@ -73,6 +82,10 @@ public sealed class Claim : IHasDomainEvents
     public long Version { get; private set; }
 
     public IReadOnlyCollection<ClaimTimelineEntry> TimelineEntries => timelineEntries.AsReadOnly();
+
+    public IReadOnlyCollection<ClaimWorkNote> WorkNotes => workNotes.AsReadOnly();
+
+    public IReadOnlyCollection<ClaimInformationRequest> InformationRequests => informationRequests.AsReadOnly();
 
     public IReadOnlyCollection<IDomainEvent> DomainEvents => domainEvents.AsReadOnly();
 
@@ -158,18 +171,151 @@ public sealed class Claim : IHasDomainEvents
         TransitionTo(ClaimStatus.UnderReview, allowedFrom: [ClaimStatus.Filed], startedByUserId, startedAtUtc);
     }
 
-    /// <summary>UnderReview → InformationRequested (the adjuster needs more from the claimant).</summary>
-    public void RequestInformation(string requestedByUserId, DateTime requestedAtUtc)
+    /// <summary>
+    /// Claims the file for an adjuster. First assignment on a Filed claim also starts the review
+    /// (Filed → UnderReview). Same-adjuster re-clicks are idempotent no-ops; a second adjuster is
+    /// rejected — release first is the explicit hand-over.
+    /// </summary>
+    public void AssignTo(string adjusterUserId, DateTime assignedAtUtc)
     {
-        ValidateRequiredUserId(requestedByUserId, nameof(requestedByUserId));
-        TransitionTo(ClaimStatus.InformationRequested, allowedFrom: [ClaimStatus.UnderReview], requestedByUserId, requestedAtUtc);
+        ValidateRequiredUserId(adjusterUserId, nameof(adjusterUserId));
+        EnsureOpenForAdjusting();
+
+        var trimmedAdjusterUserId = adjusterUserId.Trim();
+        if (AssignedAdjusterUserId == trimmedAdjusterUserId)
+            return;
+
+        if (AssignedAdjusterUserId is not null)
+            throw new InvalidOperationException("This claim is already assigned to another adjuster.");
+
+        AssignedAdjusterUserId = trimmedAdjusterUserId;
+        Touch(assignedAtUtc);
+        RecordTimeline(
+            ClaimTimelineEntryType.AssignmentChanged,
+            $"Claim assigned to {AssignedAdjusterUserId}.",
+            AssignedAdjusterUserId,
+            assignedAtUtc);
+
+        if (Status == ClaimStatus.Filed)
+            TransitionTo(ClaimStatus.UnderReview, allowedFrom: [ClaimStatus.Filed], trimmedAdjusterUserId, assignedAtUtc);
+
+        domainEvents.Add(new ClaimAssignedDomainEvent(
+            Id,
+            ClaimNumber,
+            PolicyId,
+            OwnerUserId,
+            trimmedAdjusterUserId,
+            assignedAtUtc));
     }
 
-    /// <summary>InformationRequested → UnderReview (the claimant responded).</summary>
-    public void RecordClaimantResponse(string respondedByUserId, DateTime respondedAtUtc)
+    /// <summary>Releases the assignment — the explicit hand-over path.</summary>
+    public void ReleaseAssignment(string releasedByUserId, DateTime releasedAtUtc)
+    {
+        ValidateRequiredUserId(releasedByUserId, nameof(releasedByUserId));
+        EnsureOpenForAdjusting();
+
+        AssignedAdjusterUserId = null;
+        Touch(releasedAtUtc);
+        RecordTimeline(
+            ClaimTimelineEntryType.AssignmentChanged,
+            "Claim assignment released.",
+            releasedByUserId,
+            releasedAtUtc);
+    }
+
+    /// <summary>Appends an internal adjuster work note.</summary>
+    public ClaimWorkNote AddWorkNote(string createdByUserId, string note, DateTime createdAtUtc)
+    {
+        ValidateRequiredUserId(createdByUserId, nameof(createdByUserId));
+        EnsureOpenForAdjusting();
+
+        var workNote = ClaimWorkNote.Record(Id, createdByUserId, note, createdAtUtc);
+        workNotes.Add(workNote);
+        Touch(createdAtUtc);
+        RecordTimeline(
+            ClaimTimelineEntryType.NoteAdded,
+            "Internal adjuster work note added.",
+            createdByUserId,
+            createdAtUtc);
+
+        return workNote;
+    }
+
+    /// <summary>
+    /// UnderReview → InformationRequested: the adjuster asks the claimant for more information.
+    /// The open request is what the claimant answers via
+    /// <see cref="RespondToInformationRequest"/>.
+    /// </summary>
+    public ClaimInformationRequest RequestInformation(
+        string requestedByUserId,
+        string title,
+        string message,
+        DateTime requestedAtUtc)
+    {
+        ValidateRequiredUserId(requestedByUserId, nameof(requestedByUserId));
+
+        if (Status != ClaimStatus.UnderReview)
+            throw new InvalidOperationException("Information can only be requested while a claim is under review.");
+
+        var informationRequest = ClaimInformationRequest.Create(Id, requestedByUserId, title, message, requestedAtUtc);
+        informationRequests.Add(informationRequest);
+        RecordTimeline(
+            ClaimTimelineEntryType.InformationRequested,
+            $"Information requested from the claimant: {informationRequest.Title}.",
+            requestedByUserId,
+            requestedAtUtc);
+        TransitionTo(ClaimStatus.InformationRequested, allowedFrom: [ClaimStatus.UnderReview], requestedByUserId, requestedAtUtc);
+
+        domainEvents.Add(new ClaimInformationRequestedDomainEvent(
+            Id,
+            ClaimNumber,
+            informationRequest.Id,
+            PolicyId,
+            OwnerUserId,
+            informationRequest.RequestedByUserId,
+            informationRequest.Title,
+            requestedAtUtc));
+
+        return informationRequest;
+    }
+
+    /// <summary>
+    /// The claimant answers an open information request; the claim returns to UnderReview.
+    /// The status flips back on the first answer even if other requests remain open — status is
+    /// a coarse "whose court is the ball in" flag, and open requests stay visible/answerable.
+    /// </summary>
+    public void RespondToInformationRequest(
+        Guid informationRequestId,
+        string respondedByUserId,
+        string responseText,
+        DateTime respondedAtUtc)
     {
         ValidateRequiredUserId(respondedByUserId, nameof(respondedByUserId));
-        TransitionTo(ClaimStatus.UnderReview, allowedFrom: [ClaimStatus.InformationRequested], respondedByUserId, respondedAtUtc);
+        EnsureOpenForAdjusting();
+
+        var informationRequest = informationRequests.SingleOrDefault(candidate => candidate.Id == informationRequestId)
+            ?? throw new InvalidOperationException("The information request was not found on this claim.");
+
+        informationRequest.Answer(respondedByUserId, responseText, respondedAtUtc);
+        Touch(respondedAtUtc);
+        RecordTimeline(
+            ClaimTimelineEntryType.ClaimantResponded,
+            $"Claimant responded to the information request: {informationRequest.Title}.",
+            respondedByUserId,
+            respondedAtUtc);
+
+        if (Status == ClaimStatus.InformationRequested)
+            TransitionTo(ClaimStatus.UnderReview, allowedFrom: [ClaimStatus.InformationRequested], respondedByUserId, respondedAtUtc);
+
+        domainEvents.Add(new ClaimantInformationResponseDomainEvent(
+            Id,
+            ClaimNumber,
+            informationRequest.Id,
+            PolicyId,
+            OwnerUserId,
+            respondedByUserId.Trim(),
+            AssignedAdjusterUserId,
+            respondedAtUtc));
     }
 
     /// <summary>UnderReview → Accepted (a favorable decision — wired with guardrails in CM5).</summary>
@@ -216,6 +362,14 @@ public sealed class Claim : IHasDomainEvents
             $"Status changed from {oldStatus} to {Status}.",
             changedByUserId,
             changedAtUtc);
+    }
+
+    /// <summary>Adjusting actions are only valid while the claim has no final decision.</summary>
+    private void EnsureOpenForAdjusting()
+    {
+        if (Status is ClaimStatus.Accepted or ClaimStatus.Denied or ClaimStatus.Closed)
+            throw new InvalidOperationException(
+                $"A claim in status {Status} can no longer be worked.");
     }
 
     private void RecordTimeline(

@@ -14,24 +14,30 @@
 | Milestone | Status |
 |---|---|
 | CM1 — Claims module skeleton + FNOL | ✅ merged |
-| CM2 — Adjuster queue + assignment + operations | ⬜ next |
-| CM3 — Claim documents | ⬜ |
+| CM2 — Adjuster queue + assignment + operations | ✅ merged |
+| CM3 — Claim documents | ⬜ next |
 | CM4 — Reserves & financials | ⬜ |
 | CM5 — Decision & settlement | ⬜ |
 | CM6 — Notifications | ⬜ |
 | CM7 — Frontend claims slice | ⬜ |
 | CM8 — Branch consolidation prep | ⬜ |
 
-## Current state (after CM1)
+## Current state (after CM2)
 
 - Module: `src/Modules/Claims` (Domain/Application/Infrastructure), `claims` schema, module
   outbox, `ClaimsOutboxSource` registered in both hosts.
-- API: `POST /api/v1/claims`, `GET /api/v1/claims`, `GET /api/v1/claims/{id}`
-  (`Claims.File` / `Claims.Read`, Customer/Broker/Admin).
+- Claimant API: `POST /api/v1/claims`, owner-scoped list/detail (now incl. information
+  requests), `POST /{id}/information-requests/{rid}/respond`
+  (`Claims.File` / `Claims.Read` / `Claims.Respond`, Customer/Broker/Admin).
+- Adjuster API: `/api/v1/claims/adjudication` — queue, detail, assign/release (M44.5 guarded
+  claim + Version token → 409), notes, information requests (`Claims.Adjudicate`,
+  ClaimsAdjuster/Admin — the reserved role is now live).
+- Events in the module outbox: ClaimFiled, ClaimAssigned, ClaimInformationRequested,
+  ClaimantInformationResponse (mappers arrive in CM6).
 - Cross-context: `IClaimsPolicyContextReader` (Claims) ← `ClaimsPolicyContextReader`
   (legacy Infrastructure), id-only policy reference + file-time snapshot.
-- Verification: full backend suite green (zero-warning gate); `claims` schema migration applied
-  in CI and locally.
+- Verification: full backend suite green (zero-warning gate); migrations
+  `CreateClaimsSchema` + `AddClaimOperations` applied in CI and locally.
 
 ## Decisions to remember
 

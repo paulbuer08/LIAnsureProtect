@@ -1,65 +1,66 @@
 using LIAnsureProtect.Modules.Claims.Application;
+using LIAnsureProtect.Modules.Claims.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace LIAnsureProtect.Modules.Claims.Infrastructure.Persistence;
 
-/// <summary>Owner-scoped no-tracking claim reads for the CQRS read side.</summary>
-public sealed class ClaimsReader(ClaimsDbContext dbContext) : IClaimsReader
+/// <summary>Role-scoped no-tracking reads for the adjuster's queue and file view.</summary>
+public sealed class ClaimsAdjudicationReader(ClaimsDbContext dbContext) : IClaimsAdjudicationReader
 {
-    public async Task<IReadOnlyList<ClaimResult>> ListOwnerClaimsAsync(
-        string ownerUserId,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ClaimAdjudicationResult>> ListQueueAsync(CancellationToken cancellationToken)
     {
-        return await dbContext.Claims
+        var claims = await dbContext.Claims
             .AsNoTracking()
-            .Where(claim => claim.OwnerUserId == ownerUserId)
+            .Include(claim => claim.InformationRequests)
+            .Where(claim => claim.Status != ClaimStatus.Closed)
             .OrderByDescending(claim => claim.FiledAtUtc)
-            .Select(claim => new ClaimResult(
-                claim.Id,
-                claim.ClaimNumber,
-                claim.PolicyId,
-                claim.PolicyNumberAtFiling,
-                claim.IncidentType.ToString(),
-                claim.IncidentAtUtc,
-                claim.DiscoveredAtUtc,
-                claim.Status.ToString(),
-                claim.FiledAtUtc,
-                claim.UpdatedAtUtc))
             .ToListAsync(cancellationToken);
+
+        return claims
+            .Select(ClaimAdjudicationResultFactory.FromClaim)
+            .ToArray();
     }
 
-    public async Task<ClaimDetailResult?> GetOwnerClaimDetailAsync(
-        string ownerUserId,
+    public async Task<ClaimAdjudicationDetailResult?> GetDetailAsync(
         Guid claimId,
         CancellationToken cancellationToken)
     {
         var claim = await dbContext.Claims
             .AsNoTracking()
             .Include(candidate => candidate.TimelineEntries)
+            .Include(candidate => candidate.WorkNotes)
             .Include(candidate => candidate.InformationRequests)
-            .SingleOrDefaultAsync(
-                candidate => candidate.Id == claimId && candidate.OwnerUserId == ownerUserId,
-                cancellationToken);
+            .SingleOrDefaultAsync(candidate => candidate.Id == claimId, cancellationToken);
 
         if (claim is null)
             return null;
 
-        return new ClaimDetailResult(
+        return new ClaimAdjudicationDetailResult(
             claim.Id,
             claim.ClaimNumber,
             claim.PolicyId,
             claim.PolicyNumberAtFiling,
+            claim.OwnerUserId,
             claim.IncidentType.ToString(),
             claim.IncidentAtUtc,
             claim.DiscoveredAtUtc,
             claim.Description,
             claim.Status.ToString(),
+            claim.AssignedAdjusterUserId,
             claim.PolicyLimitAtFiling,
             claim.PolicyRetentionAtFiling,
             claim.PolicyEffectiveAtFiling,
             claim.PolicyExpirationAtFiling,
             claim.FiledAtUtc,
             claim.UpdatedAtUtc,
+            claim.WorkNotes
+                .OrderBy(note => note.CreatedAtUtc)
+                .Select(ClaimAdjudicationResultFactory.FromWorkNote)
+                .ToArray(),
+            claim.InformationRequests
+                .OrderBy(request => request.RequestedAtUtc)
+                .Select(ClaimAdjudicationResultFactory.FromInformationRequest)
+                .ToArray(),
             claim.TimelineEntries
                 .OrderBy(entry => entry.CreatedAtUtc)
                 .Select(entry => new ClaimTimelineEntryResult(
@@ -68,10 +69,6 @@ public sealed class ClaimsReader(ClaimsDbContext dbContext) : IClaimsReader
                     entry.Summary,
                     entry.CreatedByUserId,
                     entry.CreatedAtUtc))
-                .ToArray(),
-            claim.InformationRequests
-                .OrderBy(request => request.RequestedAtUtc)
-                .Select(ClaimAdjudicationResultFactory.FromInformationRequest)
                 .ToArray());
     }
 }

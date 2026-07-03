@@ -5,6 +5,7 @@ using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Modules.Claims.Application;
 using LIAnsureProtect.Modules.Claims.Application.Commands.FileClaim;
+using LIAnsureProtect.Modules.Claims.Application.Commands.RespondToClaimInformationRequest;
 using LIAnsureProtect.Modules.Claims.Application.Queries.GetMyClaimDetail;
 using LIAnsureProtect.Modules.Claims.Application.Queries.ListMyClaims;
 using LIAnsureProtect.Modules.Claims.Domain;
@@ -125,6 +126,46 @@ public sealed class ClaimsController(
             : Ok(result);
     }
 
+    [HttpPost("{claimId:guid}/information-requests/{informationRequestId:guid}/respond")]
+    [Authorize(Policy = ApplicationPolicies.RespondToClaim)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ClaimInformationRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ClaimInformationRequestResult>> RespondToInformationRequest(
+        Guid claimId,
+        Guid informationRequestId,
+        RespondToClaimInformationRequestRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new RespondToClaimInformationRequestCommand(claimId, informationRequestId, request.ResponseText),
+                cancellationToken);
+
+            return result is null
+                ? NotFound()
+                : Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Response is invalid.",
+                exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Information request cannot be answered.",
+                exception.Message));
+        }
+    }
+
     private async Task<IdempotencyActionResponse> ExecuteFileForIdempotencyAsync(
         FileClaimCommand command,
         CancellationToken cancellationToken)
@@ -241,3 +282,5 @@ public sealed record FileClaimRequest(
     DateTime IncidentAtUtc,
     DateTime DiscoveredAtUtc,
     string Description);
+
+public sealed record RespondToClaimInformationRequestRequest(string ResponseText);

@@ -4,6 +4,25 @@
 > Same spirit as the root `CHANGELOG.md`, which this branch deliberately does not touch; CM8's
 > final-merge checklist folds these entries into the living docs when the branch merges to main.
 
+## Claims Milestone 2 - Adjuster Queue, Assignment And Operations
+
+- Activated the reserved **ClaimsAdjuster** role: new `Claims.Adjudicate` (ClaimsAdjuster/Admin)
+  and `Claims.Respond` (Customer/Broker/Admin) policies.
+- Added the adjudication surface `/api/v1/claims/adjudication`: queue (open claims), full working
+  detail (notes + information requests + timeline), assign-to-me / release-assignment with the
+  **M44.5 guarded-claim + optimistic-concurrency pattern** (domain rejects a second adjuster;
+  true races fail on the `Version` token → 409 → refetch), append-only work notes, and
+  information requests.
+- Added the claimant answer flow: `POST /api/v1/claims/{id}/information-requests/{rid}/respond`
+  (owner-scoped); the owner claim detail now includes information requests; first assignment
+  starts the review (Filed → UnderReview); claimant answers return the claim to UnderReview.
+- New domain events into the module outbox: `ClaimAssignedDomainEvent`,
+  `ClaimInformationRequestedDomainEvent`, `ClaimantInformationResponseDomainEvent`.
+- `AddClaimOperations` migration: `assigned_adjuster_user_id` (+ index),
+  `claims.claim_work_notes`, `claims.claim_information_requests`.
+- Tests: 33 new (15 domain, 5 handler, 1 concurrency proof, 10 endpoint, 2 migration facts).
+- Docs: `docs/claims/cm2-adjuster-queue-assignment-operations-{design,learnings}.md`.
+
 ## Claims Milestone 1 - Claims Module Skeleton And FNOL
 
 - Added the Claims bounded-context module (`src/Modules/Claims/{Domain,Application,Infrastructure}`)

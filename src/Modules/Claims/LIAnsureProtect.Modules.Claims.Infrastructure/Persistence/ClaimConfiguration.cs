@@ -59,6 +59,10 @@ public sealed class ClaimConfiguration : IEntityTypeConfiguration<Claim>
             .HasMaxLength(50)
             .IsRequired();
 
+        builder.Property(claim => claim.AssignedAdjusterUserId)
+            .HasColumnName("assigned_adjuster_user_id")
+            .HasMaxLength(256);
+
         builder.Property(claim => claim.PolicyNumberAtFiling)
             .HasColumnName("policy_number_at_filing")
             .HasMaxLength(64)
@@ -111,12 +115,31 @@ public sealed class ClaimConfiguration : IEntityTypeConfiguration<Claim>
         builder.HasIndex(claim => new { claim.Status, claim.FiledAtUtc })
             .HasDatabaseName("ix_claims_status_filed_at_utc");
 
+        builder.HasIndex(claim => claim.AssignedAdjusterUserId)
+            .HasDatabaseName("ix_claims_assigned_adjuster_user_id");
+
         builder.HasMany(claim => claim.TimelineEntries)
             .WithOne()
             .HasForeignKey(entry => entry.ClaimId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(claim => claim.WorkNotes)
+            .WithOne()
+            .HasForeignKey(note => note.ClaimId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(claim => claim.InformationRequests)
+            .WithOne()
+            .HasForeignKey(request => request.ClaimId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.Navigation(claim => claim.TimelineEntries)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.Navigation(claim => claim.WorkNotes)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.Navigation(claim => claim.InformationRequests)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.Ignore(claim => claim.DomainEvents);
