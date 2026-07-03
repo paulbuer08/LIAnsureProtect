@@ -4,6 +4,20 @@
 > Same spirit as the root `CHANGELOG.md`, which this branch deliberately does not touch; CM8's
 > final-merge checklist folds these entries into the living docs when the branch merges to main.
 
+## Claims Milestone 4 - Reserves And Financials
+
+- Added the claim money picture: `ClaimedAmount` (claimant's declaration, uncapped — CM5 caps
+  the settlement), `ReserveAmount`, `PaidAmount` (written by CM5).
+- Added `POST /api/v1/claims/{id}/claimed-amount` (owner-scoped) and
+  `POST /api/v1/claims/adjudication/{id}/reserve` (**assigned adjuster only**, mandatory
+  reason, append-only `claims.claim_reserve_changes` audit rows).
+- Financials on both detail reads; reserve amount + history are **confidential to the
+  adjudication side** (never serialized to the claimant — endpoint-tested).
+- Invariant-culture money in timeline entries. No domain events for financial changes
+  (recorded decision — the append-only history is the audit trail; CM6 maps lifecycle events).
+- `AddClaimFinancials` migration. Tests: 29 new (16 domain, 4 handler, 8 endpoint, 1 migration).
+- Docs: `docs/claims/cm4-reserves-financials-{design,learnings}.md`.
+
 ## Claims Milestone 3 - Claim Documents
 
 - Added scan-gated supporting documents: `ClaimDocument` children (`claims.claim_documents`)

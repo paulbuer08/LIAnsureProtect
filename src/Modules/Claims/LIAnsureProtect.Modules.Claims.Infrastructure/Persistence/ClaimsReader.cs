@@ -56,6 +56,8 @@ public sealed class ClaimsReader(ClaimsDbContext dbContext) : IClaimsReader
             claim.DiscoveredAtUtc,
             claim.Description,
             claim.Status.ToString(),
+            claim.ClaimedAmount,
+            claim.PaidAmount,
             claim.PolicyLimitAtFiling,
             claim.PolicyRetentionAtFiling,
             claim.PolicyEffectiveAtFiling,

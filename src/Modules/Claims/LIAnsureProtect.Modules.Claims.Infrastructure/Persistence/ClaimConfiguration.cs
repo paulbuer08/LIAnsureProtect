@@ -76,6 +76,20 @@ public sealed class ClaimConfiguration : IEntityTypeConfiguration<Claim>
             .HasColumnName("policy_expiration_at_filing")
             .IsRequired();
 
+        builder.Property(claim => claim.ClaimedAmount)
+            .HasColumnName("claimed_amount")
+            .HasPrecision(18, 2);
+
+        builder.Property(claim => claim.ReserveAmount)
+            .HasColumnName("reserve_amount")
+            .HasPrecision(18, 2)
+            .IsRequired();
+
+        builder.Property(claim => claim.PaidAmount)
+            .HasColumnName("paid_amount")
+            .HasPrecision(18, 2)
+            .IsRequired();
+
         builder.Property(claim => claim.PolicyLimitAtFiling)
             .HasColumnName("policy_limit_at_filing")
             .HasPrecision(18, 2)
@@ -138,6 +152,11 @@ public sealed class ClaimConfiguration : IEntityTypeConfiguration<Claim>
             .HasForeignKey(document => document.ClaimId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(claim => claim.ReserveChanges)
+            .WithOne()
+            .HasForeignKey(change => change.ClaimId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.Navigation(claim => claim.TimelineEntries)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
@@ -148,6 +167,9 @@ public sealed class ClaimConfiguration : IEntityTypeConfiguration<Claim>
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.Navigation(claim => claim.Documents)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.Navigation(claim => claim.ReserveChanges)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.Ignore(claim => claim.DomainEvents);

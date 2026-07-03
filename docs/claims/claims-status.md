@@ -16,13 +16,19 @@
 | CM1 — Claims module skeleton + FNOL | ✅ merged |
 | CM2 — Adjuster queue + assignment + operations | ✅ merged |
 | CM3 — Claim documents | ✅ merged |
-| CM4 — Reserves & financials | ⬜ next |
-| CM5 — Decision & settlement | ⬜ |
+| CM4 — Reserves & financials | ✅ merged |
+| CM5 — Decision & settlement | ⬜ next |
 | CM6 — Notifications | ⬜ |
 | CM7 — Frontend claims slice | ⬜ |
 | CM8 — Branch consolidation prep | ⬜ |
 
-## Current state (after CM3)
+## Current state (after CM4)
+
+- Financials: claimed/reserve/paid on the aggregate; owner declares the claimed amount;
+  the assigned adjuster moves the reserve with append-only history; reserve is confidential
+  to the adjudication side; migration `AddClaimFinancials`.
+
+## State after CM3
 
 - Documents: scan-gated uploads (`Claims.Respond`), clean-only downloads on both surfaces,
   module-owned `IClaimDocumentScanner` (local deterministic) + shared Platform storage port;

@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Modules.Claims.Application;
 using LIAnsureProtect.Modules.Claims.Application.Commands.ManageClaimAdjudication;
+using LIAnsureProtect.Modules.Claims.Application.Commands.ManageClaimFinancials;
 using LIAnsureProtect.Modules.Claims.Application.Documents;
 using LIAnsureProtect.Modules.Claims.Application.Queries.GetClaimForAdjudication;
 using LIAnsureProtect.Modules.Claims.Application.Queries.ListClaimsForAdjudication;
@@ -106,6 +107,21 @@ public sealed class ClaimsAdjudicationController(ISender sender) : ControllerBas
             "Information cannot be requested.",
             created: true);
 
+    [HttpPost("{claimId:guid}/reserve")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ClaimFinancialsResult>(StatusCodes.Status200OK)]
+    public Task<ActionResult<ClaimFinancialsResult>> SetReserve(
+        Guid claimId,
+        SetClaimReserveRequest request,
+        CancellationToken cancellationToken)
+        => ExecuteAsync<ClaimFinancialsResult>(
+            () => sender.Send(new SetClaimReserveCommand(claimId, request.Amount, request.Reason), cancellationToken),
+            "Reserve cannot be changed.");
+
     [HttpGet("{claimId:guid}/documents/{documentId:guid}/download")]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -186,3 +202,5 @@ public sealed class ClaimsAdjudicationController(ISender sender) : ControllerBas
 public sealed record AddClaimWorkNoteRequest(string Note);
 
 public sealed record RequestClaimInformationRequest(string Title, string Message);
+
+public sealed record SetClaimReserveRequest(decimal Amount, string Reason);
