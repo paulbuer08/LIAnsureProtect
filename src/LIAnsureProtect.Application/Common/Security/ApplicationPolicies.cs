@@ -11,5 +11,7 @@ public static class ApplicationPolicies
     public const string RespondToEvidenceRequest = "EvidenceRequests.Respond";
     public const string BindPolicy = "Policies.Bind";
     public const string ReadNotifications = "Notifications.Read";
+    public const string FileClaim = "Claims.File";
+    public const string ReadClaim = "Claims.Read";
     public const string AdminAccess = "System.Admin";
 }

@@ -80,6 +80,22 @@ public static class AuthorizationPolicies
             )
         );
 
+        options.AddPolicy(ApplicationPolicies.FileClaim,
+            policy => policy.RequireRole(
+                ApplicationRoles.Customer,
+                ApplicationRoles.Broker,
+                ApplicationRoles.Admin
+            )
+        );
+
+        options.AddPolicy(ApplicationPolicies.ReadClaim,
+            policy => policy.RequireRole(
+                ApplicationRoles.Customer,
+                ApplicationRoles.Broker,
+                ApplicationRoles.Admin
+            )
+        );
+
         options.AddPolicy(ApplicationPolicies.AdminAccess,
             policy => policy.RequireRole(
                 ApplicationRoles.Admin
