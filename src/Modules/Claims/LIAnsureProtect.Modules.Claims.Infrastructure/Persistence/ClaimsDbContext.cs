@@ -20,6 +20,8 @@ public sealed class ClaimsDbContext(DbContextOptions<ClaimsDbContext> options)
 
     public DbSet<ClaimTimelineEntry> ClaimTimelineEntries => Set<ClaimTimelineEntry>();
 
+    public DbSet<ClaimDocument> ClaimDocuments => Set<ClaimDocument>();
+
     public DbSet<ModuleOutboxMessage> OutboxMessages => Set<ModuleOutboxMessage>();
 
     protected override string? Schema => SchemaName;

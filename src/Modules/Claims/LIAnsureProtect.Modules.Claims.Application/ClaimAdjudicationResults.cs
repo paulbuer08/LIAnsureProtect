@@ -56,6 +56,7 @@ public sealed record ClaimAdjudicationDetailResult(
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<ClaimWorkNoteResult> WorkNotes,
     IReadOnlyCollection<ClaimInformationRequestResult> InformationRequests,
+    IReadOnlyCollection<Documents.ClaimDocumentResult> Documents,
     IReadOnlyCollection<ClaimTimelineEntryResult> Timeline);
 
 public static class ClaimAdjudicationResultFactory

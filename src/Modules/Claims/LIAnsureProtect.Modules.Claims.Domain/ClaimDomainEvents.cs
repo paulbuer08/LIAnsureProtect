@@ -32,6 +32,18 @@ public sealed record ClaimInformationRequestedDomainEvent(
     string Title,
     DateTime OccurredAtUtc) : IDomainEvent;
 
+/// <summary>Raised for each supporting document the claimant uploads (after its quarantine scan).</summary>
+public sealed record ClaimDocumentUploadedDomainEvent(
+    Guid ClaimId,
+    string ClaimNumber,
+    Guid DocumentId,
+    Guid PolicyId,
+    string OwnerUserId,
+    ClaimDocumentKind Kind,
+    string OriginalFileName,
+    string? AssignedAdjusterUserId,
+    DateTime OccurredAtUtc) : IDomainEvent;
+
 /// <summary>Raised when the claimant answers an information request.</summary>
 public sealed record ClaimantInformationResponseDomainEvent(
     Guid ClaimId,

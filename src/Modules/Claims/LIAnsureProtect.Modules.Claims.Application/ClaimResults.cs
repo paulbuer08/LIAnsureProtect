@@ -33,7 +33,8 @@ public sealed record ClaimDetailResult(
     DateTime FiledAtUtc,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<ClaimTimelineEntryResult> Timeline,
-    IReadOnlyCollection<ClaimInformationRequestResult> InformationRequests);
+    IReadOnlyCollection<ClaimInformationRequestResult> InformationRequests,
+    IReadOnlyCollection<Documents.ClaimDocumentResult> Documents);
 
 public sealed record ClaimTimelineEntryResult(
     Guid EntryId,

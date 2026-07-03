@@ -133,6 +133,11 @@ public sealed class ClaimConfiguration : IEntityTypeConfiguration<Claim>
             .HasForeignKey(request => request.ClaimId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(claim => claim.Documents)
+            .WithOne()
+            .HasForeignKey(document => document.ClaimId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.Navigation(claim => claim.TimelineEntries)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
@@ -140,6 +145,9 @@ public sealed class ClaimConfiguration : IEntityTypeConfiguration<Claim>
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.Navigation(claim => claim.InformationRequests)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.Navigation(claim => claim.Documents)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.Ignore(claim => claim.DomainEvents);

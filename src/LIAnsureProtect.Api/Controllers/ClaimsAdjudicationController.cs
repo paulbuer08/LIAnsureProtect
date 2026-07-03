@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Modules.Claims.Application;
 using LIAnsureProtect.Modules.Claims.Application.Commands.ManageClaimAdjudication;
+using LIAnsureProtect.Modules.Claims.Application.Documents;
 using LIAnsureProtect.Modules.Claims.Application.Queries.GetClaimForAdjudication;
 using LIAnsureProtect.Modules.Claims.Application.Queries.ListClaimsForAdjudication;
 using MediatR;
@@ -104,6 +105,36 @@ public sealed class ClaimsAdjudicationController(ISender sender) : ControllerBas
                 cancellationToken),
             "Information cannot be requested.",
             created: true);
+
+    [HttpGet("{claimId:guid}/documents/{documentId:guid}/download")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DownloadDocument(
+        Guid claimId,
+        Guid documentId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new DownloadAdjudicationClaimDocumentQuery(claimId, documentId),
+                cancellationToken);
+
+            return result is null
+                ? NotFound()
+                : File(result.Content, result.ContentType, result.OriginalFileName);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Claim document cannot be downloaded.",
+                exception.Message));
+        }
+    }
 
     private async Task<ActionResult<T>> ExecuteAsync<T>(
         Func<Task<T?>> action,
