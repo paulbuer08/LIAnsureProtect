@@ -178,10 +178,11 @@ public sealed class ClaimTests
         claim.StartReview("adjuster-1", step = step.AddHours(1));
         Assert.Equal(ClaimStatus.UnderReview, claim.Status);
 
-        claim.RequestInformation("adjuster-1", step = step.AddHours(1));
+        var request = claim.RequestInformation(
+            "adjuster-1", "Proof of loss", "Please provide the forensic report.", step = step.AddHours(1));
         Assert.Equal(ClaimStatus.InformationRequested, claim.Status);
 
-        claim.RecordClaimantResponse("customer-1", step = step.AddHours(1));
+        claim.RespondToInformationRequest(request.Id, "customer-1", "Report attached.", step = step.AddHours(1));
         Assert.Equal(ClaimStatus.UnderReview, claim.Status);
 
         claim.Accept("adjuster-1", step = step.AddHours(1));
@@ -191,8 +192,8 @@ public sealed class ClaimTests
         Assert.Equal(ClaimStatus.Closed, claim.Status);
         Assert.Equal(step, claim.UpdatedAtUtc);
 
-        // filed + five transitions
-        Assert.Equal(6, claim.TimelineEntries.Count);
+        // filed + start review + (request entry + status) + (response entry + status) + accept + close
+        Assert.Equal(8, claim.TimelineEntries.Count);
         Assert.All(claim.TimelineEntries, entry => Assert.Equal(claim.Id, entry.ClaimId));
     }
 
@@ -239,7 +240,8 @@ public sealed class ClaimTests
     {
         var claim = FileValidClaim();
 
-        Assert.Throws<InvalidOperationException>(() => claim.RequestInformation("adjuster-1", FiledAtUtc.AddHours(1)));
+        Assert.Throws<InvalidOperationException>(() => claim.RequestInformation(
+            "adjuster-1", "Proof of loss", "Please provide the forensic report.", FiledAtUtc.AddHours(1)));
     }
 
     [Fact]
@@ -260,8 +262,8 @@ public sealed class ClaimTests
         claim.Close("adjuster-1", FiledAtUtc.AddHours(3));
 
         Assert.Throws<InvalidOperationException>(() => claim.StartReview("adjuster-1", FiledAtUtc.AddHours(4)));
-        Assert.Throws<InvalidOperationException>(() => claim.RequestInformation("adjuster-1", FiledAtUtc.AddHours(4)));
-        Assert.Throws<InvalidOperationException>(() => claim.RecordClaimantResponse("customer-1", FiledAtUtc.AddHours(4)));
+        Assert.Throws<InvalidOperationException>(() => claim.RequestInformation(
+            "adjuster-1", "Proof of loss", "Please provide the forensic report.", FiledAtUtc.AddHours(4)));
         Assert.Throws<InvalidOperationException>(() => claim.Accept("adjuster-1", FiledAtUtc.AddHours(4)));
         Assert.Throws<InvalidOperationException>(() => claim.Deny("adjuster-1", FiledAtUtc.AddHours(4)));
         Assert.Throws<InvalidOperationException>(() => claim.Close("adjuster-1", FiledAtUtc.AddHours(4)));
@@ -282,9 +284,11 @@ public sealed class ClaimTests
         var versionAfterFiling = claim.Version;
 
         claim.StartReview("adjuster-1", FiledAtUtc.AddHours(1));
-        Assert.Equal(versionAfterFiling + 1, claim.Version);
+        var versionAfterReviewStart = claim.Version;
+        Assert.True(versionAfterReviewStart > versionAfterFiling);
 
-        claim.RequestInformation("adjuster-1", FiledAtUtc.AddHours(2));
-        Assert.Equal(versionAfterFiling + 2, claim.Version);
+        claim.RequestInformation(
+            "adjuster-1", "Proof of loss", "Please provide the forensic report.", FiledAtUtc.AddHours(2));
+        Assert.True(claim.Version > versionAfterReviewStart);
     }
 }

@@ -45,4 +45,26 @@ public sealed class CreateClaimsSchemaMigrationTests
         Assert.DoesNotContain("REFERENCES public.submissions", script);
         Assert.DoesNotContain("REFERENCES submissions", script);
     }
+
+    [Fact]
+    public void ClaimsModuleMigrationsCreateOperationsTablesAndAssignmentColumn()
+    {
+        var services = new ServiceCollection();
+        services.AddClaimsModule("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ClaimsDbContext>();
+        var migrator = dbContext.GetInfrastructure().GetRequiredService<IMigrator>();
+
+        var script = migrator.GenerateScript();
+
+        Assert.Contains("assigned_adjuster_user_id", script);
+        Assert.Contains("ix_claims_assigned_adjuster_user_id", script);
+
+        Assert.Contains("CREATE TABLE claims.claim_work_notes", script);
+        Assert.Contains("ix_claim_work_notes_claim_id_created_at_utc", script);
+
+        Assert.Contains("CREATE TABLE claims.claim_information_requests", script);
+        Assert.Contains("ix_claim_information_requests_claim_id_requested_at_utc", script);
+    }
 }

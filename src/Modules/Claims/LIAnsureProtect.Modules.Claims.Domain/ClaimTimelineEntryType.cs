@@ -4,5 +4,9 @@ namespace LIAnsureProtect.Modules.Claims.Domain;
 public enum ClaimTimelineEntryType
 {
     ClaimFiled,
-    StatusChanged
+    StatusChanged,
+    AssignmentChanged,
+    NoteAdded,
+    InformationRequested,
+    ClaimantResponded
 }

@@ -13,5 +13,7 @@ public static class ApplicationPolicies
     public const string ReadNotifications = "Notifications.Read";
     public const string FileClaim = "Claims.File";
     public const string ReadClaim = "Claims.Read";
+    public const string RespondToClaim = "Claims.Respond";
+    public const string AdjudicateClaim = "Claims.Adjudicate";
     public const string AdminAccess = "System.Admin";
 }

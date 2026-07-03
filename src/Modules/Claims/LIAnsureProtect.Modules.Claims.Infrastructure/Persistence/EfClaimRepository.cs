@@ -12,6 +12,8 @@ public sealed class EfClaimRepository(ClaimsDbContext dbContext) : IClaimReposit
     public Task<Claim?> GetByIdForUpdateAsync(Guid claimId, CancellationToken cancellationToken)
         => dbContext.Claims
             .Include(claim => claim.TimelineEntries)
+            .Include(claim => claim.WorkNotes)
+            .Include(claim => claim.InformationRequests)
             .SingleOrDefaultAsync(claim => claim.Id == claimId, cancellationToken);
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken)

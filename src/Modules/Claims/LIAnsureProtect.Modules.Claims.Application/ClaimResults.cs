@@ -32,7 +32,8 @@ public sealed record ClaimDetailResult(
     DateTime PolicyExpirationAtFiling,
     DateTime FiledAtUtc,
     DateTime UpdatedAtUtc,
-    IReadOnlyCollection<ClaimTimelineEntryResult> Timeline);
+    IReadOnlyCollection<ClaimTimelineEntryResult> Timeline,
+    IReadOnlyCollection<ClaimInformationRequestResult> InformationRequests);
 
 public sealed record ClaimTimelineEntryResult(
     Guid EntryId,
