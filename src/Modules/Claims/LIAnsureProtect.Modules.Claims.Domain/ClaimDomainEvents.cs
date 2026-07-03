@@ -44,6 +44,36 @@ public sealed record ClaimDocumentUploadedDomainEvent(
     string? AssignedAdjusterUserId,
     DateTime OccurredAtUtc) : IDomainEvent;
 
+/// <summary>Raised when the assigned adjuster accepts the claim with a settlement.</summary>
+public sealed record ClaimAcceptedDomainEvent(
+    Guid ClaimId,
+    string ClaimNumber,
+    Guid PolicyId,
+    string OwnerUserId,
+    string DecidedByUserId,
+    decimal SettlementAmount,
+    DateTime OccurredAtUtc) : IDomainEvent;
+
+/// <summary>Raised when the assigned adjuster denies the claim.</summary>
+public sealed record ClaimDeniedDomainEvent(
+    Guid ClaimId,
+    string ClaimNumber,
+    Guid PolicyId,
+    string OwnerUserId,
+    string DecidedByUserId,
+    ClaimDenialReason DenialReason,
+    DateTime OccurredAtUtc) : IDomainEvent;
+
+/// <summary>Raised when a decided claim is closed.</summary>
+public sealed record ClaimClosedDomainEvent(
+    Guid ClaimId,
+    string ClaimNumber,
+    Guid PolicyId,
+    string OwnerUserId,
+    string ClosedByUserId,
+    ClaimStatus OutcomeAtClose,
+    DateTime OccurredAtUtc) : IDomainEvent;
+
 /// <summary>Raised when the claimant answers an information request.</summary>
 public sealed record ClaimantInformationResponseDomainEvent(
     Guid ClaimId,

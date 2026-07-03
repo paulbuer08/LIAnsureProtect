@@ -88,7 +88,7 @@ public sealed class ClaimOperationsTests
     {
         var claim = FileClaim();
         claim.AssignTo("adjuster-1", FiledAtUtc.AddHours(1));
-        claim.Accept("adjuster-1", FiledAtUtc.AddHours(2));
+        claim.Accept(100_000m, "Covered loss.", null, "adjuster-1", FiledAtUtc.AddHours(2));
 
         Assert.Throws<InvalidOperationException>(() => claim.AssignTo("adjuster-2", FiledAtUtc.AddHours(3)));
 

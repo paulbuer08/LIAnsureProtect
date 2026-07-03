@@ -106,4 +106,26 @@ public sealed class CreateClaimsSchemaMigrationTests
         Assert.Contains("CREATE TABLE claims.claim_reserve_changes", script);
         Assert.Contains("ix_claim_reserve_changes_claim_id_changed_at_utc", script);
     }
+
+    [Fact]
+    public void ClaimsModuleMigrationsCreateDecisionAuditTableAndColumns()
+    {
+        var services = new ServiceCollection();
+        services.AddClaimsModule("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ClaimsDbContext>();
+        var migrator = dbContext.GetInfrastructure().GetRequiredService<IMigrator>();
+
+        var script = migrator.GenerateScript();
+
+        Assert.Contains("settlement_amount", script);
+        Assert.Contains("denial_reason", script);
+        Assert.Contains("denial_narrative", script);
+
+        Assert.Contains("CREATE TABLE claims.claim_decisions", script);
+        Assert.Contains("ix_claim_decisions_claim_id_decided_at_utc", script);
+        Assert.Contains("claimed_amount_at_decision", script);
+        Assert.Contains("reserve_amount_at_decision", script);
+    }
 }

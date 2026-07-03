@@ -16,6 +16,7 @@ public sealed class EfClaimRepository(ClaimsDbContext dbContext) : IClaimReposit
             .Include(claim => claim.InformationRequests)
             .Include(claim => claim.Documents)
             .Include(claim => claim.ReserveChanges)
+            .Include(claim => claim.Decisions)
             .SingleOrDefaultAsync(claim => claim.Id == claimId, cancellationToken);
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
