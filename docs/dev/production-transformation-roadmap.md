@@ -118,10 +118,11 @@ events); in-process module event bus now → outbox → SNS/SQS later.
   Redis tested via local Docker. First production adoption landed post-M44: the evidence
   reference-data query/endpoint. The referral queue itself is specced separately — see below).
 
-**Proposed small milestone (unscheduled, one session): Referral Queue Hardening** — optimistic
-concurrency on referral assignment (xmin token, 409 + refetch UX) **then** a 10s shared cache on
-`ListQuoteReferralsQuery` with write-triggered invalidation. Fully-baked spec:
-`docs/dev/referral-queue-hardening-spec.md`. Recommended slot: immediately before or after M45.
+**M44.5 Referral Queue Hardening (implemented)** — optimistic concurrency on referral assignment
+(domain claim guard + `Version` token, 409 + refetch UX) then a 10s shared cache on
+`ListQuoteReferralsQuery` with API-edge write-triggered invalidation. Spec:
+`docs/dev/referral-queue-hardening-spec.md`; learnings:
+`docs/dev/milestone-44-5-referral-queue-hardening-learnings.md`.
 
 ### Fully-baked next-milestone plans (detailed 2026-07-02 after the post-M41 solidification audit)
 

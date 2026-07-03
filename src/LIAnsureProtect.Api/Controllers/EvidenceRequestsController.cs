@@ -11,6 +11,7 @@ namespace LIAnsureProtect.Api.Controllers;
 [ApiController]
 [Route("api/v1/evidence-requests")]
 [Authorize(Policy = ApplicationPolicies.RespondToEvidenceRequest)]
+[ServiceFilter<Caching.ReferralQueueCacheInvalidationFilter>]
 public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
 {
     [HttpGet]

@@ -51,6 +51,14 @@ public sealed class QuoteReferralOperationConfiguration : IEntityTypeConfigurati
         builder.Property(operation => operation.ClosedAtUtc)
             .HasColumnName("closed_at_utc");
 
+        // Optimistic concurrency: the domain bumps Version on every mutation and EF includes the
+        // original value in the UPDATE's WHERE clause, so racing writers (e.g. two underwriters
+        // both clicking "Assign to me") fail loudly instead of silently overwriting each other.
+        builder.Property(operation => operation.Version)
+            .HasColumnName("version")
+            .IsConcurrencyToken()
+            .IsRequired();
+
         builder.HasIndex(operation => operation.QuoteId)
             .IsUnique()
             .HasDatabaseName("ux_quote_referral_operations_quote_id");

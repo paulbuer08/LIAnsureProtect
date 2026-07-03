@@ -16,6 +16,9 @@ namespace LIAnsureProtect.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/submissions/{submissionId:guid}/quotes")]
+// Quote creation can add a Referred quote to the underwriting queue, so successful writes here
+// evict the shared queue cache entry.
+[ServiceFilter<Caching.ReferralQueueCacheInvalidationFilter>]
 public sealed class SubmissionQuotesController(
     ISender sender,
     IIdempotencyService idempotencyService,

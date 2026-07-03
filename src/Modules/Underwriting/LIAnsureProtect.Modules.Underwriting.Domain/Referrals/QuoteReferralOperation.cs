@@ -22,7 +22,7 @@ public sealed class QuoteReferralOperation
         Status = status;
         DueAtUtc = dueAtUtc;
         CreatedAtUtc = createdAtUtc;
-        UpdatedAtUtc = createdAtUtc;
+        Touch(createdAtUtc);
     }
 
     private QuoteReferralOperation()
@@ -46,6 +46,13 @@ public sealed class QuoteReferralOperation
     public DateTime UpdatedAtUtc { get; private set; }
 
     public DateTime? ClosedAtUtc { get; private set; }
+
+    /// <summary>
+    /// Optimistic-concurrency token: every mutation bumps it, and EF Core includes the original
+    /// value in the UPDATE's WHERE clause — so two underwriters racing on the same operation
+    /// (e.g. both clicking "Assign to me") cannot both win; the loser's save fails loudly.
+    /// </summary>
+    public long Version { get; private set; }
 
     public IReadOnlyCollection<QuoteReferralWorkNote> Notes => notes.AsReadOnly();
 
@@ -92,9 +99,19 @@ public sealed class QuoteReferralOperation
         EnsureOpen();
         ValidateRequiredUserId(assignedUnderwriterUserId, nameof(assignedUnderwriterUserId));
 
-        AssignedUnderwriterUserId = assignedUnderwriterUserId.Trim();
+        var trimmedUserId = assignedUnderwriterUserId.Trim();
+
+        // Assignment is a claim: the same underwriter re-clicking is an idempotent no-op, but a
+        // second underwriter must be rejected — releasing first is the explicit hand-over path.
+        if (AssignedUnderwriterUserId == trimmedUserId)
+            return;
+
+        if (AssignedUnderwriterUserId is not null)
+            throw new InvalidOperationException("Referral is already assigned to another underwriter.");
+
+        AssignedUnderwriterUserId = trimmedUserId;
         Status = Status == ReferralOperationStatus.New ? ReferralOperationStatus.InReview : Status;
-        UpdatedAtUtc = assignedAtUtc;
+        Touch(assignedAtUtc);
         RecordTimeline(
             ReferralTimelineEntryType.AssignmentChanged,
             $"Referral assigned to {AssignedUnderwriterUserId}.",
@@ -108,7 +125,7 @@ public sealed class QuoteReferralOperation
         ValidateRequiredUserId(releasedByUserId, nameof(releasedByUserId));
 
         AssignedUnderwriterUserId = null;
-        UpdatedAtUtc = releasedAtUtc;
+        Touch(releasedAtUtc);
         RecordTimeline(
             ReferralTimelineEntryType.AssignmentChanged,
             "Referral assignment released.",
@@ -139,7 +156,7 @@ public sealed class QuoteReferralOperation
         Priority = priority;
         Status = status;
         DueAtUtc = dueAtUtc;
-        UpdatedAtUtc = changedAtUtc;
+        Touch(changedAtUtc);
 
         if (oldPriority != Priority)
             RecordTimeline(ReferralTimelineEntryType.PriorityChanged, $"Priority changed from {oldPriority} to {Priority}.", changedByUserId, changedAtUtc);
@@ -164,7 +181,7 @@ public sealed class QuoteReferralOperation
 
         var workNote = QuoteReferralWorkNote.Record(Id, QuoteId, createdByUserId, note, createdAtUtc);
         notes.Add(workNote);
-        UpdatedAtUtc = createdAtUtc;
+        Touch(createdAtUtc);
         RecordTimeline(
             ReferralTimelineEntryType.NoteAdded,
             "Internal underwriting work note added.",
@@ -191,7 +208,7 @@ public sealed class QuoteReferralOperation
 
         var task = QuoteReferralFollowUpTask.Create(Id, QuoteId, createdByUserId, title, dueAtUtc, createdAtUtc);
         tasks.Add(task);
-        UpdatedAtUtc = createdAtUtc;
+        Touch(createdAtUtc);
         RecordTimeline(
             ReferralTimelineEntryType.TaskAdded,
             $"Follow-up task added: {task.Title}.",
@@ -210,7 +227,7 @@ public sealed class QuoteReferralOperation
             ?? throw new InvalidOperationException("Follow-up task was not found.");
 
         task.Complete(completedByUserId, completedAtUtc);
-        UpdatedAtUtc = completedAtUtc;
+        Touch(completedAtUtc);
         RecordTimeline(
             ReferralTimelineEntryType.TaskCompleted,
             $"Follow-up task completed: {task.Title}.",
@@ -229,7 +246,7 @@ public sealed class QuoteReferralOperation
         var oldStatus = Status;
         Status = ReferralOperationStatus.Closed;
         ClosedAtUtc = closedAtUtc;
-        UpdatedAtUtc = closedAtUtc;
+        Touch(closedAtUtc);
         RecordTimeline(
             ReferralTimelineEntryType.StatusChanged,
             $"Status changed from {oldStatus} to {Status} because final underwriting decision {decision} was recorded.",
@@ -247,7 +264,7 @@ public sealed class QuoteReferralOperation
 
         var oldStatus = Status;
         Status = ReferralOperationStatus.WaitingForInformation;
-        UpdatedAtUtc = createdAtUtc;
+        Touch(createdAtUtc);
         RecordTimeline(
             ReferralTimelineEntryType.EvidenceRequestCreated,
             $"Evidence request {evidenceRequestId} created; referral is waiting for information.",
@@ -270,7 +287,7 @@ public sealed class QuoteReferralOperation
         EnsureOpen();
         ValidateRequiredUserId(respondedByUserId, nameof(respondedByUserId));
 
-        UpdatedAtUtc = respondedAtUtc;
+        Touch(respondedAtUtc);
         RecordTimeline(
             ReferralTimelineEntryType.EvidenceRequestResponded,
             $"Evidence request {evidenceRequestId} received a customer or broker response.",
@@ -286,7 +303,7 @@ public sealed class QuoteReferralOperation
         EnsureOpen();
         ValidateRequiredUserId(acceptedByUserId, nameof(acceptedByUserId));
 
-        UpdatedAtUtc = acceptedAtUtc;
+        Touch(acceptedAtUtc);
         RecordTimeline(
             ReferralTimelineEntryType.EvidenceRequestAccepted,
             $"Evidence request {evidenceRequestId} accepted by underwriting.",
@@ -303,7 +320,7 @@ public sealed class QuoteReferralOperation
         EnsureOpen();
         ValidateRequiredUserId(reviewedByUserId, nameof(reviewedByUserId));
 
-        UpdatedAtUtc = reviewedAtUtc;
+        Touch(reviewedAtUtc);
         RecordTimeline(
             ReferralTimelineEntryType.EvidenceRequestReviewDecisionRecorded,
             $"Evidence request {evidenceRequestId} review decision recorded: {decision}.",
@@ -319,7 +336,7 @@ public sealed class QuoteReferralOperation
         EnsureOpen();
         ValidateRequiredUserId(cancelledByUserId, nameof(cancelledByUserId));
 
-        UpdatedAtUtc = cancelledAtUtc;
+        Touch(cancelledAtUtc);
         RecordTimeline(
             ReferralTimelineEntryType.EvidenceRequestCancelled,
             $"Evidence request {evidenceRequestId} cancelled by underwriting.",
@@ -335,7 +352,7 @@ public sealed class QuoteReferralOperation
         EnsureOpen();
         ValidateRequiredUserId(followedUpByUserId, nameof(followedUpByUserId));
 
-        UpdatedAtUtc = followedUpAtUtc;
+        Touch(followedUpAtUtc);
         RecordTimeline(
             ReferralTimelineEntryType.EvidenceRequestFollowUpSent,
             $"Evidence request {evidenceRequestId} follow-up reminder sent.",
@@ -362,6 +379,13 @@ public sealed class QuoteReferralOperation
     {
         if (Status == ReferralOperationStatus.Closed)
             throw new InvalidOperationException("Referral operations are closed.");
+    }
+
+    /// <summary>Marks a mutation: refreshes the activity timestamp and bumps the concurrency token.</summary>
+    private void Touch(DateTime updatedAtUtc)
+    {
+        UpdatedAtUtc = updatedAtUtc;
+        Version++;
     }
 
     private static void ValidateRequiredUserId(string userId, string parameterName)

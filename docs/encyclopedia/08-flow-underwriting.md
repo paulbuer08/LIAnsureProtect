@@ -49,7 +49,7 @@ Synchronous MediatR commands inside the Underwriting module (`Referrals/Commands
 
 | Action | Endpoint (under `/api/v1/underwriting/quote-referrals/{quoteId}`) | Effect |
 |---|---|---|
-| Assign to me / release | `POST /operations/assign-to-me`, `/operations/release-assignment` | sets/clears the assigned underwriter |
+| Assign to me / release | `POST /operations/assign-to-me`, `/operations/release-assignment` | sets/clears the assigned underwriter. **Assignment is a claim (M44.5):** a second underwriter is rejected in the domain, and an optimistic-concurrency `Version` token catches true races at save time — the loser gets **409** and the UI refetches to show the real assignee. Same-user re-clicks are idempotent; release is the explicit hand-over. |
 | Triage | `POST /operations/triage` | priority + status |
 | Work note | `POST /operations/notes` | append `quote_referral_work_notes` |
 | Follow-up task | `POST /operations/tasks`, `/operations/tasks/{taskId}/complete` | tracked to-dos with due dates |
