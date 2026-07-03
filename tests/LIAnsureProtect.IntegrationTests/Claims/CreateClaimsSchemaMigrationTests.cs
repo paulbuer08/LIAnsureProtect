@@ -86,4 +86,24 @@ public sealed class CreateClaimsSchemaMigrationTests
         Assert.Contains("sha256", script);
         Assert.Contains("storage_key", script);
     }
+
+    [Fact]
+    public void ClaimsModuleMigrationsCreateFinancialColumnsAndReserveHistory()
+    {
+        var services = new ServiceCollection();
+        services.AddClaimsModule("Host=localhost;Database=liansureprotect_test;Username=postgres;Password=postgres");
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ClaimsDbContext>();
+        var migrator = dbContext.GetInfrastructure().GetRequiredService<IMigrator>();
+
+        var script = migrator.GenerateScript();
+
+        Assert.Contains("claimed_amount", script);
+        Assert.Contains("reserve_amount", script);
+        Assert.Contains("paid_amount", script);
+
+        Assert.Contains("CREATE TABLE claims.claim_reserve_changes", script);
+        Assert.Contains("ix_claim_reserve_changes_claim_id_changed_at_utc", script);
+    }
 }

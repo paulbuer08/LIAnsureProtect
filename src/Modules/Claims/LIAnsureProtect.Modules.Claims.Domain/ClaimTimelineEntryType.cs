@@ -9,5 +9,7 @@ public enum ClaimTimelineEntryType
     NoteAdded,
     InformationRequested,
     ClaimantResponded,
-    DocumentUploaded
+    DocumentUploaded,
+    ClaimedAmountUpdated,
+    ReserveChanged
 }

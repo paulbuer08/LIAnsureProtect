@@ -26,6 +26,8 @@ public sealed record ClaimDetailResult(
     DateTime DiscoveredAtUtc,
     string Description,
     string Status,
+    decimal? ClaimedAmount,
+    decimal PaidAmount,
     decimal PolicyLimitAtFiling,
     decimal PolicyRetentionAtFiling,
     DateTime PolicyEffectiveAtFiling,

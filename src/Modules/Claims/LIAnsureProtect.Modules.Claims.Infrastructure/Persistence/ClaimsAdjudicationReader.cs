@@ -1,4 +1,5 @@
 using LIAnsureProtect.Modules.Claims.Application;
+using LIAnsureProtect.Modules.Claims.Application.Commands.ManageClaimFinancials;
 using LIAnsureProtect.Modules.Claims.Application.Documents;
 using LIAnsureProtect.Modules.Claims.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +33,7 @@ public sealed class ClaimsAdjudicationReader(ClaimsDbContext dbContext) : IClaim
             .Include(candidate => candidate.WorkNotes)
             .Include(candidate => candidate.InformationRequests)
             .Include(candidate => candidate.Documents)
+            .Include(candidate => candidate.ReserveChanges)
             .SingleOrDefaultAsync(candidate => candidate.Id == claimId, cancellationToken);
 
         if (claim is null)
@@ -49,12 +51,19 @@ public sealed class ClaimsAdjudicationReader(ClaimsDbContext dbContext) : IClaim
             claim.Description,
             claim.Status.ToString(),
             claim.AssignedAdjusterUserId,
+            claim.ClaimedAmount,
+            claim.ReserveAmount,
+            claim.PaidAmount,
             claim.PolicyLimitAtFiling,
             claim.PolicyRetentionAtFiling,
             claim.PolicyEffectiveAtFiling,
             claim.PolicyExpirationAtFiling,
             claim.FiledAtUtc,
             claim.UpdatedAtUtc,
+            claim.ReserveChanges
+                .OrderBy(change => change.ChangedAtUtc)
+                .Select(ClaimFinancialsResultFactory.FromReserveChange)
+                .ToArray(),
             claim.WorkNotes
                 .OrderBy(note => note.CreatedAtUtc)
                 .Select(ClaimAdjudicationResultFactory.FromWorkNote)

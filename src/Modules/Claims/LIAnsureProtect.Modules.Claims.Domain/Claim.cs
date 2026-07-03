@@ -23,6 +23,7 @@ public sealed class Claim : IHasDomainEvents
     private readonly List<ClaimWorkNote> workNotes = [];
     private readonly List<ClaimInformationRequest> informationRequests = [];
     private readonly List<ClaimDocument> documents = [];
+    private readonly List<ClaimReserveChange> reserveChanges = [];
 
     // The only constructor: EF Core materializes through it, and the File factory assigns state
     // via the private property setters.
@@ -71,6 +72,15 @@ public sealed class Claim : IHasDomainEvents
 
     public decimal PolicyRetentionAtFiling { get; private set; }
 
+    /// <summary>What the claimant says the loss is worth (their demand — may exceed the limit).</summary>
+    public decimal? ClaimedAmount { get; private set; }
+
+    /// <summary>The insurer's current best-estimate liability, moved only by the assigned adjuster.</summary>
+    public decimal ReserveAmount { get; private set; }
+
+    /// <summary>What has actually been paid out; written by the CM5 settlement, zero until then.</summary>
+    public decimal PaidAmount { get; private set; }
+
     public DateTime FiledAtUtc { get; private set; }
 
     public DateTime UpdatedAtUtc { get; private set; }
@@ -89,6 +99,8 @@ public sealed class Claim : IHasDomainEvents
     public IReadOnlyCollection<ClaimInformationRequest> InformationRequests => informationRequests.AsReadOnly();
 
     public IReadOnlyCollection<ClaimDocument> Documents => documents.AsReadOnly();
+
+    public IReadOnlyCollection<ClaimReserveChange> ReserveChanges => reserveChanges.AsReadOnly();
 
     public IReadOnlyCollection<IDomainEvent> DomainEvents => domainEvents.AsReadOnly();
 
@@ -414,6 +426,64 @@ public sealed class Claim : IHasDomainEvents
 
         return document;
     }
+
+    /// <summary>
+    /// The claimant declares (or updates) what they are claiming. The demand is not capped —
+    /// CM5's settlement guardrail caps what can be *paid*, not what can be asked.
+    /// </summary>
+    public void SetClaimedAmount(decimal amount, string declaredByUserId, DateTime declaredAtUtc)
+    {
+        ValidateRequiredUserId(declaredByUserId, nameof(declaredByUserId));
+        EnsureOpenForAdjusting();
+
+        if (amount <= 0)
+            throw new ArgumentException("Claimed amount must be greater than zero.", nameof(amount));
+
+        var oldAmount = ClaimedAmount;
+        ClaimedAmount = amount;
+        Touch(declaredAtUtc);
+        RecordTimeline(
+            ClaimTimelineEntryType.ClaimedAmountUpdated,
+            oldAmount is null
+                ? $"Claimed amount declared: {FormatMoney(amount)}."
+                : $"Claimed amount updated from {FormatMoney(oldAmount.Value)} to {FormatMoney(amount)}.",
+            declaredByUserId,
+            declaredAtUtc);
+    }
+
+    /// <summary>
+    /// Sets or adjusts the reserve — a financial commitment, so only the assigned adjuster may
+    /// move it, every change requires a reason, and each change appends an audit row. Releasing
+    /// to zero is legal; re-stating the same amount is rejected as audit noise.
+    /// </summary>
+    public void SetReserve(decimal amount, string reason, string adjusterUserId, DateTime changedAtUtc)
+    {
+        ValidateRequiredUserId(adjusterUserId, nameof(adjusterUserId));
+        EnsureOpenForAdjusting();
+
+        if (AssignedAdjusterUserId is null || AssignedAdjusterUserId != adjusterUserId.Trim())
+            throw new InvalidOperationException("Only the assigned adjuster can set or adjust the reserve.");
+
+        if (amount < 0)
+            throw new ArgumentException("Reserve amount cannot be negative.", nameof(amount));
+
+        if (amount == ReserveAmount)
+            throw new InvalidOperationException("The reserve is already at this amount.");
+
+        var oldAmount = ReserveAmount;
+        ReserveAmount = amount;
+        reserveChanges.Add(ClaimReserveChange.Record(Id, oldAmount, amount, reason, adjusterUserId, changedAtUtc));
+        Touch(changedAtUtc);
+        RecordTimeline(
+            ClaimTimelineEntryType.ReserveChanged,
+            $"Reserve changed from {FormatMoney(oldAmount)} to {FormatMoney(amount)}.",
+            adjusterUserId,
+            changedAtUtc);
+    }
+
+    /// <summary>Timeline money is invariant-culture on purpose — the log must not vary by server locale.</summary>
+    private static string FormatMoney(decimal amount)
+        => amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>Adjusting actions are only valid while the claim has no final decision.</summary>
     private void EnsureOpenForAdjusting()

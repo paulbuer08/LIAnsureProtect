@@ -6,6 +6,7 @@ using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Modules.Claims.Application;
 using LIAnsureProtect.Modules.Claims.Application.Commands.FileClaim;
 using LIAnsureProtect.Modules.Claims.Application.Commands.RespondToClaimInformationRequest;
+using LIAnsureProtect.Modules.Claims.Application.Commands.ManageClaimFinancials;
 using LIAnsureProtect.Modules.Claims.Application.Documents;
 using LIAnsureProtect.Modules.Claims.Application.Queries.GetMyClaimDetail;
 using LIAnsureProtect.Modules.Claims.Application.Queries.ListMyClaims;
@@ -163,6 +164,45 @@ public sealed class ClaimsController(
             return Conflict(CreateProblemDetails(
                 StatusCodes.Status409Conflict,
                 "Information request cannot be answered.",
+                exception.Message));
+        }
+    }
+
+    [HttpPost("{claimId:guid}/claimed-amount")]
+    [Authorize(Policy = ApplicationPolicies.RespondToClaim)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ClaimFinancialsResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ClaimFinancialsResult>> SetClaimedAmount(
+        Guid claimId,
+        SetClaimedAmountRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new SetClaimedAmountCommand(claimId, request.Amount),
+                cancellationToken);
+
+            return result is null
+                ? NotFound()
+                : Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Claimed amount is invalid.",
+                exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Claimed amount cannot be updated.",
                 exception.Message));
         }
     }
@@ -370,6 +410,8 @@ public sealed record FileClaimRequest(
     string Description);
 
 public sealed record RespondToClaimInformationRequestRequest(string ResponseText);
+
+public sealed record SetClaimedAmountRequest(decimal Amount);
 
 public sealed class UploadClaimDocumentsFormRequest
 {
