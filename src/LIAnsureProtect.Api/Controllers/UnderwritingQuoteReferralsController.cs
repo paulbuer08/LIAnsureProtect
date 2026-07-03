@@ -23,6 +23,7 @@ namespace LIAnsureProtect.Api.Controllers;
 [ApiController]
 [Route("api/v1/underwriting/quote-referrals")]
 [Authorize(Policy = ApplicationPolicies.UnderwriteQuote)]
+[ServiceFilter<Caching.ReferralQueueCacheInvalidationFilter>]
 public sealed class UnderwritingQuoteReferralsController(ISender sender) : ControllerBase
 {
     [HttpGet]

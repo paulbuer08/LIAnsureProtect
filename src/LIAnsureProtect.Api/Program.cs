@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using LIAnsureProtect.Application;
+using LIAnsureProtect.Api.Caching;
 using LIAnsureProtect.Api.Observability;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Api.Security;
@@ -70,6 +71,10 @@ builder.Services.AddCors(options =>
 // HttpContextCurrentUser reads the current HTTP user's claims.
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
+
+// Evicts the shared referral-queue cache entry after successful writes on the controllers that
+// affect the queue (applied there via [ServiceFilter]).
+builder.Services.AddScoped<ReferralQueueCacheInvalidationFilter>();
 
 // JWT bearer auth checks the caller's Auth0 access token.
 // The API trusts only the configured issuer, audience, expiry, signature, and role claim.

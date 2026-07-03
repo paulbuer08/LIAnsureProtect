@@ -138,6 +138,9 @@ export function useAssignQuoteReferralToMe() {
       return assignQuoteReferralToMe(accessToken, quoteId);
     },
     onSuccess: (_result, quoteId) => invalidateOperationsQueries(queryClient, quoteId),
+    // A failed claim usually means another underwriter just won the race (409): refetch so the
+    // loser immediately sees the current assignee instead of a stale "unassigned" row.
+    onError: (_error, quoteId) => invalidateOperationsQueries(queryClient, quoteId),
   });
 }
 
@@ -152,6 +155,8 @@ export function useReleaseQuoteReferralAssignment() {
       return releaseQuoteReferralAssignment(accessToken, quoteId);
     },
     onSuccess: (_result, quoteId) => invalidateOperationsQueries(queryClient, quoteId),
+    // Concurrency conflicts (409) mean the row changed under us — refetch the truth.
+    onError: (_error, quoteId) => invalidateOperationsQueries(queryClient, quoteId),
   });
 }
 
@@ -172,6 +177,9 @@ export function useTriageQuoteReferralOperation() {
       return triageQuoteReferralOperation(accessToken, quoteId, request);
     },
     onSuccess: (_result, variables) =>
+      invalidateOperationsQueries(queryClient, variables.quoteId),
+    // Concurrency conflicts (409) mean the row changed under us — refetch the truth.
+    onError: (_error, variables) =>
       invalidateOperationsQueries(queryClient, variables.quoteId),
   });
 }

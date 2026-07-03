@@ -270,6 +270,38 @@ public sealed class UnderwritingReferralEndpointTests
     }
 
     [Fact]
+    public async Task Second_Underwriter_Assign_Returns_Conflict_And_First_Assignment_Survives()
+    {
+        var quote = CreateReferredQuote("customer-1");
+        await SaveQuotesAsync(quote);
+        await PumpOutboxAsync(webApplicationFactory, TestContext.Current.CancellationToken);
+
+        using var firstAssignRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/operations/assign-to-me",
+            "Underwriter",
+            "underwriter-1");
+        using var firstAssignResponse = await httpClient.SendAsync(firstAssignRequest, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, firstAssignResponse.StatusCode);
+
+        // A second underwriter claiming the same referral must be rejected, not silently win.
+        using var secondAssignRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/operations/assign-to-me",
+            "Underwriter",
+            "underwriter-2");
+        using var secondAssignResponse = await httpClient.SendAsync(secondAssignRequest, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Conflict, secondAssignResponse.StatusCode);
+
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var underwritingDbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        var savedOperation = await underwritingDbContext.QuoteReferralOperations.SingleAsync(
+            saved => saved.QuoteId == quote.Id,
+            TestContext.Current.CancellationToken);
+        Assert.Equal("underwriter-1", savedOperation.AssignedUnderwriterUserId);
+    }
+
+    [Fact]
     public async Task Operations_Write_Action_Self_Heals_Operation_Without_Outbox_Pump()
     {
         var quote = CreateReferredQuote("customer-1");

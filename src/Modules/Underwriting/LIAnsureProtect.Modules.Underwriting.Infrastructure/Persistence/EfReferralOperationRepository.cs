@@ -39,6 +39,19 @@ public sealed class EfReferralOperationRepository(
         return operation;
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken)
-        => dbContext.SaveChangesAsync(cancellationToken);
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A racing writer updated the same operation row first (the Version concurrency token
+            // no longer matched). Translate to the domain's conflict language so the API's
+            // existing InvalidOperationException → 409 mapping applies.
+            throw new InvalidOperationException(
+                "This referral was just updated by another underwriter. Refresh and try again.");
+        }
+    }
 }
