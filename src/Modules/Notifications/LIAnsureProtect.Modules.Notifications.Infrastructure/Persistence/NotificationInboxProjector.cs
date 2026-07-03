@@ -22,6 +22,7 @@ public sealed class NotificationInboxProjector(NotificationsDbContext dbContext)
                 break;
             case NotificationAudiences.UnderwritingOperations:
             case NotificationAudiences.BindingOperations:
+            case NotificationAudiences.ClaimsOperations:
                 await ProjectTeamAsync(message, cancellationToken);
                 break;
             default:

@@ -18,11 +18,17 @@
 | CM3 — Claim documents | ✅ merged |
 | CM4 — Reserves & financials | ✅ merged |
 | CM5 — Decision & settlement | ✅ merged |
-| CM6 — Notifications | ⬜ next |
-| CM7 — Frontend claims slice | ⬜ |
+| CM6 — Notifications | ✅ merged |
+| CM7 — Frontend claims slice | ⬜ next |
 | CM8 — Branch consolidation prep | ⬜ |
 
-## Current state (after CM5)
+## Current state (after CM6)
+
+- Notifications: all lifecycle events mapped to personal + team inboxes; new
+  `claims-operations` team audience (ClaimsAdjuster/Admin); remediation-style info-request
+  messages; `Notifications.Read` includes ClaimsAdjuster.
+
+## State after CM5
 
 - Decisions: accept/deny/close with all three charter guardrails; append-only
   `claim_decisions` audit; Idempotency-Key on accept/deny; verdict block on the owner detail;

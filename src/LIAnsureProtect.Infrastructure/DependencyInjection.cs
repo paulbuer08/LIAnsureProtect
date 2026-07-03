@@ -73,6 +73,13 @@ public static class DependencyInjection
         services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestCancelledNotificationMapper>();
         services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestFollowUpSentNotificationMapper>();
         services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestRemediationRequiredNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimFiledNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimAssignedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimInformationRequestedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimantInformationResponseNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimAcceptedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimDeniedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimClosedNotificationMapper>();
         services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, QuoteGeneratedReferralOperationMapper>();
         services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, QuoteUnderwritingDecisionReferralOperationMapper>();
         services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, EvidenceRequestCreatedReferralOperationMapper>();

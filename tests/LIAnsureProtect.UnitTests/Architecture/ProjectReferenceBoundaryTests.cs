@@ -26,6 +26,7 @@ public sealed class ProjectReferenceBoundaryTests
         "LIAnsureProtect.Application",
         "LIAnsureProtect.Domain",
         "LIAnsureProtect.Modules.Claims.Application",
+        "LIAnsureProtect.Modules.Claims.Domain",
         "LIAnsureProtect.Modules.Notifications.Application",
         "LIAnsureProtect.Modules.Quoting.Application",
         "LIAnsureProtect.Modules.Underwriting.Application",

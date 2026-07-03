@@ -76,6 +76,7 @@ public static class AuthorizationPolicies
                 ApplicationRoles.Customer,
                 ApplicationRoles.Broker,
                 ApplicationRoles.Underwriter,
+                ApplicationRoles.ClaimsAdjuster,
                 ApplicationRoles.Admin
             )
         );
