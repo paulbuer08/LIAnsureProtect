@@ -1,4 +1,5 @@
 using LIAnsureProtect.Modules.Claims.Application;
+using LIAnsureProtect.Modules.Claims.Application.Documents;
 using Microsoft.EntityFrameworkCore;
 
 namespace LIAnsureProtect.Modules.Claims.Infrastructure.Persistence;
@@ -37,6 +38,7 @@ public sealed class ClaimsReader(ClaimsDbContext dbContext) : IClaimsReader
             .AsNoTracking()
             .Include(candidate => candidate.TimelineEntries)
             .Include(candidate => candidate.InformationRequests)
+            .Include(candidate => candidate.Documents)
             .SingleOrDefaultAsync(
                 candidate => candidate.Id == claimId && candidate.OwnerUserId == ownerUserId,
                 cancellationToken);
@@ -72,6 +74,10 @@ public sealed class ClaimsReader(ClaimsDbContext dbContext) : IClaimsReader
             claim.InformationRequests
                 .OrderBy(request => request.RequestedAtUtc)
                 .Select(ClaimAdjudicationResultFactory.FromInformationRequest)
+                .ToArray(),
+            claim.Documents
+                .OrderBy(document => document.UploadedAtUtc)
+                .Select(ClaimDocumentResultFactory.FromDocument)
                 .ToArray());
     }
 }

@@ -22,6 +22,7 @@ public sealed class Claim : IHasDomainEvents
     private readonly List<ClaimTimelineEntry> timelineEntries = [];
     private readonly List<ClaimWorkNote> workNotes = [];
     private readonly List<ClaimInformationRequest> informationRequests = [];
+    private readonly List<ClaimDocument> documents = [];
 
     // The only constructor: EF Core materializes through it, and the File factory assigns state
     // via the private property setters.
@@ -86,6 +87,8 @@ public sealed class Claim : IHasDomainEvents
     public IReadOnlyCollection<ClaimWorkNote> WorkNotes => workNotes.AsReadOnly();
 
     public IReadOnlyCollection<ClaimInformationRequest> InformationRequests => informationRequests.AsReadOnly();
+
+    public IReadOnlyCollection<ClaimDocument> Documents => documents.AsReadOnly();
 
     public IReadOnlyCollection<IDomainEvent> DomainEvents => domainEvents.AsReadOnly();
 
@@ -362,6 +365,54 @@ public sealed class Claim : IHasDomainEvents
             $"Status changed from {oldStatus} to {Status}.",
             changedByUserId,
             changedAtUtc);
+    }
+
+    /// <summary>
+    /// Attaches a supporting document (already stored behind the platform storage port; the scan
+    /// result is recorded on the returned document by the upload workflow). Only open claims
+    /// accept documents; nothing is ever deleted — replacements for rejected scans append.
+    /// </summary>
+    public ClaimDocument AddDocument(
+        ClaimDocumentKind kind,
+        string originalFileName,
+        string contentType,
+        long sizeBytes,
+        string storageKey,
+        string uploadedByUserId,
+        DateTime uploadedAtUtc)
+    {
+        ValidateRequiredUserId(uploadedByUserId, nameof(uploadedByUserId));
+        EnsureOpenForAdjusting();
+
+        var document = ClaimDocument.Create(
+            Id,
+            kind,
+            originalFileName,
+            contentType,
+            sizeBytes,
+            storageKey,
+            uploadedByUserId,
+            uploadedAtUtc);
+        documents.Add(document);
+        Touch(uploadedAtUtc);
+        RecordTimeline(
+            ClaimTimelineEntryType.DocumentUploaded,
+            $"Supporting document uploaded: {document.OriginalFileName} ({kind}).",
+            uploadedByUserId,
+            uploadedAtUtc);
+
+        domainEvents.Add(new ClaimDocumentUploadedDomainEvent(
+            Id,
+            ClaimNumber,
+            document.Id,
+            PolicyId,
+            OwnerUserId,
+            kind,
+            document.OriginalFileName,
+            AssignedAdjusterUserId,
+            uploadedAtUtc));
+
+        return document;
     }
 
     /// <summary>Adjusting actions are only valid while the claim has no final decision.</summary>

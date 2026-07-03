@@ -14,6 +14,7 @@ public sealed class EfClaimRepository(ClaimsDbContext dbContext) : IClaimReposit
             .Include(claim => claim.TimelineEntries)
             .Include(claim => claim.WorkNotes)
             .Include(claim => claim.InformationRequests)
+            .Include(claim => claim.Documents)
             .SingleOrDefaultAsync(claim => claim.Id == claimId, cancellationToken);
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken)

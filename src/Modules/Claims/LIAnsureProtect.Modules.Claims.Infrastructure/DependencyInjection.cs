@@ -1,4 +1,6 @@
 using LIAnsureProtect.Modules.Claims.Application;
+using LIAnsureProtect.Modules.Claims.Application.Documents;
+using LIAnsureProtect.Modules.Claims.Infrastructure.Documents;
 using LIAnsureProtect.Modules.Claims.Infrastructure.Persistence;
 using LIAnsureProtect.Platform.Abstractions;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
@@ -23,11 +25,6 @@ public static class DependencyInjection
         if (string.IsNullOrWhiteSpace(databaseConnectionString))
             throw new InvalidOperationException("Connection string 'LIAnsureProtect' is required.");
 
-        // The profile parameter keeps the module's registration signature uniform with the other
-        // modules; the Claims module has no profile-switched adapters yet (documents arrive in CM3
-        // through the shared Platform storage port).
-        _ = profile;
-
         services.AddDbContext<ClaimsDbContext>(options =>
         {
             options.UseNpgsql(databaseConnectionString, npgsql =>
@@ -38,6 +35,21 @@ public static class DependencyInjection
         services.AddScoped<IClaimsReader, ClaimsReader>();
         services.AddScoped<IClaimsAdjudicationReader, ClaimsAdjudicationReader>();
         services.AddScoped<IOutboxSource, ClaimsOutboxSource>();
+
+        // Ports & Adapters: the quarantine scanner is chosen by the active deployment profile
+        // (byte storage itself rides the shared Platform IDocumentStorageService registration).
+        switch (profile)
+        {
+            case PlatformProfile.Local:
+                services.AddScoped<IClaimDocumentScanner, LocalDeterministicClaimDocumentScanner>();
+                break;
+            case PlatformProfile.Aws:
+                throw new NotSupportedException(
+                    "The AWS claim-document scanner (S3-triggered) arrives in a later milestone. " +
+                    "Set Platform:Profile=Local until then.");
+            default:
+                throw new NotSupportedException($"Unsupported Platform:Profile '{profile}'.");
+        }
 
         services.AddMediatR(configuration =>
             configuration.RegisterServicesFromAssembly(typeof(IClaimRepository).Assembly));

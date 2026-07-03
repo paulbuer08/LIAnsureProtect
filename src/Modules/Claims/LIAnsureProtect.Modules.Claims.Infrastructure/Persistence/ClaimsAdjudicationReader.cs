@@ -1,4 +1,5 @@
 using LIAnsureProtect.Modules.Claims.Application;
+using LIAnsureProtect.Modules.Claims.Application.Documents;
 using LIAnsureProtect.Modules.Claims.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,6 +31,7 @@ public sealed class ClaimsAdjudicationReader(ClaimsDbContext dbContext) : IClaim
             .Include(candidate => candidate.TimelineEntries)
             .Include(candidate => candidate.WorkNotes)
             .Include(candidate => candidate.InformationRequests)
+            .Include(candidate => candidate.Documents)
             .SingleOrDefaultAsync(candidate => candidate.Id == claimId, cancellationToken);
 
         if (claim is null)
@@ -60,6 +62,10 @@ public sealed class ClaimsAdjudicationReader(ClaimsDbContext dbContext) : IClaim
             claim.InformationRequests
                 .OrderBy(request => request.RequestedAtUtc)
                 .Select(ClaimAdjudicationResultFactory.FromInformationRequest)
+                .ToArray(),
+            claim.Documents
+                .OrderBy(document => document.UploadedAtUtc)
+                .Select(ClaimDocumentResultFactory.FromDocument)
                 .ToArray(),
             claim.TimelineEntries
                 .OrderBy(entry => entry.CreatedAtUtc)

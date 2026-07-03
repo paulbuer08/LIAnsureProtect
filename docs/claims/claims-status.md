@@ -15,14 +15,20 @@
 |---|---|
 | CM1 — Claims module skeleton + FNOL | ✅ merged |
 | CM2 — Adjuster queue + assignment + operations | ✅ merged |
-| CM3 — Claim documents | ⬜ next |
-| CM4 — Reserves & financials | ⬜ |
+| CM3 — Claim documents | ✅ merged |
+| CM4 — Reserves & financials | ⬜ next |
 | CM5 — Decision & settlement | ⬜ |
 | CM6 — Notifications | ⬜ |
 | CM7 — Frontend claims slice | ⬜ |
 | CM8 — Branch consolidation prep | ⬜ |
 
-## Current state (after CM2)
+## Current state (after CM3)
+
+- Documents: scan-gated uploads (`Claims.Respond`), clean-only downloads on both surfaces,
+  module-owned `IClaimDocumentScanner` (local deterministic) + shared Platform storage port;
+  `ClaimDocumentUploadedDomainEvent` in the outbox; migration `AddClaimDocuments`.
+
+## State after CM2
 
 - Module: `src/Modules/Claims` (Domain/Application/Infrastructure), `claims` schema, module
   outbox, `ClaimsOutboxSource` registered in both hosts.

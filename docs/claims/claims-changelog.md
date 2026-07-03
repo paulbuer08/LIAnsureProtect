@@ -4,6 +4,24 @@
 > Same spirit as the root `CHANGELOG.md`, which this branch deliberately does not touch; CM8's
 > final-merge checklist folds these entries into the living docs when the branch merges to main.
 
+## Claims Milestone 3 - Claim Documents
+
+- Added scan-gated supporting documents: `ClaimDocument` children (`claims.claim_documents`)
+  with kind, private storage key, scan status/scanner metadata/SHA-256; fail-closed —
+  `IsDownloadAvailable` only when scanned Clean.
+- Added `POST /api/v1/claims/{id}/documents` (multipart, owner-scoped, `Claims.Respond`):
+  store via the shared Platform `IDocumentStorageService` → quarantine-scan via the new
+  module-owned `IClaimDocumentScanner` (local deterministic adapter, same test markers as
+  evidence) → persist; per-file scan outcomes returned; `ClaimDocumentUploadedDomainEvent`
+  per file into the module outbox.
+- Added clean-only downloads on both surfaces (owner + adjudication routes; Rejected/Failed →
+  409 for every role); replacement uploads append and rejected originals stay for audit;
+  documents listed on both detail endpoints; uploads frozen once a claim is decided.
+- Upload governance identical to evidence documents (5 files / 10 MB each / 50 MB total /
+  content-type allow-list / no path info in names).
+- `AddClaimDocuments` migration. Tests: 29 new (10 domain, 10 handler, 8 endpoint, 1 migration).
+- Docs: `docs/claims/cm3-claim-documents-{design,learnings}.md`.
+
 ## Claims Milestone 2 - Adjuster Queue, Assignment And Operations
 
 - Activated the reserved **ClaimsAdjuster** role: new `Claims.Adjudicate` (ClaimsAdjuster/Admin)

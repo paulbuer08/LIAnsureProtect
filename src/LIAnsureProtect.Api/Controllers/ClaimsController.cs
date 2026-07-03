@@ -6,6 +6,7 @@ using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Modules.Claims.Application;
 using LIAnsureProtect.Modules.Claims.Application.Commands.FileClaim;
 using LIAnsureProtect.Modules.Claims.Application.Commands.RespondToClaimInformationRequest;
+using LIAnsureProtect.Modules.Claims.Application.Documents;
 using LIAnsureProtect.Modules.Claims.Application.Queries.GetMyClaimDetail;
 using LIAnsureProtect.Modules.Claims.Application.Queries.ListMyClaims;
 using LIAnsureProtect.Modules.Claims.Domain;
@@ -166,6 +167,91 @@ public sealed class ClaimsController(
         }
     }
 
+    [HttpPost("{claimId:guid}/documents")]
+    [Consumes("multipart/form-data")]
+    [Authorize(Policy = ApplicationPolicies.RespondToClaim)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<UploadClaimDocumentsResult>(StatusCodes.Status201Created)]
+    public async Task<ActionResult<UploadClaimDocumentsResult>> UploadDocuments(
+        Guid claimId,
+        [FromForm] UploadClaimDocumentsFormRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse<ClaimDocumentKind>(request.Kind, ignoreCase: true, out var kind))
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Claim document kind is invalid."));
+
+        try
+        {
+            var result = await sender.Send(
+                new UploadClaimDocumentsCommand(
+                    claimId,
+                    kind,
+                    request.Attachments
+                        .Select(file => new ClaimDocumentUpload(
+                            file.FileName,
+                            file.ContentType,
+                            file.Length,
+                            file.OpenReadStream()))
+                        .ToList()),
+                cancellationToken);
+
+            return result is null
+                ? NotFound()
+                : Created($"/api/v1/claims/{claimId}/documents", result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Claim documents are invalid.",
+                exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Claim documents cannot be uploaded.",
+                exception.Message));
+        }
+    }
+
+    [HttpGet("{claimId:guid}/documents/{documentId:guid}/download")]
+    [Authorize(Policy = ApplicationPolicies.ReadClaim)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DownloadDocument(
+        Guid claimId,
+        Guid documentId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new DownloadOwnerClaimDocumentQuery(claimId, documentId),
+                cancellationToken);
+
+            return result is null
+                ? NotFound()
+                : File(result.Content, result.ContentType, result.OriginalFileName);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Claim document cannot be downloaded.",
+                exception.Message));
+        }
+    }
+
     private async Task<IdempotencyActionResponse> ExecuteFileForIdempotencyAsync(
         FileClaimCommand command,
         CancellationToken cancellationToken)
@@ -284,3 +370,10 @@ public sealed record FileClaimRequest(
     string Description);
 
 public sealed record RespondToClaimInformationRequestRequest(string ResponseText);
+
+public sealed class UploadClaimDocumentsFormRequest
+{
+    public string Kind { get; init; } = string.Empty;
+
+    public IReadOnlyCollection<IFormFile> Attachments { get; init; } = [];
+}
