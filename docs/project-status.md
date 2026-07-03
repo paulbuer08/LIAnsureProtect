@@ -9,8 +9,9 @@ Use this file at the start of a new conversation or coding session before making
 - Default project path: `C:\Users\Poy\Documents\LIAnsureProtect`
 - Current branch: `feat/milestone-41-observability` for this Codex worktree. Work flows through GitHub pull requests into a protected `main` (CI-gated); do not commit directly to `main`.
 - Git history: hosted at `github.com/paulbuer08/LIAnsureProtect` (public) with full history. Per-commit SHAs are no longer tracked in docs (history was rewritten once to remove a former-employer commit email, and the GitHub repo is now the source of truth); use commit messages and `git log` as the reference. Milestones remain traceable by their `feat:` / `docs:` commit messages. The repository's protection rules, CI/CD, security features, and automation (labeler, Claude PR review, Dependabot, CodeQL) are documented in `docs/dev/github-repository-and-automation.md`. The approved next direction is a multi-milestone **production transformation program** (modular monolith of bounded contexts, AWS-native, Cyber-only focus) — see `docs/dev/production-transformation-roadmap.md`. Under it, Milestone 32 added the Platform & module skeleton + Local⇄AWS deploy switch, Milestone 33 carved the Notifications module, and Milestone 34 added the team inbox inside that module.
-- Latest closed milestone: Milestone 44 - Caching + Rate Limiting (merged via PR #36). Phase 1 (local/LocalStack, no AWS bill) is complete.
-- Current milestone: Milestone 44.5 - Referral Queue Hardening, complete on branch `feat/milestone-44-5-referral-queue-hardening`. See `docs/dev/referral-queue-hardening-spec.md` and `docs/dev/milestone-44-5-referral-queue-hardening-learnings.md`. Referral assignment is now a guarded claim: the domain rejects a second underwriter (same-user re-clicks idempotent), a `Version` optimistic-concurrency token on `quote_referral_operations` (migration `AddReferralOperationConcurrencyVersion`) catches true races at save time, the repository translates `DbUpdateConcurrencyException` to the API's 409 path, and the workbench refetches on error so the loser sees the real assignee. The queue read (`ListQuoteReferralsQuery`) is cached shared for 10s (`underwriting:referral-queue:v1`) with read-your-writes preserved by `ReferralQueueCacheInvalidationFilter` at the API edge (workbench, owner-evidence, and quote-creation controllers); Worker-side projection changes ride the TTL.
+- Phase 1 (local/LocalStack, no AWS bill) is complete through Milestone 44 (PR #36) plus the post-M44 deep audit (PR #37) and Milestone 44.5 (PR #38).
+- Current work (2026-07-03): documentation consolidation on branch `docs/build-history-and-consolidation` — added the living `docs/build-history.md` (all milestones across six eras, Strangler Fig explained) and the tiered `docs/README.md` documentation map; slimmed the root README to a short status + five core links; removed superseded `docs/dev/local-development.md` and `docs/dev/aws-environments.md`; banner-marked `docs/dev/pattern-roadmap-after-milestone-11.md` historical. Rule going forward: milestone PRs update the Tier-1 living docs (Encyclopedia, Build History, Status, guides) and may add one archive record; new standalone docs need a reason a living doc can't hold the content.
+- Latest closed milestone: Milestone 44.5 - Referral Queue Hardening (merged via PR #38), complete on branch `feat/milestone-44-5-referral-queue-hardening`. See `docs/dev/referral-queue-hardening-spec.md` and `docs/dev/milestone-44-5-referral-queue-hardening-learnings.md`. Referral assignment is now a guarded claim: the domain rejects a second underwriter (same-user re-clicks idempotent), a `Version` optimistic-concurrency token on `quote_referral_operations` (migration `AddReferralOperationConcurrencyVersion`) catches true races at save time, the repository translates `DbUpdateConcurrencyException` to the API's 409 path, and the workbench refetches on error so the loser sees the real assignee. The queue read (`ListQuoteReferralsQuery`) is cached shared for 10s (`underwriting:referral-queue:v1`) with read-your-writes preserved by `ReferralQueueCacheInvalidationFilter` at the API edge (workbench, owner-evidence, and quote-creation controllers); Worker-side projection changes ride the TTL.
 - Milestone 44.5 verification: UnitTests 74 passed, IntegrationTests 163 passed + 4 opt-in skips — including the entire pre-existing endpoint suite unchanged with the cache active (list-after-write exercises the invalidation for real), a two-context concurrency race test, and an endpoint double-assign 409 test. Frontend: ESLint clean, 35 tests passed, build clean. Strict zero-warning gate holds. Delivered through the protected-`main` pull-request flow.
 - Previous work: Post-M44 deep audit + hardening (merged via PR #37) — see `docs/dev/post-m44-deep-audit.md`.
 - Next milestone: `Milestone 45 - Terraform Foundation` — start of Phase 2 and the first milestone needing a real AWS account (MFA'd account, billing alarm, non-root IAM identity as prep).
@@ -106,8 +107,8 @@ Created:
 - `docs/architecture/decision-records/ADR-003-postgresql-system-of-record.md`
 - `docs/business/cyber-specialty-insurance-overview.md`
 - `docs/business/user-roles.md`
-- `docs/dev/local-development.md`
-- `docs/dev/aws-environments.md`
+- `docs/dev/local-development.md` (removed in the 2026-07-03 docs consolidation — superseded by `docs/guides/running-the-app.md`)
+- `docs/dev/aws-environments.md` (removed in the 2026-07-03 docs consolidation — superseded by the production-transformation roadmap)
 - `docs/project-status.md`
 
 Verified:
@@ -649,7 +650,7 @@ Updated:
 - `tests/LIAnsureProtect.IntegrationTests/SubmissionEndpointTests.cs`
 - `scripts/run-local-ci.ps1`
 - `docs/dev/run-the-app.md`
-- `docs/dev/local-development.md`
+- `docs/dev/local-development.md` (removed in the 2026-07-03 docs consolidation)
 - `docs/dev/dependency-management.md`
 - `docs/business/user-roles.md`
 - `docs/architecture/overview.md`

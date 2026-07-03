@@ -1,5 +1,10 @@
 # Pattern Roadmap After Milestone 11
 
+> **⚠️ Historical snapshot (Milestone 11 era).** The living catalog of patterns actually in use is
+> the [Encyclopedia's design-patterns chapter](../encyclopedia/04-design-patterns.md), and future
+> pattern plans live in the [Production Transformation Roadmap](production-transformation-roadmap.md).
+> This file is kept because many milestone learnings records reference it.
+
 This document audits earlier architecture-pattern recommendations and turns them into a concrete milestone roadmap after `Milestone 11 - Submission Ownership Foundation`.
 
 The goal is to keep useful patterns, but add them only when the product has a feature that genuinely needs them.

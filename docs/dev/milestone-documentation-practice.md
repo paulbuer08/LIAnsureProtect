@@ -11,8 +11,17 @@ For every meaningful milestone, update:
 - `README.md` when the user-facing project status or documentation index changes.
 - `CHANGELOG.md` when files, architecture, tests, or behavior change.
 - `docs/project-status.md` for the current branch, milestone status, verification, next step, and decisions to remember.
+- The **Tier-1 living documents** (see the [Documentation Map](../README.md)): the
+  [Encyclopedia](../encyclopedia/README.md) chapters the milestone touches, the
+  [Build History](../build-history.md) era table, and the guides
+  (`docs/guides/`) when run/test behavior changes.
 - Relevant files under `docs/architecture/` when architecture decisions change.
 - Relevant files under `docs/dev/` when setup, tooling, verification, or workflow changes.
+
+**Keep the doc count down:** each milestone may add its one design/learnings record to the
+archive; any new *standalone* reference document needs a reason a Tier-1 living document cannot
+hold the content. Superseded documents are banner-marked historical (if referenced by archive
+records) or deleted (if not).
 
 ## Required Learning Notes
 
