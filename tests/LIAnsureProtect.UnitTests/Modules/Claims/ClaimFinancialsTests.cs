@@ -87,7 +87,7 @@ public sealed class ClaimFinancialsTests
     public void Claimed_Amount_Cannot_Change_After_A_Decision()
     {
         var claim = AssignedClaim();
-        claim.Accept("adjuster-1", FiledAtUtc.AddHours(2));
+        claim.Accept(100_000m, "Covered loss.", null, "adjuster-1", FiledAtUtc.AddHours(2));
 
         Assert.Throws<InvalidOperationException>(() => claim.SetClaimedAmount(1m, "customer-1", FiledAtUtc.AddHours(3)));
     }
@@ -188,7 +188,7 @@ public sealed class ClaimFinancialsTests
     {
         var claim = AssignedClaim();
         claim.SetReserve(150_000m, "Initial estimate.", "adjuster-1", FiledAtUtc.AddHours(2));
-        claim.Deny("adjuster-1", FiledAtUtc.AddHours(3));
+        claim.Deny(ClaimDenialReason.InsufficientEvidence, "No forensic report provided.", "adjuster-1", FiledAtUtc.AddHours(3));
 
         Assert.Throws<InvalidOperationException>(() =>
             claim.SetReserve(0m, "Release after denial.", "adjuster-1", FiledAtUtc.AddHours(4)));

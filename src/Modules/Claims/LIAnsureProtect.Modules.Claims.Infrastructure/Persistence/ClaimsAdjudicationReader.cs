@@ -1,4 +1,5 @@
 using LIAnsureProtect.Modules.Claims.Application;
+using LIAnsureProtect.Modules.Claims.Application.Commands.DecideClaim;
 using LIAnsureProtect.Modules.Claims.Application.Commands.ManageClaimFinancials;
 using LIAnsureProtect.Modules.Claims.Application.Documents;
 using LIAnsureProtect.Modules.Claims.Domain;
@@ -34,6 +35,7 @@ public sealed class ClaimsAdjudicationReader(ClaimsDbContext dbContext) : IClaim
             .Include(candidate => candidate.InformationRequests)
             .Include(candidate => candidate.Documents)
             .Include(candidate => candidate.ReserveChanges)
+            .Include(candidate => candidate.Decisions)
             .SingleOrDefaultAsync(candidate => candidate.Id == claimId, cancellationToken);
 
         if (claim is null)
@@ -54,6 +56,11 @@ public sealed class ClaimsAdjudicationReader(ClaimsDbContext dbContext) : IClaim
             claim.ClaimedAmount,
             claim.ReserveAmount,
             claim.PaidAmount,
+            claim.SettlementAmount,
+            claim.DenialReason?.ToString(),
+            claim.DenialNarrative,
+            claim.DecidedAtUtc,
+            claim.ClosedAtUtc,
             claim.PolicyLimitAtFiling,
             claim.PolicyRetentionAtFiling,
             claim.PolicyEffectiveAtFiling,
@@ -63,6 +70,10 @@ public sealed class ClaimsAdjudicationReader(ClaimsDbContext dbContext) : IClaim
             claim.ReserveChanges
                 .OrderBy(change => change.ChangedAtUtc)
                 .Select(ClaimFinancialsResultFactory.FromReserveChange)
+                .ToArray(),
+            claim.Decisions
+                .OrderBy(decision => decision.DecidedAtUtc)
+                .Select(decision => ClaimDecisionResultFactory.FromDecision(claim, decision))
                 .ToArray(),
             claim.WorkNotes
                 .OrderBy(note => note.CreatedAtUtc)

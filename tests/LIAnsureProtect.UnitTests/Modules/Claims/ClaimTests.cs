@@ -175,7 +175,7 @@ public sealed class ClaimTests
         var claim = FileValidClaim();
         var step = FiledAtUtc;
 
-        claim.StartReview("adjuster-1", step = step.AddHours(1));
+        claim.AssignTo("adjuster-1", step = step.AddHours(1));
         Assert.Equal(ClaimStatus.UnderReview, claim.Status);
 
         var request = claim.RequestInformation(
@@ -185,15 +185,16 @@ public sealed class ClaimTests
         claim.RespondToInformationRequest(request.Id, "customer-1", "Report attached.", step = step.AddHours(1));
         Assert.Equal(ClaimStatus.UnderReview, claim.Status);
 
-        claim.Accept("adjuster-1", step = step.AddHours(1));
+        claim.Accept(100_000m, "Covered loss.", null, "adjuster-1", step = step.AddHours(1));
         Assert.Equal(ClaimStatus.Accepted, claim.Status);
 
         claim.Close("adjuster-1", step = step.AddHours(1));
         Assert.Equal(ClaimStatus.Closed, claim.Status);
         Assert.Equal(step, claim.UpdatedAtUtc);
 
-        // filed + start review + (request entry + status) + (response entry + status) + accept + close
-        Assert.Equal(8, claim.TimelineEntries.Count);
+        // filed + (assignment + status) + (request entry + status) + (response entry + status)
+        // + accept + close
+        Assert.Equal(9, claim.TimelineEntries.Count);
         Assert.All(claim.TimelineEntries, entry => Assert.Equal(claim.Id, entry.ClaimId));
     }
 
@@ -201,9 +202,9 @@ public sealed class ClaimTests
     public void Deny_Then_Close_Is_Legal()
     {
         var claim = FileValidClaim();
-        claim.StartReview("adjuster-1", FiledAtUtc.AddHours(1));
+        claim.AssignTo("adjuster-1", FiledAtUtc.AddHours(1));
 
-        claim.Deny("adjuster-1", FiledAtUtc.AddHours(2));
+        claim.Deny(ClaimDenialReason.NotCovered, "Loss type is not covered.", "adjuster-1", FiledAtUtc.AddHours(2));
         Assert.Equal(ClaimStatus.Denied, claim.Status);
 
         claim.Close("adjuster-1", FiledAtUtc.AddHours(3));
@@ -214,16 +215,23 @@ public sealed class ClaimTests
     public void Accept_Requires_UnderReview()
     {
         var claim = FileValidClaim();
+        claim.AssignTo("adjuster-1", FiledAtUtc.AddHours(1));
+        claim.RequestInformation("adjuster-1", "Proof of loss", "Please provide it.", FiledAtUtc.AddHours(2));
 
-        Assert.Throws<InvalidOperationException>(() => claim.Accept("adjuster-1", FiledAtUtc.AddHours(1)));
+        // InformationRequested is not a decidable state.
+        Assert.Throws<InvalidOperationException>(() =>
+            claim.Accept(100_000m, "Covered loss.", null, "adjuster-1", FiledAtUtc.AddHours(3)));
     }
 
     [Fact]
     public void Deny_Requires_UnderReview()
     {
         var claim = FileValidClaim();
+        claim.AssignTo("adjuster-1", FiledAtUtc.AddHours(1));
+        claim.RequestInformation("adjuster-1", "Proof of loss", "Please provide it.", FiledAtUtc.AddHours(2));
 
-        Assert.Throws<InvalidOperationException>(() => claim.Deny("adjuster-1", FiledAtUtc.AddHours(1)));
+        Assert.Throws<InvalidOperationException>(() =>
+            claim.Deny(ClaimDenialReason.NotCovered, "Not covered.", "adjuster-1", FiledAtUtc.AddHours(3)));
     }
 
     [Fact]
@@ -248,7 +256,7 @@ public sealed class ClaimTests
     public void Close_Requires_Decision()
     {
         var claim = FileValidClaim();
-        claim.StartReview("adjuster-1", FiledAtUtc.AddHours(1));
+        claim.AssignTo("adjuster-1", FiledAtUtc.AddHours(1));
 
         Assert.Throws<InvalidOperationException>(() => claim.Close("adjuster-1", FiledAtUtc.AddHours(2)));
     }
@@ -257,15 +265,17 @@ public sealed class ClaimTests
     public void Closed_Claim_Rejects_All_Transitions()
     {
         var claim = FileValidClaim();
-        claim.StartReview("adjuster-1", FiledAtUtc.AddHours(1));
-        claim.Accept("adjuster-1", FiledAtUtc.AddHours(2));
+        claim.AssignTo("adjuster-1", FiledAtUtc.AddHours(1));
+        claim.Accept(100_000m, "Covered loss.", null, "adjuster-1", FiledAtUtc.AddHours(2));
         claim.Close("adjuster-1", FiledAtUtc.AddHours(3));
 
         Assert.Throws<InvalidOperationException>(() => claim.StartReview("adjuster-1", FiledAtUtc.AddHours(4)));
         Assert.Throws<InvalidOperationException>(() => claim.RequestInformation(
             "adjuster-1", "Proof of loss", "Please provide the forensic report.", FiledAtUtc.AddHours(4)));
-        Assert.Throws<InvalidOperationException>(() => claim.Accept("adjuster-1", FiledAtUtc.AddHours(4)));
-        Assert.Throws<InvalidOperationException>(() => claim.Deny("adjuster-1", FiledAtUtc.AddHours(4)));
+        Assert.Throws<InvalidOperationException>(() => claim.Accept(
+            100_000m, "Again.", null, "adjuster-1", FiledAtUtc.AddHours(4)));
+        Assert.Throws<InvalidOperationException>(() => claim.Deny(
+            ClaimDenialReason.Other, "Again.", "adjuster-1", FiledAtUtc.AddHours(4)));
         Assert.Throws<InvalidOperationException>(() => claim.Close("adjuster-1", FiledAtUtc.AddHours(4)));
     }
 

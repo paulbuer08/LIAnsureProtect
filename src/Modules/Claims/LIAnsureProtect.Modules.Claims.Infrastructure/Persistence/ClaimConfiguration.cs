@@ -90,6 +90,29 @@ public sealed class ClaimConfiguration : IEntityTypeConfiguration<Claim>
             .HasPrecision(18, 2)
             .IsRequired();
 
+        builder.Property(claim => claim.SettlementAmount)
+            .HasColumnName("settlement_amount")
+            .HasPrecision(18, 2);
+
+        builder.Property(claim => claim.DenialReason)
+            .HasColumnName("denial_reason")
+            .HasConversion<string>()
+            .HasMaxLength(50);
+
+        builder.Property(claim => claim.DenialNarrative)
+            .HasColumnName("denial_narrative")
+            .HasMaxLength(2000);
+
+        builder.Property(claim => claim.DecidedByUserId)
+            .HasColumnName("decided_by_user_id")
+            .HasMaxLength(256);
+
+        builder.Property(claim => claim.DecidedAtUtc)
+            .HasColumnName("decided_at_utc");
+
+        builder.Property(claim => claim.ClosedAtUtc)
+            .HasColumnName("closed_at_utc");
+
         builder.Property(claim => claim.PolicyLimitAtFiling)
             .HasColumnName("policy_limit_at_filing")
             .HasPrecision(18, 2)
@@ -157,6 +180,11 @@ public sealed class ClaimConfiguration : IEntityTypeConfiguration<Claim>
             .HasForeignKey(change => change.ClaimId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(claim => claim.Decisions)
+            .WithOne()
+            .HasForeignKey(decision => decision.ClaimId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.Navigation(claim => claim.TimelineEntries)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
@@ -170,6 +198,9 @@ public sealed class ClaimConfiguration : IEntityTypeConfiguration<Claim>
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.Navigation(claim => claim.ReserveChanges)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.Navigation(claim => claim.Decisions)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.Ignore(claim => claim.DomainEvents);

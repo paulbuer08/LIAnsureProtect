@@ -17,12 +17,20 @@
 | CM2 — Adjuster queue + assignment + operations | ✅ merged |
 | CM3 — Claim documents | ✅ merged |
 | CM4 — Reserves & financials | ✅ merged |
-| CM5 — Decision & settlement | ⬜ next |
-| CM6 — Notifications | ⬜ |
+| CM5 — Decision & settlement | ✅ merged |
+| CM6 — Notifications | ⬜ next |
 | CM7 — Frontend claims slice | ⬜ |
 | CM8 — Branch consolidation prep | ⬜ |
 
-## Current state (after CM4)
+## Current state (after CM5)
+
+- Decisions: accept/deny/close with all three charter guardrails; append-only
+  `claim_decisions` audit; Idempotency-Key on accept/deny; verdict block on the owner detail;
+  ClaimAccepted/Denied/Closed events queued for CM6; migration `AddClaimDecisions`.
+- Full lifecycle now works end-to-end via API: file → assign → info round trip → documents →
+  reserve → decide → close.
+
+## State after CM4
 
 - Financials: claimed/reserve/paid on the aggregate; owner declares the claimed amount;
   the assigned adjuster moves the reserve with append-only history; reserve is confidential

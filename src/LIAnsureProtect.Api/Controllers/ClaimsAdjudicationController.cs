@@ -1,6 +1,13 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Modules.Claims.Application;
+using LIAnsureProtect.Modules.Claims.Application.Commands.DecideClaim;
 using LIAnsureProtect.Modules.Claims.Application.Commands.ManageClaimAdjudication;
+using LIAnsureProtect.Modules.Claims.Domain;
+using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Modules.Claims.Application.Commands.ManageClaimFinancials;
 using LIAnsureProtect.Modules.Claims.Application.Documents;
 using LIAnsureProtect.Modules.Claims.Application.Queries.GetClaimForAdjudication;
@@ -18,8 +25,14 @@ namespace LIAnsureProtect.Api.Controllers;
 [ApiController]
 [Route("api/v1/claims/adjudication")]
 [Authorize(Policy = ApplicationPolicies.AdjudicateClaim)]
-public sealed class ClaimsAdjudicationController(ISender sender) : ControllerBase
+public sealed class ClaimsAdjudicationController(
+    ISender sender,
+    IIdempotencyService idempotencyService,
+    ICurrentUser currentUser) : ControllerBase
 {
+    private const string IdempotencyKeyHeaderName = "Idempotency-Key";
+    private static readonly JsonSerializerOptions FingerprintJsonOptions = JsonSerializerOptions.Web;
+
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -122,6 +135,94 @@ public sealed class ClaimsAdjudicationController(ISender sender) : ControllerBas
             () => sender.Send(new SetClaimReserveCommand(claimId, request.Amount, request.Reason), cancellationToken),
             "Reserve cannot be changed.");
 
+    [HttpPost("{claimId:guid}/accept")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ClaimDecisionResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ClaimDecisionResult>> Accept(
+        Guid claimId,
+        AcceptClaimRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new AcceptClaimCommand(claimId, request.SettlementAmount, request.Reason, request.Notes);
+
+        var idempotencyKey = GetIdempotencyKey();
+        if (!string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            var executionResult = await idempotencyService.ExecuteAsync(
+                new IdempotencyRequest(
+                    idempotencyKey,
+                    GetRequiredCurrentUserId(),
+                    ApplicationPolicies.AdjudicateClaim,
+                    CreateRequestFingerprint("/api/v1/claims/adjudication/{claimId}/accept", new { claimId, request })),
+                operationCancellationToken => ExecuteDecisionForIdempotencyAsync(
+                    command, "Claim cannot be accepted.", operationCancellationToken),
+                cancellationToken);
+
+            return ToIdempotentActionResult<ClaimDecisionResult>(executionResult);
+        }
+
+        return await ExecuteAsync<ClaimDecisionResult>(
+            () => sender.Send(command, cancellationToken),
+            "Claim cannot be accepted.");
+    }
+
+    [HttpPost("{claimId:guid}/deny")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ClaimDecisionResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ClaimDecisionResult>> Deny(
+        Guid claimId,
+        DenyClaimRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse<ClaimDenialReason>(request.ReasonCategory, ignoreCase: true, out var denialReason))
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Denial reason category is invalid."));
+
+        var command = new DenyClaimCommand(claimId, denialReason, request.Narrative);
+
+        var idempotencyKey = GetIdempotencyKey();
+        if (!string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            var executionResult = await idempotencyService.ExecuteAsync(
+                new IdempotencyRequest(
+                    idempotencyKey,
+                    GetRequiredCurrentUserId(),
+                    ApplicationPolicies.AdjudicateClaim,
+                    CreateRequestFingerprint("/api/v1/claims/adjudication/{claimId}/deny", new { claimId, request })),
+                operationCancellationToken => ExecuteDecisionForIdempotencyAsync(
+                    command, "Claim cannot be denied.", operationCancellationToken),
+                cancellationToken);
+
+            return ToIdempotentActionResult<ClaimDecisionResult>(executionResult);
+        }
+
+        return await ExecuteAsync<ClaimDecisionResult>(
+            () => sender.Send(command, cancellationToken),
+            "Claim cannot be denied.");
+    }
+
+    [HttpPost("{claimId:guid}/close")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ClaimDecisionResult>(StatusCodes.Status200OK)]
+    public Task<ActionResult<ClaimDecisionResult>> Close(
+        Guid claimId,
+        CancellationToken cancellationToken)
+        => ExecuteAsync<ClaimDecisionResult>(
+            () => sender.Send(new CloseClaimCommand(claimId), cancellationToken),
+            "Claim cannot be closed.");
+
     [HttpGet("{claimId:guid}/documents/{documentId:guid}/download")]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -185,6 +286,87 @@ public sealed class ClaimsAdjudicationController(ISender sender) : ControllerBas
         }
     }
 
+    private async Task<IdempotencyActionResponse> ExecuteDecisionForIdempotencyAsync<TCommand>(
+        TCommand command,
+        string conflictTitle,
+        CancellationToken cancellationToken)
+        where TCommand : MediatR.IRequest<ClaimDecisionResult?>
+    {
+        try
+        {
+            var result = await sender.Send(command, cancellationToken);
+
+            return result is null
+                ? IdempotencyActionResponse.Json(
+                    StatusCodes.Status404NotFound,
+                    CreateProblemDetails(StatusCodes.Status404NotFound, "Claim was not found."))
+                : IdempotencyActionResponse.Json(StatusCodes.Status200OK, result);
+        }
+        catch (ArgumentException exception)
+        {
+            return IdempotencyActionResponse.Json(
+                StatusCodes.Status400BadRequest,
+                CreateProblemDetails(StatusCodes.Status400BadRequest, "Request is invalid.", exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return IdempotencyActionResponse.Json(
+                StatusCodes.Status409Conflict,
+                CreateProblemDetails(StatusCodes.Status409Conflict, conflictTitle, exception.Message));
+        }
+    }
+
+    private ActionResult<T> ToIdempotentActionResult<T>(IdempotencyExecutionResult result)
+    {
+        if (result.Status == IdempotencyExecutionStatus.Conflict)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Idempotency key conflict.",
+                result.ConflictDetail));
+        }
+
+        var response = result.Response
+            ?? throw new InvalidOperationException("A completed idempotency result must include a response.");
+
+        return new ContentResult
+        {
+            StatusCode = response.StatusCode,
+            Content = response.Body,
+            ContentType = response.ContentType
+        };
+    }
+
+    private string? GetIdempotencyKey()
+    {
+        return Request.Headers.TryGetValue(IdempotencyKeyHeaderName, out var headerValues)
+            ? headerValues.FirstOrDefault()
+            : null;
+    }
+
+    private string GetRequiredCurrentUserId()
+    {
+        return string.IsNullOrWhiteSpace(currentUser.UserId)
+            ? throw new InvalidOperationException("An authenticated user id is required to decide a claim.")
+            : currentUser.UserId;
+    }
+
+    private static string CreateRequestFingerprint(string routeTemplate, object body)
+    {
+        var fingerprintPayload = JsonSerializer.Serialize(
+            new
+            {
+                httpMethod = HttpMethods.Post,
+                routeTemplate,
+                body
+            },
+            FingerprintJsonOptions);
+
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(fingerprintPayload));
+
+        return Convert.ToHexString(hash);
+    }
+
     private static ProblemDetails CreateProblemDetails(
         int status,
         string title,
@@ -204,3 +386,7 @@ public sealed record AddClaimWorkNoteRequest(string Note);
 public sealed record RequestClaimInformationRequest(string Title, string Message);
 
 public sealed record SetClaimReserveRequest(decimal Amount, string Reason);
+
+public sealed record AcceptClaimRequest(decimal SettlementAmount, string Reason, string? Notes);
+
+public sealed record DenyClaimRequest(string ReasonCategory, string Narrative);

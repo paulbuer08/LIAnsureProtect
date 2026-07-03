@@ -4,6 +4,22 @@
 > Same spirit as the root `CHANGELOG.md`, which this branch deliberately does not touch; CM8's
 > final-merge checklist folds these entries into the living docs when the branch merges to main.
 
+## Claims Milestone 5 - Decision And Settlement
+
+- Added the verdict endpoints: accept (settlement + reason + notes, **Idempotency-Key**),
+  deny (reason category + narrative, **Idempotency-Key**), close — all on
+  `/api/v1/claims/adjudication/{id}`.
+- Charter guardrails domain-enforced + endpoint-tested: **no decision without assignment**
+  (409), **no settlement over limit net of retention** (judged against the file-time snapshot;
+  boundary tested both sides), **denial requires category + narrative** (400).
+- Append-only `claims.claim_decisions` audit rows for every outcome, snapshotting claimed +
+  reserve at decision time; `PaidAmount` written at settlement (local-sim posture).
+- `ClaimAccepted`/`ClaimDenied`/`ClaimClosed` events into the module outbox (CM6 maps them);
+  owner detail gained the verdict block (settlement / denial reason + narrative / timestamps).
+- CM1's bare Accept/Deny/Close transitions absorbed into the rich decision methods.
+- `AddClaimDecisions` migration. Tests: 27 new (15 domain, 11 endpoint, 1 migration).
+- Docs: `docs/claims/cm5-decision-settlement-{design,learnings}.md`.
+
 ## Claims Milestone 4 - Reserves And Financials
 
 - Added the claim money picture: `ClaimedAmount` (claimant's declaration, uncapped — CM5 caps

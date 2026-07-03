@@ -24,6 +24,7 @@ public sealed class Claim : IHasDomainEvents
     private readonly List<ClaimInformationRequest> informationRequests = [];
     private readonly List<ClaimDocument> documents = [];
     private readonly List<ClaimReserveChange> reserveChanges = [];
+    private readonly List<ClaimDecision> decisions = [];
 
     // The only constructor: EF Core materializes through it, and the File factory assigns state
     // via the private property setters.
@@ -78,8 +79,21 @@ public sealed class Claim : IHasDomainEvents
     /// <summary>The insurer's current best-estimate liability, moved only by the assigned adjuster.</summary>
     public decimal ReserveAmount { get; private set; }
 
-    /// <summary>What has actually been paid out; written by the CM5 settlement, zero until then.</summary>
+    /// <summary>What has actually been paid out; written by the settlement, zero until then.</summary>
     public decimal PaidAmount { get; private set; }
+
+    /// <summary>The accepted settlement, capped at limit net of retention (null until accepted).</summary>
+    public decimal? SettlementAmount { get; private set; }
+
+    public ClaimDenialReason? DenialReason { get; private set; }
+
+    public string? DenialNarrative { get; private set; }
+
+    public string? DecidedByUserId { get; private set; }
+
+    public DateTime? DecidedAtUtc { get; private set; }
+
+    public DateTime? ClosedAtUtc { get; private set; }
 
     public DateTime FiledAtUtc { get; private set; }
 
@@ -101,6 +115,8 @@ public sealed class Claim : IHasDomainEvents
     public IReadOnlyCollection<ClaimDocument> Documents => documents.AsReadOnly();
 
     public IReadOnlyCollection<ClaimReserveChange> ReserveChanges => reserveChanges.AsReadOnly();
+
+    public IReadOnlyCollection<ClaimDecision> Decisions => decisions.AsReadOnly();
 
     public IReadOnlyCollection<IDomainEvent> DomainEvents => domainEvents.AsReadOnly();
 
@@ -333,25 +349,96 @@ public sealed class Claim : IHasDomainEvents
             respondedAtUtc));
     }
 
-    /// <summary>UnderReview → Accepted (a favorable decision — wired with guardrails in CM5).</summary>
-    public void Accept(string decidedByUserId, DateTime decidedAtUtc)
+    /// <summary>
+    /// UnderReview → Accepted. Guardrails: only the assigned adjuster decides; the settlement is
+    /// positive and capped at the file-time policy limit net of retention; the reason is
+    /// mandatory. Payment is recorded at settlement (local-sim posture) and an append-only
+    /// decision audit row snapshots the claimed/reserve amounts.
+    /// </summary>
+    public void Accept(
+        decimal settlementAmount,
+        string reason,
+        string? notes,
+        string adjusterUserId,
+        DateTime decidedAtUtc)
     {
-        ValidateRequiredUserId(decidedByUserId, nameof(decidedByUserId));
-        TransitionTo(ClaimStatus.Accepted, allowedFrom: [ClaimStatus.UnderReview], decidedByUserId, decidedAtUtc);
+        EnsureAssignedDecider(adjusterUserId);
+        EnsureDecidableState();
+
+        if (settlementAmount <= 0)
+            throw new ArgumentException("Settlement amount must be greater than zero.", nameof(settlementAmount));
+
+        var settlementCap = PolicyLimitAtFiling - PolicyRetentionAtFiling;
+        if (settlementAmount > settlementCap)
+            throw new InvalidOperationException(
+                $"Settlement cannot exceed the policy limit net of retention ({FormatMoney(settlementCap)}).");
+
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("A decision reason is required.", nameof(reason));
+
+        SettlementAmount = settlementAmount;
+        PaidAmount = settlementAmount;
+        DecidedByUserId = adjusterUserId.Trim();
+        DecidedAtUtc = decidedAtUtc;
+        decisions.Add(ClaimDecision.Record(
+            this, ClaimDecisionOutcome.Accepted, settlementAmount, null, reason, notes, adjusterUserId, decidedAtUtc));
+        TransitionTo(ClaimStatus.Accepted, allowedFrom: [ClaimStatus.UnderReview], adjusterUserId, decidedAtUtc);
+
+        domainEvents.Add(new ClaimAcceptedDomainEvent(
+            Id, ClaimNumber, PolicyId, OwnerUserId, DecidedByUserId, settlementAmount, decidedAtUtc));
     }
 
-    /// <summary>UnderReview → Denied (an unfavorable decision — wired with guardrails in CM5).</summary>
-    public void Deny(string decidedByUserId, DateTime decidedAtUtc)
+    /// <summary>
+    /// UnderReview → Denied. Guardrails: only the assigned adjuster decides; the denial needs a
+    /// category and a narrative; an append-only decision audit row is written.
+    /// </summary>
+    public void Deny(
+        ClaimDenialReason denialReason,
+        string narrative,
+        string adjusterUserId,
+        DateTime decidedAtUtc)
     {
-        ValidateRequiredUserId(decidedByUserId, nameof(decidedByUserId));
-        TransitionTo(ClaimStatus.Denied, allowedFrom: [ClaimStatus.UnderReview], decidedByUserId, decidedAtUtc);
+        EnsureAssignedDecider(adjusterUserId);
+        EnsureDecidableState();
+
+        if (string.IsNullOrWhiteSpace(narrative))
+            throw new ArgumentException("A denial narrative is required.", nameof(narrative));
+
+        DenialReason = denialReason;
+        DenialNarrative = narrative.Trim();
+        DecidedByUserId = adjusterUserId.Trim();
+        DecidedAtUtc = decidedAtUtc;
+        decisions.Add(ClaimDecision.Record(
+            this, ClaimDecisionOutcome.Denied, null, denialReason, narrative, null, adjusterUserId, decidedAtUtc));
+        TransitionTo(ClaimStatus.Denied, allowedFrom: [ClaimStatus.UnderReview], adjusterUserId, decidedAtUtc);
+
+        domainEvents.Add(new ClaimDeniedDomainEvent(
+            Id, ClaimNumber, PolicyId, OwnerUserId, DecidedByUserId, denialReason, decidedAtUtc));
     }
 
-    /// <summary>Accepted/Denied → Closed (the file is finished).</summary>
-    public void Close(string closedByUserId, DateTime closedAtUtc)
+    /// <summary>Accepted/Denied → Closed (the file is finished; assigned adjuster only).</summary>
+    public void Close(string adjusterUserId, DateTime closedAtUtc)
     {
-        ValidateRequiredUserId(closedByUserId, nameof(closedByUserId));
-        TransitionTo(ClaimStatus.Closed, allowedFrom: [ClaimStatus.Accepted, ClaimStatus.Denied], closedByUserId, closedAtUtc);
+        EnsureAssignedDecider(adjusterUserId);
+
+        if (Status is not (ClaimStatus.Accepted or ClaimStatus.Denied))
+            throw new InvalidOperationException("Only decided claims can be closed.");
+
+        var outcomeAtClose = Status;
+        ClosedAtUtc = closedAtUtc;
+        decisions.Add(ClaimDecision.Record(
+            this,
+            ClaimDecisionOutcome.Closed,
+            null,
+            null,
+            $"Claim closed after {outcomeAtClose}.",
+            null,
+            adjusterUserId,
+            closedAtUtc));
+        TransitionTo(ClaimStatus.Closed, allowedFrom: [ClaimStatus.Accepted, ClaimStatus.Denied], adjusterUserId, closedAtUtc);
+
+        domainEvents.Add(new ClaimClosedDomainEvent(
+            Id, ClaimNumber, PolicyId, OwnerUserId, adjusterUserId.Trim(), outcomeAtClose, closedAtUtc));
     }
 
     public void ClearDomainEvents()
@@ -484,6 +571,21 @@ public sealed class Claim : IHasDomainEvents
     /// <summary>Timeline money is invariant-culture on purpose — the log must not vary by server locale.</summary>
     private static string FormatMoney(decimal amount)
         => amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>No decision without assignment: the acting adjuster must be the assigned one.</summary>
+    private void EnsureAssignedDecider(string adjusterUserId)
+    {
+        ValidateRequiredUserId(adjusterUserId, nameof(adjusterUserId));
+
+        if (AssignedAdjusterUserId is null || AssignedAdjusterUserId != adjusterUserId.Trim())
+            throw new InvalidOperationException("Only the assigned adjuster can decide this claim.");
+    }
+
+    private void EnsureDecidableState()
+    {
+        if (Status != ClaimStatus.UnderReview)
+            throw new InvalidOperationException("Only claims under review can be decided.");
+    }
 
     /// <summary>Adjusting actions are only valid while the claim has no final decision.</summary>
     private void EnsureOpenForAdjusting()
