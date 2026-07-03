@@ -2,32 +2,8 @@ namespace LIAnsureProtect.Domain.Quotes;
 
 public sealed class QuoteUnderwritingReview
 {
-    private QuoteUnderwritingReview(
-        Guid id,
-        Guid quoteId,
-        QuoteUnderwritingDecision decision,
-        string reviewedByUserId,
-        string reason,
-        string? notes,
-        decimal premiumBefore,
-        decimal premiumAfter,
-        decimal retentionBefore,
-        decimal retentionAfter,
-        DateTime createdAtUtc)
-    {
-        Id = id;
-        QuoteId = quoteId;
-        Decision = decision;
-        ReviewedByUserId = reviewedByUserId;
-        Reason = reason;
-        Notes = notes;
-        PremiumBefore = premiumBefore;
-        PremiumAfter = premiumAfter;
-        RetentionBefore = retentionBefore;
-        RetentionAfter = retentionAfter;
-        CreatedAtUtc = createdAtUtc;
-    }
-
+    // The only constructor: EF Core materializes through it, and the Record factory assigns
+    // state via the private property setters — no parameter-heavy constructor to maintain.
     private QuoteUnderwritingReview()
     {
         ReviewedByUserId = string.Empty;
@@ -77,17 +53,19 @@ public sealed class QuoteUnderwritingReview
         if (string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("Review reason is required.", nameof(reason));
 
-        return new QuoteUnderwritingReview(
-            Guid.NewGuid(),
-            quoteId,
-            decision,
-            reviewedByUserId,
-            reason.Trim(),
-            string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
-            premiumBefore,
-            premiumAfter,
-            retentionBefore,
-            retentionAfter,
-            createdAtUtc);
+        return new QuoteUnderwritingReview
+        {
+            Id = Guid.NewGuid(),
+            QuoteId = quoteId,
+            Decision = decision,
+            ReviewedByUserId = reviewedByUserId,
+            Reason = reason.Trim(),
+            Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
+            PremiumBefore = premiumBefore,
+            PremiumAfter = premiumAfter,
+            RetentionBefore = retentionBefore,
+            RetentionAfter = retentionAfter,
+            CreatedAtUtc = createdAtUtc
+        };
     }
 }

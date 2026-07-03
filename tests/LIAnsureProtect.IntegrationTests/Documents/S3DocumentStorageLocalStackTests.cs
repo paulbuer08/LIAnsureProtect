@@ -73,7 +73,7 @@ public sealed class S3DocumentStorageLocalStackTests
     }
 
     private static async Task EnsureBucketExistsAsync(
-        IAmazonS3 s3Client,
+        AmazonS3Client s3Client,
         string bucketName,
         CancellationToken cancellationToken)
     {

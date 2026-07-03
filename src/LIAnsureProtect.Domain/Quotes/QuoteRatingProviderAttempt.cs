@@ -2,46 +2,8 @@ namespace LIAnsureProtect.Domain.Quotes;
 
 public sealed class QuoteRatingProviderAttempt
 {
-    private QuoteRatingProviderAttempt(
-        Guid id,
-        Guid quoteId,
-        string providerName,
-        RatingProviderAttemptStatus status,
-        RatingProviderMarketDisposition marketDisposition,
-        string? providerReference,
-        string? providerQuoteNumber,
-        decimal? indicatedPremium,
-        decimal? indicatedLimit,
-        decimal? indicatedRetention,
-        int? httpStatusCode,
-        RatingProviderFailureCategory failureCategory,
-        string? failureReason,
-        int attemptCount,
-        long durationMs,
-        string requestPayloadHash,
-        DateTime createdAtUtc,
-        DateTime completedAtUtc)
-    {
-        Id = id;
-        QuoteId = quoteId;
-        ProviderName = providerName;
-        Status = status;
-        MarketDisposition = marketDisposition;
-        ProviderReference = providerReference;
-        ProviderQuoteNumber = providerQuoteNumber;
-        IndicatedPremium = indicatedPremium;
-        IndicatedLimit = indicatedLimit;
-        IndicatedRetention = indicatedRetention;
-        HttpStatusCode = httpStatusCode;
-        FailureCategory = failureCategory;
-        FailureReason = failureReason;
-        AttemptCount = attemptCount;
-        DurationMs = durationMs;
-        RequestPayloadHash = requestPayloadHash;
-        CreatedAtUtc = createdAtUtc;
-        CompletedAtUtc = completedAtUtc;
-    }
-
+    // The only constructor: EF Core materializes through it, and the Record factory assigns
+    // state via the private property setters — no parameter-heavy constructor to maintain.
     private QuoteRatingProviderAttempt()
     {
         ProviderName = string.Empty;
@@ -120,25 +82,27 @@ public sealed class QuoteRatingProviderAttempt
         if (string.IsNullOrWhiteSpace(requestPayloadHash))
             throw new ArgumentException("Request payload hash is required.", nameof(requestPayloadHash));
 
-        return new QuoteRatingProviderAttempt(
-            Guid.NewGuid(),
-            quoteId,
-            providerName.Trim(),
-            status,
-            marketDisposition,
-            Normalize(providerReference),
-            Normalize(providerQuoteNumber),
-            indicatedPremium,
-            indicatedLimit,
-            indicatedRetention,
-            httpStatusCode,
-            failureCategory,
-            Normalize(failureReason),
-            attemptCount,
-            Convert.ToInt64(duration.TotalMilliseconds),
-            requestPayloadHash.Trim(),
-            createdAtUtc,
-            completedAtUtc);
+        return new QuoteRatingProviderAttempt
+        {
+            Id = Guid.NewGuid(),
+            QuoteId = quoteId,
+            ProviderName = providerName.Trim(),
+            Status = status,
+            MarketDisposition = marketDisposition,
+            ProviderReference = Normalize(providerReference),
+            ProviderQuoteNumber = Normalize(providerQuoteNumber),
+            IndicatedPremium = indicatedPremium,
+            IndicatedLimit = indicatedLimit,
+            IndicatedRetention = indicatedRetention,
+            HttpStatusCode = httpStatusCode,
+            FailureCategory = failureCategory,
+            FailureReason = Normalize(failureReason),
+            AttemptCount = attemptCount,
+            DurationMs = Convert.ToInt64(duration.TotalMilliseconds),
+            RequestPayloadHash = requestPayloadHash.Trim(),
+            CreatedAtUtc = createdAtUtc,
+            CompletedAtUtc = completedAtUtc
+        };
     }
 
     private static string? Normalize(string? value)

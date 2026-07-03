@@ -7,30 +7,8 @@ namespace LIAnsureProtect.Modules.Notifications.Domain;
 /// </summary>
 public sealed class NotificationInboxEntry
 {
-    private NotificationInboxEntry(
-        Guid id,
-        string recipientUserId,
-        string audience,
-        string type,
-        string subjectReferenceType,
-        string subjectReferenceId,
-        string attributesJson,
-        Guid sourceOutboxMessageId,
-        DateTime occurredAtUtc,
-        DateTime createdAtUtc)
-    {
-        Id = id;
-        RecipientUserId = recipientUserId;
-        Audience = audience;
-        Type = type;
-        SubjectReferenceType = subjectReferenceType;
-        SubjectReferenceId = subjectReferenceId;
-        AttributesJson = attributesJson;
-        SourceOutboxMessageId = sourceOutboxMessageId;
-        OccurredAtUtc = occurredAtUtc;
-        CreatedAtUtc = createdAtUtc;
-    }
-
+    // The only constructor: EF Core materializes through it, and the Create factory assigns
+    // state via the private property setters — no parameter-heavy constructor to maintain.
     private NotificationInboxEntry()
     {
         RecipientUserId = string.Empty;
@@ -84,16 +62,18 @@ public sealed class NotificationInboxEntry
         DateTime occurredAtUtc,
         DateTime createdAtUtc)
     {
-        return new NotificationInboxEntry(
-            Guid.NewGuid(),
-            recipientUserId,
-            audience,
-            type,
-            subjectReferenceType,
-            subjectReferenceId,
-            attributesJson,
-            sourceOutboxMessageId,
-            occurredAtUtc,
-            createdAtUtc);
+        return new NotificationInboxEntry
+        {
+            Id = Guid.NewGuid(),
+            RecipientUserId = recipientUserId,
+            Audience = audience,
+            Type = type,
+            SubjectReferenceType = subjectReferenceType,
+            SubjectReferenceId = subjectReferenceId,
+            AttributesJson = attributesJson,
+            SourceOutboxMessageId = sourceOutboxMessageId,
+            OccurredAtUtc = occurredAtUtc,
+            CreatedAtUtc = createdAtUtc
+        };
     }
 }

@@ -6,52 +6,8 @@ namespace LIAnsureProtect.Modules.Underwriting.Domain;
 /// </summary>
 public sealed class AiUnderwritingReview
 {
-    private AiUnderwritingReview(
-        Guid id,
-        Guid quoteId,
-        string requestedByUserId,
-        string providerName,
-        AiUnderwritingReviewStatus status,
-        string promptVersion,
-        string outputSchemaVersion,
-        string inputSnapshotHash,
-        string? executiveSummary,
-        string positiveRiskSignals,
-        string negativeRiskSignals,
-        string controlGaps,
-        string suggestedUnderwritingQuestions,
-        string suggestedSubjectivityCandidates,
-        string citations,
-        string limitations,
-        string? advisoryDisclaimer,
-        string? failureReason,
-        AiUnderwritingReviewFeedback feedback,
-        DateTime createdAtUtc,
-        DateTime completedAtUtc)
-    {
-        Id = id;
-        QuoteId = quoteId;
-        RequestedByUserId = requestedByUserId;
-        ProviderName = providerName;
-        Status = status;
-        PromptVersion = promptVersion;
-        OutputSchemaVersion = outputSchemaVersion;
-        InputSnapshotHash = inputSnapshotHash;
-        ExecutiveSummary = executiveSummary;
-        PositiveRiskSignals = positiveRiskSignals;
-        NegativeRiskSignals = negativeRiskSignals;
-        ControlGaps = controlGaps;
-        SuggestedUnderwritingQuestions = suggestedUnderwritingQuestions;
-        SuggestedSubjectivityCandidates = suggestedSubjectivityCandidates;
-        Citations = citations;
-        Limitations = limitations;
-        AdvisoryDisclaimer = advisoryDisclaimer;
-        FailureReason = failureReason;
-        Feedback = feedback;
-        CreatedAtUtc = createdAtUtc;
-        CompletedAtUtc = completedAtUtc;
-    }
-
+    // The only constructor: EF Core materializes through it, and the static factories assign
+    // state via the private property setters — no 20+ parameter constructor to maintain.
     private AiUnderwritingReview()
     {
         RequestedByUserId = string.Empty;
@@ -137,28 +93,30 @@ public sealed class AiUnderwritingReview
         if (string.IsNullOrWhiteSpace(advisoryDisclaimer))
             throw new ArgumentException("Advisory disclaimer is required.", nameof(advisoryDisclaimer));
 
-        return new AiUnderwritingReview(
-            Guid.NewGuid(),
-            quoteId,
-            requestedByUserId.Trim(),
-            providerName.Trim(),
-            AiUnderwritingReviewStatus.Succeeded,
-            promptVersion.Trim(),
-            outputSchemaVersion.Trim(),
-            inputSnapshotHash.Trim(),
-            executiveSummary.Trim(),
-            positiveRiskSignals,
-            negativeRiskSignals,
-            controlGaps,
-            suggestedUnderwritingQuestions,
-            suggestedSubjectivityCandidates,
-            citations,
-            limitations,
-            advisoryDisclaimer.Trim(),
-            failureReason: null,
-            AiUnderwritingReviewFeedback.Unrated,
-            createdAtUtc,
-            completedAtUtc);
+        return new AiUnderwritingReview
+        {
+            Id = Guid.NewGuid(),
+            QuoteId = quoteId,
+            RequestedByUserId = requestedByUserId.Trim(),
+            ProviderName = providerName.Trim(),
+            Status = AiUnderwritingReviewStatus.Succeeded,
+            PromptVersion = promptVersion.Trim(),
+            OutputSchemaVersion = outputSchemaVersion.Trim(),
+            InputSnapshotHash = inputSnapshotHash.Trim(),
+            ExecutiveSummary = executiveSummary.Trim(),
+            PositiveRiskSignals = positiveRiskSignals,
+            NegativeRiskSignals = negativeRiskSignals,
+            ControlGaps = controlGaps,
+            SuggestedUnderwritingQuestions = suggestedUnderwritingQuestions,
+            SuggestedSubjectivityCandidates = suggestedSubjectivityCandidates,
+            Citations = citations,
+            Limitations = limitations,
+            AdvisoryDisclaimer = advisoryDisclaimer.Trim(),
+            FailureReason = null,
+            Feedback = AiUnderwritingReviewFeedback.Unrated,
+            CreatedAtUtc = createdAtUtc,
+            CompletedAtUtc = completedAtUtc
+        };
     }
 
     public static AiUnderwritingReview Failed(
@@ -177,28 +135,23 @@ public sealed class AiUnderwritingReview
         if (string.IsNullOrWhiteSpace(failureReason))
             throw new ArgumentException("Failure reason is required.", nameof(failureReason));
 
-        return new AiUnderwritingReview(
-            Guid.NewGuid(),
-            quoteId,
-            requestedByUserId.Trim(),
-            providerName.Trim(),
-            AiUnderwritingReviewStatus.Failed,
-            promptVersion.Trim(),
-            outputSchemaVersion.Trim(),
-            inputSnapshotHash.Trim(),
-            executiveSummary: null,
-            "[]",
-            "[]",
-            "[]",
-            "[]",
-            "[]",
-            "[]",
-            "[]",
-            advisoryDisclaimer: null,
-            failureReason.Trim(),
-            AiUnderwritingReviewFeedback.Unrated,
-            createdAtUtc,
-            completedAtUtc);
+        return new AiUnderwritingReview
+        {
+            Id = Guid.NewGuid(),
+            QuoteId = quoteId,
+            RequestedByUserId = requestedByUserId.Trim(),
+            ProviderName = providerName.Trim(),
+            Status = AiUnderwritingReviewStatus.Failed,
+            PromptVersion = promptVersion.Trim(),
+            OutputSchemaVersion = outputSchemaVersion.Trim(),
+            InputSnapshotHash = inputSnapshotHash.Trim(),
+            ExecutiveSummary = null,
+            AdvisoryDisclaimer = null,
+            FailureReason = failureReason.Trim(),
+            Feedback = AiUnderwritingReviewFeedback.Unrated,
+            CreatedAtUtc = createdAtUtc,
+            CompletedAtUtc = completedAtUtc
+        };
     }
 
     private static void ValidateSharedInputs(

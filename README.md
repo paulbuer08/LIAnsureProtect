@@ -132,6 +132,8 @@ Run the combined local CI path, including backend setup/tests/smoke checks and f
 ## Documentation
 
 - [**The Encyclopedia** — the living project book](docs/encyclopedia/README.md): technologies, architecture, design patterns, and every workflow explained in simple English with diagrams that mirror the code. Updated in every milestone PR.
+- [**Running The App** — the complete, current run guide](docs/guides/running-the-app.md) (living doc: prerequisites, Auth0 one-time setup, everyday three-terminal run, opt-in LocalStack/Redis)
+- [**Manual UI Testing Guide** — walk the app as every role](docs/guides/manual-testing-guide.md) (living doc: generic test personas, end-to-end scenarios, authorization boundary checks)
 - [Project Status](docs/project-status.md)
 - [Architecture Overview](docs/architecture/overview.md)
 - [Cyber Specialty Insurance Overview](docs/business/cyber-specialty-insurance-overview.md)

@@ -140,7 +140,7 @@ builder.Services.AddRateLimiter(rateLimiterOptions =>
     rateLimiterOptions.OnRejected = async (context, cancellationToken) =>
     {
         var limits = context.HttpContext.RequestServices.GetRequiredService<IOptions<RateLimitingOptions>>().Value;
-        context.HttpContext.Response.Headers.RetryAfter = limits.WindowSeconds.ToString();
+        context.HttpContext.Response.Headers.RetryAfter = limits.WindowSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
         await context.HttpContext.Response.WriteAsJsonAsync(new ProblemDetails
         {
             Status = StatusCodes.Status429TooManyRequests,
@@ -162,10 +162,7 @@ builder.Services
     .AddCheck<DbContextHealthCheck<UnderwritingDbContext>>("underwriting-db", tags: ["ready", "database"]);
 
 var app = builder.Build();
-if (app.Logger.IsEnabled(LogLevel.Information))
-{
-    app.Logger.LogInformation("Starting {Application} in {Environment} mode.", applicationName, app.Environment.EnvironmentName);
-}
+LIAnsureProtect.Api.ApiStartupLog.Starting(app.Logger, applicationName, app.Environment.EnvironmentName);
 
 
 // --------------------------------------------------------------------------------

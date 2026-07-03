@@ -100,7 +100,7 @@ public sealed class SnsNotificationPublisherLocalStackTests
     }
 
     private static async Task<string> GetQueueArnAsync(
-        IAmazonSQS sqsClient,
+        AmazonSQSClient sqsClient,
         string queueUrl,
         CancellationToken cancellationToken)
     {
@@ -112,7 +112,7 @@ public sealed class SnsNotificationPublisherLocalStackTests
     }
 
     private static async Task<Message?> ReceiveOneAsync(
-        IAmazonSQS sqsClient,
+        AmazonSQSClient sqsClient,
         string queueUrl,
         CancellationToken cancellationToken)
     {

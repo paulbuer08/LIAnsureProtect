@@ -25,9 +25,7 @@ public sealed class Worker(
 
                 if (processedCount > 0)
                 {
-                    logger.LogInformation(
-                        "Processed {ProcessedOutboxMessageCount} outbox message(s).",
-                        processedCount);
+                    WorkerLog.ProcessedOutboxMessages(logger, processedCount);
                 }
 
                 var nowUtc = DateTime.UtcNow;
@@ -40,9 +38,7 @@ public sealed class Worker(
 
                     if (deletedCount > 0)
                     {
-                        logger.LogInformation(
-                            "Deleted {DeletedIdempotencyRecordCount} expired completed idempotency record(s).",
-                            deletedCount);
+                        WorkerLog.DeletedIdempotencyRecords(logger, deletedCount);
                     }
 
                     nextIdempotencyCleanupAtUtc = nowUtc.Add(IdempotencyCleanupInterval);
@@ -52,9 +48,7 @@ public sealed class Worker(
             {
                 // A transient failure (database restart, network blip) must not stop the host:
                 // log it and try again on the next poll. Shutdown cancellation still propagates.
-                logger.LogError(
-                    exception,
-                    "Outbox worker poll iteration failed. Retrying on the next poll.");
+                WorkerLog.PollIterationFailed(logger, exception);
             }
 
             await Task.Delay(PollInterval, stoppingToken);

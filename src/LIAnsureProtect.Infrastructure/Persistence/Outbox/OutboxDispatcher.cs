@@ -40,10 +40,7 @@ public sealed class OutboxDispatcher(
             return 0;
         }
 
-        logger.LogInformation(
-            "Dispatching {PendingMessageCount} outbox messages from {SourceCount} sources.",
-            pendingMessages.Count,
-            sourceList.Count);
+        OutboxDispatcherLog.DispatchingBatch(logger, pendingMessages.Count, sourceList.Count);
 
         var orderedMessages = pendingMessages
             .OrderBy(item => item.Message.CreatedAtUtc)
@@ -78,11 +75,7 @@ public sealed class OutboxDispatcher(
                     // this message (so retry metadata persists) and let the other messages run.
                     result = OutboxMessageConsumerResult.TransientFailure(
                         $"{consumer.GetType().Name} threw {exception.GetType().Name}: {exception.Message}");
-                    logger.LogError(
-                        exception,
-                        "Outbox message consumer {OutboxConsumer} threw while processing {OutboxMessageType}.",
-                        consumer.GetType().Name,
-                        message.Type);
+                    OutboxDispatcherLog.ConsumerThrew(logger, exception, consumer.GetType().Name, message.Type);
                 }
 
                 if (result.Status == OutboxMessageConsumerStatus.NotHandled)
@@ -104,11 +97,7 @@ public sealed class OutboxDispatcher(
                     result.FailureReason ?? "Outbox message consumer failed.",
                     exhausted ? null : nowUtc.Add(RetryDelay),
                     exhausted);
-                logger.LogWarning(
-                    "Outbox message {OutboxMessageType} from {OutboxSource} failed during dispatch. Exhausted: {Exhausted}.",
-                    message.Type,
-                    source.GetType().Name,
-                    exhausted);
+                OutboxDispatcherLog.MessageFailed(logger, message.Type, source.GetType().Name, exhausted);
                 messageActivity?.SetTag("outbox.dispatch_failed", true);
                 failedCount++;
                 failed = true;
@@ -137,18 +126,15 @@ public sealed class OutboxDispatcher(
             {
                 // Losing one source's marks is safe (consumers are idempotent, so re-delivery
                 // repeats no side effects) - but the other sources' marks must still be saved.
-                logger.LogError(
-                    exception,
-                    "Failed to save outbox dispatch state for {OutboxSource}. Its messages will be re-delivered.",
-                    source.GetType().Name);
+                OutboxDispatcherLog.SaveFailed(logger, exception, source.GetType().Name);
             }
         }
 
         batchActivity?.SetTag("outbox.processed_message_count", processedCount);
         batchActivity?.SetTag("outbox.failed_message_count", failedCount);
         RecordBatchMetrics(pendingMessages.Count, processedCount, failedCount, stopwatch.Elapsed);
-        logger.LogInformation(
-            "Completed outbox dispatch batch. Pending: {PendingMessageCount}. Processed: {ProcessedMessageCount}. Failed: {FailedMessageCount}. DurationMs: {DurationMs}.",
+        OutboxDispatcherLog.BatchCompleted(
+            logger,
             pendingMessages.Count,
             processedCount,
             failedCount,

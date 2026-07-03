@@ -2,36 +2,8 @@ namespace LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
 
 public sealed class QuoteEvidenceRequestReview
 {
-    private QuoteEvidenceRequestReview(
-        Guid id,
-        Guid evidenceRequestId,
-        Guid quoteId,
-        Guid submissionId,
-        string ownerUserId,
-        EvidenceRequestCategory category,
-        EvidenceReviewDecisionStatus decision,
-        string reason,
-        string? remediationGuidance,
-        string reviewedByUserId,
-        DateTime reviewedAtUtc,
-        int documentCount,
-        int cleanDocumentCount)
-    {
-        Id = id;
-        EvidenceRequestId = evidenceRequestId;
-        QuoteId = quoteId;
-        SubmissionId = submissionId;
-        OwnerUserId = ownerUserId;
-        Category = category;
-        Decision = decision;
-        Reason = reason;
-        RemediationGuidance = remediationGuidance;
-        ReviewedByUserId = reviewedByUserId;
-        ReviewedAtUtc = reviewedAtUtc;
-        DocumentCount = documentCount;
-        CleanDocumentCount = cleanDocumentCount;
-    }
-
+    // The only constructor: EF Core materializes through it, and the Record factory assigns
+    // state via the private property setters — no parameter-heavy constructor to maintain.
     private QuoteEvidenceRequestReview()
     {
         OwnerUserId = string.Empty;
@@ -92,19 +64,21 @@ public sealed class QuoteEvidenceRequestReview
         if (cleanDocumentCount < 0 || cleanDocumentCount > documentCount)
             throw new ArgumentException("Clean document count must be between zero and the total document count.", nameof(cleanDocumentCount));
 
-        return new QuoteEvidenceRequestReview(
-            Guid.NewGuid(),
-            evidenceRequest.Id,
-            evidenceRequest.QuoteId,
-            evidenceRequest.SubmissionId,
-            evidenceRequest.OwnerUserId,
-            evidenceRequest.Category,
-            decision,
-            reason.Trim(),
-            string.IsNullOrWhiteSpace(remediationGuidance) ? null : remediationGuidance.Trim(),
-            reviewedByUserId.Trim(),
-            reviewedAtUtc,
-            documentCount,
-            cleanDocumentCount);
+        return new QuoteEvidenceRequestReview
+        {
+            Id = Guid.NewGuid(),
+            EvidenceRequestId = evidenceRequest.Id,
+            QuoteId = evidenceRequest.QuoteId,
+            SubmissionId = evidenceRequest.SubmissionId,
+            OwnerUserId = evidenceRequest.OwnerUserId,
+            Category = evidenceRequest.Category,
+            Decision = decision,
+            Reason = reason.Trim(),
+            RemediationGuidance = string.IsNullOrWhiteSpace(remediationGuidance) ? null : remediationGuidance.Trim(),
+            ReviewedByUserId = reviewedByUserId.Trim(),
+            ReviewedAtUtc = reviewedAtUtc,
+            DocumentCount = documentCount,
+            CleanDocumentCount = cleanDocumentCount
+        };
     }
 }

@@ -90,7 +90,7 @@ public sealed class EfTeamNotificationRepository(NotificationsDbContext dbContex
         return true;
     }
 
-    private static IReadOnlyDictionary<string, string> DeserializeAttributes(string attributesJson)
+    private static Dictionary<string, string> DeserializeAttributes(string attributesJson)
     {
         if (string.IsNullOrWhiteSpace(attributesJson))
             return new Dictionary<string, string>();

@@ -120,7 +120,7 @@ public sealed class UploadReplacementEvidenceDocumentsCommandHandler(
         CancellationToken cancellationToken)
     {
         if (request.Documents.Count == 0)
-            throw new ArgumentException("Replacement evidence uploads must include at least one file.", nameof(request.Documents));
+            throw new ArgumentException("Replacement evidence uploads must include at least one file.", nameof(request));
 
         EvidenceDocumentUploadWorkflow.ValidateDocumentUploads(request.Documents);
 
@@ -268,7 +268,7 @@ public sealed class RecordQuoteEvidenceReviewDecisionCommandHandler(
         else
         {
             if (!Enum.TryParse<EvidenceReviewDecisionStatus>(request.Decision, ignoreCase: false, out var parsedDecision))
-                throw new ArgumentException("Evidence review decision is not supported.", nameof(request.Decision));
+                throw new ArgumentException("Evidence review decision is not supported.", nameof(request));
 
             evidenceRequest.RecordReviewDecision(
                 parsedDecision,
@@ -364,28 +364,12 @@ internal sealed record EvidenceDocumentRequestFacts(
 
 internal static class EvidenceDocumentUploadWorkflow
 {
-    private const int MaximumDocumentCount = 5;
-    private const long MaximumDocumentSizeBytes = 10 * 1024 * 1024;
-    private const long MaximumTotalDocumentSizeBytes = 50 * 1024 * 1024;
-
-    private static readonly IReadOnlyDictionary<string, string> AllowedExtensionsByContentType =
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["application/pdf"] = ".pdf",
-            ["image/png"] = ".png",
-            ["image/jpeg"] = ".jpg",
-            ["text/plain"] = ".txt",
-            ["text/csv"] = ".csv",
-            ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"] = ".docx",
-            ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"] = ".xlsx"
-        };
-
     public static void ValidateDocumentUploads(IReadOnlyCollection<EvidenceDocumentUpload> documents)
     {
-        if (documents.Count > MaximumDocumentCount)
+        if (documents.Count > EvidenceDocumentUploadRules.MaximumDocumentCount)
             throw new ArgumentException("Evidence responses can include up to 5 files.", nameof(documents));
 
-        if (documents.Sum(document => document.SizeBytes) > MaximumTotalDocumentSizeBytes)
+        if (documents.Sum(document => document.SizeBytes) > EvidenceDocumentUploadRules.MaximumTotalDocumentSizeBytes)
             throw new ArgumentException("Evidence response documents cannot exceed 50 MB in total.", nameof(documents));
 
         foreach (var document in documents)
@@ -393,14 +377,14 @@ internal static class EvidenceDocumentUploadWorkflow
             if (document.SizeBytes <= 0)
                 throw new ArgumentException("Evidence documents cannot be empty.", nameof(documents));
 
-            if (document.SizeBytes > MaximumDocumentSizeBytes)
+            if (document.SizeBytes > EvidenceDocumentUploadRules.MaximumDocumentSizeBytes)
                 throw new ArgumentException("Each evidence document must be 10 MB or smaller.", nameof(documents));
 
             var fileName = Path.GetFileName(document.OriginalFileName);
             if (string.IsNullOrWhiteSpace(fileName) || fileName != document.OriginalFileName)
                 throw new ArgumentException("Evidence document file names must not contain path information.", nameof(documents));
 
-            if (!AllowedExtensionsByContentType.TryGetValue(document.ContentType, out var expectedExtension))
+            if (!EvidenceDocumentUploadRules.AllowedExtensionsByContentType.TryGetValue(document.ContentType, out var expectedExtension))
                 throw new ArgumentException("Evidence document content type is not supported.", nameof(documents));
 
             var extension = Path.GetExtension(fileName);

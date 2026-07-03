@@ -1,4 +1,3 @@
-using LIAnsureProtect.Application.Common.Caching;
 using LIAnsureProtect.Platform.Abstractions.Caching;
 using MediatR;
 
