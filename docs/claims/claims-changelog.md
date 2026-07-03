@@ -4,6 +4,21 @@
 > Same spirit as the root `CHANGELOG.md`, which this branch deliberately does not touch; CM8's
 > final-merge checklist folds these entries into the living docs when the branch merges to main.
 
+## Claims Milestone 6 - Notifications
+
+- Added seven claim notification mappers (filed / assigned / information-requested /
+  information-response / accepted / denied / closed) into the M40 registry — zero dispatcher
+  changes; info requests are remediation-style (`actionRequired=true`); accept carries the
+  settlement amount (invariant-culture).
+- Added the **`claims-operations` team audience**: filings and claimant responses land in a
+  shared team inbox with per-user read receipts (M34 machinery unchanged);
+  `NotificationTeamAudiences` is now role-additive (ClaimsAdjuster → claims-operations,
+  Admin → all three); `Notifications.Read` admits ClaimsAdjuster.
+- Legacy Infrastructure gained the named transitional seam reference to `Modules.Claims.Domain`
+  (mirror of the M37 Underwriting seam).
+- Tests: 13 new (7 mapper, 5 audience-matrix, 1 projector). No migration needed.
+- Docs: `docs/claims/cm6-notifications-{design,learnings}.md`.
+
 ## Claims Milestone 5 - Decision And Settlement
 
 - Added the verdict endpoints: accept (settlement + reason + notes, **Idempotency-Key**),

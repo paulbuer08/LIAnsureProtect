@@ -8,29 +8,40 @@ namespace LIAnsureProtect.Modules.Notifications.Application;
 public static class NotificationTeamAudiences
 {
     private const string Underwriter = "Underwriter";
+    private const string ClaimsAdjuster = "ClaimsAdjuster";
     private const string Admin = "Admin";
 
-    private static readonly string[] InternalOpsAudiences =
-    [
-        NotificationAudiences.UnderwritingOperations,
-        NotificationAudiences.BindingOperations
-    ];
-
     /// <summary>
-    /// Internal ops staff (Underwriter, Admin) see the underwriting- and binding-operations team
-    /// inboxes. Everyone else sees no team audiences.
+    /// Role-additive: Underwriters see the underwriting- and binding-operations inboxes,
+    /// ClaimsAdjusters see the claims-operations inbox, Admin (superuser by design) sees all
+    /// three, and everyone else sees no team audiences. Combined roles union their audiences.
     /// </summary>
     public static IReadOnlyCollection<string> ForRoles(IEnumerable<string> roles)
     {
+        var audiences = new List<string>(3);
+
         foreach (var role in roles)
         {
             if (string.Equals(role, Underwriter, StringComparison.Ordinal)
                 || string.Equals(role, Admin, StringComparison.Ordinal))
             {
-                return InternalOpsAudiences;
+                AddOnce(audiences, NotificationAudiences.UnderwritingOperations);
+                AddOnce(audiences, NotificationAudiences.BindingOperations);
+            }
+
+            if (string.Equals(role, ClaimsAdjuster, StringComparison.Ordinal)
+                || string.Equals(role, Admin, StringComparison.Ordinal))
+            {
+                AddOnce(audiences, NotificationAudiences.ClaimsOperations);
             }
         }
 
-        return [];
+        return audiences;
+    }
+
+    private static void AddOnce(List<string> audiences, string audience)
+    {
+        if (!audiences.Contains(audience))
+            audiences.Add(audience);
     }
 }
