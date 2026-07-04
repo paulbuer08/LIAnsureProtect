@@ -19,10 +19,17 @@
 | CM4 — Reserves & financials | ✅ merged |
 | CM5 — Decision & settlement | ✅ merged |
 | CM6 — Notifications | ✅ merged |
-| CM7 — Frontend claims slice | ⬜ next |
-| CM8 — Branch consolidation prep | ⬜ |
+| CM7 — Frontend claims slice | ✅ merged |
+| CM8 — Branch consolidation prep | ⬜ next |
 
-## Current state (after CM6)
+## Current state (after CM7)
+
+- Frontend: `features/claims` slice — claimant wizard/list/detail + adjuster workbench at
+  `/claims/adjudication`; `RequireRole` guards; dashboard cards; policy-options endpoint.
+- The Claims context is now feature-complete end-to-end (API + events + inboxes + UI); CM8
+  prepares the final merge back to main.
+
+## State after CM6
 
 - Notifications: all lifecycle events mapped to personal + team inboxes; new
   `claims-operations` team audience (ClaimsAdjuster/Admin); remediation-style info-request

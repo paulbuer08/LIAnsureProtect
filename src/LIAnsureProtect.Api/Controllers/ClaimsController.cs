@@ -9,6 +9,7 @@ using LIAnsureProtect.Modules.Claims.Application.Commands.RespondToClaimInformat
 using LIAnsureProtect.Modules.Claims.Application.Commands.ManageClaimFinancials;
 using LIAnsureProtect.Modules.Claims.Application.Documents;
 using LIAnsureProtect.Modules.Claims.Application.Queries.GetMyClaimDetail;
+using LIAnsureProtect.Modules.Claims.Application.Queries.ListMyClaimablePolicies;
 using LIAnsureProtect.Modules.Claims.Application.Queries.ListMyClaims;
 using LIAnsureProtect.Modules.Claims.Domain;
 using LIAnsureProtect.Platform.Abstractions.Security;
@@ -107,6 +108,19 @@ public sealed class ClaimsController(
     public async Task<ActionResult<ListMyClaimsResult>> List(CancellationToken cancellationToken)
     {
         var result = await sender.Send(new ListMyClaimsQuery(), cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpGet("policy-options")]
+    [Authorize(Policy = ApplicationPolicies.FileClaim)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ListMyClaimablePoliciesResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ListMyClaimablePoliciesResult>> PolicyOptions(
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new ListMyClaimablePoliciesQuery(), cancellationToken);
 
         return Ok(result);
     }
