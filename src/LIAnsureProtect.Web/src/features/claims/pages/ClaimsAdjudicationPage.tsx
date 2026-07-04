@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router";
 
-import { getAdjudicationClaimDocumentDownloadUrl } from "../api/claimsApi";
+import { downloadAdjudicationClaimDocument } from "../api/claimsApi";
 import {
   useAdjudicationActions,
   useAdjudicationDetail,
@@ -19,7 +20,28 @@ function formatMoney(amount: number) {
 
 export function ClaimsAdjudicationPage() {
   const queueQuery = useAdjudicationQueue();
+  const { getAccessTokenSilently } = useAuth0();
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string>();
+
+  async function handleDownloadDocument(
+    documentClaimId: string,
+    documentId: string,
+    fileName: string,
+  ) {
+    try {
+      setDownloadError(undefined);
+      const accessToken = await getAccessTokenSilently();
+      await downloadAdjudicationClaimDocument(
+        accessToken,
+        documentClaimId,
+        documentId,
+        fileName,
+      );
+    } catch (error) {
+      setDownloadError(getErrorMessage(error));
+    }
+  }
   const detailQuery = useAdjudicationDetail(selectedClaimId);
   const actions = useAdjudicationActions(selectedClaimId);
 
@@ -580,6 +602,11 @@ export function ClaimsAdjudicationPage() {
             {claim.documents.length > 0 && (
               <div className="mt-6">
                 <h3 className="font-semibold text-white">Documents</h3>
+                {downloadError && (
+                  <p className="mt-2 rounded-lg border border-red-900 bg-red-950 p-3 text-red-200">
+                    {downloadError}
+                  </p>
+                )}
                 <ul className="mt-3 space-y-2">
                   {claim.documents.map((document) => (
                     <li
@@ -595,15 +622,19 @@ export function ClaimsAdjudicationPage() {
                         </p>
                       </div>
                       {document.isDownloadAvailable ? (
-                        <a
-                          href={getAdjudicationClaimDocumentDownloadUrl(
-                            claim.claimId,
-                            document.documentId,
-                          )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleDownloadDocument(
+                              claim.claimId,
+                              document.documentId,
+                              document.originalFileName,
+                            )
+                          }
                           className="font-semibold text-emerald-300 hover:text-emerald-200"
                         >
                           Download {document.originalFileName}
-                        </a>
+                        </button>
                       ) : (
                         <span className="text-slate-400">
                           Not downloadable ({document.scanStatus})

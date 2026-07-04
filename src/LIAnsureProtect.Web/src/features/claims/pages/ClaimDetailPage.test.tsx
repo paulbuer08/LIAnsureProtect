@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  downloadOwnerClaimDocument,
   getClaimDetail,
   respondToInformationRequest,
   setClaimedAmount,
@@ -23,8 +24,7 @@ vi.mock("@auth0/auth0-react", () => ({
 
 vi.mock("../api/claimsApi", () => ({
   getClaimDetail: vi.fn(),
-  getOwnerClaimDocumentDownloadUrl: (claimId: string, documentId: string) =>
-    `http://localhost:5223/api/v1/claims/${claimId}/documents/${documentId}/download`,
+  downloadOwnerClaimDocument: vi.fn(),
   respondToInformationRequest: vi.fn(),
   setClaimedAmount: vi.fn(),
   uploadClaimDocuments: vi.fn(),
@@ -127,12 +127,19 @@ describe("ClaimDetailPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Proof of loss")).toBeInTheDocument();
     expect(screen.getByText("forensic-report.pdf")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /download forensic-report.pdf/i }),
-    ).toHaveAttribute(
-      "href",
-      "http://localhost:5223/api/v1/claims/claim-1/documents/document-1/download",
+    // Downloads are authenticated fetches (no bare links): clicking calls the API with the token.
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: /download forensic-report.pdf/i }),
     );
+    await waitFor(() => {
+      expect(downloadOwnerClaimDocument).toHaveBeenCalledWith(
+        "token-1",
+        "claim-1",
+        "document-1",
+        "forensic-report.pdf",
+      );
+    });
   });
 
   it("answers an open information request", async () => {

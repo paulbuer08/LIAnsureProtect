@@ -30,16 +30,16 @@
       (`scripts/update-database.ps1`) and smoke the app end-to-end once
       (file → assign → info round trip → documents → reserve → accept → close) using the
       manual-testing personas.
-- [ ] **Document downloads (audit finding, shared with evidence):** the download anchors send no
-      bearer token, so real clicks 401 against the `[Authorize]` endpoints. Decide the shared
-      fix (fetch-with-token → blob URL now, or wait for M47 presigned Valet-Key URLs) and apply
-      to both the claims and evidence pages together.
+- [x] **Document downloads (audit finding, shared with evidence): DONE 2026-07-04.**
+      Authenticated fetch → blob via the shared `lib/documentDownload.ts` helper; evidence +
+      underwriting pages fixed on main (PR #52), claims pages on this branch. M47 presigned
+      URLs remain the long-term replacement.
 - [ ] **Auth0 tenant (audit finding):** verify the Action adds the namespaced roles claim
       (`https://liansureprotect.local/roles`) to **ID tokens** — `RequireRole` reads it in the
       SPA; without it, signed-in users are blocked from the claims pages.
-- [ ] **Body-size limits (audit finding, shared with evidence):** Kestrel's default ~30 MB
-      request cap undercuts the 50 MB upload governance; set `MaxRequestBodySize` (or lower the
-      governance) once, for both features.
+- [x] **Body-size limits (audit finding, shared with evidence): DONE 2026-07-04 (PR #52).**
+      Kestrel `MaxRequestBodySize` raised to 60 MB in the API host, commented against the 50 MB
+      governance rule.
 
 ## 1. Open the consolidation PR (base `main`, the branch's only main-targeted PR)
 

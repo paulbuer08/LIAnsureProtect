@@ -34,11 +34,7 @@ vi.mock("../api/claimsApi", () => ({
   assignClaimToMe: vi.fn(),
   closeClaim: vi.fn(),
   denyClaim: vi.fn(),
-  getAdjudicationClaimDocumentDownloadUrl: (
-    claimId: string,
-    documentId: string,
-  ) =>
-    `http://localhost:5223/api/v1/claims/adjudication/${claimId}/documents/${documentId}/download`,
+  downloadAdjudicationClaimDocument: vi.fn(),
   getAdjudicationDetail: vi.fn(),
   listAdjudicationQueue: vi.fn(),
   releaseClaimAssignment: vi.fn(),
