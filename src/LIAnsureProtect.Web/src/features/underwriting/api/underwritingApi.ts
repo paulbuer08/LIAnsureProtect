@@ -1,3 +1,4 @@
+import { downloadDocumentWithToken } from "../../../lib/documentDownload";
 import type {
   AdjustQuoteReferralRequest,
   AiUnderwritingReviewResponse,
@@ -51,12 +52,18 @@ function jsonHeaders(accessToken: string) {
   };
 }
 
-export function getUnderwritingEvidenceDocumentDownloadUrl(
+export async function downloadUnderwritingEvidenceDocument(
+  accessToken: string,
   quoteId: string,
   evidenceRequestId: string,
   documentId: string,
+  fileName: string,
 ) {
-  return `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/evidence-requests/${evidenceRequestId}/documents/${documentId}/download`;
+  await downloadDocumentWithToken(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/evidence-requests/${evidenceRequestId}/documents/${documentId}/download`,
+    accessToken,
+    fileName,
+  );
 }
 
 export async function listQuoteReferrals(accessToken: string) {

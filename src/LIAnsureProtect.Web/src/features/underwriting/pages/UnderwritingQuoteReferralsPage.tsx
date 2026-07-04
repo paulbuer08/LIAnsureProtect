@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import type { FormEvent } from "react";
 import { Link } from "react-router";
 
-import { getUnderwritingEvidenceDocumentDownloadUrl } from "../api/underwritingApi";
+import { downloadUnderwritingEvidenceDocument } from "../api/underwritingApi";
 import {
   useAddQuoteReferralNote,
   useAddQuoteReferralTask,
@@ -316,6 +317,7 @@ function EvidenceSummary({ quote }: { quote: QuoteReferral }) {
 }
 
 function EvidencePanel({ quote }: { quote: QuoteReferral }) {
+  const { getAccessTokenSilently } = useAuth0();
   const createEvidenceRequest = useCreateQuoteEvidenceRequest();
   const acceptEvidenceRequest = useAcceptQuoteEvidenceRequest();
   const cancelEvidenceRequest = useCancelQuoteEvidenceRequest();
@@ -333,6 +335,27 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
   const [reviewReason, setReviewReason] = useState("");
   const [remediationGuidance, setRemediationGuidance] = useState("");
   const [lastEvidenceResult, setLastEvidenceResult] = useState<QuoteEvidenceRequest>();
+  const [downloadError, setDownloadError] = useState<string>();
+
+  async function handleDownloadDocument(
+    requestId: string,
+    documentId: string,
+    fileName: string,
+  ) {
+    try {
+      setDownloadError(undefined);
+      const accessToken = await getAccessTokenSilently();
+      await downloadUnderwritingEvidenceDocument(
+        accessToken,
+        quote.quoteId,
+        requestId,
+        documentId,
+        fileName,
+      );
+    } catch (error) {
+      setDownloadError(getErrorMessage(error, "Unable to download the document."));
+    }
+  }
   const evidenceError =
     createEvidenceRequest.error ??
     acceptEvidenceRequest.error ??
@@ -417,6 +440,11 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
       {lastEvidenceResult && (
         <div className="mt-4 rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm text-emerald-100">
           <p className="font-semibold">Evidence request saved: {lastEvidenceResult.status}</p>
+          {downloadError && (
+            <p className="mt-1 rounded-md border border-red-900 bg-red-950 p-2 text-xs text-red-200">
+              {downloadError}
+            </p>
+          )}
           <p className="mt-1">{formatEvidenceDueLabel(lastEvidenceResult.daysUntilDue)}</p>
           {lastEvidenceResult.reviewDecision !== "NotReviewed" && (
             <>
@@ -440,16 +468,19 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
                 {lastEvidenceResult.documents?.map((document) => (
                   <li key={document.documentId} className="rounded-md border border-emerald-900 p-2">
                     {document.isDownloadAvailable ? (
-                      <a
-                        href={getUnderwritingEvidenceDocumentDownloadUrl(
-                          quote.quoteId,
-                          lastEvidenceResult.evidenceRequestId,
-                          document.documentId,
-                        )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleDownloadDocument(
+                            lastEvidenceResult.evidenceRequestId,
+                            document.documentId,
+                            document.originalFileName,
+                          )
+                        }
                         className="font-semibold text-emerald-200 hover:text-white"
                       >
                         Download {document.originalFileName}
-                      </a>
+                      </button>
                     ) : (
                       <span className="font-semibold text-emerald-100">
                         {document.originalFileName}

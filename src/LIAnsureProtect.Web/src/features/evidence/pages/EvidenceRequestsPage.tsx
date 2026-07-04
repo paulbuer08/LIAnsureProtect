@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import type { FormEvent } from "react";
 import { Link } from "react-router";
 
-import { getOwnerEvidenceDocumentDownloadUrl } from "../api/evidenceRequestsApi";
+import { downloadOwnerEvidenceDocument } from "../api/evidenceRequestsApi";
 import {
   useEvidenceRequests,
   useRespondToEvidenceRequest,
@@ -40,6 +41,7 @@ function formatEvidenceDueLabel(request: QuoteEvidenceRequest) {
 }
 
 function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
+  const { getAccessTokenSilently } = useAuth0();
   const respondToEvidenceRequest = useRespondToEvidenceRequest();
   const uploadReplacementEvidenceDocuments = useUploadReplacementEvidenceDocuments();
   const [respondentName, setRespondentName] = useState("");
@@ -57,6 +59,23 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
   const canUploadReplacement = documents.some(
     (document) => document.scanStatus === "Rejected" || document.scanStatus === "Failed",
   );
+
+  const [downloadError, setDownloadError] = useState<string>();
+
+  async function handleDownloadDocument(documentId: string, fileName: string) {
+    try {
+      setDownloadError(undefined);
+      const accessToken = await getAccessTokenSilently();
+      await downloadOwnerEvidenceDocument(
+        accessToken,
+        request.evidenceRequestId,
+        documentId,
+        fileName,
+      );
+    } catch (error) {
+      setDownloadError(getErrorMessage(error, "Unable to download the document."));
+    }
+  }
 
   async function handleRespond(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -239,19 +258,27 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
       {documents.length > 0 && (
         <section className="mt-5 rounded-md border border-slate-800 bg-slate-950 p-4">
           <h3 className="text-sm font-semibold text-white">Evidence documents</h3>
+          {downloadError && (
+            <p className="mt-2 rounded-md border border-red-900 bg-red-950 p-2 text-xs text-red-200">
+              {downloadError}
+            </p>
+          )}
           <ul className="mt-3 space-y-2 text-sm">
             {documents.map((document) => (
               <li key={document.documentId} className="rounded-md border border-slate-800 p-3">
                 {document.isDownloadAvailable ? (
-                  <a
-                    href={getOwnerEvidenceDocumentDownloadUrl(
-                      request.evidenceRequestId,
-                      document.documentId,
-                    )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void handleDownloadDocument(
+                        document.documentId,
+                        document.originalFileName,
+                      )
+                    }
                     className="font-semibold text-emerald-300 hover:text-emerald-200"
                   >
                     Download {document.originalFileName}
-                  </a>
+                  </button>
                 ) : (
                   <span className="font-semibold text-slate-200">
                     {document.originalFileName}
