@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   addQuoteReferralNote,
+  downloadUnderwritingEvidenceDocument,
   addQuoteReferralTask,
   adjustQuoteReferral,
   assignQuoteReferralToMe,
@@ -41,12 +42,7 @@ vi.mock("../api/underwritingApi", () => ({
   declineQuoteReferral: vi.fn(),
   createQuoteEvidenceRequest: vi.fn(),
   generateAiUnderwritingReview: vi.fn(),
-  getUnderwritingEvidenceDocumentDownloadUrl: (
-    quoteId: string,
-    evidenceRequestId: string,
-    documentId: string,
-  ) =>
-    `http://localhost:5223/api/v1/underwriting/quote-referrals/${quoteId}/evidence-requests/${evidenceRequestId}/documents/${documentId}/download`,
+  downloadUnderwritingEvidenceDocument: vi.fn(),
   addQuoteReferralNote: vi.fn(),
   addQuoteReferralTask: vi.fn(),
   assignQuoteReferralToMe: vi.fn(),
@@ -540,13 +536,18 @@ describe("UnderwritingQuoteReferralsPage", () => {
       "evidence-1",
       { reviewNotes: "MFA evidence is sufficient." },
     );
-    const evidenceDocumentLink = await screen.findByRole("link", {
-      name: "Download mfa-attestation.pdf",
-    });
-    expect(evidenceDocumentLink).toHaveAttribute(
-      "href",
-      "http://localhost:5223/api/v1/underwriting/quote-referrals/quote-severe/evidence-requests/evidence-1/documents/document-1/download",
+    await user.click(
+      await screen.findByRole("button", { name: "Download mfa-attestation.pdf" }),
     );
+    await waitFor(() => {
+      expect(downloadUnderwritingEvidenceDocument).toHaveBeenCalledWith(
+        "underwriter-token",
+        "quote-severe",
+        "evidence-1",
+        "document-1",
+        "mfa-attestation.pdf",
+      );
+    });
     expect(screen.getByText("Clean")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Send evidence follow-up" }));
