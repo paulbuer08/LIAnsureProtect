@@ -39,6 +39,7 @@ public sealed class ClaimsReader(ClaimsDbContext dbContext) : IClaimsReader
             .Include(candidate => candidate.TimelineEntries)
             .Include(candidate => candidate.InformationRequests)
             .Include(candidate => candidate.Documents)
+            .AsSplitQuery()
             .SingleOrDefaultAsync(
                 candidate => candidate.Id == claimId && candidate.OwnerUserId == ownerUserId,
                 cancellationToken);

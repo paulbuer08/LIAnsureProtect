@@ -4,6 +4,21 @@
 > Same spirit as the root `CHANGELOG.md`, which this branch deliberately does not touch; CM8's
 > final-merge checklist folds these entries into the living docs when the branch merges to main.
 
+## Post-CM8 Audit - Split Queries, Reserve Release On Close, Queue Projection
+
+- Full adversarial re-review of the branch (~17,300-line diff) — see
+  `docs/claims/post-cm8-audit.md`. Fixed: `AsSplitQuery` on the three multi-collection claim
+  include-graphs (cartesian-explosion prevention), the adjudication queue became a pure SQL
+  projection (open-question count via subquery instead of materializing every information
+  request), and `Close` now auto-releases any outstanding reserve with an audited change row
+  (the reserve was previously frozen forever after a decision).
+- Recorded (inherited/config findings, added to the final-merge checklist): tokenless download
+  anchors (shared with evidence), Kestrel 30 MB default vs 50 MB upload governance (shared),
+  orphaned blob on post-decision uploads, Auth0 ID-token roles-claim verification for
+  `RequireRole`, shared `evidence-documents/` storage prefix.
+- Tests: 2 new domain tests (reserve release + zero-reserve no-noise); 181 unit + 237
+  integration green with every pre-existing test unchanged.
+
 ## Claims Milestone 8 - Branch Consolidation Prep
 
 - Added `docs/claims/final-merge-checklist.md`: the checkbox-level plan for the single
