@@ -19,6 +19,16 @@
 - Tests: 2 new domain tests (reserve release + zero-reserve no-noise); 181 unit + 237
   integration green with every pre-existing test unchanged.
 
+## Post-CM8 Fixes - Document Download Authentication
+
+- Adopted the shared authenticated-download helper (`lib/documentDownload.ts`, landed on main
+  via PR #52 together with the Kestrel 60 MB body-cap fix) in the claims pages: the owner claim
+  detail and the adjuster workbench now download documents with a bearer-token fetch → blob
+  save instead of bare links that 401ed; inline error surfaces added.
+- Audit findings 1 and 2 from `post-cm8-audit.md` marked resolved; final-merge checklist items
+  checked off. Remaining open findings: Auth0 ID-token roles-claim verification (tenant task),
+  orphaned-blob janitor (deferred), storage prefix (won't fix).
+
 ## Claims Milestone 8 - Branch Consolidation Prep
 
 - Added `docs/claims/final-merge-checklist.md`: the checkbox-level plan for the single

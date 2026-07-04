@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import { Link, useParams } from "react-router";
 
-import { getOwnerClaimDocumentDownloadUrl } from "../api/claimsApi";
+import { downloadOwnerClaimDocument } from "../api/claimsApi";
 import { useClaimDetail, useClaimantActions } from "../hooks/useClaims";
 import { claimDocumentKinds } from "../types";
 
@@ -15,7 +16,19 @@ function formatMoney(amount: number) {
 
 export function ClaimDetailPage() {
   const { claimId = "" } = useParams();
+  const { getAccessTokenSilently } = useAuth0();
   const detailQuery = useClaimDetail(claimId);
+  const [downloadError, setDownloadError] = useState<string>();
+
+  async function handleDownloadDocument(documentId: string, fileName: string) {
+    try {
+      setDownloadError(undefined);
+      const accessToken = await getAccessTokenSilently();
+      await downloadOwnerClaimDocument(accessToken, claimId, documentId, fileName);
+    } catch (error) {
+      setDownloadError(getErrorMessage(error));
+    }
+  }
   const actions = useClaimantActions(claimId);
   const [responseTexts, setResponseTexts] = useState<Record<string, string>>({});
   const [claimedAmountInput, setClaimedAmountInput] = useState("");
@@ -239,6 +252,11 @@ export function ClaimDetailPage() {
               <h2 className="text-lg font-semibold text-white">
                 Supporting documents
               </h2>
+              {downloadError && (
+                <p className="mt-2 rounded-lg border border-red-900 bg-red-950 p-3 text-red-200">
+                  {downloadError}
+                </p>
+              )}
 
               {claim.documents.length > 0 && (
                 <ul className="mt-3 space-y-2">
@@ -256,15 +274,18 @@ export function ClaimDetailPage() {
                         </p>
                       </div>
                       {document.isDownloadAvailable ? (
-                        <a
-                          href={getOwnerClaimDocumentDownloadUrl(
-                            claim.claimId,
-                            document.documentId,
-                          )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleDownloadDocument(
+                              document.documentId,
+                              document.originalFileName,
+                            )
+                          }
                           className="font-semibold text-emerald-300 hover:text-emerald-200"
                         >
                           Download {document.originalFileName}
-                        </a>
+                        </button>
                       ) : (
                         <span className="text-slate-400">
                           Not downloadable ({document.scanStatus})

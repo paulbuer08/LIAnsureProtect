@@ -1,3 +1,4 @@
+import { downloadDocumentWithToken } from "../../../lib/documentDownload";
 import type {
   AcceptClaimRequest,
   AddWorkNoteRequest,
@@ -168,11 +169,17 @@ export async function uploadClaimDocuments(
   );
 }
 
-export function getOwnerClaimDocumentDownloadUrl(
+export async function downloadOwnerClaimDocument(
+  accessToken: string,
   claimId: string,
   documentId: string,
+  fileName: string,
 ) {
-  return `${claimsPath}/${claimId}/documents/${documentId}/download`;
+  await downloadDocumentWithToken(
+    `${claimsPath}/${claimId}/documents/${documentId}/download`,
+    accessToken,
+    fileName,
+  );
 }
 
 // --- Adjudication ---
@@ -317,9 +324,15 @@ export async function closeClaim(accessToken: string, claimId: string) {
   return parseJsonResponse<ClaimDecision>(response, "Claim was not found.");
 }
 
-export function getAdjudicationClaimDocumentDownloadUrl(
+export async function downloadAdjudicationClaimDocument(
+  accessToken: string,
   claimId: string,
   documentId: string,
+  fileName: string,
 ) {
-  return `${adjudicationPath}/${claimId}/documents/${documentId}/download`;
+  await downloadDocumentWithToken(
+    `${adjudicationPath}/${claimId}/documents/${documentId}/download`,
+    accessToken,
+    fileName,
+  );
 }

@@ -36,16 +36,16 @@ file was finished. Zero-reserve closes add no noise row.
 
 ## Recorded, not fixed (with reasons)
 
-1. **Document download links carry no bearer token.** The claims pages render plain
-   `<a href>` to `[Authorize]`-guarded download endpoints — the browser sends no JWT, so a real
-   click 401s. This is **inherited verbatim from the evidence feature** (M38's
-   `EvidenceRequestsPage` does exactly the same); Phase 3 kept parity rather than forking the
-   pattern. The right fix is cross-feature (fetch-with-token → blob URL now, or the planned
-   M47 Valet-Key presigned URLs) — added to the final-merge checklist as a pre-merge item.
-2. **Kestrel's default 30 MB body limit vs the 50 MB upload governance.** Uploads between
-   ~28.6 MB and 50 MB die with 413 before reaching the handler. Also inherited (evidence has
-   identical rules and no `MaxRequestBodySize` configuration). Host-level change affecting all
-   endpoints — checklist item, decide once for both features.
+1. **Document download links carry no bearer token.** ✅ **RESOLVED (2026-07-04).** Fixed
+   cross-feature as recommended: the shared `downloadDocumentWithToken` helper
+   (`lib/documentDownload.ts`) fetches with the bearer token and saves the bytes as a blob.
+   Evidence + underwriting pages were fixed on main (PR #52); the claims pages adopted the same
+   helper on this branch immediately after syncing. M47 presigned Valet-Key URLs remain the
+   long-term replacement.
+2. **Kestrel's default 30 MB body limit vs the 50 MB upload governance.** ✅ **RESOLVED
+   (2026-07-04, PR #52 on main).** Kestrel's `MaxRequestBodySize` is now 60 MB (headroom above
+   the 50 MB rule), set in the API host with a comment tying it to
+   `EvidenceDocumentUploadRules`.
 3. **Orphaned blob on a rejected upload.** If a claimant uploads to a claim that was decided a
    moment earlier, the bytes are stored before `AddDocument` throws — an unreferenced file
    remains in storage (no metadata row, so it is unreachable, not a security issue). Same
