@@ -8,6 +8,11 @@ namespace LIAnsureProtect.Modules.Claims.Application;
 public interface IClaimsPolicyContextReader
 {
     Task<ClaimsPolicySnapshot?> GetForClaimFilingAsync(Guid policyId, CancellationToken cancellationToken);
+
+    /// <summary>The caller's bound policies — what the file-a-claim wizard offers to pick from.</summary>
+    Task<IReadOnlyList<ClaimsPolicySnapshot>> ListOwnedBoundPoliciesAsync(
+        string ownerUserId,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>Read-only policy facts for filing a claim. Status is a string (cross-context).</summary>

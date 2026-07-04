@@ -320,6 +320,25 @@ public sealed class ClaimEndpointTests
     }
 
     [Fact]
+    public async Task Policy_Options_List_The_Callers_Bound_Policies()
+    {
+        var ownedPolicy = await SeedBoundPolicyAsync("customer-1");
+        await SeedBoundPolicyAsync("customer-2");
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Get, $"{ClaimsEndpointPath}/policy-options", "Customer", "customer-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var payload = JsonDocument.Parse(content);
+        var policies = payload.RootElement.GetProperty("policies");
+        Assert.Equal(1, policies.GetArrayLength());
+        Assert.Equal(ownedPolicy.Id, policies[0].GetProperty("policyId").GetGuid());
+        Assert.Equal(ownedPolicy.PolicyNumber, policies[0].GetProperty("policyNumber").GetString());
+    }
+
+    [Fact]
     public async Task Claim_Endpoints_Require_Authentication()
     {
         using var response = await httpClient.GetAsync(

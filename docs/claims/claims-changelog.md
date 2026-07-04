@@ -4,6 +4,25 @@
 > Same spirit as the root `CHANGELOG.md`, which this branch deliberately does not touch; CM8's
 > final-merge checklist folds these entries into the living docs when the branch merges to main.
 
+## Claims Milestone 7 - Frontend Claims Slice
+
+- Added the `features/claims` vertical slice: typed API client (Idempotency-Key on file and
+  accept/deny), TanStack Query hooks (adjudication mutations invalidate on `onSettled` so a
+  409 refetches the truth — the M44.5 UX), and four pages.
+- Claimant journey: `/claims/new` two-step wizard (bound-policy picker → incident form →
+  confirmation), `/claims` list, `/claims/:id` detail (verdict, claimed-amount form, adjuster
+  questions with inline answers, scan-gated document upload/download, timeline).
+- Adjuster workbench `/claims/adjudication`: queue → working file with assign/release,
+  financial summary cards, reserve form, information requests, accept (cap hint = limit net of
+  retention), deny (category + narrative), close, notes, documents, reserve history, decision
+  audit, timeline.
+- New `RequireRole` route guard + `lib/userRoles.ts` (namespaced role claim); dashboard gained
+  Claims + Claims-adjudication cards.
+- Backend enabler: `GET /api/v1/claims/policy-options` via the new `ListOwnedBoundPoliciesAsync`
+  port method.
+- Tests: 24 new frontend (59 total green, lint + build clean) + 2 backend.
+- Docs: `docs/claims/cm7-frontend-claims-slice-{design,learnings}.md`.
+
 ## Claims Milestone 6 - Notifications
 
 - Added seven claim notification mappers (filed / assigned / information-requested /

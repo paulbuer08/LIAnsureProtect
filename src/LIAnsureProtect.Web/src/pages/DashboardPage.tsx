@@ -141,6 +141,51 @@ export function DashboardPage() {
         </div>
 
         <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
+          <h2 className="text-base font-semibold text-white">Claims</h2>
+
+          <p className="mt-2 text-slate-300">
+            File a cyber claim against a bound policy, follow its progress,
+            answer adjuster questions, and upload supporting documents.
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              to="/claims"
+              className="inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
+            >
+              View my claims
+            </Link>
+
+            <Link
+              to="/claims/new"
+              className="inline-flex rounded-lg border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 hover:border-slate-500"
+            >
+              File a claim
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
+          <h2 className="text-base font-semibold text-white">
+            Claims adjudication
+          </h2>
+
+          <p className="mt-2 text-slate-300">
+            Work the claims queue: claim a file, request information, manage
+            reserves, and record accept or deny decisions.
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              to="/claims/adjudication"
+              className="inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
+            >
+              Open claims workbench
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
           <h2 className="text-base font-semibold text-white">Notifications</h2>
 
           <p className="mt-2 text-slate-300">
