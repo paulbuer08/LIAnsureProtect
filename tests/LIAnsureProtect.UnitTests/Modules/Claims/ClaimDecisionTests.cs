@@ -191,6 +191,39 @@ public sealed class ClaimDecisionTests
     }
 
     [Fact]
+    public void Close_Releases_The_Outstanding_Reserve_With_An_Audited_Change()
+    {
+        var claim = AssignedClaim();
+        claim.Deny(ClaimDenialReason.InsufficientEvidence, "No forensic report provided.", "adjuster-1", FiledAtUtc.AddDays(1));
+
+        claim.Close("adjuster-1", FiledAtUtc.AddDays(2));
+
+        // The envelope is emptied when the file is finished — and the release is audited.
+        Assert.Equal(0m, claim.ReserveAmount);
+        var release = claim.ReserveChanges.OrderBy(change => change.ChangedAtUtc).Last();
+        Assert.Equal(200_000m, release.OldAmount);
+        Assert.Equal(0m, release.NewAmount);
+        Assert.Contains("closure", release.Reason, StringComparison.OrdinalIgnoreCase);
+
+        // The Closed audit row snapshots the reserve as it stood at close (pre-release).
+        var closedDecision = claim.Decisions.OrderBy(decision => decision.DecidedAtUtc).Last();
+        Assert.Equal(200_000m, closedDecision.ReserveAmountAtDecision);
+    }
+
+    [Fact]
+    public void Close_With_A_Zero_Reserve_Adds_No_Release_Row()
+    {
+        var claim = AssignedClaim();
+        claim.SetReserve(0m, "Claim likely to be denied; reserve released.", "adjuster-1", FiledAtUtc.AddHours(2));
+        var reserveChangesBeforeClose = claim.ReserveChanges.Count;
+        claim.Deny(ClaimDenialReason.NotCovered, "Not covered.", "adjuster-1", FiledAtUtc.AddDays(1));
+
+        claim.Close("adjuster-1", FiledAtUtc.AddDays(2));
+
+        Assert.Equal(reserveChangesBeforeClose, claim.ReserveChanges.Count);
+    }
+
+    [Fact]
     public void Close_Requires_A_Prior_Decision()
     {
         var claim = AssignedClaim();

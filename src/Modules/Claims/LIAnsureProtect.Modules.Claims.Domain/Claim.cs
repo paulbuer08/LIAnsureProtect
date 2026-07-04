@@ -426,6 +426,8 @@ public sealed class Claim : IHasDomainEvents
 
         var outcomeAtClose = Status;
         ClosedAtUtc = closedAtUtc;
+        // Snapshot the audit row BEFORE releasing the reserve so it records what was still
+        // earmarked when the file was finished.
         decisions.Add(ClaimDecision.Record(
             this,
             ClaimDecisionOutcome.Closed,
@@ -435,6 +437,27 @@ public sealed class Claim : IHasDomainEvents
             null,
             adjusterUserId,
             closedAtUtc));
+
+        // A closed file holds no earmarked money: any outstanding reserve is released, audited
+        // like every other reserve movement.
+        if (ReserveAmount != 0)
+        {
+            var outstandingReserve = ReserveAmount;
+            ReserveAmount = 0;
+            reserveChanges.Add(ClaimReserveChange.Record(
+                Id,
+                outstandingReserve,
+                0m,
+                "Reserve released on claim closure.",
+                adjusterUserId,
+                closedAtUtc));
+            RecordTimeline(
+                ClaimTimelineEntryType.ReserveChanged,
+                $"Reserve changed from {FormatMoney(outstandingReserve)} to {FormatMoney(0m)} (released on closure).",
+                adjusterUserId,
+                closedAtUtc);
+        }
+
         TransitionTo(ClaimStatus.Closed, allowedFrom: [ClaimStatus.Accepted, ClaimStatus.Denied], adjusterUserId, closedAtUtc);
 
         domainEvents.Add(new ClaimClosedDomainEvent(

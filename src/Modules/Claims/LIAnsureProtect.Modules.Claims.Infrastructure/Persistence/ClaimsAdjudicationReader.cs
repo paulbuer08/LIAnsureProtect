@@ -12,16 +12,25 @@ public sealed class ClaimsAdjudicationReader(ClaimsDbContext dbContext) : IClaim
 {
     public async Task<IReadOnlyList<ClaimAdjudicationResult>> ListQueueAsync(CancellationToken cancellationToken)
     {
-        var claims = await dbContext.Claims
+        // Pure SQL projection: the queue needs a count of open questions, not every
+        // information-request row materialized per claim.
+        return await dbContext.Claims
             .AsNoTracking()
-            .Include(claim => claim.InformationRequests)
             .Where(claim => claim.Status != ClaimStatus.Closed)
             .OrderByDescending(claim => claim.FiledAtUtc)
+            .Select(claim => new ClaimAdjudicationResult(
+                claim.Id,
+                claim.ClaimNumber,
+                claim.PolicyId,
+                claim.PolicyNumberAtFiling,
+                claim.IncidentType.ToString(),
+                claim.IncidentAtUtc,
+                claim.Status.ToString(),
+                claim.AssignedAdjusterUserId,
+                claim.InformationRequests.Count(request => !request.IsAnswered),
+                claim.FiledAtUtc,
+                claim.UpdatedAtUtc))
             .ToListAsync(cancellationToken);
-
-        return claims
-            .Select(ClaimAdjudicationResultFactory.FromClaim)
-            .ToArray();
     }
 
     public async Task<ClaimAdjudicationDetailResult?> GetDetailAsync(
@@ -36,6 +45,7 @@ public sealed class ClaimsAdjudicationReader(ClaimsDbContext dbContext) : IClaim
             .Include(candidate => candidate.Documents)
             .Include(candidate => candidate.ReserveChanges)
             .Include(candidate => candidate.Decisions)
+            .AsSplitQuery()
             .SingleOrDefaultAsync(candidate => candidate.Id == claimId, cancellationToken);
 
         if (claim is null)

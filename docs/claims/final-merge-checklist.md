@@ -5,6 +5,9 @@
 > docs (see `claims-status.md`); this checklist is where that debt is repaid in **one
 > consolidation milestone** on a normal `main`-targeted PR.
 
+> **See also:** [post-cm8-audit.md](post-cm8-audit.md) — the full-branch re-review; its three
+> fixes are already merged, and its recorded findings appear as items below.
+
 ## 0. Pre-merge verification
 
 - [ ] Re-run the **dry-run merge** (it was clean as of CM8, when `main` was still at `c490278` —
@@ -27,6 +30,16 @@
       (`scripts/update-database.ps1`) and smoke the app end-to-end once
       (file → assign → info round trip → documents → reserve → accept → close) using the
       manual-testing personas.
+- [ ] **Document downloads (audit finding, shared with evidence):** the download anchors send no
+      bearer token, so real clicks 401 against the `[Authorize]` endpoints. Decide the shared
+      fix (fetch-with-token → blob URL now, or wait for M47 presigned Valet-Key URLs) and apply
+      to both the claims and evidence pages together.
+- [ ] **Auth0 tenant (audit finding):** verify the Action adds the namespaced roles claim
+      (`https://liansureprotect.local/roles`) to **ID tokens** — `RequireRole` reads it in the
+      SPA; without it, signed-in users are blocked from the claims pages.
+- [ ] **Body-size limits (audit finding, shared with evidence):** Kestrel's default ~30 MB
+      request cap undercuts the 50 MB upload governance; set `MaxRequestBodySize` (or lower the
+      governance) once, for both features.
 
 ## 1. Open the consolidation PR (base `main`, the branch's only main-targeted PR)
 
@@ -83,5 +96,7 @@ convention at that time.
 - Personal notify-the-assigned-adjuster channel (response events already carry
   `assignedAdjusterUserId`).
 - Claim reopening after close; real payment provider port (M19 shape); notification deep links;
-  queue caching via `ICacheableRequest` if the claims queue ever gets hot (M44.5 precedent);
-  `AsSplitQuery` on the claim include-graph if child collections grow large.
+  queue caching via `ICacheableRequest` if the claims queue ever gets hot (M44.5 precedent).
+- Orphaned-blob janitor for uploads rejected after storage (shared with evidence, see the
+  post-CM8 audit); the `evidence-documents/` storage-key prefix shared by claim documents
+  (cosmetic; renaming would orphan existing files).

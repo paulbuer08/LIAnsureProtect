@@ -22,7 +22,13 @@
 | CM7 — Frontend claims slice | ✅ merged |
 | CM8 — Branch consolidation prep | ✅ merged |
 
-## Current state (after CM8 — the branch is feature-complete and parked)
+## Current state (after the Post-CM8 audit — feature-complete, audited, parked)
+
+- The full-branch re-review ([post-cm8-audit.md](post-cm8-audit.md)) fixed three findings
+  (split queries, queue projection, reserve release on close) and recorded five inherited/
+  config findings on the final-merge checklist.
+
+## State after CM8
 
 - **All eight milestones merged.** The branch now waits for Phase 2 to finish; the exit plan is
   [final-merge-checklist.md](final-merge-checklist.md) (living-doc consolidation + re-run of the

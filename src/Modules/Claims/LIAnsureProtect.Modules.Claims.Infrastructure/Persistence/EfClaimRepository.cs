@@ -17,6 +17,9 @@ public sealed class EfClaimRepository(ClaimsDbContext dbContext) : IClaimReposit
             .Include(claim => claim.Documents)
             .Include(claim => claim.ReserveChanges)
             .Include(claim => claim.Decisions)
+            // Six collection includes in one SQL query multiply rows (cartesian explosion);
+            // split queries load each collection separately instead.
+            .AsSplitQuery()
             .SingleOrDefaultAsync(claim => claim.Id == claimId, cancellationToken);
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
