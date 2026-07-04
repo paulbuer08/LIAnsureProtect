@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  downloadOwnerEvidenceDocument,
   listEvidenceRequests,
   respondToEvidenceRequest,
   uploadReplacementEvidenceDocuments,
@@ -20,8 +21,7 @@ vi.mock("@auth0/auth0-react", () => ({
 }));
 
 vi.mock("../api/evidenceRequestsApi", () => ({
-  getOwnerEvidenceDocumentDownloadUrl: (evidenceRequestId: string, documentId: string) =>
-    `http://localhost:5223/api/v1/evidence-requests/${evidenceRequestId}/documents/${documentId}/download`,
+  downloadOwnerEvidenceDocument: vi.fn(),
   listEvidenceRequests: vi.fn(),
   respondToEvidenceRequest: vi.fn(),
   uploadReplacementEvidenceDocuments: vi.fn(),
@@ -196,14 +196,19 @@ describe("EvidenceRequestsPage", () => {
     );
     expect(await screen.findByText("Evidence response saved: Responded")).toBeInTheDocument();
     expect(screen.getAllByText("Clean")).toHaveLength(2);
-    expect(screen.getByRole("link", { name: "Download mfa-attestation.pdf" })).toHaveAttribute(
-      "href",
-      "http://localhost:5223/api/v1/evidence-requests/evidence-1/documents/document-1/download",
-    );
-    expect(screen.getByRole("link", { name: "Download edr-rollout.txt" })).toHaveAttribute(
-      "href",
-      "http://localhost:5223/api/v1/evidence-requests/evidence-1/documents/document-2/download",
-    );
+    // Downloads are authenticated fetches (no bare links): clicking calls the API with the token.
+    await user.click(screen.getByRole("button", { name: "Download mfa-attestation.pdf" }));
+    await waitFor(() => {
+      expect(downloadOwnerEvidenceDocument).toHaveBeenCalledWith(
+        "owner-token",
+        "evidence-1",
+        "document-1",
+        "mfa-attestation.pdf",
+      );
+    });
+    expect(
+      screen.getByRole("button", { name: "Download edr-rollout.txt" }),
+    ).toBeInTheDocument();
   });
 
   it("shows rejected document status and lets the owner upload replacement evidence", async () => {
@@ -328,7 +333,9 @@ describe("EvidenceRequestsPage", () => {
     expect(await screen.findByText("rejected-evidence.txt")).toBeInTheDocument();
     expect(screen.getByText("Rejected")).toBeInTheDocument();
     expect(screen.getByText("Local deterministic scanner found a test threat marker.")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Download rejected-evidence.txt" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Download rejected-evidence.txt" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Download unavailable until security screening is clean.")).toBeInTheDocument();
 
     await user.upload(screen.getByLabelText("Replacement evidence files"), [replacementFile]);
@@ -341,12 +348,17 @@ describe("EvidenceRequestsPage", () => {
         [replacementFile],
       ),
     );
-    const replacementLink = await screen.findByRole("link", {
+    const replacementDownload = await screen.findByRole("button", {
       name: "Download replacement-evidence.txt",
     });
-    expect(replacementLink).toHaveAttribute(
-      "href",
-      "http://localhost:5223/api/v1/evidence-requests/evidence-1/documents/document-2/download",
+    await user.click(replacementDownload);
+    await waitFor(() =>
+      expect(downloadOwnerEvidenceDocument).toHaveBeenCalledWith(
+        "owner-token",
+        "evidence-1",
+        "document-2",
+        "replacement-evidence.txt",
+      ),
     );
   });
 

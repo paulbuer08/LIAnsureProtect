@@ -1,3 +1,4 @@
+import { downloadDocumentWithToken } from "../../../lib/documentDownload";
 import type {
   ListEvidenceRequestsResponse,
   QuoteEvidenceRequest,
@@ -31,11 +32,17 @@ function authHeaders(accessToken: string) {
   };
 }
 
-export function getOwnerEvidenceDocumentDownloadUrl(
+export async function downloadOwnerEvidenceDocument(
+  accessToken: string,
   evidenceRequestId: string,
   documentId: string,
+  fileName: string,
 ) {
-  return `${apiBaseUrl}/api/v1/evidence-requests/${evidenceRequestId}/documents/${documentId}/download`;
+  await downloadDocumentWithToken(
+    `${apiBaseUrl}/api/v1/evidence-requests/${evidenceRequestId}/documents/${documentId}/download`,
+    accessToken,
+    fileName,
+  );
 }
 
 export async function listEvidenceRequests(accessToken: string) {

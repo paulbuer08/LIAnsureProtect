@@ -28,6 +28,14 @@ var applicationName = typeof(Program).Assembly.GetName().Name ?? "LIAnsureProtec
 var builder = WebApplication.CreateBuilder(args);
 const string LocalFrontendCorsPolicy = "LocalFrontend";
 
+// Document uploads are governed at 50 MB total per submission (EvidenceDocumentUploadRules);
+// Kestrel's ~30 MB default body cap would reject valid uploads with 413 before that validation
+// ever runs. 60 MB leaves headroom for multipart framing above the 50 MB business rule.
+builder.WebHost.ConfigureKestrel(kestrel =>
+{
+    kestrel.Limits.MaxRequestBodySize = 60 * 1024 * 1024;
+});
+
 
 // 1) Add services to the container.
 var databaseConnectionString = builder.Configuration.GetConnectionString("LIAnsureProtect");
