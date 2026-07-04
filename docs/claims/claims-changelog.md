@@ -4,6 +4,19 @@
 > Same spirit as the root `CHANGELOG.md`, which this branch deliberately does not touch; CM8's
 > final-merge checklist folds these entries into the living docs when the branch merges to main.
 
+## Claims Milestone 8 - Branch Consolidation Prep
+
+- Added `docs/claims/final-merge-checklist.md`: the checkbox-level plan for the single
+  consolidation PR that folds this branch's docs into the Tier-1 living documents when
+  `feat/claims-context` merges to main after Phase 2 (encyclopedia Chapter 12, Build History
+  Era 7, CHANGELOG, project-status, roadmap, user-roles, guides, READMEs), plus pre-merge
+  verification and post-merge follow-ups.
+- Executed and recorded the dry-run merge of `origin/main` into the parent: **clean**
+  ("Already up to date" — main still at the branch point after eight milestone-start syncs).
+- Recorded branch totals: 8 CI-green squash-merged PRs, ~200 new backend tests
+  (179 unit + 237 integration green at close), 24 new frontend tests (59 green), 5 additive
+  `claims` migrations, zero pushes to main, zero doc conflicts.
+
 ## Claims Milestone 7 - Frontend Claims Slice
 
 - Added the `features/claims` vertical slice: typed API client (Idempotency-Key on file and

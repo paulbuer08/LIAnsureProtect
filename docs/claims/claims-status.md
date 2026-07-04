@@ -20,9 +20,17 @@
 | CM5 — Decision & settlement | ✅ merged |
 | CM6 — Notifications | ✅ merged |
 | CM7 — Frontend claims slice | ✅ merged |
-| CM8 — Branch consolidation prep | ⬜ next |
+| CM8 — Branch consolidation prep | ✅ merged |
 
-## Current state (after CM7)
+## Current state (after CM8 — the branch is feature-complete and parked)
+
+- **All eight milestones merged.** The branch now waits for Phase 2 to finish; the exit plan is
+  [final-merge-checklist.md](final-merge-checklist.md) (living-doc consolidation + re-run of the
+  dry-run merge, which was clean at CM8).
+- Keep the sync cadence while parked: merge `origin/main` into `feat/claims-context`
+  periodically so the final merge stays thin.
+
+## State after CM7
 
 - Frontend: `features/claims` slice — claimant wizard/list/detail + adjuster workbench at
   `/claims/adjudication`; `RequireRole` guards; dashboard cards; policy-options endpoint.
