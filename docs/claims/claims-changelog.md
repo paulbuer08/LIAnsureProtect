@@ -4,6 +4,20 @@
 > Same spirit as the root `CHANGELOG.md`, which this branch deliberately does not touch; CM8's
 > final-merge checklist folds these entries into the living docs when the branch merges to main.
 
+## Post-CM8 Hardening - Server-Authoritative Roles (`/me` Endpoint)
+
+- Replaced the SPA's ID-token role parsing with a provider-neutral `GET /api/v1/me`
+  (`CurrentUserController`, `[Authorize]`) that returns identity + roles from the same
+  `ICurrentUser` the authorization policies use — so UI-shown roles and API-enforced roles can
+  never drift. `RequireRole` now reads roles from `useCurrentUser` (TanStack Query, cached); it
+  gained loading / lookup-error / **no-roles-assigned** / wrong-role states. Deleted
+  `lib/userRoles.ts` — the SPA no longer parses any token.
+- Obsoletes the "add roles claim to Auth0 **ID** tokens" action item (the SPA doesn't read the
+  ID token anymore); the access-token roles claim (since M7) remains the only requirement. Fully
+  provider-neutral for the M48 Cognito option. See `docs/claims/post-cm8-current-user-endpoint.md`.
+- Tests: 3 new backend (`CurrentUserEndpointTests`) + `RequireRole` rewritten to 5 states;
+  181 unit + 240 integration green, frontend 61 green, lint + build clean.
+
 ## Post-CM8 Audit - Split Queries, Reserve Release On Close, Queue Projection
 
 - Full adversarial re-review of the branch (~17,300-line diff) — see

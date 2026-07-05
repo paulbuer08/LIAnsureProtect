@@ -34,9 +34,11 @@
       Authenticated fetch → blob via the shared `lib/documentDownload.ts` helper; evidence +
       underwriting pages fixed on main (PR #52), claims pages on this branch. M47 presigned
       URLs remain the long-term replacement.
-- [ ] **Auth0 tenant (audit finding):** verify the Action adds the namespaced roles claim
-      (`https://liansureprotect.local/roles`) to **ID tokens** — `RequireRole` reads it in the
-      SPA; without it, signed-in users are blocked from the claims pages.
+- [x] **Auth0 tenant (audit finding): OBSOLETE — superseded by the `/me` endpoint.** The SPA no
+      longer reads the ID token for roles; `RequireRole` now reads `GET /api/v1/me` (server-
+      authoritative, provider-neutral). The tenant still needs RBAC enabled + the roles claim on
+      the **access** token (since M7) + roles assigned to users — the access-token side, already
+      configured. See `docs/claims/post-cm8-current-user-endpoint.md`.
 - [x] **Body-size limits (audit finding, shared with evidence): DONE 2026-07-04 (PR #52).**
       Kestrel `MaxRequestBodySize` raised to 60 MB in the API host, commented against the 50 MB
       governance rule.
@@ -55,6 +57,9 @@ convention at that time.
       confidential-reserve rule, decision/settlement guardrails + events), a state diagram, the
       settlement-cap and no-decision-without-assignment guardrails, and a scenario walk-through.
       Add it to `docs/encyclopedia/README.md`'s table of contents.
+- [ ] **Encyclopedia Chapter 5 (identity & login):** document the `GET /api/v1/me` endpoint and
+      the server-authoritative role model (SPA reads roles from the API, not the ID token) —
+      source: `docs/claims/post-cm8-current-user-endpoint.md`.
 - [ ] **Encyclopedia Chapter 3 (architecture):** add the Claims module to the solution map
       (schema `claims`), the module list, and the health-check row; note the fourth outbox
       source.
