@@ -47,7 +47,7 @@ events); in-process module event bus now → outbox → SNS/SQS later.
 
 `Platform` (shared kernel: outbox/idempotency/events/messaging/audit/tenancy/observability) · `Identity & Access` ·
 `Accounts/Companies` · `Product Catalog` (multi-product-capable, **Cyber only**) · `Submissions/Intake` ·
-`Rating` · `Underwriting` (referral ops, evidence, AI) · `Quoting` · `Policy` · `Claims` · `Documents` ·
+`Rating` · `Underwriting` (referral ops, evidence, AI) · `Quoting` · `Policy` · **`Claims` ✅ delivered (Phase 3, CM1–CM8 — FNOL→adjudication→settlement; ClaimsAdjuster activated; own `claims` schema)** · `Documents` ·
 `Notifications` (personal **+ team inbox**).
 
 ## Cross-cutting workstreams (acceptance criteria on every milestone)

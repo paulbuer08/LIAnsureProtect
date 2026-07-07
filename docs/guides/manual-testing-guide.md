@@ -17,7 +17,7 @@ Use one shared throwaway password pattern for your tenant (e.g. a password manag
 | Blake Broker | `broker.test@example.com` | `Broker` | A broker submitting on behalf of clients |
 | Uma Underwriter | `underwriter.test@example.com` | `Underwriter` | The human decision-maker on referred quotes |
 | Adrian Admin | `admin.test@example.com` | `Admin` | Superuser — allowed everywhere a business role is |
-| Charlie Adjuster | `claims.test@example.com` | `ClaimsAdjuster` | **Reserved** — the Claims context is a future milestone; today this user can log in but reaches no claims screens (none exist yet) |
+| Charlie Adjuster | `claims.test@example.com` | `ClaimsAdjuster` | **Live (Phase 3).** Works the claims workbench: assigns claims, requests info/documents, sets reserves, decides (accept/deny/settle), closes — Scenario 5 below |
 
 > **Why one user per role?** Each browser session holds one login. Testing hand-offs
 > (customer submits → underwriter reviews → customer responds) is easiest with two browser
@@ -33,10 +33,13 @@ Use one shared throwaway password pattern for your tenant (e.g. a password manag
 | `/submissions/:id` | owner | Detail: submit the draft, generate a quote, accept, bind |
 | `/underwriting/quote-referrals` | Underwriter, Admin | The underwriting workbench: referral queue, SLA/triage, notes/tasks/timeline, evidence requests, AI review, approve/decline/adjust |
 | `/evidence-requests` | Customer, Broker, Admin | Owner-side evidence: see requests, respond with text + up to 5 documents, upload replacements |
-| `/notifications` | Customer, Broker, Underwriter, Admin | Personal + team inbox with unread counts, All/Personal/Team tabs, mark-read |
+| `/notifications` | Customer, Broker, Underwriter, **ClaimsAdjuster**, Admin | Personal + team inbox with unread counts, All/Personal/Team tabs, mark-read |
+| `/claims/new` | Customer, Broker, Admin | File a claim (two-step wizard: pick a **bound policy** → incident form) |
+| `/claims` · `/claims/:id` | owner | Your claims list + detail (verdict, claimed-amount, adjuster questions, scan-gated documents, timeline) |
+| `/claims/adjudication` | **ClaimsAdjuster**, Admin | The adjuster workbench: queue, assign/release, reserves, information requests, accept/deny/close, documents, audit |
 
-There is deliberately **no** admin console or claims screen yet — `Admin` today means "allowed
-into every existing business screen", and `ClaimsAdjuster` waits for the Claims bounded context.
+There is deliberately **no** admin console yet — `Admin` today means "allowed into every existing
+business screen". The **Claims** context is live (Phase 3); `ClaimsAdjuster` now has a full workbench.
 
 ## Scenario 1 — The happy path (clean quote, no referral)
 
@@ -110,9 +113,11 @@ This is the richest flow; it exercises the whole Underwriting module.
 2. As **Uma Underwriter**, open `/submissions/new` and try to create a submission → ✅ 403 —
    underwriters don't create business.
 3. As **Adrian Admin**, do both → ✅ allowed everywhere (Admin is in every policy).
-4. As **Charlie Adjuster**, log in → dashboard works, but every business screen above → ✅ 403.
-   This is **correct by design**: the role is reserved for the future Claims context.
-5. Log out, hit `http://localhost:5223/api/v1/submissions` with no token (e.g. from PowerShell)
+4. As **Charlie Adjuster**, open `/claims/adjudication` → ✅ allowed; but `/submissions/new` and
+   `/underwriting/quote-referrals` → ✅ **403**. Adjusters only adjudicate claims.
+5. As **Casey Customer**, open `/claims/adjudication` → ✅ **403** (claimants file claims, they don't
+   adjudicate); `/claims/new` → ✅ allowed.
+6. Log out, hit `http://localhost:5223/api/v1/submissions` with no token (e.g. from PowerShell)
    → ✅ **401** before any business logic runs.
 
 ## Scenario 4 — Platform behaviors worth seeing once
@@ -125,6 +130,41 @@ This is the richest flow; it exercises the whole Underwriting module.
 | **Correlation** | Any API response carries `X-Correlation-ID`; the API logs the same id on every line for that request |
 | **Outbox at work** | Stop the Worker, accept a quote → no notification appears; start the Worker → it arrives within ~5s. Nothing was lost — that's the transactional outbox |
 | **Health probes** | `/api/v1/health/live` stays Healthy even if you stop Postgres; `/ready` flips to unhealthy |
+
+## Scenario 5 — The claims lifecycle (Phase 3, end to end)
+
+**Prerequisite:** a **bound policy** — do Scenario 1 first so Casey has one. Use two browser
+profiles (Casey ↔ Charlie) for the hand-offs.
+
+**Part A — Persona: Casey Customer**
+1. Dashboard → **File a claim** (`/claims/new`) → pick your bound policy → incident type
+   `RansomwareExtortion`, incident date **within the policy period**, a description, claimed amount
+   e.g. `120000` → ✅ claim created, status **Filed**. (Try an incident date *outside* the policy
+   period → clear rejection — the file-time policy check.)
+2. `/claims` → ✅ your claim is listed (yours only); open the detail → timeline shows "Filed".
+
+**Part B — Persona: Charlie Adjuster** (second profile)
+3. `/claims/adjudication` → ✅ the claim is in the queue → **Assign to me** → status **UnderReview**.
+   *(The M44.5 concurrency guard applies — a second adjuster assigning gets 409.)*
+4. Set a **reserve** (e.g. `150000`) with a reason → ✅ recorded (confidential — Casey never sees it).
+5. **Request information** ("Please upload the forensic report") → status **InformationRequested**.
+
+**Part C — Persona: Casey**
+6. `/claims/:id` → answer the question inline, and **upload** a document (PDF/PNG) → ✅ shows a scan
+   status; a **Clean** file becomes downloadable. (Upload a file whose name contains
+   `MALWARE-TEST-SIGNAL` → ✅ **Rejected**, never downloadable — the fail-closed scan gate.)
+   Answering returns the claim to **UnderReview**.
+
+**Part D — Persona: Charlie**
+7. Download Casey's clean document (authenticated fetch). Then **Accept** with a settlement — try a
+   number **above** the policy limit net of retention → ✅ rejected; a number **within** it → ✅
+   status **Accepted**, paid amount recorded. (Or **Deny** — requires a reason category + narrative;
+   empty → 400.) Then **Close** → ✅ status **Closed**, and any leftover reserve is auto-released
+   (visible in reserve history).
+
+**Part E — Notifications**
+8. As **Casey**, `/notifications` → ✅ claim assigned/decided messages arrived. As **Charlie**,
+   `/notifications` → **Team** tab → ✅ the filing shows in the **claims-operations** team inbox.
 
 ## Database spot-checks (optional)
 

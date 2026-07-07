@@ -19,6 +19,7 @@ timeline
     Era 4 : Evidence and trust (M25–M31) : documents, scanning, review, notifications
     Era 5 : The modular monolith (M32–M41) : Strangler Fig carve into bounded contexts
     Era 6 : AWS-shaped and hardened (M42–M44.5) : cloud adapters with zero cloud cost
+    Era 7 : The Claims context (CM1–CM8) : the post-bind lifecycle, built in parallel
 ```
 
 ---
@@ -696,16 +697,53 @@ sequenceDiagram
 
 ---
 
+# Era 7 — The Claims context (CM1–CM8): the post-bind lifecycle, built in parallel
+
+**Before this era:** the platform covered the whole *pre-bind* lifecycle (intake → bind), and the
+`ClaimsAdjuster` role existed as a reserved constant with no screens.
+
+**The one big idea:** build the **post-bind** world — what happens when an insured actually suffers a
+cyber incident and files a claim — as a **new bounded context**, reusing every pattern the previous
+six eras proved, and doing it **on a parallel branch** (`feat/claims-context`) so it could be built
+autonomously while Phase 2 infrastructure work proceeded on `main`. Nothing new was invented; that's
+the point — a mature platform absorbs a whole new context by *composition*, not reinvention.
+
+> **Analogy:** Eras 1–6 built and sold the fire extinguisher. Era 7 is the whole "there's a fire"
+> department — call it in, assign an adjuster, gather proof, set money aside, decide, pay, close —
+> bolted onto the building through the same standardized sockets (ports, outbox, policies) the rest
+> of the building already uses.
+
+The full mechanics live in **Encyclopedia Chapter 12**; this is the milestone story.
+
+| CM | Name | What changed, in plain English |
+|---|---|---|
+| 1 | Module skeleton + FNOL | The `Claims` module + `claims` schema + `ClaimsDbContext` + its own outbox source; the `Claim` aggregate (domain-enforced lifecycle, file-time policy snapshot, `Version` token); `POST /api/v1/claims` files against an **owned bound policy** validated through a read-only policy port (by-id only, no cross-schema FK); owner-scoped reads; `Claims.File`/`Claims.Read` policies. |
+| 2 | Adjuster queue + assignment | Activated the **ClaimsAdjuster** role (`Claims.Adjudicate`); the `/claims/adjudication` queue; assign/release **reusing the M44.5 guarded-claim + concurrency-token pattern** (double-assign → 409); work notes; the information-request loop (adjuster asks → claimant answers → back to review). |
+| 3 | Claim documents | Scan-gated supporting documents — the same fail-closed trust model as underwriting evidence (store → quarantine-scan → only `Clean` is downloadable; rejected stays for audit; replacements append). |
+| 4 | Reserves & financials | The money picture: claimed amount, **reserve** (assigned-adjuster-only, append-only audited history, **confidential to the claimant**), paid amount. |
+| 5 | Decision & settlement | Accept (with settlement) / deny (reason) / close, with three domain-enforced **charter guardrails**: no decision without assignment, no settlement over the limit net of retention, denial requires a reason. Append-only decision audit; lifecycle events into the outbox. |
+| 6 | Notifications | Seven claim events mapped into the **existing** pipeline via the M40 registry (zero dispatcher changes) + a new `claims-operations` team inbox. |
+| 7 | Frontend claims slice | The `features/claims` slice: claimant wizard/list/detail + the adjuster workbench; `RequireRole` guard; dashboard cards. |
+| 8 | Consolidation prep | The final-merge checklist that folded this branch into the Tier-1 living docs when it merged to `main` (this Era 7 section is that checklist executed). |
+| — | Post-CM8 hardening | An adversarial re-review (split queries, pure-SQL queue projection, **reserve auto-release on close**) and **server-authoritative roles**: a `GET /api/v1/me` endpoint so the SPA reads roles from the API, not the token — fully provider-neutral for the future Cognito option (Encyclopedia Chapter 5). |
+
+**How it landed:** eight CI-green PRs into `feat/claims-context`, ~200 new backend + ~60 new frontend
+tests, five additive `claims` migrations, **zero pushes to main and zero doc conflicts** during the
+build — then one consolidation PR merged the whole context (and its living-doc updates) into `main`.
+A textbook parallel bounded-context delivery.
+
+---
+
 # Where the story goes next
 
 **Phase 2 (M45–M50)** provisions real AWS with Terraform — account foundation (OIDC, VPC, KMS,
 Secrets Manager), then data (Aurora, S3, SQS/SNS), compute (EKS), and edge (CloudFront + WAF) —
 all `destroy`-able so nothing bills while idle. M45 is the first milestone that needs a real AWS
 account (prep: MFA on root, a billing alarm, a non-root IAM identity — everything else is created
-*by* the Terraform). After Phase 2: the remaining legacy carves (Submissions, Quoting completion,
-Policy) and new bounded contexts — **Claims** (where the reserved `ClaimsAdjuster` role finally
-gets its workbench), Accounts/Companies, Product Catalog. The detailed plan lives in the
-[Production Transformation Roadmap](dev/production-transformation-roadmap.md).
+*by* the Terraform). **Claims (Era 7) is already delivered** — built in parallel on its own branch
+and merged. After Phase 2, the remaining work is the last legacy carves (Submissions, Quoting
+completion, Policy) and the other new bounded contexts — Accounts/Companies, Product Catalog. The
+detailed plan lives in the [Production Transformation Roadmap](dev/production-transformation-roadmap.md).
 
 # Reading further
 

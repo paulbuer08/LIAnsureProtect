@@ -26,11 +26,12 @@ flowchart TB
         DISP["OutboxDispatcher.DispatchPendingMessagesAsync"]
         SRC1["SubmissionOutboxSource"]
         SRC2["UnderwritingOutboxSource"]
+        SRC3["ClaimsOutboxSource"]
         ORDER["merge-order all pending\nby CreatedAtUtc (causal order)"]
-        DISP --> SRC1 & SRC2 --> ORDER
+        DISP --> SRC1 & SRC2 & SRC3 --> ORDER
     end
 
-    OB --> SRC1 & SRC2
+    OB --> SRC1 & SRC2 & SRC3
 
     subgraph CONSUMERS["Registered IOutboxMessageConsumer list"]
         NC["NotificationOutboxMessageConsumer"]
@@ -71,9 +72,15 @@ flowchart TB
 `NotificationInboxProjector.ProjectAsync` branches by audience:
 
 - **`customer-or-broker`** → one `NotificationInboxEntry` **per recipient** (`OwnerUserId`).
-- **`underwriting-operations` / `binding-operations`** → **one shared** `TeamNotificationEntry`,
-  with per-user `TeamNotificationReadReceipt` rows created lazily on mark-read — so "Ben read it"
-  doesn't mark it read for the whole team.
+- **`underwriting-operations` / `binding-operations` / `claims-operations`** → **one shared**
+  `TeamNotificationEntry`, with per-user `TeamNotificationReadReceipt` rows created lazily on
+  mark-read — so "Ben read it" doesn't mark it read for the whole team. (`claims-operations` was
+  added in the Claims context — Chapter 12 — for filings and claimant responses; membership is
+  role-additive via `NotificationTeamAudiences`, ClaimsAdjuster → claims-operations.)
+
+The Claims context also registered **seven claim message types** (filed / assigned / information-
+requested / information-response / accepted / denied / closed) through the same **M40 mapper
+registry**, with **zero dispatcher changes** — the plug-in event spine paying off again.
 
 Reading (`ListMyNotificationsQueryHandler`) merges personal + team entries for the caller's role
 audiences with a combined unread count; `MarkNotificationReadCommandHandler` tries personal, then

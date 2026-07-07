@@ -1,5 +1,10 @@
 # Claims Branch Status
 
+> **⚠️ Historical archive (folded into the living docs at the Phase-3 merge).** The current-state
+> Claims documentation is Encyclopedia Chapter 12 (docs/encyclopedia/12-flow-claims.md), Build
+> History Era 7 (docs/build-history.md), and the root CHANGELOG/project-status. This file is the
+> point-in-time branch record, kept for forensic depth only.
+
 > Branch-local status for `feat/claims-context` (same spirit as `docs/project-status.md`, which
 > this branch does not touch). Updated at every Claims milestone close.
 

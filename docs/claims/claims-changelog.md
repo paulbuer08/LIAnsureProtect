@@ -1,5 +1,10 @@
 # Claims Branch Changelog
 
+> **⚠️ Historical archive (folded into the living docs at the Phase-3 merge).** The current-state
+> Claims documentation is Encyclopedia Chapter 12 (docs/encyclopedia/12-flow-claims.md), Build
+> History Era 7 (docs/build-history.md), and the root CHANGELOG/project-status. This file is the
+> point-in-time branch record, kept for forensic depth only.
+
 > Branch-local changelog for `feat/claims-context` (Phase 3 — the Claims bounded context).
 > Same spirit as the root `CHANGELOG.md`, which this branch deliberately does not touch; CM8's
 > final-merge checklist folds these entries into the living docs when the branch merges to main.
