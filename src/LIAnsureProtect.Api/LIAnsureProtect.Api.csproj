@@ -21,6 +21,7 @@
     <ProjectReference Include="..\LIAnsureProtect.Application\LIAnsureProtect.Application.csproj" />
     <ProjectReference Include="..\LIAnsureProtect.Infrastructure\LIAnsureProtect.Infrastructure.csproj" />
     <ProjectReference Include="..\Platform\LIAnsureProtect.Platform\LIAnsureProtect.Platform.csproj" />
+    <ProjectReference Include="..\Modules\Claims\LIAnsureProtect.Modules.Claims.Infrastructure\LIAnsureProtect.Modules.Claims.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Notifications\LIAnsureProtect.Modules.Notifications.Infrastructure\LIAnsureProtect.Modules.Notifications.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Quoting\LIAnsureProtect.Modules.Quoting.Infrastructure\LIAnsureProtect.Modules.Quoting.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Underwriting\LIAnsureProtect.Modules.Underwriting.Infrastructure\LIAnsureProtect.Modules.Underwriting.Infrastructure.csproj" />

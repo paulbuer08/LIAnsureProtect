@@ -132,7 +132,10 @@ fidelity.
 
 - **`LIAnsureProtect.Api`** — HTTP edge: CORS, correlation middleware, JWT auth, authorization
   policies, controllers → MediatR. Composes every module (`AddPlatform`, `AddNotificationsModule`,
-  `AddQuotingModule`, `AddUnderwritingModule`, `AddApplication`, `AddInfrastructure`).
+  `AddQuotingModule`, `AddUnderwritingModule`, `AddClaimsModule`, `AddApplication`,
+  `AddInfrastructure`). The carved modules — Notifications (`notifications` schema), Underwriting
+  (`underwriting`), Quoting, and **Claims (`claims`, the post-bind context — Chapter 12)** — each own
+  their schema and a readiness check; `ClaimsOutboxSource` is the fourth outbox source.
 - **`LIAnsureProtect.Worker`** — a `BackgroundService` loop that drains the outboxes through
   `IOutboxDispatcher` every 5 seconds and runs hourly idempotency-record cleanup. Same module
   composition, no HTTP. A transient failure inside an iteration is logged and retried on the next

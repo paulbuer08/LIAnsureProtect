@@ -12,6 +12,8 @@ using LIAnsureProtect.Infrastructure;
 using LIAnsureProtect.Infrastructure.Caching;
 using LIAnsureProtect.Infrastructure.Documents;
 using LIAnsureProtect.Infrastructure.Persistence;
+using LIAnsureProtect.Modules.Claims.Infrastructure;
+using LIAnsureProtect.Modules.Claims.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Notifications.Infrastructure;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Quoting.Infrastructure;
@@ -48,6 +50,7 @@ builder.Services.AddPlatform(builder.Configuration);
 builder.Services.AddNotificationsModule(databaseConnectionString, platformProfile);
 builder.Services.AddQuotingModule();
 builder.Services.AddUnderwritingModule(databaseConnectionString, platformProfile);
+builder.Services.AddClaimsModule(databaseConnectionString, platformProfile);
 builder.Services.AddApplication();
 builder.Services.Configure<DocumentStorageOptions>(builder.Configuration.GetSection("DocumentStorage"));
 builder.Services.Configure<NotificationPublisherOptions>(builder.Configuration.GetSection("Notifications"));
@@ -172,7 +175,8 @@ builder.Services
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
     .AddCheck<DbContextHealthCheck<SubmissionDbContext>>("submission-db", tags: ["ready", "database"])
     .AddCheck<DbContextHealthCheck<NotificationsDbContext>>("notifications-db", tags: ["ready", "database"])
-    .AddCheck<DbContextHealthCheck<UnderwritingDbContext>>("underwriting-db", tags: ["ready", "database"]);
+    .AddCheck<DbContextHealthCheck<UnderwritingDbContext>>("underwriting-db", tags: ["ready", "database"])
+    .AddCheck<DbContextHealthCheck<ClaimsDbContext>>("claims-db", tags: ["ready", "database"]);
 
 var app = builder.Build();
 LIAnsureProtect.Api.ApiStartupLog.Starting(app.Logger, applicationName, app.Environment.EnvironmentName);

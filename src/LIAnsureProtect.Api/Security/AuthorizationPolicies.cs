@@ -76,6 +76,39 @@ public static class AuthorizationPolicies
                 ApplicationRoles.Customer,
                 ApplicationRoles.Broker,
                 ApplicationRoles.Underwriter,
+                ApplicationRoles.ClaimsAdjuster,
+                ApplicationRoles.Admin
+            )
+        );
+
+        options.AddPolicy(ApplicationPolicies.FileClaim,
+            policy => policy.RequireRole(
+                ApplicationRoles.Customer,
+                ApplicationRoles.Broker,
+                ApplicationRoles.Admin
+            )
+        );
+
+        options.AddPolicy(ApplicationPolicies.ReadClaim,
+            policy => policy.RequireRole(
+                ApplicationRoles.Customer,
+                ApplicationRoles.Broker,
+                ApplicationRoles.Admin
+            )
+        );
+
+        options.AddPolicy(ApplicationPolicies.RespondToClaim,
+            policy => policy.RequireRole(
+                ApplicationRoles.Customer,
+                ApplicationRoles.Broker,
+                ApplicationRoles.Admin
+            )
+        );
+
+        // The ClaimsAdjuster role — reserved since M6 — is activated here.
+        options.AddPolicy(ApplicationPolicies.AdjudicateClaim,
+            policy => policy.RequireRole(
+                ApplicationRoles.ClaimsAdjuster,
                 ApplicationRoles.Admin
             )
         );

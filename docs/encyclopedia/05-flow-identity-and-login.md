@@ -16,6 +16,21 @@ password. Roles (Customer, Broker, Underwriter, ClaimsAdjuster, Admin) are assig
 dashboard and delivered inside the access token's role claim. A future milestone (M48) may add
 Cognito as a config-selectable alternative — the flow shape stays identical.
 
+## Server-authoritative roles — the `GET /api/v1/me` endpoint
+
+The **API is the single source of truth for roles**, not the token the browser holds. The SPA calls
+**`GET /api/v1/me`** (`CurrentUserController`, `[Authorize]`), which returns the caller's identity +
+roles read from the very same `ICurrentUser` the authorization policies use. The React `RequireRole`
+guard reads roles from that endpoint (`useCurrentUser`, TanStack-Query-cached) — with explicit
+loading / lookup-error / **no-roles-assigned** / wrong-role states — and the SPA **no longer parses
+any token** for roles.
+
+**Why this matters:** what the UI shows and what the API enforces can never drift, and the frontend
+is **fully provider-neutral** — it doesn't care whether roles arrive via an Auth0 or (future M48)
+Cognito token, because it never looks inside the token. The only tenant requirement is the roles
+claim on the **access** token (present since M7) + roles assigned to users; the earlier "add roles to
+the **ID** token" step is obsolete.
+
 ## The login flow, mirrored to the code
 
 ```mermaid

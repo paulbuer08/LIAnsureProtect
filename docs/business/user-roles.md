@@ -13,8 +13,15 @@ Authorization answers: what is this user allowed to do?
 | Customer | Creates their own company profile, submissions, documents, quote acceptance, and claims. |
 | Broker | Manages assigned client companies and submits applications for clients. |
 | Underwriter | Reviews submissions, requests more information, declines, and generates quotes. |
-| ClaimsAdjuster | Reviews claims, requests documents, approves, denies, and closes claims. |
+| ClaimsAdjuster | **Live (Phase 3).** Works the claims queue: assigns, requests information/documents, sets reserves, accepts/denies/settles, and closes claims. |
 | Admin | Manages users, roles, products, rules, and system settings. |
+
+> **Policy map (implemented):** `Submissions.*`, `Quotes.*`, `Policies.Bind`, `EvidenceRequests.Respond`
+> (Customer/Broker/Admin); `Quotes.Underwrite` (Underwriter/Admin); `Notifications.Read`
+> (Customer/Broker/Underwriter/**ClaimsAdjuster**/Admin); and the Claims policies —
+> `Claims.File`/`Claims.Read`/`Claims.Respond` (Customer/Broker/Admin) and **`Claims.Adjudicate`**
+> (ClaimsAdjuster/Admin). Roles are read **server-authoritatively** via `GET /api/v1/me` (the SPA
+> never parses the token) and enforced by the API (403), so the UI and the server can't drift.
 
 ## Ownership Rules
 

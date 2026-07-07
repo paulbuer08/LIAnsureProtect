@@ -23,12 +23,13 @@ Before implementation, document the design. After implementation, update docs an
 
 ## Current Status
 
-**Phase 1 is complete and hardened** (July 2026): the platform covers the full pre-bind cyber
-specialty lifecycle — submission intake, rating, referral underwriting with evidence and advisory
-AI, quote acceptance, and policy binding — restructured into a modular monolith (Platform kernel +
-Notifications/Underwriting/Quoting modules, Strangler-Fig-carved from the legacy core) with
-AWS-shaped adapters (S3, SNS/SQS, Redis) proven against LocalStack/Docker at zero cloud cost, a
-permanent zero-warning analyzer gate, and 270+ tests. **Next: Phase 2 — Terraform + real AWS.**
+**Phase 1 complete + Phase 3 Claims delivered** (July 2026): the platform covers the full
+cyber specialty lifecycle **end to end** — submission intake, rating, referral underwriting with
+evidence and advisory AI, quote acceptance, policy binding, **and now post-bind claims (FNOL →
+adjudication → settlement)** — as a modular monolith (Platform kernel + Notifications / Underwriting
+/ Quoting / **Claims** modules, Strangler-Fig-carved from the legacy core) with AWS-shaped adapters
+(S3, SNS/SQS, Redis) proven against LocalStack/Docker at zero cloud cost, a permanent zero-warning
+analyzer gate, and 500+ tests. **Next: Phase 2 — Terraform + real AWS.**
 
 - The story of every milestone: [**The Build History**](docs/build-history.md)
 - The precise current state: [Project Status](docs/project-status.md) · [Changelog](CHANGELOG.md)

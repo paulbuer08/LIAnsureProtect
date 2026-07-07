@@ -36,6 +36,7 @@ Every chapter follows the same promise:
 | 9 | [Flow: Quote Acceptance & Policy Binding](09-flow-acceptance-and-binding.md) | The customer says "yes" — how a quote becomes a bound policy. |
 | 10 | [Flow: Notifications & Background Processing](10-flow-notifications-and-background.md) | The transactional outbox, the Worker, the dispatcher, consumers, and the personal + team inboxes. |
 | 11 | [Observability & Operations](11-observability-and-operations.md) | Correlation IDs, health probes, metrics/traces, idempotency cleanup — how we see and operate the system. |
+| 12 | [Flow: Claims (FNOL → Adjudication → Settlement)](12-flow-claims.md) | After a policy is bound, how a cyber-incident claim is filed, assigned to an adjuster, evidenced, reserved, decided, settled, and closed. |
 
 ## Where this book fits among the other docs
 

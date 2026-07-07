@@ -122,8 +122,9 @@ VITE_API_BASE_URL=http://localhost:5223
 ```
 
 This resets the local Docker Postgres (fresh database each time by default), applies the EF Core
-migrations for **all three DbContexts** (`SubmissionDbContext`, `NotificationsDbContext`,
-`UnderwritingDbContext`), builds, and runs the API at <http://localhost:5223>. Keep it running.
+migrations for **all four DbContexts** (`SubmissionDbContext`, `NotificationsDbContext`,
+`UnderwritingDbContext`, `ClaimsDbContext`), builds, and runs the API at <http://localhost:5223>.
+Keep it running.
 
 Prefer to keep your existing data? `.\scripts\setup-dev.ps1 -ResetContainers:$false -RemoveLocalDbVolume:$false`
 then `.\scripts\update-database.ps1` and run the API manually:

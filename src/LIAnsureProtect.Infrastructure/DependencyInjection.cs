@@ -17,6 +17,7 @@ using LIAnsureProtect.Infrastructure.Policies;
 using LIAnsureProtect.Infrastructure.Quotes;
 using LIAnsureProtect.Infrastructure.Quotes.RatingProviders;
 using LIAnsureProtect.Infrastructure.Submissions;
+using LIAnsureProtect.Modules.Claims.Application;
 using LIAnsureProtect.Modules.Notifications.Application;
 using LIAnsureProtect.Modules.Quoting.Application.ReferralDecisions;
 using LIAnsureProtect.Modules.Underwriting.Application;
@@ -72,6 +73,13 @@ public static class DependencyInjection
         services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestCancelledNotificationMapper>();
         services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestFollowUpSentNotificationMapper>();
         services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestRemediationRequiredNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimFiledNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimAssignedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimInformationRequestedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimantInformationResponseNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimAcceptedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimDeniedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ClaimClosedNotificationMapper>();
         services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, QuoteGeneratedReferralOperationMapper>();
         services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, QuoteUnderwritingDecisionReferralOperationMapper>();
         services.AddScoped<IOutboxMessageMapper<ReferralOperationEvent>, EvidenceRequestCreatedReferralOperationMapper>();
@@ -155,6 +163,8 @@ public static class DependencyInjection
         services.AddScoped<IPolicyBindingProviderClient, SimulatedPolicyBindingProviderClient>();
         // Quoting-side adapter for the Underwriting module's cross-context quote-read port.
         services.AddScoped<IUnderwritingQuoteContextReader, QuoteUnderwritingContextReader>();
+        // Legacy Policy-side adapter for the Claims module's cross-context policy-read port.
+        services.AddScoped<IClaimsPolicyContextReader, ClaimsPolicyContextReader>();
         services.AddTransient<RatingProviderAttemptCountingHandler>();
         services.AddTransient<SimulatedRatingProviderHttpMessageHandler>();
         var ratingProviderClientBuilder = services

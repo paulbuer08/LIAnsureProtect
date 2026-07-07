@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router";
 
 import { RequireAuth } from "./components/RequireAuth";
+import { RequireRole } from "./components/RequireRole";
 import "./App.css";
 
 const HomePage = lazy(() =>
@@ -51,6 +52,30 @@ const UnderwritingQuoteReferralsPage = lazy(() =>
 const EvidenceRequestsPage = lazy(() =>
   import("./features/evidence/pages/EvidenceRequestsPage").then((module) => ({
     default: module.EvidenceRequestsPage,
+  })),
+);
+
+const ClaimsPage = lazy(() =>
+  import("./features/claims/pages/ClaimsPage").then((module) => ({
+    default: module.ClaimsPage,
+  })),
+);
+
+const NewClaimPage = lazy(() =>
+  import("./features/claims/pages/NewClaimPage").then((module) => ({
+    default: module.NewClaimPage,
+  })),
+);
+
+const ClaimDetailPage = lazy(() =>
+  import("./features/claims/pages/ClaimDetailPage").then((module) => ({
+    default: module.ClaimDetailPage,
+  })),
+);
+
+const ClaimsAdjudicationPage = lazy(() =>
+  import("./features/claims/pages/ClaimsAdjudicationPage").then((module) => ({
+    default: module.ClaimsAdjudicationPage,
   })),
 );
 
@@ -119,6 +144,46 @@ function App() {
           element={
             <RequireAuth>
               <EvidenceRequestsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/claims/adjudication"
+          element={
+            <RequireAuth>
+              <RequireRole allowedRoles={["ClaimsAdjuster", "Admin"]}>
+                <ClaimsAdjudicationPage />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/claims/new"
+          element={
+            <RequireAuth>
+              <RequireRole allowedRoles={["Customer", "Broker", "Admin"]}>
+                <NewClaimPage />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/claims"
+          element={
+            <RequireAuth>
+              <RequireRole allowedRoles={["Customer", "Broker", "Admin"]}>
+                <ClaimsPage />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/claims/:claimId"
+          element={
+            <RequireAuth>
+              <RequireRole allowedRoles={["Customer", "Broker", "Admin"]}>
+                <ClaimDetailPage />
+              </RequireRole>
             </RequireAuth>
           }
         />

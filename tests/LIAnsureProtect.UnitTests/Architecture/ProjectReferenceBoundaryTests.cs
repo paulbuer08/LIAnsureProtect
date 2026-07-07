@@ -25,6 +25,8 @@ public sealed class ProjectReferenceBoundaryTests
         "src/LIAnsureProtect.Infrastructure/LIAnsureProtect.Infrastructure.csproj",
         "LIAnsureProtect.Application",
         "LIAnsureProtect.Domain",
+        "LIAnsureProtect.Modules.Claims.Application",
+        "LIAnsureProtect.Modules.Claims.Domain",
         "LIAnsureProtect.Modules.Notifications.Application",
         "LIAnsureProtect.Modules.Quoting.Application",
         "LIAnsureProtect.Modules.Underwriting.Application",
@@ -34,6 +36,7 @@ public sealed class ProjectReferenceBoundaryTests
         "src/LIAnsureProtect.Api/LIAnsureProtect.Api.csproj",
         "LIAnsureProtect.Application",
         "LIAnsureProtect.Infrastructure",
+        "LIAnsureProtect.Modules.Claims.Infrastructure",
         "LIAnsureProtect.Modules.Notifications.Infrastructure",
         "LIAnsureProtect.Modules.Quoting.Infrastructure",
         "LIAnsureProtect.Modules.Underwriting.Infrastructure",
@@ -42,10 +45,24 @@ public sealed class ProjectReferenceBoundaryTests
         "src/LIAnsureProtect.Worker/LIAnsureProtect.Worker.csproj",
         "LIAnsureProtect.Application",
         "LIAnsureProtect.Infrastructure",
+        "LIAnsureProtect.Modules.Claims.Infrastructure",
         "LIAnsureProtect.Modules.Notifications.Infrastructure",
         "LIAnsureProtect.Modules.Quoting.Infrastructure",
         "LIAnsureProtect.Modules.Underwriting.Infrastructure",
         "LIAnsureProtect.Platform")]
+    [InlineData(
+        "src/Modules/Claims/LIAnsureProtect.Modules.Claims.Domain/LIAnsureProtect.Modules.Claims.Domain.csproj",
+        "LIAnsureProtect.Platform.Abstractions")]
+    [InlineData(
+        "src/Modules/Claims/LIAnsureProtect.Modules.Claims.Application/LIAnsureProtect.Modules.Claims.Application.csproj",
+        "LIAnsureProtect.Modules.Claims.Domain",
+        "LIAnsureProtect.Platform.Abstractions")]
+    [InlineData(
+        "src/Modules/Claims/LIAnsureProtect.Modules.Claims.Infrastructure/LIAnsureProtect.Modules.Claims.Infrastructure.csproj",
+        "LIAnsureProtect.Modules.Claims.Application",
+        "LIAnsureProtect.Modules.Claims.Domain",
+        "LIAnsureProtect.Platform",
+        "LIAnsureProtect.Platform.Abstractions")]
     [InlineData(
         "src/Modules/Quoting/LIAnsureProtect.Modules.Quoting.Domain/LIAnsureProtect.Modules.Quoting.Domain.csproj",
         "LIAnsureProtect.Platform.Abstractions")]

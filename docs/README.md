@@ -26,6 +26,7 @@
 | Business domain: user roles & ownership rules | [business/user-roles.md](business/user-roles.md) |
 | Core concepts explained (modular monolith, outbox, …) | [concepts/README.md](concepts/README.md) |
 | Phase 2 infra/edge/identity decisions + domain/Auth0 setup log | [dev/phase2-infrastructure-and-identity-decisions.md](dev/phase2-infrastructure-and-identity-decisions.md) |
+| Claims context (Phase 3) — how it works | [encyclopedia/12-flow-claims.md](encyclopedia/12-flow-claims.md); per-milestone archive under `claims/` |
 | Architecture overview + decision records (ADRs) | [architecture/overview.md](architecture/overview.md) · [architecture/decision-records/](architecture/decision-records) |
 
 ## Tier 3 — The historical archive (rarely needed; kept as the audit trail)
@@ -36,6 +37,10 @@ Build History.
 
 - **`dev/milestone-*.md`** — every milestone's design/learnings/handoff record (M2 → today),
   named by milestone number.
+- **`claims/`** — the Phase-3 Claims context per-milestone records (CM1–CM8 design/learnings, the
+  post-CM8 audit, the final-merge checklist). The current-state view is Encyclopedia Chapter 12 and
+  Build History Era 7; these are the forensic archive (`claims-changelog.md`/`claims-status.md`
+  banner-marked historical).
 - **`dev/post-m44-deep-audit.md`**, **`dev/referral-queue-hardening-spec.md`** — audit reports
   and implemented specs.
 - **`superpowers/plans/`** — execution plans for the plan-driven milestones.
