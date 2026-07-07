@@ -25,6 +25,7 @@
 | Business domain: cyber specialty insurance | [business/cyber-specialty-insurance-overview.md](business/cyber-specialty-insurance-overview.md) |
 | Business domain: user roles & ownership rules | [business/user-roles.md](business/user-roles.md) |
 | Core concepts explained (modular monolith, outbox, …) | [concepts/README.md](concepts/README.md) |
+| Phase 2 infra/edge/identity decisions + domain/Auth0 setup log | [dev/phase2-infrastructure-and-identity-decisions.md](dev/phase2-infrastructure-and-identity-decisions.md) |
 | Architecture overview + decision records (ADRs) | [architecture/overview.md](architecture/overview.md) · [architecture/decision-records/](architecture/decision-records) |
 
 ## Tier 3 — The historical archive (rarely needed; kept as the audit trail)

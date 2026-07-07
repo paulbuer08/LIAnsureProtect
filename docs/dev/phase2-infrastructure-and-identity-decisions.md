@@ -1,0 +1,133 @@
+# Phase 2 Infrastructure & Identity — Decisions and Setup Log
+
+> **Living decisions record.** Captures the infrastructure, DNS, edge, and identity decisions made
+> before/at the start of Phase 2 (M45+), plus the concrete external-account setup performed
+> (Cloudflare domain, Auth0). Future sessions must honor these decisions when planning M45–M50.
+> Companion to the [Production Transformation Roadmap](production-transformation-roadmap.md).
+
+## 0. How the two tracks run in parallel
+
+Development proceeds on **two independent tracks at the same time**:
+
+| Track | What | Branch model |
+|---|---|---|
+| **Phase 2 — Terraform/AWS infrastructure (M45+)** | Provision real AWS (foundation → data → compute → edge), done manually by the owner with assistant help | Normal trunk flow: `feat/milestone-45-…` off `main` → PR into **`main`** → squash-merge |
+| **Phase 3 — Claims bounded context** | The full Claims/FNOL context, built autonomously in a **separate session** | Child branches `feat/claims/cm1..cm8` → PR into the long-lived parent **`feat/claims-context`** (never `main`) until Phase 2 is done, then the parent merges to `main` |
+
+The tracks have **no dependency on each other** (Claims is application code under `src/Modules/Claims`;
+Phase 2 is infrastructure under a new `infra/` tree), so they parallelize cleanly. The Claims session
+runs in its own git worktree so it never collides with the owner's `main` working folder.
+
+**Rule:** do not merge `feat/claims-context` into `main` before Phase 2 is complete.
+
+## 1. Edge architecture — AWS-native; Cloudflare is registrar-only
+
+**Decision:** the production edge (DNS, CDN, WAF, DDoS, TLS) is **AWS-native**, not Cloudflare.
+
+Cloudflare's CDN/WAF/DDoS/TLS features **overlap** with — are redundant to — the AWS edge stack.
+You pick **one** edge; running both in series (Cloudflare → CloudFront) adds double caching, two WAFs,
+latency, and cost for no benefit.
+
+| Job | Chosen (AWS-native) | Redundant Cloudflare feature (NOT used) |
+|---|---|---|
+| DNS | **Route 53** | Cloudflare DNS |
+| CDN | **CloudFront** | Cloudflare CDN |
+| WAF | **AWS WAF** | Cloudflare WAF |
+| DDoS | **AWS Shield** | Cloudflare DDoS |
+| TLS certs | **ACM** | Cloudflare Universal SSL |
+| Registrar | — | **Cloudflare Registrar** ✅ (kept — this is all we use Cloudflare for) |
+
+**Why AWS-native:** this is an AWS-transformation portfolio project — the entire point of Phase 2 is
+to demonstrate AWS (EKS, CloudFront, WAF, Terraform). Keeping the edge in AWS gives one Terraform-
+managed, single-cloud story with native ALB/EKS/S3 integration.
+
+**Cloudflare stays as the domain registrar only.** Registrar ≠ CDN — you can register at Cloudflare
+and host DNS + edge in AWS. In Phase 2, **delegate the domain's nameservers to a Route 53 hosted zone**
+(DNS-as-code in Terraform). Do **not** enable Cloudflare's CDN/WAF/Bot-Fight/Leaked-credential features
+— those are the redundant part.
+
+**Bake into the plans:** M45 (foundation) provisions the Route 53 hosted zone + NS delegation + ACM;
+M47 (edge) provisions CloudFront + AWS WAF + Shield in front of the app origin.
+
+## 2. Identity — Auth0 stays as the CIAM; Cloudflare is not an IdP
+
+**Decision:** keep **Auth0** as the customer identity provider. The real future swap decision is
+**Auth0 vs AWS Cognito** (a Phase-2 identity call), **not** Cloudflare.
+
+- **Auth0 = CIAM / OIDC IdP:** runs login/signup, the user directory, MFA, and **issues the JWT the
+  API validates** (audience `https://api.liansureprotect.local`, roles claim
+  `https://liansureprotect.local/roles`). The app *delegates identity* to it (M6/M7).
+- **Cloudflare is a different layer (edge/network) and is NOT an identity provider.** Its "Access /
+  Zero Trust" product gates *internal* apps and **federates to** an IdP (it doesn't issue your app's
+  customer tokens). So Auth0 and Cloudflare are complementary, not redundant.
+
+> Summary of the two "redundancy" questions from this session:
+> - **Auth0 vs Cloudflare → NOT redundant** (identity vs edge). Keep Auth0.
+> - **Cloudflare CDN/WAF vs CloudFront/AWS WAF → REDUNDANT** (same layer). Use AWS; keep Cloudflare
+>   as registrar only.
+
+## 3. Domain — `liansureprotect.com` (Cloudflare Registrar)
+
+Purchased on Cloudflare Registrar (~$10/yr, expires 2027-07-06). Registrar-only per §1.
+
+**Renaming later:** a registration string is fixed — you can't "rename" it, but switching is cheap
+(buy a new domain, repoint config, let the old lapse). The domain lives only in configuration
+(Auth0 custom domain, `VITE_AUTH0_DOMAIN`, API `Authentication:Authority`), never in code, so a later
+switch is a ~1-hour config change with zero code changes.
+
+### Security setup completed this session
+- **Auto-renew ON** (the #1 way to lose a domain is accidental expiry).
+- **Account 2FA** enabled — Cloudflare moved it to **Profile → Access Management** (not the Settings
+  tab; the old "Authentication" section was renamed).
+- **DNSSEC** enabled (DNS → Settings).
+- **Registrar Lock + WHOIS privacy** — on by default; verified.
+- **Anti-spoofing email records** via Cloudflare's "domain is not used to send email" one-click bundle:
+
+  | Type | Name | Content |
+  |---|---|---|
+  | TXT | `liansureprotect.com` | `v=spf1 -all` |
+  | TXT | `*._domainkey` | `v=DKIM1; p=` |
+  | TXT | `_dmarc` | `v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s;` |
+
+  (Chosen over the individual SPF/DMARC creators, which default to weaker `~all` / `p=none` and are
+  for domains that *do* send mail.)
+
+### Temporary — will change in Phase 2
+These DNS records currently live at Cloudflare. When Phase 2 delegates DNS to Route 53, they **move to
+Route 53** (re-entered there; DNSSEC re-done on the Route 53 side with the DS record placed back at the
+Cloudflare registrar). When real email is set up (below), SPF relaxes to include the provider and real
+DKIM keys are added.
+
+## 4. Auth0 setup log & the email-deliverability plan
+
+### Roles claim (working)
+- Post-Login Action sets the claim on **both** `accessToken` and `idToken` at key
+  `https://liansureprotect.local/roles`; the API reads exactly that (`Authentication:RoleClaimType`).
+  The frontend does not read roles from the token today (role enforcement is server-side 403), but
+  setting the idToken claim future-proofs role-aware UI (e.g. the Claims workbench).
+- **Critical gotcha:** the Action must be **deployed AND dragged into the Login flow**
+  (Actions → Triggers → post-login). An Action only in the Library does nothing → every API call
+  returns 403 even with a perfect script. First thing to check when debugging 403-everywhere.
+
+### Verification emails landing in spam
+- **Cause:** Auth0's default shared sender `no-reply@auth0user.net` (poor reputation, no
+  domain-aligned SPF/DKIM/DMARC). The random `dev-…` tenant name is only a cosmetic contributor.
+- **Cheap visual fix (done/enough for now):** Auth0 → Settings → General → set **Friendly Name**
+  (`LIAnsureProtect`) + logo + support email so the sender/login look legitimate.
+- **Real deliverability fix (deferred, optional):** custom email provider — **Amazon SES** (fits the
+  AWS direction) or SendGrid — verify `liansureprotect.com`, add its SPF/DKIM/DMARC, set Auth0
+  Branding → Email Provider to send from `no-reply@liansureprotect.com`.
+- **For testing now:** manually-created test personas can just click the verify link once from spam
+  (or be pre-verified); don't let this block the walkthrough.
+
+### Custom Auth0 domain (deferred, optional portfolio polish)
+`auth.liansureprotect.com` via Auth0 Custom Domains (Auth0-managed cert) → add the CNAME/TXT it gives
+to DNS → verify → then switch `VITE_AUTH0_DOMAIN` **and** API `Authentication:Authority` together
+(issuer must match) and restart. Not needed for the walkthrough.
+
+## 5. Manual UI walkthrough (in progress)
+
+The owner is doing the first hands-on UI walkthrough before M45, following
+[Running The App](../guides/running-the-app.md) (incl. the one-time Auth0 setup) and the
+[Manual Testing Guide](../guides/manual-testing-guide.md) (five generic personas, four scenarios).
+Design feedback gathered there feeds a possible UI-polish backlog before/alongside Phase 2.

@@ -85,7 +85,13 @@ events); in-process module event bus now → outbox → SNS/SQS later.
 - **Compute — EKS** with **Fargate profiles** (no node management) for API + Worker; **Lambda** for event/glue
   functions. *Honest note:* EKS adds real complexity + a ~$0.10/hr control-plane baseline — chosen for the
   learning goal, run cost-controlled and torn down between sessions; ECS Fargate is the lighter fallback.
-- **Edge:** CloudFront + WAF + ACM; API Gateway reserved for a future partner API.
+- **Edge:** CloudFront + WAF + ACM; API Gateway reserved for a future partner API. **Decision (2026-07):
+  the edge is AWS-native — Route 53 + CloudFront + AWS WAF + Shield + ACM.** The domain
+  `liansureprotect.com` is registered at **Cloudflare (registrar only)**; Phase 2 delegates its
+  nameservers to a Route 53 hosted zone (DNS-as-code). Cloudflare's CDN/WAF/DDoS are deliberately
+  **unused** (redundant with the AWS edge). **Identity stays Auth0** (the swap decision is Auth0-vs-
+  Cognito, not Cloudflare — Cloudflare is not an IdP). Full rationale + the domain/Auth0 setup log:
+  [Phase 2 Infrastructure & Identity Decisions](phase2-infrastructure-and-identity-decisions.md).
 - **Data/storage:** Aurora PostgreSQL Serverless v2 (pgvector), ElastiCache, S3 (+KMS, Object Lock).
 - **Messaging/orchestration:** SNS/SQS (+DLQ), EventBridge, Step Functions.
 - **Identity:** Auth0 default, Cognito optional. **IaC:** Terraform (remote state, per-env modules).
