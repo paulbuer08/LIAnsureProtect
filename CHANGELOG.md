@@ -8,6 +8,8 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- `docs/dev/phase2-infrastructure-and-identity-decisions.md` — records the pre-Phase-2 decisions from the infra/identity working session: the parallel Phase-2-on-main / Phase-3-Claims-on-`feat/claims-context` development model; the AWS-native edge decision (Route 53 + CloudFront + AWS WAF + Shield + ACM, Cloudflare as registrar only, DNS delegated to Route 53); identity stays Auth0 (Cloudflare is not an IdP; the real swap is Auth0-vs-Cognito); and the `liansureprotect.com` domain + Auth0 setup log (security hardening, anti-spoofing DNS, roles-Action gotcha, deferred custom-domain/branded-email). Linked from the roadmap, docs map, and project status.
+
 - Documentation consolidation: new living `docs/build-history.md` (the whole project story — every milestone across six eras with diagrams, analogies, and the Strangler Fig transformation explained) and a tiered `docs/README.md` documentation map (five Tier-1 documents answer 95% of questions; per-milestone records are the Tier-3 archive). Root README slimmed from a 200-line milestone dump to a short status plus the five core links.
 - Docs pruning: removed superseded `docs/dev/local-development.md` (→ `docs/guides/running-the-app.md`) and `docs/dev/aws-environments.md` (→ production-transformation roadmap); banner-marked `docs/dev/pattern-roadmap-after-milestone-11.md` as a historical snapshot (kept because many archive records reference it). New rule: milestone PRs update the Tier-1 living docs and may add one archive record; standalone reference docs need a reason a living doc can't hold the content.
 
