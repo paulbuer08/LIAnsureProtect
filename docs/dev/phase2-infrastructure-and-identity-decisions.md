@@ -109,16 +109,42 @@ DKIM keys are added.
   (Actions → Triggers → post-login). An Action only in the Library does nothing → every API call
   returns 403 even with a perfect script. First thing to check when debugging 403-everywhere.
 
-### Verification emails landing in spam
-- **Cause:** Auth0's default shared sender `no-reply@auth0user.net` (poor reputation, no
-  domain-aligned SPF/DKIM/DMARC). The random `dev-…` tenant name is only a cosmetic contributor.
+### Verification emails landing in spam — the accurate root cause
+- **Real cause = shared-domain reputation, NOT missing authentication and NOT the tenant name.**
+  Auth0 dev tenants send verification mail from `no-reply@auth0user.net` — a domain **shared by
+  thousands of dev tenants**. It *does* have its own basic SPF/DKIM (the mail isn't failing auth),
+  but it's a bulk shared sender with mediocre reputation, sending a generic transactional email to
+  a brand-new recipient → Gmail plays it safe → spam. The random `dev-…` tenant display name is only
+  a minor cosmetic signal, not the cause.
+- **No conflict with your domain's DNS.** The restrictive SPF/DKIM/DMARC records on
+  `liansureprotect.com` (§3) only govern mail claiming to be *from `@liansureprotect.com`*. Auth0's
+  emails are from `@auth0user.net` — a different domain — so your records neither block nor affect
+  them. "Nothing may send as `@liansureprotect.com`" and "Auth0 sends from `@auth0user.net`" are both
+  true and independent. (This confused us mid-session; documented so it isn't re-derived.)
 - **Cheap visual fix (done/enough for now):** Auth0 → Settings → General → set **Friendly Name**
-  (`LIAnsureProtect`) + logo + support email so the sender/login look legitimate.
+  (`LIAnsureProtect`) + logo + support email so the sender/login *look* legitimate (doesn't change
+  spam-foldering).
 - **Real deliverability fix (deferred, optional):** custom email provider — **Amazon SES** (fits the
-  AWS direction) or SendGrid — verify `liansureprotect.com`, add its SPF/DKIM/DMARC, set Auth0
-  Branding → Email Provider to send from `no-reply@liansureprotect.com`.
-- **For testing now:** manually-created test personas can just click the verify link once from spam
-  (or be pre-verified); don't let this block the walkthrough.
+  AWS direction) or SendGrid — verify `liansureprotect.com`, add its SPF/DKIM, **relax SPF** to
+  `include:` the provider (keep `p=reject`), set Auth0 Branding → Email Provider to send from
+  `no-reply@liansureprotect.com`. Only then do the §3 records start mattering for Auth0 mail.
+- **For testing now:** click the verify link once per persona from spam, and hit **"Not spam"** so
+  Gmail inboxes the rest; or pre-verify the users. Don't let this block the walkthrough.
+
+### Auth0 lifecycle triggers — what we use, and what's deferred (and why)
+Only the **post-login roles Action** is in use. The other lifecycle hooks were evaluated and
+**deliberately deferred** until a concrete consumer exists:
+
+| Trigger | Verdict | Add it when… |
+|---|---|---|
+| `onExecutePostLogin` (roles claim) | **In use** ✅ | — (current) |
+| `onContinuePostLogin` | **Not applicable now** — it only runs when the post-login Action does a **redirect** (`api.redirect.sendUserTo`); the roles Action has no redirect, so leave it commented out. | a redirect flow is added: ToS/consent gate, progressive profiling (collect missing profile fields), or a custom step-up-MFA page (the roadmap's step-up MFA, *if* built as a redirect flow). |
+| **Pre User Registration** (`onExecutePreUserRegistration`) | **Deferred** — fires only on Database-connection self-signup, which we don't exercise (personas are created by hand). Not needed for security: RBAC already means a self-signup gets **no roles** → the API 403s everything, so nobody can self-grant Underwriter/Admin. | real self-service signup is enabled and you want domain allow/deny rules or a `pending_approval` tag. Roles are still assigned by an admin, never here. |
+| **Post User Registration** (`onExecutePostUserRegistration`) | **Deferred** — async, side-effect only (can't change the flow). The app is stateless about identity (derives everything from the JWT `sub` via `ICurrentUser`; **no user/account table**), so there's nothing to sync. | the roadmap's **Accounts/Companies** bounded context exists and you want to provision an account profile / send a welcome (needs an M2M token in the Action's Secrets + a receiving API endpoint). |
+
+**Guardrail to remember:** never set/grant roles in a pre/post-registration Action — roles come from
+admin-assigned Auth0 RBAC and are read via `event.authorization.roles` in the post-login Action. This
+keeps privileged roles (Underwriter, ClaimsAdjuster, Admin) un-self-grantable.
 
 ### Custom Auth0 domain (deferred, optional portfolio polish)
 `auth.liansureprotect.com` via Auth0 Custom Domains (Auth0-managed cert) → add the CNAME/TXT it gives
