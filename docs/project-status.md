@@ -743,7 +743,7 @@ Current Auth0 setup progress:
 - A test user was verified and assigned the `Customer` role.
 - Auth0 post-login Action `Add LIAnsureProtect Roles Claim` was deployed and attached to the post-login trigger.
 - `LIAnsureProtect Dev Token Tester` was authorized for user-delegated access to `LIAnsureProtect API`.
-- Local development authentication configuration uses committed project constants for audience `https://api.liansureprotect.local` and role claim type `https://liansureprotect.local/roles`; the real Auth0 tenant authority should be supplied locally through ASP.NET Core User Secrets or environment variables.
+- Local development authentication configuration uses committed project constants for audience `https://api.liansureprotect.local` and role claim type `https://liansureprotect.local/roles`; the real Auth0 tenant authority is now easiest to supply through the gitignored API local env file `src/LIAnsureProtect.Api/.env.local` (`Authentication__Authority=...`). ASP.NET Core User Secrets and environment variables still work as lower-level framework options, but the run guide uses `.env.local` for visibility and symmetry with the frontend.
 - Manual Auth0 authorization-code token exchange succeeded and returned an access token for the verified `Customer` test user.
 - Manual authenticated smoke test against `POST /api/v1/submissions` succeeded with the Auth0 access token and returned a draft submission.
 - Manual anonymous smoke test against `POST /api/v1/submissions` returned `401 Unauthorized`, confirming the endpoint remains protected without a bearer token.
@@ -852,7 +852,7 @@ Initial scope:
 - React Router was added with `/`, `/callback`, and `/dashboard` routes.
 - Auth0 frontend login was configured using Authorization Code with PKCE through `@auth0/auth0-react`.
 - A separate Auth0 Single Page Application client, `LIAnsureProtect Web Dev`, was created for the browser app.
-- Local frontend config is stored in `src/LIAnsureProtect.Web/.env.local`, which is intentionally ignored by git and contains only public browser configuration values.
+- Local API and frontend config can be kept in visible gitignored env files: `src/LIAnsureProtect.Api/.env.local` for local API Auth0 settings (`Authentication__Authority`, audience, role claim type) and `src/LIAnsureProtect.Web/.env.local` for public browser configuration (`VITE_AUTH0_DOMAIN`, client id, audience, callback URL, API base URL). The matching `.env.example` files are committed as templates.
 - The frontend can log in through Auth0, display callback/session state, show the signed-in dashboard, log out, and guard `/dashboard` from unauthenticated direct access.
 - The dashboard can request an Auth0 access token for the LIAnsureProtect API audience and display a safe shortened preview.
 - A development CORS policy now allows the local frontend origin `http://localhost:5173` to call the API during browser-based Milestone 8 testing.

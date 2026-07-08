@@ -93,14 +93,18 @@ then on each user's *Roles* tab assign one role.
 
 ### 6. Tell the backend and frontend about your tenant
 
-**Backend** — store the tenant-specific authority in User Secrets (never commit it):
+**Backend** — create `src/LIAnsureProtect.Api/.env.local` (gitignored) from the committed
+`.env.example`:
 
-```powershell
-dotnet user-secrets set "Authentication:Authority" "https://dev-yourtenant.us.auth0.com/" --project src/LIAnsureProtect.Api
+```text
+Authentication__Authority=https://dev-yourtenant.us.auth0.com/
+Authentication__Audience=https://api.liansureprotect.local
+Authentication__RoleClaimType=https://liansureprotect.local/roles
 ```
 
 The audience and role-claim type are project constants already committed in
-`appsettings.Development.json` — you don't need to change them.
+`appsettings.Development.json`, but keeping them in `.env.local` makes your local Auth0 settings
+visible in one place. Do not commit `.env.local`.
 
 **Frontend** — create `src/LIAnsureProtect.Web/.env.local` (gitignored) from the committed
 `.env.example`:
@@ -222,6 +226,6 @@ issues:
 | Symptom | Likely cause |
 |---|---|
 | Login redirects but the app shows an Auth0 error | Callback URL mismatch — must be exactly `http://localhost:5173/callback` in the SPA app settings |
-| Logged in but every API call returns 401 | `VITE_AUTH0_AUDIENCE` missing/wrong, or backend `Authentication:Authority` not set in User Secrets |
+| Logged in but every API call returns 401 | `VITE_AUTH0_AUDIENCE` missing/wrong, or backend `Authentication__Authority` not set in `src/LIAnsureProtect.Api/.env.local` |
 | Logged in but a page returns 403 | The test user's Auth0 role doesn't satisfy the endpoint policy — check the user's Roles tab and that the post-login Action is deployed **and attached to the flow** |
 | Roles missing from the token | The Action isn't in the Login flow, or the claim namespace differs from `https://liansureprotect.local/roles` |

@@ -30,6 +30,8 @@ var applicationName = typeof(Program).Assembly.GetName().Name ?? "LIAnsureProtec
 var builder = WebApplication.CreateBuilder(args);
 const string LocalFrontendCorsPolicy = "LocalFrontend";
 
+builder.Configuration.AddInMemoryCollection(ReadDotEnvFile(Path.Combine(builder.Environment.ContentRootPath, ".env.local")));
+
 // Document uploads are governed at 50 MB total per submission (EvidenceDocumentUploadRules);
 // Kestrel's ~30 MB default body cap would reject valid uploads with 413 before that validation
 // ever runs. 60 MB leaves headroom for multipart framing above the 50 MB business rule.
@@ -227,3 +229,40 @@ app.MapControllers();
 // --------------------------------------------------------------------------------
 // 3) Run the app
 await app.RunAsync();
+
+static IReadOnlyDictionary<string, string?> ReadDotEnvFile(string path)
+{
+    var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+    if (!File.Exists(path))
+        return values;
+
+    foreach (var rawLine in File.ReadAllLines(path))
+    {
+        var line = rawLine.Trim();
+
+        if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
+            continue;
+
+        if (line.StartsWith("export ", StringComparison.OrdinalIgnoreCase))
+            line = line["export ".Length..].TrimStart();
+
+        var separatorIndex = line.IndexOf('=');
+        if (separatorIndex <= 0)
+            continue;
+
+        var key = line[..separatorIndex].Trim().Replace("__", ":", StringComparison.Ordinal);
+        var value = line[(separatorIndex + 1)..].Trim();
+
+        if (value.Length >= 2
+            && ((value[0] == '"' && value[^1] == '"')
+                || (value[0] == '\'' && value[^1] == '\'')))
+        {
+            value = value[1..^1];
+        }
+
+        values[key] = value;
+    }
+
+    return values;
+}

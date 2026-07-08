@@ -36,6 +36,7 @@ The format follows simple milestone-based entries.
 ### Changed
 
 - React protected routes now use a shared server-authoritative role map that mirrors the API policies. Role-ineligible menu/dashboard items are omitted, direct URL attempts are blocked before the protected page mounts or fires its API query, and the dashboard now presents role-specific work cards plus a responsive notifications badge with personal/team inbox context.
+- Local development Auth0 configuration now supports a visible, gitignored API `.env.local` file (`src/LIAnsureProtect.Api/.env.local`) with a committed `src/LIAnsureProtect.Api/.env.example` template, matching the existing frontend `.env.local` pattern. The run guide now documents this path, and the frontend local env template/value includes `VITE_API_BASE_URL=http://localhost:5223`.
 - Refactored ten domain entities (`Quote`, `Policy`, `AiUnderwritingReview`, `QuoteRatingProviderAttempt`, `QuoteUnderwritingReview`, `QuoteEvidenceRequest`, `QuoteEvidenceRequestReview`, `QuoteEvidenceDocument`, `NotificationInboxEntry`, `TeamNotificationEntry`) from parameter-heavy private constructors (up to 22 parameters, SonarLint S107) to factory property assignment over the single EF-used parameterless constructor. Behavior unchanged; all tests green.
 - Hot-path logging in `OutboxDispatcher`, `Worker`, and API startup converted to source-generated `[LoggerMessage]` methods (CA1848/CA1873).
 
