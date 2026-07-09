@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useParams } from "react-router";
 
@@ -70,24 +70,25 @@ const helpText: Record<string, string> = {
 };
 
 function HelpButton({ id, label }: { id: keyof typeof helpText; label: string }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const tooltipId = useId();
 
   return (
-    <span className="relative inline-flex align-middle">
+    <span className="group relative inline-flex align-middle">
       <button
         type="button"
-        aria-expanded={isOpen}
+        aria-describedby={tooltipId}
         aria-label={`More details about ${label}`}
-        onClick={() => setIsOpen((current) => !current)}
-        className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full border border-sky-300 text-xs font-bold text-sky-200 hover:bg-sky-400 hover:text-slate-950"
+        className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full border border-sky-300 text-xs font-bold text-sky-200 hover:bg-sky-400 hover:text-slate-950 focus:bg-sky-400 focus:text-slate-950 focus:outline-none focus:ring-2 focus:ring-sky-300"
       >
         ?
       </button>
-      {isOpen && (
-        <span className="absolute left-7 top-0 z-10 w-72 rounded-md border border-slate-700 bg-slate-950 p-3 text-xs font-normal leading-5 text-slate-200 shadow-xl">
-          {helpText[id]}
-        </span>
-      )}
+      <span
+        id={tooltipId}
+        role="tooltip"
+        className="absolute left-7 top-0 z-10 hidden w-72 rounded-md border border-slate-700 bg-slate-950 p-3 text-xs font-normal leading-5 text-slate-200 shadow-xl group-focus-within:block group-hover:block"
+      >
+        {helpText[id]}
+      </span>
     </span>
   );
 }
@@ -144,26 +145,49 @@ export function SubmissionDetailPage() {
       : updatedSubmission;
   const canSubmit = displayedSubmission?.status === "Draft";
   const createdQuote = createQuoteMutation.data;
+  const latestQuote = displayedSubmission?.latestQuote;
   const acceptedQuote = acceptQuoteMutation.data;
   const boundPolicy = bindPolicyMutation.data;
   const activeQuoteId =
-    boundPolicy?.quoteId ?? acceptedQuote?.quoteId ?? createdQuote?.quoteId;
+    boundPolicy?.quoteId ??
+    acceptedQuote?.quoteId ??
+    createdQuote?.quoteId ??
+    latestQuote?.quoteId;
   const activeQuoteStatus =
-    boundPolicy?.status ?? acceptedQuote?.status ?? createdQuote?.status;
+    boundPolicy?.status ??
+    acceptedQuote?.status ??
+    createdQuote?.status ??
+    latestQuote?.status;
   const activePremium =
-    boundPolicy?.premium ?? acceptedQuote?.premium ?? createdQuote?.premium;
+    boundPolicy?.premium ??
+    acceptedQuote?.premium ??
+    createdQuote?.premium ??
+    latestQuote?.premium;
   const activeRequestedLimit =
     boundPolicy?.requestedLimit ??
     acceptedQuote?.requestedLimit ??
-    createdQuote?.requestedLimit;
+    createdQuote?.requestedLimit ??
+    latestQuote?.requestedLimit;
   const activeRetention =
-    boundPolicy?.retention ?? acceptedQuote?.retention ?? createdQuote?.retention;
+    boundPolicy?.retention ??
+    acceptedQuote?.retention ??
+    createdQuote?.retention ??
+    latestQuote?.retention;
+  const activeRiskTier = createdQuote?.riskTier ?? latestQuote?.riskTier;
+  const activeExpiresAtUtc =
+    boundPolicy?.expirationDateUtc ??
+    acceptedQuote?.expiresAtUtc ??
+    createdQuote?.expiresAtUtc ??
+    latestQuote?.expiresAtUtc;
   const activeSubjectivities =
     createdQuote?.subjectivities ??
     acceptedQuote?.subjectivities
       .split("\n")
       .filter((subjectivity) => subjectivity.trim().length > 0) ??
+    latestQuote?.subjectivities ??
     [];
+  const activeReferralReasons =
+    createdQuote?.referralReasons ?? latestQuote?.referralReasons ?? [];
   const canGenerateQuote =
     displayedSubmission?.status === "Submitted" && activeQuoteStatus === undefined;
   const canAcceptQuote =
@@ -824,7 +848,7 @@ export function SubmissionDetailPage() {
               </p>
             )}
 
-            {createdQuote && (
+            {activeQuoteId && (
               <div className="mt-6 border-t border-slate-800 pt-5">
                 <h2 className="text-base font-semibold text-white">
                   Quote result
@@ -833,7 +857,7 @@ export function SubmissionDetailPage() {
                   <div>
                     <dt className="font-semibold text-slate-400">Quote ID</dt>
                     <dd className="mt-1 break-all text-white">
-                      {createdQuote.quoteId}
+                      {activeQuoteId}
                     </dd>
                   </div>
                   <div>
@@ -848,7 +872,7 @@ export function SubmissionDetailPage() {
                   </div>
                   <div>
                     <dt className="font-semibold text-slate-400">Risk tier</dt>
-                    <dd className="mt-1 text-white">{createdQuote.riskTier}</dd>
+                    <dd className="mt-1 text-white">{activeRiskTier}</dd>
                   </div>
                   <div>
                     <dt className="font-semibold text-slate-400">Limit</dt>
@@ -864,21 +888,25 @@ export function SubmissionDetailPage() {
                   </div>
                   <div>
                     <dt className="font-semibold text-slate-400">
-                      Expires UTC
+                      {activeQuoteStatus === "Bound"
+                        ? "Policy expires UTC"
+                        : "Expires UTC"}
                     </dt>
                     <dd className="mt-1 text-white">
-                      <time dateTime={createdQuote.expiresAtUtc}>
-                        {createdQuote.expiresAtUtc}
+                      <time dateTime={activeExpiresAtUtc}>
+                        {activeExpiresAtUtc}
                       </time>
                     </dd>
                   </div>
-                  <div>
-                    <dt className="font-semibold text-slate-400">Provider</dt>
-                    <dd className="mt-1 text-white">
-                      {createdQuote.providerIndication.providerName} -{" "}
-                      {createdQuote.providerIndication.marketDisposition}
-                    </dd>
-                  </div>
+                  {createdQuote?.providerIndication && (
+                    <div>
+                      <dt className="font-semibold text-slate-400">Provider</dt>
+                      <dd className="mt-1 text-white">
+                        {createdQuote.providerIndication.providerName} -{" "}
+                        {createdQuote.providerIndication.marketDisposition}
+                      </dd>
+                    </div>
+                  )}
                 </dl>
 
                 {activeSubjectivities.length > 0 && (
@@ -894,11 +922,11 @@ export function SubmissionDetailPage() {
                   </div>
                 )}
 
-                {createdQuote.referralReasons.length > 0 && (
+                {activeReferralReasons.length > 0 && (
                   <div className="mt-5 rounded-md border border-amber-500/50 bg-amber-950/30 p-4 text-sm text-amber-100">
                     <h3 className="font-semibold">Underwriting referral</h3>
                     <ul className="mt-2 list-disc space-y-1 pl-5">
-                      {createdQuote.referralReasons.map((reason) => (
+                      {activeReferralReasons.map((reason) => (
                         <li key={reason}>{reason}</li>
                       ))}
                     </ul>

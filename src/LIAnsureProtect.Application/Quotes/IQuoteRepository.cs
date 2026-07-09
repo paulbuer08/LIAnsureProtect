@@ -10,6 +10,11 @@ public interface IQuoteRepository
         QuoteRatingProviderAttempt attempt,
         CancellationToken cancellationToken);
 
+    Task<Quote?> GetLatestOwnedForSubmissionAsync(
+        Guid submissionId,
+        string ownerUserId,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken);
 
     Task<Quote?> GetForUnderwritingReviewAsync(Guid quoteId, CancellationToken cancellationToken);

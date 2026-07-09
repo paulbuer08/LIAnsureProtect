@@ -360,6 +360,41 @@ describe("SubmissionDetailPage", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows an existing latest quote from the submission detail without regenerating it", async () => {
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456",
+      applicantName: "Jane Applicant",
+      applicantEmail: "jane@example.com",
+      companyName: "Example Company",
+      status: "Submitted",
+      createdAtUtc: "2026-06-19T08:30:00Z",
+      latestQuote: {
+        quoteId: "quote-existing",
+        premium: 6500,
+        requestedLimit: 1000000,
+        retention: 10000,
+        riskTier: "Low",
+        status: "Quoted",
+        subjectivities: ["Maintain MFA for privileged accounts."],
+        referralReasons: [],
+        expiresAtUtc: "2026-07-19T08:30:00Z",
+      },
+    });
+
+    renderSubmissionDetailPage();
+
+    expect(await screen.findByText("quote-existing")).toBeInTheDocument();
+    expect(screen.getByText("₱6,500")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Accept quote" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Generate quote" }),
+    ).not.toBeInTheDocument();
+    expect(createQuote).not.toHaveBeenCalled();
+  });
+
   it("accepts a generated quote and then shows the bind action", async () => {
     const user = userEvent.setup();
     getAccessTokenSilently.mockResolvedValue("api-access-token");

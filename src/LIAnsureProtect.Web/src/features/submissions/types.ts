@@ -84,6 +84,11 @@ export type CreateQuoteResponse = {
   providerIndication: RatingProviderIndication;
 };
 
+export type SubmissionQuoteSummary = Omit<
+  CreateQuoteResponse,
+  "submissionId" | "providerIndication"
+>;
+
 export type AcceptQuoteRequest = {
   acceptedByName: string;
   acceptedByTitle: string;
@@ -136,8 +141,10 @@ export type SubmissionListItem = {
   createdAtUtc: string;
 };
 
+export type SubmissionDetailResponse = SubmissionListItem & {
+  latestQuote?: SubmissionQuoteSummary | null;
+};
+
 export type ListSubmissionsResponse = {
   submissions: SubmissionListItem[];
 };
-
-export type SubmissionDetailResponse = SubmissionListItem;

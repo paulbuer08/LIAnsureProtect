@@ -22,6 +22,12 @@ public sealed class CreateQuoteCommandHandlerTests
         Quote? savedQuote = null;
         QuoteRatingProviderAttempt? savedAttempt = null;
         quoteRepository
+            .Setup(repository => repository.GetLatestOwnedForSubmissionAsync(
+                submission.Id,
+                "auth0|owner-user-1",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Quote?)null);
+        quoteRepository
             .Setup(repository => repository.AddAsync(It.IsAny<Quote>(), It.IsAny<CancellationToken>()))
             .Callback<Quote, CancellationToken>((quote, _) => savedQuote = quote)
             .Returns(Task.CompletedTask);
@@ -81,6 +87,12 @@ public sealed class CreateQuoteCommandHandlerTests
         Quote? savedQuote = null;
         QuoteRatingProviderAttempt? savedAttempt = null;
         quoteRepository
+            .Setup(repository => repository.GetLatestOwnedForSubmissionAsync(
+                submission.Id,
+                "auth0|owner-user-1",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Quote?)null);
+        quoteRepository
             .Setup(repository => repository.AddAsync(It.IsAny<Quote>(), It.IsAny<CancellationToken>()))
             .Callback<Quote, CancellationToken>((quote, _) => savedQuote = quote)
             .Returns(Task.CompletedTask);
@@ -122,6 +134,59 @@ public sealed class CreateQuoteCommandHandlerTests
         Assert.Equal(RatingProviderFailureCategory.Timeout, savedAttempt.FailureCategory);
         Assert.Equal("Unavailable", result.ProviderIndication.Status);
         Assert.Equal("Provider did not respond before the configured timeout.", result.ProviderIndication.FailureReason);
+    }
+
+    [Fact]
+    public async Task Handle_Returns_Existing_Quote_For_Submission_Without_Creating_Another()
+    {
+        var submission = CreateSubmittedSubmission();
+        var existingQuote = Quote.Generate(
+            submission.Id,
+            "auth0|owner-user-1",
+            6_500m,
+            1_000_000m,
+            10_000m,
+            CyberRiskTier.Low,
+            "BaselineCyber",
+            ["Maintain MFA for privileged accounts."],
+            [],
+            new DateTime(2026, 6, 21, 1, 0, 0, DateTimeKind.Utc));
+        existingQuote.ClearDomainEvents();
+        var quoteRepository = new Mock<IQuoteRepository>();
+        quoteRepository
+            .Setup(repository => repository.GetLatestOwnedForSubmissionAsync(
+                submission.Id,
+                "auth0|owner-user-1",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingQuote);
+        var providerClient = new Mock<IRatingProviderClient>();
+        var handler = CreateHandler(
+            submission,
+            quoteRepository.Object,
+            providerClient.Object);
+
+        var result = await handler.Handle(
+            CreateCommand(submission.Id),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(existingQuote.Id, result.QuoteId);
+        Assert.Equal("AlreadyCreated", result.ProviderIndication.Status);
+        providerClient.Verify(
+            client => client.GetMarketIndicationAsync(
+                It.IsAny<RatingProviderRequest>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        quoteRepository.Verify(
+            repository => repository.AddAsync(
+                It.IsAny<Quote>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        quoteRepository.Verify(
+            repository => repository.AddRatingProviderAttemptAsync(
+                It.IsAny<QuoteRatingProviderAttempt>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     private static CreateQuoteCommandHandler CreateHandler(
