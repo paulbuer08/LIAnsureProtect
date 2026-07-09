@@ -191,6 +191,23 @@ public sealed class SubmissionEndpointTests
         return request;
     }
 
+    private static HttpRequestMessage CreateAuthenticatedPutRequest(
+        string role,
+        string path,
+        object body,
+        string userId = "test-user-1")
+    {
+        var request = new HttpRequestMessage(HttpMethod.Put, path)
+        {
+            Content = JsonContent.Create(body)
+        };
+        request.Headers.Add(TestAuthHandler.UserIdHeader, userId);
+        request.Headers.Add(TestAuthHandler.EmailHeader, "test-user@example.com");
+        request.Headers.Add(TestAuthHandler.RolesHeader, role);
+
+        return request;
+    }
+
 
 
     [Fact]
@@ -589,6 +606,175 @@ public sealed class SubmissionEndpointTests
         using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_Submission_Returns_Ok_And_Updates_Owned_Draft_Submission()
+    {
+        var submission = Submission.CreateDraft(
+            "Jane Applicant",
+            "jane@example.com",
+            "Example Company",
+            "test-user-1",
+            new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc));
+        var requestBody = new
+        {
+            applicantName = "Updated Applicant",
+            applicantEmail = "updated@example.com",
+            companyName = "Updated Company"
+        };
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedPutRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}",
+            requestBody,
+            "test-user-1");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(content);
+        var root = payload.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(submission.Id, root.GetProperty("submissionId").GetGuid());
+        Assert.Equal("Updated Applicant", root.GetProperty("applicantName").GetString());
+        Assert.Equal("updated@example.com", root.GetProperty("applicantEmail").GetString());
+        Assert.Equal("Updated Company", root.GetProperty("companyName").GetString());
+        Assert.Equal("Draft", root.GetProperty("status").GetString());
+
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedSubmission = await verifyDbContext.Submissions.SingleAsync(
+            saved => saved.Id == submission.Id,
+            TestContext.Current.CancellationToken);
+        Assert.Equal("Updated Applicant", savedSubmission.ApplicantName);
+        Assert.Equal("updated@example.com", savedSubmission.ApplicantEmail);
+        Assert.Equal("Updated Company", savedSubmission.CompanyName);
+        Assert.Equal(SubmissionStatus.Draft, savedSubmission.Status);
+    }
+
+    [Fact]
+    public async Task Update_Submission_Returns_Bad_Request_For_Invalid_Input()
+    {
+        var submission = Submission.CreateDraft(
+            "Jane Applicant",
+            "jane@example.com",
+            "Example Company",
+            "test-user-1",
+            new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc));
+        var requestBody = new
+        {
+            applicantName = string.Empty,
+            applicantEmail = "not-an-email",
+            companyName = string.Empty
+        };
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedPutRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}",
+            requestBody,
+            "test-user-1");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        using var payload = JsonDocument.Parse(content);
+        var errors = payload.RootElement.GetProperty("errors");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.True(errors.TryGetProperty("ApplicantName", out _));
+        Assert.True(errors.TryGetProperty("ApplicantEmail", out _));
+        Assert.True(errors.TryGetProperty("CompanyName", out _));
+    }
+
+    [Fact]
+    public async Task Update_Submission_Returns_Not_Found_For_Submission_Owned_By_Different_User()
+    {
+        var otherUserSubmission = Submission.CreateDraft(
+            "Other User Applicant",
+            "other@example.com",
+            "Other User Company",
+            "test-user-2",
+            new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc));
+        var requestBody = new
+        {
+            applicantName = "Updated Applicant",
+            applicantEmail = "updated@example.com",
+            companyName = "Updated Company"
+        };
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(otherUserSubmission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedPutRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{otherUserSubmission.Id}",
+            requestBody,
+            "test-user-1");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_Submission_Returns_Conflict_For_Submitted_Submission()
+    {
+        var submission = Submission.CreateDraft(
+            "Jane Applicant",
+            "jane@example.com",
+            "Example Company",
+            "test-user-1",
+            new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc));
+        submission.Submit();
+        var requestBody = new
+        {
+            applicantName = "Updated Applicant",
+            applicantEmail = "updated@example.com",
+            companyName = "Updated Company"
+        };
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var httpRequest = CreateAuthenticatedPutRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}",
+            requestBody,
+            "test-user-1");
+        using var response = await httpClient.SendAsync(httpRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var savedSubmission = await verifyDbContext.Submissions.SingleAsync(
+            saved => saved.Id == submission.Id,
+            TestContext.Current.CancellationToken);
+        Assert.Equal("Jane Applicant", savedSubmission.ApplicantName);
+        Assert.Equal("jane@example.com", savedSubmission.ApplicantEmail);
+        Assert.Equal("Example Company", savedSubmission.CompanyName);
+        Assert.Equal(SubmissionStatus.Submitted, savedSubmission.Status);
     }
 
 

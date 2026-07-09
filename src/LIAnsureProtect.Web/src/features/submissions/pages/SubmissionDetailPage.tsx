@@ -1,33 +1,100 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { Link, useParams } from "react-router";
 
 import { useSubmissionDetail } from "../hooks/useSubmissionDetail";
 import { useSubmitSubmission } from "../hooks/useSubmitSubmission";
+import { useUpdateSubmission } from "../hooks/useUpdateSubmission";
+import {
+  submissionIntakeSchema,
+  type SubmissionIntakeFormValues,
+} from "../schemas/submissionIntakeSchema";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unable to load submission.";
 }
 
+const fieldClassName =
+  "mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-400";
+
 export function SubmissionDetailPage() {
   const { submissionId } = useParams();
+  const [isEditing, setIsEditing] = useState(false);
   const submissionQuery = useSubmissionDetail(submissionId);
+  const updateSubmissionMutation = useUpdateSubmission();
   const submitSubmissionMutation = useSubmitSubmission();
   const submission = submissionQuery.data;
-  const displayedSubmission =
+  const updatedSubmission =
     submission &&
-    submitSubmissionMutation.data?.submissionId === submission.submissionId
+    updateSubmissionMutation.data?.submissionId === submission.submissionId
+      ? updateSubmissionMutation.data
+      : submission;
+  const displayedSubmission =
+    updatedSubmission &&
+    submitSubmissionMutation.data?.submissionId === updatedSubmission.submissionId
       ? {
-          ...submission,
+          ...updatedSubmission,
           status: submitSubmissionMutation.data.status,
         }
-      : submission;
+      : updatedSubmission;
   const canSubmit = displayedSubmission?.status === "Draft";
+  const {
+    formState: { errors },
+    handleSubmit,
+    register,
+    reset,
+  } = useForm<SubmissionIntakeFormValues>({
+    resolver: zodResolver(submissionIntakeSchema),
+    defaultValues: {
+      applicantName: "",
+      applicantEmail: "",
+      companyName: "",
+    },
+  });
 
-  function handleSubmitSubmission() {
-    if (!submission) {
+  function handleStartEditing() {
+    if (!displayedSubmission) {
       return;
     }
 
-    submitSubmissionMutation.mutate(submission.submissionId);
+    reset({
+      applicantName: displayedSubmission.applicantName,
+      applicantEmail: displayedSubmission.applicantEmail,
+      companyName: displayedSubmission.companyName,
+    });
+    setIsEditing(true);
+  }
+
+  function handleCancelEditing() {
+    setIsEditing(false);
+    updateSubmissionMutation.reset();
+  }
+
+  function handleUpdateSubmission(values: SubmissionIntakeFormValues) {
+    if (!displayedSubmission) {
+      return;
+    }
+
+    updateSubmissionMutation.mutate(
+      {
+        submissionId: displayedSubmission.submissionId,
+        request: values,
+      },
+      {
+        onSuccess: () => {
+          setIsEditing(false);
+        },
+      },
+    );
+  }
+
+  function handleSubmitSubmission() {
+    if (!displayedSubmission) {
+      return;
+    }
+
+    submitSubmissionMutation.mutate(displayedSubmission.submissionId);
   }
 
   return (
@@ -102,7 +169,132 @@ export function SubmissionDetailPage() {
               </div>
             </dl>
 
-            {canSubmit && (
+            {canSubmit && !isEditing && (
+              <div className="mt-6 border-t border-slate-800 pt-5">
+                <h2 className="text-base font-semibold text-white">
+                  Review before submission
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                  This submission is still a draft. Update the intake details
+                  before submitting if anything is incorrect.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleStartEditing}
+                  className="mt-4 inline-flex min-h-10 items-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-slate-500"
+                >
+                  Edit draft details
+                </button>
+              </div>
+            )}
+
+            {canSubmit && isEditing && (
+              <form
+                className="mt-6 border-t border-slate-800 pt-5"
+                onSubmit={handleSubmit(handleUpdateSubmission)}
+                noValidate
+              >
+                <h2 className="text-base font-semibold text-white">
+                  Edit draft details
+                </h2>
+                <div className="mt-5">
+                  <label
+                    className="text-sm font-semibold text-slate-100"
+                    htmlFor="editApplicantName"
+                  >
+                    Applicant name
+                  </label>
+                  <input
+                    aria-invalid={errors.applicantName ? "true" : "false"}
+                    className={fieldClassName}
+                    id="editApplicantName"
+                    type="text"
+                    {...register("applicantName")}
+                  />
+                  {errors.applicantName && (
+                    <p className="mt-2 text-sm text-red-300">
+                      {errors.applicantName.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-5">
+                  <label
+                    className="text-sm font-semibold text-slate-100"
+                    htmlFor="editApplicantEmail"
+                  >
+                    Applicant email
+                  </label>
+                  <input
+                    aria-invalid={errors.applicantEmail ? "true" : "false"}
+                    className={fieldClassName}
+                    id="editApplicantEmail"
+                    type="email"
+                    {...register("applicantEmail")}
+                  />
+                  {errors.applicantEmail && (
+                    <p className="mt-2 text-sm text-red-300">
+                      {errors.applicantEmail.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-5">
+                  <label
+                    className="text-sm font-semibold text-slate-100"
+                    htmlFor="editCompanyName"
+                  >
+                    Company name
+                  </label>
+                  <input
+                    aria-invalid={errors.companyName ? "true" : "false"}
+                    className={fieldClassName}
+                    id="editCompanyName"
+                    type="text"
+                    {...register("companyName")}
+                  />
+                  {errors.companyName && (
+                    <p className="mt-2 text-sm text-red-300">
+                      {errors.companyName.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    disabled={updateSubmissionMutation.isPending}
+                    className="inline-flex min-h-10 items-center rounded-md bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+                  >
+                    {updateSubmissionMutation.isPending
+                      ? "Saving..."
+                      : "Save changes"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelEditing}
+                    disabled={updateSubmissionMutation.isPending}
+                    className="inline-flex min-h-10 items-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-slate-500 disabled:cursor-not-allowed disabled:text-slate-500"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {updateSubmissionMutation.isSuccess && !isEditing && (
+              <p className="mt-5 rounded-md border border-emerald-500/40 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+                Draft details updated.
+              </p>
+            )}
+
+            {updateSubmissionMutation.isError && (
+              <p className="mt-5 whitespace-pre-wrap rounded-md border border-red-900 bg-red-950 p-3 text-sm text-red-200">
+                {getErrorMessage(updateSubmissionMutation.error)}
+              </p>
+            )}
+
+            {canSubmit && !isEditing && (
               <div className="mt-6 border-t border-slate-800 pt-5">
                 <h2 className="text-base font-semibold text-white">
                   Submit this draft

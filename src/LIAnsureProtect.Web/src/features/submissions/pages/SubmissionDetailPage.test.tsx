@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getSubmissionDetail } from "../api/getSubmissionDetail";
 import { submitSubmission } from "../api/submitSubmission";
+import { updateSubmission } from "../api/updateSubmission";
 import { SubmissionDetailPage } from "./SubmissionDetailPage";
 
 const getAccessTokenSilently = vi.fn();
@@ -22,6 +23,10 @@ vi.mock("../api/getSubmissionDetail", () => ({
 
 vi.mock("../api/submitSubmission", () => ({
   submitSubmission: vi.fn(),
+}));
+
+vi.mock("../api/updateSubmission", () => ({
+  updateSubmission: vi.fn(),
 }));
 
 function renderSubmissionDetailPage(submissionId = "submission-456") {
@@ -52,6 +57,7 @@ describe("SubmissionDetailPage", () => {
     getAccessTokenSilently.mockReset();
     vi.mocked(getSubmissionDetail).mockReset();
     vi.mocked(submitSubmission).mockReset();
+    vi.mocked(updateSubmission).mockReset();
   });
 
   it("shows a loading state while the submission detail is loading", () => {
@@ -155,6 +161,88 @@ describe("SubmissionDetailPage", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("lets a customer edit draft details before submitting", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456",
+      applicantName: "Jane Applicant",
+      applicantEmail: "jane@example.com",
+      companyName: "Example Company",
+      status: "Draft",
+      createdAtUtc: "2026-06-19T08:30:00Z",
+    });
+    vi.mocked(updateSubmission).mockResolvedValue({
+      submissionId: "submission-456",
+      applicantName: "Updated Applicant",
+      applicantEmail: "updated@example.com",
+      companyName: "Updated Company",
+      status: "Draft",
+      createdAtUtc: "2026-06-19T08:30:00Z",
+    });
+
+    renderSubmissionDetailPage();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Edit draft details" }),
+    );
+    await user.clear(screen.getByLabelText("Applicant name"));
+    await user.type(screen.getByLabelText("Applicant name"), "Updated Applicant");
+    await user.clear(screen.getByLabelText("Applicant email"));
+    await user.type(
+      screen.getByLabelText("Applicant email"),
+      "updated@example.com",
+    );
+    await user.clear(screen.getByLabelText("Company name"));
+    await user.type(screen.getByLabelText("Company name"), "Updated Company");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(updateSubmission).toHaveBeenCalledWith(
+      "api-access-token",
+      "submission-456",
+      {
+        applicantName: "Updated Applicant",
+        applicantEmail: "updated@example.com",
+        companyName: "Updated Company",
+      },
+    );
+    expect(await screen.findByText("Draft details updated.")).toBeInTheDocument();
+    expect(screen.getByText("Updated Applicant")).toBeInTheDocument();
+    expect(screen.getByText("updated@example.com")).toBeInTheDocument();
+    expect(screen.getByText("Updated Company")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Submit submission" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the draft unchanged when edit mode is canceled", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456",
+      applicantName: "Jane Applicant",
+      applicantEmail: "jane@example.com",
+      companyName: "Example Company",
+      status: "Draft",
+      createdAtUtc: "2026-06-19T08:30:00Z",
+    });
+
+    renderSubmissionDetailPage();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Edit draft details" }),
+    );
+    await user.clear(screen.getByLabelText("Applicant name"));
+    await user.type(screen.getByLabelText("Applicant name"), "Discarded Name");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(updateSubmission).not.toHaveBeenCalled();
+    expect(screen.getByText("Jane Applicant")).toBeInTheDocument();
+    expect(
+      screen.queryByDisplayValue("Discarded Name"),
+    ).not.toBeInTheDocument();
+  });
+
   it("does not show the submit action after a submission is already submitted", async () => {
     getAccessTokenSilently.mockResolvedValue("api-access-token");
     vi.mocked(getSubmissionDetail).mockResolvedValue({
@@ -171,6 +259,9 @@ describe("SubmissionDetailPage", () => {
     expect(await screen.findByText("Submitted")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Submit submission" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Edit draft details" }),
     ).not.toBeInTheDocument();
   });
 });

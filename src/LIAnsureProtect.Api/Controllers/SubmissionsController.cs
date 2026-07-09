@@ -6,6 +6,7 @@ using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Application.Submissions.Commands.CreateSubmission;
 using LIAnsureProtect.Application.Submissions.Commands.SubmitSubmission;
+using LIAnsureProtect.Application.Submissions.Commands.UpdateSubmission;
 using LIAnsureProtect.Application.Submissions.Queries.GetSubmissionDetail;
 using LIAnsureProtect.Application.Submissions.Queries.ListSubmissions;
 using Microsoft.AspNetCore.Authorization;
@@ -131,6 +132,48 @@ public sealed class SubmissionsController(
             {
                 Status = StatusCodes.Status409Conflict,
                 Title = "Submission cannot be submitted.",
+                Detail = exception.Message
+            });
+        }
+    }
+
+    [HttpPut("{submissionId:guid}")]
+    [Authorize(Policy = ApplicationPolicies.CreateSubmission)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<UpdateSubmissionResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<UpdateSubmissionResult>> Update(
+        Guid submissionId,
+        UpdateSubmissionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new UpdateSubmissionCommand(
+            submissionId,
+            request.ApplicantName,
+            request.ApplicantEmail,
+            request.CompanyName);
+
+        try
+        {
+            var result = await sender.Send(command, cancellationToken);
+
+            return result is null
+                ? NotFound()
+                : Ok(result);
+        }
+        catch (ApplicationValidationException exception)
+        {
+            return BadRequest(CreateValidationProblemDetails(exception));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Submission cannot be updated.",
                 Detail = exception.Message
             });
         }
@@ -288,6 +331,11 @@ public sealed class SubmissionsController(
 
 
 public sealed record CreateSubmissionRequest(
+    string ApplicantName,
+    string ApplicantEmail,
+    string CompanyName);
+
+public sealed record UpdateSubmissionRequest(
     string ApplicantName,
     string ApplicantEmail,
     string CompanyName);

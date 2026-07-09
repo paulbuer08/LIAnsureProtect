@@ -14,6 +14,8 @@ export type SubmitSubmissionResponse = {
   status: string;
 };
 
+export type UpdateSubmissionRequest = CreateSubmissionRequest;
+
 export type SubmissionListItem = {
   submissionId: string;
   applicantName: string;

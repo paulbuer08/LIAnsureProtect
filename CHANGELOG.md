@@ -42,6 +42,7 @@ The format follows simple milestone-based entries.
 
 ### Fixed
 
+- Draft submissions can now be edited before final submission: the API exposes an owner-scoped `PUT /api/v1/submissions/{submissionId}` that only accepts Draft submissions, and the customer detail page now has an edit/save/cancel flow before the Submit action.
 - Submission detail now exposes the missing customer **Submit submission** action for Draft submissions and refreshes the detail/list cache so the status changes to `Submitted` during the manual happy-path walkthrough.
 - The role-aware dashboard no longer labels failed `GET /api/v1/me` role lookups as "No roles assigned"; it now shows a clear roles-unavailable diagnostic when the API role lookup cannot complete.
 - The dashboard role lookup now requests the configured Auth0 API audience explicitly, disables retry loops for silent token failures, and offers a **Continue with Auth0** recovery path when Auth0 returns `consent_required`, `interaction_required`, or `login_required`.
