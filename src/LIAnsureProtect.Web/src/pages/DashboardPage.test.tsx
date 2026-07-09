@@ -8,6 +8,7 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { DashboardPage } from "./DashboardPage";
 
 const getAccessTokenSilently = vi.fn();
+const loginWithRedirect = vi.fn();
 const logout = vi.fn();
 
 vi.mock("@auth0/auth0-react", () => ({
@@ -15,6 +16,7 @@ vi.mock("@auth0/auth0-react", () => ({
     getAccessTokenSilently,
     isAuthenticated: true,
     isLoading: false,
+    loginWithRedirect,
     logout,
     user: {
       email: "customer@example.com",
@@ -58,9 +60,21 @@ function mockCurrentUserLookupFailure() {
   } as unknown as ReturnType<typeof useCurrentUser>);
 }
 
+function mockCurrentUserConsentRequired() {
+  vi.mocked(useCurrentUser).mockReturnValue({
+    data: undefined,
+    error: Object.assign(new Error("Consent required"), {
+      error: "consent_required",
+    }),
+    isPending: false,
+    isError: true,
+  } as unknown as ReturnType<typeof useCurrentUser>);
+}
+
 describe("DashboardPage", () => {
   beforeEach(() => {
     getAccessTokenSilently.mockReset();
+    loginWithRedirect.mockReset();
     logout.mockReset();
     mockCurrentUser(["Customer"]);
     mockNotifications();
@@ -195,5 +209,32 @@ describe("DashboardPage", () => {
     expect(
       screen.queryByText("No application workspace is available yet."),
     ).not.toBeInTheDocument();
+  });
+
+  it("offers an Auth0 consent action when API token consent is required", async () => {
+    const user = userEvent.setup();
+    mockCurrentUserConsentRequired();
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Consent required")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Continue with Auth0" }),
+    );
+
+    expect(loginWithRedirect).toHaveBeenCalledWith({
+      appState: {
+        returnTo: "/",
+      },
+      authorizationParams: expect.objectContaining({
+        audience: "https://api.liansureprotect.local",
+        prompt: "consent",
+      }),
+    });
   });
 });

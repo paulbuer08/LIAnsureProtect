@@ -4,6 +4,7 @@ import { Link } from "react-router";
 
 import { useNotifications } from "../features/notifications/hooks/useNotifications";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { auth0Config } from "../lib/auth0Config";
 import {
   getNotificationScopeLabel,
   hasAnyRole,
@@ -124,9 +125,32 @@ function UnreadNotificationBadge({ unreadCount }: { unreadCount: number }) {
   );
 }
 
+function getAuth0InteractionError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return undefined;
+  }
+
+  const auth0Error = error as { error?: unknown; error_description?: unknown };
+  return typeof auth0Error.error === "string" ? auth0Error.error : undefined;
+}
+
+function needsInteractiveAuth0Authorization(error: unknown) {
+  return [
+    "consent_required",
+    "interaction_required",
+    "login_required",
+  ].includes(getAuth0InteractionError(error) ?? "");
+}
+
 export function DashboardPage() {
-  const { getAccessTokenSilently, isAuthenticated, isLoading, logout, user } =
-    useAuth0();
+  const {
+    getAccessTokenSilently,
+    isAuthenticated,
+    isLoading,
+    loginWithRedirect,
+    logout,
+    user,
+  } = useAuth0();
   const currentUserQuery = useCurrentUser();
   const [accessTokenPreview, setAccessTokenPreview] = useState<string>();
   const [accessTokenError, setAccessTokenError] = useState<string>();
@@ -153,6 +177,22 @@ export function DashboardPage() {
     currentUserQuery.error instanceof Error
       ? currentUserQuery.error.message
       : "The API could not load your roles.";
+  const roleLookupNeedsAuth0Consent = needsInteractiveAuth0Authorization(
+    currentUserQuery.error,
+  );
+
+  async function handleAuthorizeApiAccess() {
+    await loginWithRedirect({
+      appState: {
+        returnTo: window.location.pathname,
+      },
+      authorizationParams: {
+        audience: auth0Config.audience,
+        redirect_uri: auth0Config.callbackUrl,
+        prompt: "consent",
+      },
+    });
+  }
 
   async function handleGetAccessToken() {
     setIsRequestingToken(true);
@@ -248,6 +288,21 @@ export function DashboardPage() {
             <p className="mt-3 break-all rounded-md border border-red-500/30 bg-red-950 p-3 text-xs text-red-100">
               {roleLookupError}
             </p>
+            {roleLookupNeedsAuth0Consent && (
+              <div className="mt-4">
+                <p className="text-sm leading-6 text-red-100">
+                  Auth0 needs one interactive authorization step before it can
+                  issue an access token for the LIAnsureProtect API.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleAuthorizeApiAccess}
+                  className="mt-3 inline-flex min-h-10 items-center rounded-md bg-red-100 px-4 py-2 text-sm font-semibold text-red-950 hover:bg-white"
+                >
+                  Continue with Auth0
+                </button>
+              </div>
+            )}
           </section>
         ) : visibleSections.length === 0 ? (
           <section className="mt-6 rounded-lg border border-amber-400/40 bg-amber-950/20 p-6">

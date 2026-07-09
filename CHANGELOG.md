@@ -43,6 +43,7 @@ The format follows simple milestone-based entries.
 ### Fixed
 
 - The role-aware dashboard no longer labels failed `GET /api/v1/me` role lookups as "No roles assigned"; it now shows a clear roles-unavailable diagnostic. The frontend also requests a fresh access token for the role lookup so newly assigned Auth0 roles are not hidden by a stale cached access token.
+- The dashboard role lookup now requests the configured Auth0 API audience explicitly, disables retry loops for silent token failures, and offers a **Continue with Auth0** recovery path when Auth0 returns `consent_required`, `interaction_required`, or `login_required`.
 - Two `ArgumentException` calls passing property paths as `paramName` (CA2208) in evidence document commands; culture-sensitive `Retry-After` header formatting (CA1305) in the rate limiter; assorted concrete-type (CA1859) and static-member (CA1822) analyzer findings.
 
 - Milestone 44 - Caching + Rate Limiting: `ICacheService` cache-aside port with `InMemoryCacheService` (Local) and `RedisCacheService` (Aws, StackExchange.Redis) selected by `Platform:Profile`; an opt-in `CachingBehavior` MediatR behavior driven by an `ICacheableRequest` marker (rebuildable, non-PII data only). No production read is cached yet by deliberate choice — the mechanism is delivered and tested, and adoption on a specific read is a later, invalidation-paired follow-up.
