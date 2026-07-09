@@ -8,11 +8,12 @@ import {
 
 export const notificationsQueryKey = ["notifications"];
 
-export function useNotifications() {
+export function useNotifications(options?: { enabled?: boolean }) {
   const { getAccessTokenSilently } = useAuth0();
 
   return useQuery({
     queryKey: notificationsQueryKey,
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       const accessToken = await getAccessTokenSilently();
 

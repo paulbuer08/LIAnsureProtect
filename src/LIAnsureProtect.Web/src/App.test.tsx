@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 import { listQuoteReferrals } from "./features/underwriting/api/underwritingApi";
+import { useNotifications } from "./features/notifications/hooks/useNotifications";
+import { useCurrentUser } from "./hooks/useCurrentUser";
 
 const getAccessTokenSilently = vi.fn();
 
@@ -42,6 +44,22 @@ vi.mock("./features/underwriting/api/underwritingApi", () => ({
   triageQuoteReferralOperation: vi.fn(),
 }));
 
+vi.mock("./hooks/useCurrentUser", () => ({
+  useCurrentUser: vi.fn(),
+}));
+
+vi.mock("./features/notifications/hooks/useNotifications", () => ({
+  useNotifications: vi.fn(),
+}));
+
+function mockCurrentUser(roles: string[]) {
+  vi.mocked(useCurrentUser).mockReturnValue({
+    data: { userId: "user-1", email: "user@example.com", roles },
+    isPending: false,
+    isError: false,
+  } as unknown as ReturnType<typeof useCurrentUser>);
+}
+
 function renderAppAt(path: string) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -68,6 +86,15 @@ describe("App routes", () => {
     getAccessTokenSilently.mockReset();
     getAccessTokenSilently.mockResolvedValue("underwriter-token");
     vi.mocked(listQuoteReferrals).mockReset();
+    mockCurrentUser(["Underwriter"]);
+    vi.mocked(useNotifications).mockReturnValue({
+      data: {
+        notifications: [],
+        unreadCount: 0,
+      },
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useNotifications>);
   });
 
   it("registers the protected underwriting quote referrals route", async () => {
@@ -83,5 +110,21 @@ describe("App routes", () => {
     await waitFor(() =>
       expect(listQuoteReferrals).toHaveBeenCalledWith("underwriter-token"),
     );
+  });
+
+  it("does not mount the underwriting route for a customer direct URL", async () => {
+    mockCurrentUser(["Customer"]);
+
+    renderAppAt("/underwriting/quote-referrals");
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "You do not have access to this page",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Underwriting workbench" }),
+    ).not.toBeInTheDocument();
+    expect(listQuoteReferrals).not.toHaveBeenCalled();
   });
 });

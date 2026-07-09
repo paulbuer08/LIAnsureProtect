@@ -27,19 +27,25 @@ Use one shared throwaway password pattern for your tenant (e.g. a password manag
 
 | Route | Who can use it | What it does |
 |---|---|---|
-| `/dashboard` | any signed-in user | Landing page, links to features |
+| `/dashboard` | any signed-in user | Role-aware landing page; only shows the feature cards and menu links the signed-in role can use |
 | `/submissions/new` | Customer, Broker, Admin | Create a draft submission |
 | `/submissions` | Customer, Broker, Admin | List **your own** submissions (ownership-scoped) |
 | `/submissions/:id` | owner | Detail: submit the draft, generate a quote, accept, bind |
 | `/underwriting/quote-referrals` | Underwriter, Admin | The underwriting workbench: referral queue, SLA/triage, notes/tasks/timeline, evidence requests, AI review, approve/decline/adjust |
 | `/evidence-requests` | Customer, Broker, Admin | Owner-side evidence: see requests, respond with text + up to 5 documents, upload replacements |
-| `/notifications` | Customer, Broker, Underwriter, **ClaimsAdjuster**, Admin | Personal + team inbox with unread counts, All/Personal/Team tabs, mark-read |
+| `/notifications` | Customer, Broker, Underwriter, **ClaimsAdjuster**, Admin | Personal + team inbox with unread counts, All/Personal/Team tabs, mark-read; the header shows a compact unread badge |
 | `/claims/new` | Customer, Broker, Admin | File a claim (two-step wizard: pick a **bound policy** → incident form) |
 | `/claims` · `/claims/:id` | owner | Your claims list + detail (verdict, claimed-amount, adjuster questions, scan-gated documents, timeline) |
 | `/claims/adjudication` | **ClaimsAdjuster**, Admin | The adjuster workbench: queue, assign/release, reserves, information requests, accept/deny/close, documents, audit |
 
 There is deliberately **no** admin console yet — `Admin` today means "allowed into every existing
 business screen". The **Claims** context is live (Phase 3); `ClaimsAdjuster` now has a full workbench.
+
+The dashboard and top navigation are intentionally role-aware. A customer should not see
+underwriting or claims-adjudication links at all; an underwriter should not see customer-only
+submission or claims filing actions. Direct URLs are still protected: the React route guard checks
+the API-reported roles before mounting the page component, and the API authorization policy remains
+the real enforcement point.
 
 ## Scenario 1 — The happy path (clean quote, no referral)
 
@@ -108,14 +114,15 @@ This is the richest flow; it exercises the whole Underwriting module.
 
 ## Scenario 3 — Authorization boundaries (prove the fences hold)
 
-1. As **Casey Customer**, browse to `/underwriting/quote-referrals` directly → ✅ blocked
-   (the API returns 403; the UI shows the denied state). Customers can never underwrite.
-2. As **Uma Underwriter**, open `/submissions/new` and try to create a submission → ✅ 403 —
-   underwriters don't create business.
+1. As **Casey Customer**, browse to `/underwriting/quote-referrals` directly → ✅ blocked before
+   the underwriting workbench mounts or calls the referral API. Customers can never underwrite.
+2. As **Uma Underwriter**, open `/submissions/new` directly → ✅ blocked before the submission
+   form mounts. Underwriters don't create customer business.
 3. As **Adrian Admin**, do both → ✅ allowed everywhere (Admin is in every policy).
 4. As **Charlie Adjuster**, open `/claims/adjudication` → ✅ allowed; but `/submissions/new` and
-   `/underwriting/quote-referrals` → ✅ **403**. Adjusters only adjudicate claims.
-5. As **Casey Customer**, open `/claims/adjudication` → ✅ **403** (claimants file claims, they don't
+   `/underwriting/quote-referrals` → ✅ blocked by the route guard and API policy. Adjusters only
+   adjudicate claims.
+5. As **Casey Customer**, open `/claims/adjudication` → ✅ blocked (claimants file claims, they don't
    adjudicate); `/claims/new` → ✅ allowed.
 6. Log out, hit `http://localhost:5223/api/v1/submissions` with no token (e.g. from PowerShell)
    → ✅ **401** before any business logic runs.

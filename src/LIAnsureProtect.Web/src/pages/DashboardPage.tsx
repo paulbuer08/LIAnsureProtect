@@ -2,12 +2,151 @@ import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router";
 
+import { useNotifications } from "../features/notifications/hooks/useNotifications";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import {
+  getNotificationScopeLabel,
+  hasAnyRole,
+  roleGroups,
+} from "../lib/roleAccess";
+
+type DashboardAction = {
+  label: string;
+  to: string;
+  variant?: "primary" | "secondary";
+};
+
+type DashboardSection = {
+  title: string;
+  eyebrow: string;
+  description: string;
+  allowedRoles: readonly string[];
+  actions: DashboardAction[];
+  metric: string;
+  status: string;
+};
+
+const dashboardSections: DashboardSection[] = [
+  {
+    title: "Submission intake",
+    eyebrow: "Customer workspace",
+    description:
+      "Create cyber liability submissions, continue drafts, and move complete risks toward quote generation.",
+    allowedRoles: roleGroups.customerWork,
+    actions: [
+      { label: "View submissions", to: "/submissions", variant: "primary" },
+      { label: "Create submission", to: "/submissions/new" },
+    ],
+    metric: "Drafts and quotes",
+    status: "Owner-scoped",
+  },
+  {
+    title: "Evidence requests",
+    eyebrow: "Customer workspace",
+    description:
+      "Respond to underwriting evidence requests and upload safe supporting document metadata.",
+    allowedRoles: roleGroups.customerWork,
+    actions: [
+      {
+        label: "View evidence requests",
+        to: "/evidence-requests",
+        variant: "primary",
+      },
+    ],
+    metric: "Open requests",
+    status: "Action required",
+  },
+  {
+    title: "Claims",
+    eyebrow: "Customer workspace",
+    description:
+      "File a claim against a bound policy, track progress, answer adjuster questions, and review decisions.",
+    allowedRoles: roleGroups.customerWork,
+    actions: [
+      { label: "View my claims", to: "/claims", variant: "primary" },
+      { label: "File a claim", to: "/claims/new" },
+    ],
+    metric: "Claim files",
+    status: "Policy-linked",
+  },
+  {
+    title: "Underwriting workbench",
+    eyebrow: "Staff workspace",
+    description:
+      "Triage referred quotes, inspect evidence, request advisory AI support, and record human decisions.",
+    allowedRoles: roleGroups.underwritingWork,
+    actions: [
+      {
+        label: "Open underwriting workbench",
+        to: "/underwriting/quote-referrals",
+        variant: "primary",
+      },
+    ],
+    metric: "Referral queue",
+    status: "Team-owned",
+  },
+  {
+    title: "Claims adjudication",
+    eyebrow: "Staff workspace",
+    description:
+      "Work the claims queue, claim files, request information, manage reserves, and close decisions.",
+    allowedRoles: roleGroups.claimsAdjudication,
+    actions: [
+      {
+        label: "Open claims workbench",
+        to: "/claims/adjudication",
+        variant: "primary",
+      },
+    ],
+    metric: "Adjuster queue",
+    status: "Role-restricted",
+  },
+];
+
+function actionClassName(variant: DashboardAction["variant"]) {
+  return variant === "primary"
+    ? "inline-flex min-h-10 items-center rounded-md bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-200"
+    : "inline-flex min-h-10 items-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-500 hover:text-white";
+}
+
+function UnreadNotificationBadge({ unreadCount }: { unreadCount: number }) {
+  if (unreadCount <= 0) {
+    return null;
+  }
+
+  return (
+    <span
+      aria-label={`${unreadCount} unread notifications`}
+      className="absolute -right-2 -top-2 inline-flex min-h-6 min-w-6 items-center justify-center rounded-full bg-amber-300 px-1.5 text-xs font-bold text-slate-950 ring-2 ring-slate-900"
+    >
+      {unreadCount > 99 ? "99+" : unreadCount}
+    </span>
+  );
+}
+
 export function DashboardPage() {
   const { getAccessTokenSilently, isAuthenticated, isLoading, logout, user } =
     useAuth0();
+  const currentUserQuery = useCurrentUser();
   const [accessTokenPreview, setAccessTokenPreview] = useState<string>();
   const [accessTokenError, setAccessTokenError] = useState<string>();
   const [isRequestingToken, setIsRequestingToken] = useState(false);
+
+  const roles = currentUserQuery.data?.roles ?? [];
+  const canReadNotifications = hasAnyRole(roles, roleGroups.notifications);
+  const notificationsQuery = useNotifications({
+    enabled: currentUserQuery.isSuccess && canReadNotifications,
+  });
+  const visibleSections = dashboardSections.filter((section) =>
+    hasAnyRole(roles, section.allowedRoles),
+  );
+  const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
+  const notificationScope = getNotificationScopeLabel(roles);
+  const roleSummary = currentUserQuery.isPending
+    ? "Loading roles"
+    : roles.length > 0
+      ? roles.join(", ")
+      : "No roles assigned";
 
   async function handleGetAccessToken() {
     setIsRequestingToken(true);
@@ -30,219 +169,185 @@ export function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-16 text-white">
-      <section className="mx-auto max-w-5xl">
-        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-400">
-          Dashboard
-        </p>
-
-        <h1 className="mt-4 text-4xl font-bold tracking-tight">
-          Signed-in dashboard placeholder
-        </h1>
-
-        <p className="mt-4 max-w-2xl text-slate-300">
-          This page shows the current Auth0 browser session and links to the
-          protected frontend workflows that call the LIAnsureProtect API.
-        </p>
-
-        <div className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
-          <p>
-            <span className="font-semibold text-white">Loading:</span>{" "}
-            {isLoading ? "yes" : "no"}
-          </p>
-
-          <p className="mt-2">
-            <span className="font-semibold text-white">Authenticated:</span>{" "}
-            {isAuthenticated ? "yes" : "no"}
-          </p>
-
-          <p className="mt-2">
-            <span className="font-semibold text-white">User email:</span>{" "}
-            {user?.email ?? "not available"}
-          </p>
-        </div>
-
-        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
-          <h2 className="text-base font-semibold text-white">
-            API access token
-          </h2>
-
-          <p className="mt-2 text-slate-300">
-            Request an Auth0 access token for the LIAnsureProtect API. Only a
-            short preview is displayed so the full token is not exposed on
-            screen.
-          </p>
-
-          <button
-            type="button"
-            onClick={handleGetAccessToken}
-            disabled={isRequestingToken}
-            className="mt-4 rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-          >
-            {isRequestingToken ? "Requesting token..." : "Get API access token"}
-          </button>
-
-          {accessTokenPreview && (
-            <p className="mt-4 break-all rounded-md bg-slate-950 p-3 font-mono text-xs text-emerald-300">
-              {accessTokenPreview}
+    <main className="bg-slate-950 px-4 py-8 text-white sm:px-6 lg:py-10">
+      <section className="mx-auto max-w-7xl">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+          <section className="rounded-lg border border-slate-800 bg-slate-900 p-6">
+            <p className="text-sm font-semibold uppercase text-emerald-300">
+              Dashboard
             </p>
-          )}
+            <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                  Workbench for your assigned role
+                </h1>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300 sm:text-base">
+                  Signed in as {user?.email ?? "the current user"}. The actions
+                  below are filtered by the same roles the API uses, so
+                  restricted workspaces do not appear for users who cannot use
+                  them.
+                </p>
+              </div>
+              <div className="rounded-md border border-slate-700 bg-slate-950 px-4 py-3 text-sm">
+                <p className="text-slate-400">Active roles</p>
+                <p className="mt-1 font-semibold text-white">{roleSummary}</p>
+              </div>
+            </div>
+          </section>
 
-          {accessTokenError && (
-            <p className="mt-4 rounded-md border border-red-900 bg-red-950 p-3 text-red-200">
-              {accessTokenError}
+          <section className="rounded-lg border border-slate-800 bg-slate-900 p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold uppercase text-sky-300">
+                  Notifications
+                </p>
+                <h2 className="mt-2 text-xl font-semibold">
+                  {notificationScope}
+                </h2>
+              </div>
+              <Link
+                to="/notifications"
+                aria-label="View notifications"
+                className="relative inline-flex h-11 min-w-11 items-center justify-center rounded-md border border-slate-700 px-3 text-sm font-semibold text-slate-100 hover:border-slate-500"
+              >
+                <span className="sm:hidden" aria-hidden="true">
+                  N
+                </span>
+                <span className="hidden sm:inline">View notifications</span>
+                <UnreadNotificationBadge unreadCount={unreadCount} />
+              </Link>
+            </div>
+            <p className="mt-4 text-sm leading-6 text-slate-300">
+              Customers and brokers only see personal messages. Underwriters,
+              claims adjusters, and admins can also see team inbox entries when
+              their queue needs attention.
             </p>
-          )}
+          </section>
         </div>
 
-        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
-          <h2 className="text-base font-semibold text-white">Submissions</h2>
+        {visibleSections.length === 0 ? (
+          <section className="mt-6 rounded-lg border border-amber-400/40 bg-amber-950/20 p-6">
+            <h2 className="text-lg font-semibold text-white">
+              No application workspace is available yet.
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-amber-100">
+              Your account is authenticated, but it has no product role. Ask an
+              administrator to assign the correct Auth0 role before using the
+              protected workflows.
+            </p>
+          </section>
+        ) : (
+          <section className="mt-6 grid gap-4 lg:grid-cols-2">
+            {visibleSections.map((section) => (
+              <article
+                key={section.title}
+                className="rounded-lg border border-slate-800 bg-slate-900 p-5"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-slate-400">
+                      {section.eyebrow}
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold text-white">
+                      {section.title}
+                    </h2>
+                  </div>
+                  <div className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-300">
+                    <p className="font-semibold text-white">{section.metric}</p>
+                    <p className="mt-1">{section.status}</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-slate-300">
+                  {section.description}
+                </p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  {section.actions.map((action) => (
+                    <Link
+                      key={action.to}
+                      to={action.to}
+                      className={actionClassName(action.variant)}
+                    >
+                      {action.label}
+                    </Link>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
 
-          <p className="mt-2 text-slate-300">
-            View existing draft submissions or create a new one. These
-            workflows use the current Auth0 session to call the protected API.
-          </p>
+        <section className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
+            <h2 className="text-base font-semibold text-white">
+              Developer session check
+            </h2>
+            <p className="mt-2 text-slate-300">
+              Use this during local walkthroughs to confirm the browser can
+              request an Auth0 access token for the LIAnsureProtect API. Only a
+              short preview is displayed.
+            </p>
 
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link
-              to="/submissions"
-              className="inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
+            <button
+              type="button"
+              onClick={handleGetAccessToken}
+              disabled={isRequestingToken}
+              className="mt-4 inline-flex min-h-10 items-center rounded-md bg-sky-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
             >
-              View submissions
-            </Link>
+              {isRequestingToken ? "Requesting token..." : "Get API access token"}
+            </button>
 
-            <Link
-              to="/submissions/new"
-              className="inline-flex rounded-lg border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 hover:border-slate-500"
-            >
-              Create submission
-            </Link>
+            {accessTokenPreview && (
+              <p className="mt-4 break-all rounded-md bg-slate-950 p-3 font-mono text-xs text-emerald-300">
+                {accessTokenPreview}
+              </p>
+            )}
+
+            {accessTokenError && (
+              <p className="mt-4 rounded-md border border-red-900 bg-red-950 p-3 text-red-200">
+                {accessTokenError}
+              </p>
+            )}
           </div>
-        </div>
 
-        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
-          <h2 className="text-base font-semibold text-white">
-            Evidence requests
-          </h2>
-
-          <p className="mt-2 text-slate-300">
-            Review underwriting evidence requests and respond with text plus
-            safe placeholder attachment metadata.
-          </p>
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link
-              to="/evidence-requests"
-              className="inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
+          <div className="rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
+            <h2 className="text-base font-semibold text-white">
+              Session status
+            </h2>
+            <dl className="mt-4 space-y-3">
+              <div>
+                <dt className="text-slate-400">Loading</dt>
+                <dd className="font-semibold text-white">
+                  {isLoading ? "yes" : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">Authenticated</dt>
+                <dd className="font-semibold text-white">
+                  {isAuthenticated ? "yes" : "no"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">User email</dt>
+                <dd className="break-all font-semibold text-white">
+                  {user?.email ?? "not available"}
+                </dd>
+              </div>
+            </dl>
+            <button
+              type="button"
+              onClick={() =>
+                logout({
+                  logoutParams: {
+                    returnTo: window.location.origin,
+                  },
+                })
+              }
+              className="mt-5 inline-flex min-h-10 items-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-500"
             >
-              View evidence requests
-            </Link>
+              Log out
+            </button>
           </div>
-        </div>
-
-        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
-          <h2 className="text-base font-semibold text-white">Claims</h2>
-
-          <p className="mt-2 text-slate-300">
-            File a cyber claim against a bound policy, follow its progress,
-            answer adjuster questions, and upload supporting documents.
-          </p>
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link
-              to="/claims"
-              className="inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
-            >
-              View my claims
-            </Link>
-
-            <Link
-              to="/claims/new"
-              className="inline-flex rounded-lg border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 hover:border-slate-500"
-            >
-              File a claim
-            </Link>
-          </div>
-        </div>
-
-        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
-          <h2 className="text-base font-semibold text-white">
-            Claims adjudication
-          </h2>
-
-          <p className="mt-2 text-slate-300">
-            Work the claims queue: claim a file, request information, manage
-            reserves, and record accept or deny decisions.
-          </p>
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link
-              to="/claims/adjudication"
-              className="inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
-            >
-              Open claims workbench
-            </Link>
-          </div>
-        </div>
-
-        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
-          <h2 className="text-base font-semibold text-white">Notifications</h2>
-
-          <p className="mt-2 text-slate-300">
-            Read updates about your submissions, quotes, policies, and evidence
-            requests, and mark them as read.
-          </p>
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link
-              to="/notifications"
-              className="inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
-            >
-              View notifications
-            </Link>
-          </div>
-        </div>
-
-        <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
-          <h2 className="text-base font-semibold text-white">Underwriting</h2>
-
-          <p className="mt-2 text-slate-300">
-            Review referred quotes, request advisory AI support, and record
-            manual underwriter decisions through the protected API.
-          </p>
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link
-              to="/underwriting/quote-referrals"
-              className="inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
-            >
-              Open underwriting workbench
-            </Link>
-          </div>
-        </div>
-
-        <div className="mt-8 flex flex-wrap gap-4">
-          <Link
-            to="/"
-            className="inline-flex rounded-lg border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 hover:border-slate-500"
-          >
-            Back to home
-          </Link>
-
-          <button
-            type="button"
-            onClick={() =>
-              logout({
-                logoutParams: {
-                  returnTo: window.location.origin,
-                },
-              })
-            }
-            className="inline-flex rounded-lg bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-white"
-          >
-            Log out
-          </button>
-        </div>
+        </section>
       </section>
     </main>
   );

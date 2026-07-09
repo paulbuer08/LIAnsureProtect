@@ -35,6 +35,7 @@ The format follows simple milestone-based entries.
 
 ### Changed
 
+- React protected routes now use a shared server-authoritative role map that mirrors the API policies. Role-ineligible menu/dashboard items are omitted, direct URL attempts are blocked before the protected page mounts or fires its API query, and the dashboard now presents role-specific work cards plus a responsive notifications badge with personal/team inbox context.
 - Refactored ten domain entities (`Quote`, `Policy`, `AiUnderwritingReview`, `QuoteRatingProviderAttempt`, `QuoteUnderwritingReview`, `QuoteEvidenceRequest`, `QuoteEvidenceRequestReview`, `QuoteEvidenceDocument`, `NotificationInboxEntry`, `TeamNotificationEntry`) from parameter-heavy private constructors (up to 22 parameters, SonarLint S107) to factory property assignment over the single EF-used parameterless constructor. Behavior unchanged; all tests green.
 - Hot-path logging in `OutboxDispatcher`, `Worker`, and API startup converted to source-generated `[LoggerMessage]` methods (CA1848/CA1873).
 

@@ -31,6 +31,12 @@ Cognito token, because it never looks inside the token. The only tenant requirem
 claim on the **access** token (present since M7) + roles assigned to users; the earlier "add roles to
 the **ID** token" step is obsolete.
 
+The same API-reported roles also drive the React dashboard and top navigation. Links and dashboard
+cards are omitted when the signed-in role cannot use that workflow, and direct URL attempts are
+checked by `RequireRole` before the protected page component mounts or starts its API query. This is
+only a user-experience guard; the ASP.NET Core authorization policies remain the final security
+boundary.
+
 ## The login flow, mirrored to the code
 
 ```mermaid
