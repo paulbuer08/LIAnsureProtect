@@ -15,7 +15,8 @@ export function useCurrentUser() {
 
   return useQuery({
     queryKey: currentUserQueryKey,
-    queryFn: async () => fetchCurrentUser(await getAccessTokenSilently()),
+    queryFn: async () =>
+      fetchCurrentUser(await getAccessTokenSilently({ cacheMode: "off" })),
     staleTime: 5 * 60 * 1000,
   });
 }

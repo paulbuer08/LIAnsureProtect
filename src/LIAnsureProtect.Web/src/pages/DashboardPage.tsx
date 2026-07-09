@@ -144,9 +144,15 @@ export function DashboardPage() {
   const notificationScope = getNotificationScopeLabel(roles);
   const roleSummary = currentUserQuery.isPending
     ? "Loading roles"
+    : currentUserQuery.isError
+      ? "Roles unavailable"
     : roles.length > 0
       ? roles.join(", ")
       : "No roles assigned";
+  const roleLookupError =
+    currentUserQuery.error instanceof Error
+      ? currentUserQuery.error.message
+      : "The API could not load your roles.";
 
   async function handleGetAccessToken() {
     setIsRequestingToken(true);
@@ -225,7 +231,25 @@ export function DashboardPage() {
           </section>
         </div>
 
-        {visibleSections.length === 0 ? (
+        {currentUserQuery.isError ? (
+          <section className="mt-6 rounded-lg border border-red-500/50 bg-red-950/30 p-6">
+            <h2 className="text-lg font-semibold text-white">
+              We could not load your assigned roles.
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-red-100">
+              The dashboard cannot show Customer, Underwriter, Adjuster, or
+              Admin workspaces until the API returns your roles from{" "}
+              <code className="rounded bg-red-950 px-1.5 py-0.5 text-red-100">
+                GET /api/v1/me
+              </code>
+              . Check that the API is running with the same Auth0 authority,
+              audience, and role-claim type as the frontend.
+            </p>
+            <p className="mt-3 break-all rounded-md border border-red-500/30 bg-red-950 p-3 text-xs text-red-100">
+              {roleLookupError}
+            </p>
+          </section>
+        ) : visibleSections.length === 0 ? (
           <section className="mt-6 rounded-lg border border-amber-400/40 bg-amber-950/20 p-6">
             <h2 className="text-lg font-semibold text-white">
               No application workspace is available yet.

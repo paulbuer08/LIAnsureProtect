@@ -49,6 +49,15 @@ function mockNotifications(unreadCount = 0) {
   } as unknown as ReturnType<typeof useNotifications>);
 }
 
+function mockCurrentUserLookupFailure() {
+  vi.mocked(useCurrentUser).mockReturnValue({
+    data: undefined,
+    error: new Error("Current-user lookup failed with 401."),
+    isPending: false,
+    isError: true,
+  } as unknown as ReturnType<typeof useCurrentUser>);
+}
+
 describe("DashboardPage", () => {
   beforeEach(() => {
     getAccessTokenSilently.mockReset();
@@ -162,6 +171,29 @@ describe("DashboardPage", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "File a claim" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a role lookup diagnostic instead of treating API errors as no assigned roles", () => {
+    mockCurrentUserLookupFailure();
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Roles unavailable")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: "We could not load your assigned roles.",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Current-user lookup failed with 401."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("No application workspace is available yet."),
     ).not.toBeInTheDocument();
   });
 });

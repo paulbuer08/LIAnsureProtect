@@ -228,4 +228,6 @@ issues:
 | Login redirects but the app shows an Auth0 error | Callback URL mismatch — must be exactly `http://localhost:5173/callback` in the SPA app settings |
 | Logged in but every API call returns 401 | `VITE_AUTH0_AUDIENCE` missing/wrong, or backend `Authentication__Authority` not set in `src/LIAnsureProtect.Api/.env.local` |
 | Logged in but a page returns 403 | The test user's Auth0 role doesn't satisfy the endpoint policy — check the user's Roles tab and that the post-login Action is deployed **and attached to the flow** |
-| Roles missing from the token | The Action isn't in the Login flow, or the claim namespace differs from `https://liansureprotect.local/roles` |
+| Dashboard says roles are unavailable | `GET /api/v1/me` failed. Check the API is running, `VITE_API_BASE_URL=http://localhost:5223`, and API/frontend Auth0 authority/audience values match. |
+| Dashboard says no roles are assigned | `GET /api/v1/me` succeeded but the access token had no role claim. Check the Auth0 user's Roles tab, the Post Login Action is deployed and attached, and the claim namespace is exactly `https://liansureprotect.local/roles`. Then log out/in again. The frontend role lookup requests a fresh access token to avoid stale cached role-less tokens. |
+| Roles missing from the token | The Action isn't in the Login flow, the user has no Auth0 role assignment, or the claim namespace differs from `https://liansureprotect.local/roles` |

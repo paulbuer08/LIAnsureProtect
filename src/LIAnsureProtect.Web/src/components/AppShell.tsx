@@ -119,7 +119,11 @@ export function AppShell({ children }: AppShellProps) {
     (item) => !item.allowedRoles || hasAnyRole(roles, item.allowedRoles),
   );
   const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
-  const notificationScope = getNotificationScopeLabel(roles);
+  const headerContext = currentUserQuery.isPending
+    ? "Loading access"
+    : currentUserQuery.isError
+      ? "Roles unavailable"
+      : getNotificationScopeLabel(roles);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -133,9 +137,7 @@ export function AppShell({ children }: AppShellProps) {
               LIAnsureProtect
             </Link>
             <p className="hidden text-xs text-slate-400 md:block">
-              {currentUserQuery.isPending
-                ? "Loading access"
-                : notificationScope}
+              {headerContext}
             </p>
           </div>
 
