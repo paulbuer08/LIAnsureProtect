@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router";
 
@@ -143,18 +142,8 @@ function needsInteractiveAuth0Authorization(error: unknown) {
 }
 
 export function DashboardPage() {
-  const {
-    getAccessTokenSilently,
-    isAuthenticated,
-    isLoading,
-    loginWithRedirect,
-    logout,
-    user,
-  } = useAuth0();
+  const { loginWithRedirect, user } = useAuth0();
   const currentUserQuery = useCurrentUser();
-  const [accessTokenPreview, setAccessTokenPreview] = useState<string>();
-  const [accessTokenError, setAccessTokenError] = useState<string>();
-  const [isRequestingToken, setIsRequestingToken] = useState(false);
 
   const roles = currentUserQuery.data?.roles ?? [];
   const canReadNotifications = hasAnyRole(roles, roleGroups.notifications);
@@ -192,26 +181,6 @@ export function DashboardPage() {
         prompt: "consent",
       },
     });
-  }
-
-  async function handleGetAccessToken() {
-    setIsRequestingToken(true);
-    setAccessTokenError(undefined);
-
-    try {
-      const accessToken = await getAccessTokenSilently();
-      const preview = `${accessToken.slice(0, 16)}...${accessToken.slice(-16)}`;
-
-      setAccessTokenPreview(`${preview} (${accessToken.length} characters)`);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unable to get access token.";
-
-      setAccessTokenError(message);
-      setAccessTokenPreview(undefined);
-    } finally {
-      setIsRequestingToken(false);
-    }
   }
 
   return (
@@ -355,78 +324,6 @@ export function DashboardPage() {
           </section>
         )}
 
-        <section className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
-            <h2 className="text-base font-semibold text-white">
-              Developer session check
-            </h2>
-            <p className="mt-2 text-slate-300">
-              Use this during local walkthroughs to confirm the browser can
-              request an Auth0 access token for the LIAnsureProtect API. Only a
-              short preview is displayed.
-            </p>
-
-            <button
-              type="button"
-              onClick={handleGetAccessToken}
-              disabled={isRequestingToken}
-              className="mt-4 inline-flex min-h-10 items-center rounded-md bg-sky-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-            >
-              {isRequestingToken ? "Requesting token..." : "Get API access token"}
-            </button>
-
-            {accessTokenPreview && (
-              <p className="mt-4 break-all rounded-md bg-slate-950 p-3 font-mono text-xs text-emerald-300">
-                {accessTokenPreview}
-              </p>
-            )}
-
-            {accessTokenError && (
-              <p className="mt-4 rounded-md border border-red-900 bg-red-950 p-3 text-red-200">
-                {accessTokenError}
-              </p>
-            )}
-          </div>
-
-          <div className="rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-200">
-            <h2 className="text-base font-semibold text-white">
-              Session status
-            </h2>
-            <dl className="mt-4 space-y-3">
-              <div>
-                <dt className="text-slate-400">Loading</dt>
-                <dd className="font-semibold text-white">
-                  {isLoading ? "yes" : "no"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-400">Authenticated</dt>
-                <dd className="font-semibold text-white">
-                  {isAuthenticated ? "yes" : "no"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-400">User email</dt>
-                <dd className="break-all font-semibold text-white">
-                  {user?.email ?? "not available"}
-                </dd>
-              </div>
-            </dl>
-            <button
-              type="button"
-              onClick={() =>
-                logout({
-                  logoutParams: {
-                    returnTo: window.location.origin,
-                  },
-                })
-              }
-              className="mt-5 inline-flex min-h-10 items-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-500"
-            >
-              Log out
-            </button>
-          </div>
-        </section>
       </section>
     </main>
   );

@@ -7,17 +7,13 @@ import { useNotifications } from "../features/notifications/hooks/useNotificatio
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { DashboardPage } from "./DashboardPage";
 
-const getAccessTokenSilently = vi.fn();
 const loginWithRedirect = vi.fn();
-const logout = vi.fn();
 
 vi.mock("@auth0/auth0-react", () => ({
   useAuth0: () => ({
-    getAccessTokenSilently,
     isAuthenticated: true,
     isLoading: false,
     loginWithRedirect,
-    logout,
     user: {
       email: "customer@example.com",
     },
@@ -73,33 +69,9 @@ function mockCurrentUserConsentRequired() {
 
 describe("DashboardPage", () => {
   beforeEach(() => {
-    getAccessTokenSilently.mockReset();
     loginWithRedirect.mockReset();
-    logout.mockReset();
     mockCurrentUser(["Customer"]);
     mockNotifications();
-  });
-
-  it("shows a shortened access token preview instead of the full token", async () => {
-    const user = userEvent.setup();
-    const accessToken = "header.payload.signature-with-long-test-value";
-    getAccessTokenSilently.mockResolvedValue(accessToken);
-
-    render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>,
-    );
-
-    await user.click(
-      screen.getByRole("button", { name: "Get API access token" }),
-    );
-
-    expect(getAccessTokenSilently).toHaveBeenCalledTimes(1);
-    expect(
-      await screen.findByText(/header\.payload\.s\.\.\.-long-test-value/),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(accessToken)).not.toBeInTheDocument();
   });
 
   it("links signed-in users to the real submission intake workflow", () => {
