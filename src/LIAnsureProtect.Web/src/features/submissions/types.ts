@@ -49,6 +49,9 @@ export type CreateQuoteRequest = {
   hasIncidentResponsePlan: boolean;
   priorCyberIncidents: number;
   sensitiveDataExposure: SensitiveDataExposure;
+  otherIndustryDescription?: string | null;
+  priorCyberIncidentTypes?: string[] | null;
+  priorCyberIncidentDetails?: string | null;
 };
 
 export type RatingProviderIndication = {

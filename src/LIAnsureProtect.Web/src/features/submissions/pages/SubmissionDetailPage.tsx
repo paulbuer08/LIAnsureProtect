@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useParams } from "react-router";
 
+import { formatCurrency } from "../../../lib/currency";
 import { useAcceptQuote } from "../hooks/useAcceptQuote";
 import { useBindPolicy } from "../hooks/useBindPolicy";
 import { useCreateQuote } from "../hooks/useCreateQuote";
@@ -30,21 +31,74 @@ const fieldClassName =
 
 const selectClassName = `${fieldClassName} min-h-11`;
 
-const moneyFormatter = new Intl.NumberFormat("en-US", {
-  currency: "USD",
-  maximumFractionDigits: 0,
-  style: "currency",
-});
-
 const defaultEffectiveDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
   .toISOString()
   .slice(0, 10);
+
+const incidentTypeOptions = [
+  "Ransomware",
+  "Data breach",
+  "Business email compromise",
+  "Funds transfer fraud",
+  "DDoS / availability outage",
+  "Malware or endpoint compromise",
+  "Vendor / supply-chain incident",
+  "Other",
+];
+
+const helpText: Record<string, string> = {
+  annualRevenue:
+    "Revenue is a size proxy. Larger revenue usually means larger digital operations, more third-party dependency, and larger potential loss exposure.",
+  backupMaturity:
+    "Mature means backups are tested, isolated, encrypted, and recoverable within defined recovery targets. Partial means backups exist but testing, isolation, or coverage is incomplete. Weak means backups are missing, untested, or likely exposed to the same attack path as production systems.",
+  edrStatus:
+    "EDR means endpoint detection and response. Implemented means covered endpoints are monitored and alerts are triaged. Partial means only some devices or alert workflows are covered. Not implemented means there is no reliable endpoint detection and response program.",
+  incidentResponsePlan:
+    "An incident response plan is a written and rehearsed playbook for detecting, containing, communicating, and recovering from cyber incidents. It should name roles, escalation paths, external contacts, legal/comms steps, backup recovery steps, and evidence preservation rules.",
+  industryClass:
+    "Industry affects baseline exposure. Healthcare and financial services carry heavier regulated-data exposure, retail often has payment and consumer data exposure, technology may carry platform or client-data risk, and professional services is the default lower-volatility class. Use Other when none fit.",
+  mfaStatus:
+    "MFA means multi-factor authentication. Implemented means privileged and remote access require MFA. Partial means only some users/apps are covered. Not implemented materially increases account-takeover risk.",
+  priorCyberIncidents:
+    "Prior incidents affect rating and underwriting because they show loss history and control maturity. Two or more prior incidents, or severe incident types like ransomware, data breach, business email compromise, or funds transfer fraud, trigger underwriter review.",
+  requestedLimit:
+    "Requested limit is the maximum policy coverage requested. Higher limits increase insurer exposure and usually increase premium or underwriting scrutiny.",
+  retention:
+    "Retention is the amount the insured keeps before insurance responds. Lower retention shifts more loss to the insurer and usually increases premium.",
+  sensitiveDataExposure:
+    "Low means little or no personal, financial, health, credential, or regulated data. Moderate means routine customer/employee data. High means large volumes of regulated, payment, health, financial, credential, or sensitive client data.",
+};
+
+function HelpButton({ id, label }: { id: keyof typeof helpText; label: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <span className="relative inline-flex align-middle">
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-label={`More details about ${label}`}
+        onClick={() => setIsOpen((current) => !current)}
+        className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full border border-sky-300 text-xs font-bold text-sky-200 hover:bg-sky-400 hover:text-slate-950"
+      >
+        ?
+      </button>
+      {isOpen && (
+        <span className="absolute left-7 top-0 z-10 w-72 rounded-md border border-slate-700 bg-slate-950 p-3 text-xs font-normal leading-5 text-slate-200 shadow-xl">
+          {helpText[id]}
+        </span>
+      )}
+    </span>
+  );
+}
 
 export function SubmissionDetailPage() {
   const { submissionId } = useParams();
   const [isEditing, setIsEditing] = useState(false);
   const [industryClass, setIndustryClass] =
     useState<CyberIndustryClass>("ProfessionalServices");
+  const [usesOtherIndustry, setUsesOtherIndustry] = useState(false);
+  const [otherIndustryDescription, setOtherIndustryDescription] = useState("");
   const [annualRevenueBand, setAnnualRevenueBand] =
     useState<AnnualRevenueBand>("From10MTo50M");
   const [requestedLimit, setRequestedLimit] = useState("1000000");
@@ -57,6 +111,10 @@ export function SubmissionDetailPage() {
     useState<BackupMaturity>("Mature");
   const [hasIncidentResponsePlan, setHasIncidentResponsePlan] = useState(true);
   const [priorCyberIncidents, setPriorCyberIncidents] = useState("0");
+  const [priorCyberIncidentTypes, setPriorCyberIncidentTypes] = useState<
+    string[]
+  >([]);
+  const [priorCyberIncidentDetails, setPriorCyberIncidentDetails] = useState("");
   const [sensitiveDataExposure, setSensitiveDataExposure] =
     useState<SensitiveDataExposure>("Moderate");
   const [acceptedByName, setAcceptedByName] = useState("");
@@ -112,6 +170,12 @@ export function SubmissionDetailPage() {
     activeQuoteStatus === "Quoted" || activeQuoteStatus === "Approved";
   const canBindPolicy = activeQuoteStatus === "Accepted";
   const isQuoteReferred = activeQuoteStatus === "Referred";
+  const priorIncidentCount = Number(priorCyberIncidents);
+  const needsPriorIncidentDetails = priorIncidentCount > 0;
+  const canGenerateQuoteRequest =
+    !needsPriorIncidentDetails ||
+    (priorCyberIncidentTypes.length > 0 &&
+      priorCyberIncidentDetails.trim().length > 0);
   const {
     formState: { errors },
     handleSubmit,
@@ -171,7 +235,7 @@ export function SubmissionDetailPage() {
   }
 
   function handleGenerateQuote() {
-    if (!displayedSubmission) {
+    if (!displayedSubmission || !canGenerateQuoteRequest) {
       return;
     }
 
@@ -186,10 +250,27 @@ export function SubmissionDetailPage() {
         edrStatus,
         backupMaturity,
         hasIncidentResponsePlan,
-        priorCyberIncidents: Number(priorCyberIncidents),
+        priorCyberIncidents: priorIncidentCount,
         sensitiveDataExposure,
+        otherIndustryDescription: usesOtherIndustry
+          ? otherIndustryDescription.trim()
+          : null,
+        priorCyberIncidentTypes: needsPriorIncidentDetails
+          ? priorCyberIncidentTypes
+          : null,
+        priorCyberIncidentDetails: needsPriorIncidentDetails
+          ? priorCyberIncidentDetails.trim()
+          : null,
       },
     });
+  }
+
+  function handleIncidentTypeChange(incidentType: string, checked: boolean) {
+    setPriorCyberIncidentTypes((current) =>
+      checked
+        ? [...new Set([...current, incidentType])]
+        : current.filter((value) => value !== incidentType),
+    );
   }
 
   function handleAcceptQuote() {
@@ -466,14 +547,20 @@ export function SubmissionDetailPage() {
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <label className="text-sm font-semibold text-slate-100">
                     Industry class
+                    <HelpButton id="industryClass" label="Industry class" />
                     <select
                       className={selectClassName}
-                      value={industryClass}
-                      onChange={(event) =>
-                        setIndustryClass(
-                          event.target.value as CyberIndustryClass,
-                        )
-                      }
+                      value={usesOtherIndustry ? "Other" : industryClass}
+                      onChange={(event) => {
+                        if (event.target.value === "Other") {
+                          setUsesOtherIndustry(true);
+                          setIndustryClass("ProfessionalServices");
+                          return;
+                        }
+
+                        setUsesOtherIndustry(false);
+                        setIndustryClass(event.target.value as CyberIndustryClass);
+                      }}
                     >
                       <option value="ProfessionalServices">
                         Professional services
@@ -484,11 +571,28 @@ export function SubmissionDetailPage() {
                       <option value="FinancialServices">
                         Financial services
                       </option>
+                      <option value="Other">Other / not listed</option>
                     </select>
                   </label>
 
+                  {usesOtherIndustry && (
+                    <label className="text-sm font-semibold text-slate-100">
+                      Describe industry
+                      <input
+                        className={fieldClassName}
+                        type="text"
+                        value={otherIndustryDescription}
+                        onChange={(event) =>
+                          setOtherIndustryDescription(event.target.value)
+                        }
+                        placeholder="Example: logistics marketplace"
+                      />
+                    </label>
+                  )}
+
                   <label className="text-sm font-semibold text-slate-100">
                     Annual revenue
+                    <HelpButton id="annualRevenue" label="Annual revenue" />
                     <select
                       className={selectClassName}
                       value={annualRevenueBand}
@@ -498,44 +602,47 @@ export function SubmissionDetailPage() {
                         )
                       }
                     >
-                      <option value="Under1M">Under $1M</option>
-                      <option value="From1MTo10M">$1M to $10M</option>
-                      <option value="From10MTo50M">$10M to $50M</option>
-                      <option value="From50MTo250M">$50M to $250M</option>
+                      <option value="Under1M">Under ₱1M</option>
+                      <option value="From1MTo10M">₱1M to ₱10M</option>
+                      <option value="From10MTo50M">₱10M to ₱50M</option>
+                      <option value="From50MTo250M">₱50M to ₱250M</option>
                     </select>
                   </label>
 
                   <label className="text-sm font-semibold text-slate-100">
                     Requested limit
+                    <HelpButton id="requestedLimit" label="Requested limit" />
                     <select
                       className={selectClassName}
                       value={requestedLimit}
                       onChange={(event) => setRequestedLimit(event.target.value)}
                     >
-                      <option value="250000">$250,000</option>
-                      <option value="500000">$500,000</option>
-                      <option value="1000000">$1,000,000</option>
-                      <option value="2000000">$2,000,000</option>
-                      <option value="5000000">$5,000,000</option>
+                      <option value="250000">₱250,000</option>
+                      <option value="500000">₱500,000</option>
+                      <option value="1000000">₱1,000,000</option>
+                      <option value="2000000">₱2,000,000</option>
+                      <option value="5000000">₱5,000,000</option>
                     </select>
                   </label>
 
                   <label className="text-sm font-semibold text-slate-100">
                     Retention
+                    <HelpButton id="retention" label="Retention" />
                     <select
                       className={selectClassName}
                       value={retention}
                       onChange={(event) => setRetention(event.target.value)}
                     >
-                      <option value="2500">$2,500</option>
-                      <option value="5000">$5,000</option>
-                      <option value="10000">$10,000</option>
-                      <option value="25000">$25,000</option>
+                      <option value="2500">₱2,500</option>
+                      <option value="5000">₱5,000</option>
+                      <option value="10000">₱10,000</option>
+                      <option value="25000">₱25,000</option>
                     </select>
                   </label>
 
                   <label className="text-sm font-semibold text-slate-100">
                     MFA status
+                    <HelpButton id="mfaStatus" label="MFA status" />
                     <select
                       className={selectClassName}
                       value={mfaStatus}
@@ -553,6 +660,7 @@ export function SubmissionDetailPage() {
 
                   <label className="text-sm font-semibold text-slate-100">
                     EDR status
+                    <HelpButton id="edrStatus" label="EDR status" />
                     <select
                       className={selectClassName}
                       value={edrStatus}
@@ -570,6 +678,7 @@ export function SubmissionDetailPage() {
 
                   <label className="text-sm font-semibold text-slate-100">
                     Backup maturity
+                    <HelpButton id="backupMaturity" label="Backup maturity" />
                     <select
                       className={selectClassName}
                       value={backupMaturity}
@@ -585,6 +694,10 @@ export function SubmissionDetailPage() {
 
                   <label className="text-sm font-semibold text-slate-100">
                     Sensitive data exposure
+                    <HelpButton
+                      id="sensitiveDataExposure"
+                      label="Sensitive data exposure"
+                    />
                     <select
                       className={selectClassName}
                       value={sensitiveDataExposure}
@@ -602,6 +715,10 @@ export function SubmissionDetailPage() {
 
                   <label className="text-sm font-semibold text-slate-100">
                     Prior cyber incidents
+                    <HelpButton
+                      id="priorCyberIncidents"
+                      label="Prior cyber incidents"
+                    />
                     <input
                       className={fieldClassName}
                       min="0"
@@ -623,14 +740,75 @@ export function SubmissionDetailPage() {
                         setHasIncidentResponsePlan(event.target.checked)
                       }
                     />
-                    Incident response plan in place
+                    <span>
+                      Incident response plan in place
+                      <HelpButton
+                        id="incidentResponsePlan"
+                        label="Incident response plan"
+                      />
+                    </span>
                   </label>
                 </div>
+
+                {needsPriorIncidentDetails && (
+                  <div className="mt-5 rounded-md border border-slate-700 bg-slate-950/60 p-4">
+                    <h3 className="text-sm font-semibold text-white">
+                      Prior incident history
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      Select the incident types and summarize what happened.
+                      Severe prior incidents can affect referral and
+                      underwriting decisioning.
+                    </p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      {incidentTypeOptions.map((incidentType) => (
+                        <label
+                          key={incidentType}
+                          className="flex items-center gap-3 text-sm text-slate-100"
+                        >
+                          <input
+                            checked={priorCyberIncidentTypes.includes(
+                              incidentType,
+                            )}
+                            className="h-4 w-4 rounded border-slate-700 bg-slate-950"
+                            type="checkbox"
+                            onChange={(event) =>
+                              handleIncidentTypeChange(
+                                incidentType,
+                                event.target.checked,
+                              )
+                            }
+                          />
+                          {incidentType}
+                        </label>
+                      ))}
+                    </div>
+                    <label className="mt-4 block text-sm font-semibold text-slate-100">
+                      Incident details
+                      <textarea
+                        className={`${fieldClassName} min-h-28`}
+                        value={priorCyberIncidentDetails}
+                        onChange={(event) =>
+                          setPriorCyberIncidentDetails(event.target.value)
+                        }
+                        placeholder="Summarize timing, affected systems/data, business impact, recovery status, root cause, and controls added after the incident."
+                      />
+                    </label>
+                    {!canGenerateQuoteRequest && (
+                      <p className="mt-3 text-sm text-amber-200">
+                        Select at least one incident type and provide details
+                        before generating a quote.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <button
                   type="button"
                   onClick={handleGenerateQuote}
-                  disabled={createQuoteMutation.isPending}
+                  disabled={
+                    createQuoteMutation.isPending || !canGenerateQuoteRequest
+                  }
                   className="mt-5 inline-flex min-h-10 items-center rounded-md bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
                 >
                   {createQuoteMutation.isPending
@@ -665,7 +843,7 @@ export function SubmissionDetailPage() {
                   <div>
                     <dt className="font-semibold text-slate-400">Premium</dt>
                     <dd className="mt-1 text-white">
-                      {moneyFormatter.format(activePremium ?? 0)}
+                      {formatCurrency(activePremium ?? 0)}
                     </dd>
                   </div>
                   <div>
@@ -675,13 +853,13 @@ export function SubmissionDetailPage() {
                   <div>
                     <dt className="font-semibold text-slate-400">Limit</dt>
                     <dd className="mt-1 text-white">
-                      {moneyFormatter.format(activeRequestedLimit ?? 0)}
+                      {formatCurrency(activeRequestedLimit ?? 0)}
                     </dd>
                   </div>
                   <div>
                     <dt className="font-semibold text-slate-400">Retention</dt>
                     <dd className="mt-1 text-white">
-                      {moneyFormatter.format(activeRetention ?? 0)}
+                      {formatCurrency(activeRetention ?? 0)}
                     </dd>
                   </div>
                   <div>

@@ -345,10 +345,13 @@ describe("SubmissionDetailPage", () => {
         hasIncidentResponsePlan: true,
         priorCyberIncidents: 0,
         sensitiveDataExposure: "Moderate",
+        otherIndustryDescription: null,
+        priorCyberIncidentTypes: null,
+        priorCyberIncidentDetails: null,
       },
     );
     expect(await screen.findByText("quote-123")).toBeInTheDocument();
-    expect(screen.getByText("$6,500")).toBeInTheDocument();
+    expect(screen.getByText("₱6,500")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Accept quote" }),
     ).toBeInTheDocument();

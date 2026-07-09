@@ -7,6 +7,8 @@ public sealed class HighRiskCyberRatingStrategy : ICyberRatingStrategy
     public bool CanRate(CyberRatingInput input)
     {
         return input.PriorCyberIncidents >= 2
+            || HasSevereIncidentHistory(input)
+            || !string.IsNullOrWhiteSpace(input.OtherIndustryDescription)
             || input.MfaStatus == CyberSecurityControlStatus.NotImplemented
             || input.BackupMaturity == BackupMaturity.Weak
             || (input.SensitiveDataExposure == SensitiveDataExposure.High
@@ -30,5 +32,16 @@ public sealed class HighRiskCyberRatingStrategy : ICyberRatingStrategy
             CyberRatingMath.BuildSubjectivities(input),
             referralReasons,
             "HighRiskCyber");
+    }
+
+    private static bool HasSevereIncidentHistory(CyberRatingInput input)
+    {
+        var incidentTypes = input.PriorCyberIncidentTypes ?? [];
+
+        return incidentTypes.Any(type =>
+            type.Contains("ransomware", StringComparison.OrdinalIgnoreCase)
+            || type.Contains("data breach", StringComparison.OrdinalIgnoreCase)
+            || type.Contains("funds transfer fraud", StringComparison.OrdinalIgnoreCase)
+            || type.Contains("business email compromise", StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -36,5 +36,26 @@ public sealed class CreateQuoteCommandValidator : AbstractValidator<CreateQuoteC
 
         RuleFor(command => command.PriorCyberIncidents)
             .InclusiveBetween(0, 5);
+
+        RuleFor(command => command.OtherIndustryDescription)
+            .MaximumLength(200);
+
+        RuleFor(command => command.PriorCyberIncidentDetails)
+            .MaximumLength(2_000);
+
+        RuleFor(command => command.PriorCyberIncidentTypes)
+            .Must(types => types is null || types.All(type => !string.IsNullOrWhiteSpace(type) && type.Length <= 100))
+            .WithMessage("Prior cyber incident types must be non-empty and no more than 100 characters each.");
+
+        When(command => command.PriorCyberIncidents > 0, () =>
+        {
+            RuleFor(command => command.PriorCyberIncidentTypes)
+                .NotEmpty()
+                .WithMessage("Prior cyber incident types are required when prior cyber incidents are greater than zero.");
+
+            RuleFor(command => command.PriorCyberIncidentDetails)
+                .NotEmpty()
+                .WithMessage("Prior cyber incident details are required when prior cyber incidents are greater than zero.");
+        });
     }
 }

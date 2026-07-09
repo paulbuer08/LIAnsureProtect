@@ -49,7 +49,10 @@ public sealed class CreateQuoteCommandHandler(
             request.BackupMaturity,
             request.HasIncidentResponsePlan,
             request.PriorCyberIncidents,
-            request.SensitiveDataExposure);
+            request.SensitiveDataExposure,
+            request.OtherIndustryDescription,
+            request.PriorCyberIncidentTypes,
+            request.PriorCyberIncidentDetails);
         var ratingResult = ratingStrategySelector.Rate(ratingInput);
         var quote = Quote.Generate(
             submission.Id,
@@ -76,6 +79,9 @@ public sealed class CreateQuoteCommandHandler(
             request.HasIncidentResponsePlan,
             request.PriorCyberIncidents,
             request.SensitiveDataExposure,
+            request.OtherIndustryDescription,
+            request.PriorCyberIncidentTypes,
+            request.PriorCyberIncidentDetails,
             quote.Premium,
             quote.RiskTier,
             quote.Status,

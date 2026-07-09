@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 
+import { formatCurrency } from "../../../lib/currency";
 import { useClaimablePolicies, useFileClaim } from "../hooks/useClaims";
 import { claimIncidentTypes, type ClaimablePolicy } from "../types";
 
@@ -143,8 +144,8 @@ export function NewClaimPage() {
                       {new Date(policy.expirationAtUtc).toLocaleDateString()}
                     </p>
                     <p className="mt-1 text-sm text-slate-400">
-                      Limit {policy.limit.toLocaleString()} · Retention{" "}
-                      {policy.retention.toLocaleString()}
+                      Limit {formatCurrency(policy.limit)} · Retention{" "}
+                      {formatCurrency(policy.retention)}
                     </p>
                   </button>
                 ))}

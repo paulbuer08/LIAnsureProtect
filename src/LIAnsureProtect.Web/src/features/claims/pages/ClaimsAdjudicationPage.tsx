@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router";
 
+import { formatCurrency } from "../../../lib/currency";
 import { downloadAdjudicationClaimDocument } from "../api/claimsApi";
 import {
   useAdjudicationActions,
@@ -12,10 +13,6 @@ import { claimDenialReasons } from "../types";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
-}
-
-function formatMoney(amount: number) {
-  return amount.toLocaleString("en-US");
 }
 
 export function ClaimsAdjudicationPage() {
@@ -209,8 +206,8 @@ export function ClaimsAdjudicationPage() {
                 </p>
                 <p className="mt-1 text-slate-400">
                   Policy {claim.policyNumber} · limit{" "}
-                  {formatMoney(claim.policyLimitAtFiling)} · retention{" "}
-                  {formatMoney(claim.policyRetentionAtFiling)}
+                  {formatCurrency(claim.policyLimitAtFiling)} · retention{" "}
+                  {formatCurrency(claim.policyRetentionAtFiling)}
                 </p>
               </div>
               <div className="flex flex-col gap-2 md:items-end">
@@ -253,7 +250,7 @@ export function ClaimsAdjudicationPage() {
                 <p className="mt-1 text-xl font-semibold text-white">
                   {claim.claimedAmount === null
                     ? "—"
-                    : formatMoney(claim.claimedAmount)}
+                    : formatCurrency(claim.claimedAmount)}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
@@ -261,7 +258,7 @@ export function ClaimsAdjudicationPage() {
                   Reserve
                 </p>
                 <p className="mt-1 text-xl font-semibold text-white">
-                  {formatMoney(claim.reserveAmount)}
+                  {formatCurrency(claim.reserveAmount)}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
@@ -269,7 +266,7 @@ export function ClaimsAdjudicationPage() {
                   Paid
                 </p>
                 <p className="mt-1 text-xl font-semibold text-white">
-                  {formatMoney(claim.paidAmount)}
+                  {formatCurrency(claim.paidAmount)}
                 </p>
               </div>
             </div>
@@ -419,7 +416,7 @@ export function ClaimsAdjudicationPage() {
                   />
                   <p className="mt-1 text-xs text-slate-400">
                     Cap: limit net of retention ={" "}
-                    {formatMoney(
+                    {formatCurrency(
                       claim.policyLimitAtFiling - claim.policyRetentionAtFiling,
                     )}
                   </p>
@@ -507,7 +504,7 @@ export function ClaimsAdjudicationPage() {
                 <h3 className="font-semibold text-white">Decision recorded</h3>
                 <p className="mt-2 text-slate-300">
                   {claim.settlementAmount !== null
-                    ? `Accepted with a settlement of ${formatMoney(claim.settlementAmount)}.`
+                    ? `Accepted with a settlement of ${formatCurrency(claim.settlementAmount)}.`
                     : `Denied (${claim.denialReason}): ${claim.denialNarrative}`}
                 </p>
                 <button
@@ -656,8 +653,8 @@ export function ClaimsAdjudicationPage() {
                       className="rounded-lg border border-slate-800 bg-slate-950 p-3"
                     >
                       <p className="text-slate-200">
-                        {formatMoney(change.oldAmount)} →{" "}
-                        {formatMoney(change.newAmount)}
+                        {formatCurrency(change.oldAmount)} →{" "}
+                        {formatCurrency(change.newAmount)}
                       </p>
                       <p className="mt-1 text-slate-300">{change.reason}</p>
                       <p className="mt-1 text-xs text-slate-400">
@@ -682,7 +679,7 @@ export function ClaimsAdjudicationPage() {
                       <p className="font-semibold text-white">
                         {decision.outcome}
                         {decision.settlementAmount !== null
-                          ? ` — ${formatMoney(decision.settlementAmount)}`
+                          ? ` — ${formatCurrency(decision.settlementAmount)}`
                           : ""}
                       </p>
                       <p className="mt-1 text-slate-300">{decision.reason}</p>

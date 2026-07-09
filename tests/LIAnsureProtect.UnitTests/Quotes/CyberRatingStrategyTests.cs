@@ -55,6 +55,47 @@ public sealed class CyberRatingStrategyTests
         Assert.Contains("Prior cyber incident count requires underwriter review.", result.ReferralReasons);
     }
 
+    [Fact]
+    public void Selector_refers_other_industry_for_underwriter_classification()
+    {
+        var selector = new CyberRatingStrategySelector(
+        [
+            new HighRiskCyberRatingStrategy(),
+            new BaselineCyberRatingStrategy()
+        ]);
+        var input = CreateInput(otherIndustryDescription: "Marine logistics and port security");
+
+        var result = selector.Rate(input);
+
+        Assert.Equal("HighRiskCyber", result.StrategyName);
+        Assert.Contains(
+            "Other industry class requires underwriter classification review.",
+            result.ReferralReasons);
+        Assert.Contains(
+            "Other industry description requires underwriting classification confirmation.",
+            result.Subjectivities);
+    }
+
+    [Fact]
+    public void Selector_refers_severe_prior_incident_type_even_when_count_is_one()
+    {
+        var selector = new CyberRatingStrategySelector(
+        [
+            new HighRiskCyberRatingStrategy(),
+            new BaselineCyberRatingStrategy()
+        ]);
+        var input = CreateInput(
+            priorCyberIncidents: 1,
+            priorCyberIncidentTypes: ["Ransomware"],
+            priorCyberIncidentDetails: "Ransomware incident affected file servers last year; backups were restored.");
+
+        var result = selector.Rate(input);
+
+        Assert.Equal("HighRiskCyber", result.StrategyName);
+        Assert.Contains("Severe prior incident type requires underwriter review.", result.ReferralReasons);
+        Assert.Contains("Prior incident history requires a loss-history review.", result.Subjectivities);
+    }
+
     private static CyberRatingInput CreateInput(
         CyberIndustryClass industryClass = CyberIndustryClass.ProfessionalServices,
         AnnualRevenueBand annualRevenueBand = AnnualRevenueBand.From10MTo50M,
@@ -65,7 +106,10 @@ public sealed class CyberRatingStrategyTests
         BackupMaturity backupMaturity = BackupMaturity.Mature,
         bool hasIncidentResponsePlan = true,
         int priorCyberIncidents = 0,
-        SensitiveDataExposure sensitiveDataExposure = SensitiveDataExposure.Moderate)
+        SensitiveDataExposure sensitiveDataExposure = SensitiveDataExposure.Moderate,
+        string? otherIndustryDescription = null,
+        IReadOnlyCollection<string>? priorCyberIncidentTypes = null,
+        string? priorCyberIncidentDetails = null)
     {
         return new CyberRatingInput(
             industryClass,
@@ -77,6 +121,9 @@ public sealed class CyberRatingStrategyTests
             backupMaturity,
             hasIncidentResponsePlan,
             priorCyberIncidents,
-            sensitiveDataExposure);
+            sensitiveDataExposure,
+            otherIndustryDescription,
+            priorCyberIncidentTypes,
+            priorCyberIncidentDetails);
     }
 }

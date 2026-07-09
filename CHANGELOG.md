@@ -43,6 +43,7 @@ The format follows simple milestone-based entries.
 ### Fixed
 
 - Submission detail now continues the customer happy path after `Submitted`: customers can generate a quote from the submitted detail page, accept a quoted/approved quote with subjectivity acknowledgement, and bind the accepted quote without leaving the walkthrough.
+- Customer/broker quote intake now defaults visible monetary values to Philippine peso, explains rating inputs with inline help controls, supports "Other" industry descriptions, and requires prior-incident type/details when incident count is above zero so severe loss history can drive underwriting referral.
 - Draft submissions can now be edited before final submission: the API exposes an owner-scoped `PUT /api/v1/submissions/{submissionId}` that only accepts Draft submissions, and the customer detail page now has an edit/save/cancel flow before the Submit action.
 - Submission detail now exposes the missing customer **Submit submission** action for Draft submissions and refreshes the detail/list cache so the status changes to `Submitted` during the manual happy-path walkthrough.
 - The role-aware dashboard no longer labels failed `GET /api/v1/me` role lookups as "No roles assigned"; it now shows a clear roles-unavailable diagnostic when the API role lookup cannot complete.

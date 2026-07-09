@@ -231,8 +231,8 @@ describe("UnderwritingQuoteReferralsPage", () => {
     expect(await screen.findAllByText("quote-severe")).toHaveLength(2);
     expect(screen.getByText("Severe risk")).toBeInTheDocument();
     expect(screen.getByText("Expires in 2 days")).toBeInTheDocument();
-    expect(screen.getByText("$42,000")).toBeInTheDocument();
-    expect(screen.getByText("$5,000,000")).toBeInTheDocument();
+    expect(screen.getByText("₱42,000")).toBeInTheDocument();
+    expect(screen.getByText("₱5,000,000")).toBeInTheDocument();
     expect(screen.getAllByText("High priority")).toHaveLength(2);
     expect(screen.getAllByText("InReview")).toHaveLength(2);
     expect(screen.getAllByText("Assigned to auth0|underwriter")).toHaveLength(2);

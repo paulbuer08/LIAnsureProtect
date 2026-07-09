@@ -1354,6 +1354,8 @@ public sealed class SubmissionEndpointTests
             backupMaturity = "Weak",
             hasIncidentResponsePlan = false,
             priorCyberIncidents = 2,
+            priorCyberIncidentTypes = new[] { "Ransomware", "Data breach" },
+            priorCyberIncidentDetails = "Two prior incidents affected regulated systems; recovery and control remediation are under review.",
             sensitiveDataExposure = "High"
         };
     }
