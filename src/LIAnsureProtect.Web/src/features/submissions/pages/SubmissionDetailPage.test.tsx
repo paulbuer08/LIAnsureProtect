@@ -4,6 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { acceptQuote } from "../api/acceptQuote";
+import { bindPolicy } from "../api/bindPolicy";
+import { createQuote } from "../api/createQuote";
 import { getSubmissionDetail } from "../api/getSubmissionDetail";
 import { submitSubmission } from "../api/submitSubmission";
 import { updateSubmission } from "../api/updateSubmission";
@@ -27,6 +30,18 @@ vi.mock("../api/submitSubmission", () => ({
 
 vi.mock("../api/updateSubmission", () => ({
   updateSubmission: vi.fn(),
+}));
+
+vi.mock("../api/createQuote", () => ({
+  createQuote: vi.fn(),
+}));
+
+vi.mock("../api/acceptQuote", () => ({
+  acceptQuote: vi.fn(),
+}));
+
+vi.mock("../api/bindPolicy", () => ({
+  bindPolicy: vi.fn(),
 }));
 
 function renderSubmissionDetailPage(submissionId = "submission-456") {
@@ -58,6 +73,9 @@ describe("SubmissionDetailPage", () => {
     vi.mocked(getSubmissionDetail).mockReset();
     vi.mocked(submitSubmission).mockReset();
     vi.mocked(updateSubmission).mockReset();
+    vi.mocked(createQuote).mockReset();
+    vi.mocked(acceptQuote).mockReset();
+    vi.mocked(bindPolicy).mockReset();
   });
 
   it("shows a loading state while the submission detail is loading", () => {
@@ -243,7 +261,7 @@ describe("SubmissionDetailPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not show the submit action after a submission is already submitted", async () => {
+  it("shows quote generation after a submission is already submitted", async () => {
     getAccessTokenSilently.mockResolvedValue("api-access-token");
     vi.mocked(getSubmissionDetail).mockResolvedValue({
       submissionId: "submission-456",
@@ -263,5 +281,252 @@ describe("SubmissionDetailPage", () => {
     expect(
       screen.queryByRole("button", { name: "Edit draft details" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Generate quote" }),
+    ).toBeInTheDocument();
+  });
+
+  it("generates a quote for a submitted submission", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456",
+      applicantName: "Jane Applicant",
+      applicantEmail: "jane@example.com",
+      companyName: "Example Company",
+      status: "Submitted",
+      createdAtUtc: "2026-06-19T08:30:00Z",
+    });
+    vi.mocked(createQuote).mockResolvedValue({
+      quoteId: "quote-123",
+      submissionId: "submission-456",
+      premium: 6500,
+      requestedLimit: 1000000,
+      retention: 10000,
+      riskTier: "Low",
+      status: "Quoted",
+      subjectivities: ["Maintain MFA for privileged accounts."],
+      referralReasons: [],
+      expiresAtUtc: "2026-07-19T08:30:00Z",
+      providerIndication: {
+        providerName: "LocalSimulatedRatingProvider",
+        status: "Succeeded",
+        marketDisposition: "Quoted",
+        providerReference: "provider-reference",
+        providerQuoteNumber: "provider-quote",
+        indicatedPremium: 6500,
+        indicatedLimit: 1000000,
+        indicatedRetention: 10000,
+        httpStatusCode: 200,
+        failureCategory: "None",
+        failureReason: null,
+        attemptCount: 1,
+        durationMs: 12,
+      },
+    });
+
+    renderSubmissionDetailPage();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Generate quote" }),
+    );
+
+    expect(createQuote).toHaveBeenCalledWith(
+      "api-access-token",
+      "submission-456",
+      {
+        industryClass: "ProfessionalServices",
+        annualRevenueBand: "From10MTo50M",
+        requestedLimit: 1000000,
+        retention: 10000,
+        mfaStatus: "Implemented",
+        edrStatus: "Implemented",
+        backupMaturity: "Mature",
+        hasIncidentResponsePlan: true,
+        priorCyberIncidents: 0,
+        sensitiveDataExposure: "Moderate",
+      },
+    );
+    expect(await screen.findByText("quote-123")).toBeInTheDocument();
+    expect(screen.getByText("$6,500")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Accept quote" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Generate quote" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("accepts a generated quote and then shows the bind action", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456",
+      applicantName: "Jane Applicant",
+      applicantEmail: "jane@example.com",
+      companyName: "Example Company",
+      status: "Submitted",
+      createdAtUtc: "2026-06-19T08:30:00Z",
+    });
+    vi.mocked(createQuote).mockResolvedValue({
+      quoteId: "quote-123",
+      submissionId: "submission-456",
+      premium: 6500,
+      requestedLimit: 1000000,
+      retention: 10000,
+      riskTier: "Low",
+      status: "Quoted",
+      subjectivities: ["Maintain MFA for privileged accounts."],
+      referralReasons: [],
+      expiresAtUtc: "2026-07-19T08:30:00Z",
+      providerIndication: {
+        providerName: "LocalSimulatedRatingProvider",
+        status: "Succeeded",
+        marketDisposition: "Quoted",
+        providerReference: "provider-reference",
+        providerQuoteNumber: "provider-quote",
+        indicatedPremium: 6500,
+        indicatedLimit: 1000000,
+        indicatedRetention: 10000,
+        httpStatusCode: 200,
+        failureCategory: "None",
+        failureReason: null,
+        attemptCount: 1,
+        durationMs: 12,
+      },
+    });
+    vi.mocked(acceptQuote).mockResolvedValue({
+      quoteId: "quote-123",
+      submissionId: "submission-456",
+      status: "Accepted",
+      premium: 6500,
+      requestedLimit: 1000000,
+      retention: 10000,
+      subjectivities: "Maintain MFA for privileged accounts.",
+      expiresAtUtc: "2026-07-19T08:30:00Z",
+      acceptedByUserId: "customer-1",
+      acceptedByName: "Jane Applicant",
+      acceptedByTitle: "CFO",
+      subjectivitiesAcknowledged: true,
+      acceptedAtUtc: "2026-06-19T08:40:00Z",
+    });
+
+    renderSubmissionDetailPage();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Generate quote" }),
+    );
+    await user.click(
+      await screen.findByLabelText(
+        "I acknowledge the quote subjectivities and understand they must be satisfied before binding.",
+      ),
+    );
+    await user.click(await screen.findByRole("button", { name: "Accept quote" }));
+
+    expect(acceptQuote).toHaveBeenCalledWith("api-access-token", "quote-123", {
+      acceptedByName: "Jane Applicant",
+      acceptedByTitle: "CFO",
+      subjectivitiesAcknowledged: true,
+    });
+    expect(
+      await screen.findByText("Quote accepted successfully."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Bind policy" }),
+    ).toBeInTheDocument();
+  });
+
+  it("binds an accepted quote and displays the policy number", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456",
+      applicantName: "Jane Applicant",
+      applicantEmail: "jane@example.com",
+      companyName: "Example Company",
+      status: "Submitted",
+      createdAtUtc: "2026-06-19T08:30:00Z",
+    });
+    vi.mocked(createQuote).mockResolvedValue({
+      quoteId: "quote-123",
+      submissionId: "submission-456",
+      premium: 6500,
+      requestedLimit: 1000000,
+      retention: 10000,
+      riskTier: "Low",
+      status: "Quoted",
+      subjectivities: ["Maintain MFA for privileged accounts."],
+      referralReasons: [],
+      expiresAtUtc: "2026-07-19T08:30:00Z",
+      providerIndication: {
+        providerName: "LocalSimulatedRatingProvider",
+        status: "Succeeded",
+        marketDisposition: "Quoted",
+        providerReference: "provider-reference",
+        providerQuoteNumber: "provider-quote",
+        indicatedPremium: 6500,
+        indicatedLimit: 1000000,
+        indicatedRetention: 10000,
+        httpStatusCode: 200,
+        failureCategory: "None",
+        failureReason: null,
+        attemptCount: 1,
+        durationMs: 12,
+      },
+    });
+    vi.mocked(acceptQuote).mockResolvedValue({
+      quoteId: "quote-123",
+      submissionId: "submission-456",
+      status: "Accepted",
+      premium: 6500,
+      requestedLimit: 1000000,
+      retention: 10000,
+      subjectivities: "Maintain MFA for privileged accounts.",
+      expiresAtUtc: "2026-07-19T08:30:00Z",
+      acceptedByUserId: "customer-1",
+      acceptedByName: "Jane Applicant",
+      acceptedByTitle: "CFO",
+      subjectivitiesAcknowledged: true,
+      acceptedAtUtc: "2026-06-19T08:40:00Z",
+    });
+    vi.mocked(bindPolicy).mockResolvedValue({
+      policyId: "policy-789",
+      policyNumber: "LIA-CYB-2026-0001",
+      quoteId: "quote-123",
+      submissionId: "submission-456",
+      status: "Bound",
+      premium: 6500,
+      requestedLimit: 1000000,
+      retention: 10000,
+      effectiveDateUtc: "2026-06-20T00:00:00Z",
+      expirationDateUtc: "2027-06-20T00:00:00Z",
+      boundByUserId: "customer-1",
+      boundAtUtc: "2026-06-19T08:45:00Z",
+      bindingProviderName: "LocalSimulatedPolicyBindingProvider",
+      bindingReference: "BIND-123",
+    });
+
+    renderSubmissionDetailPage();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Generate quote" }),
+    );
+    await user.click(
+      await screen.findByLabelText(
+        "I acknowledge the quote subjectivities and understand they must be satisfied before binding.",
+      ),
+    );
+    await user.click(await screen.findByRole("button", { name: "Accept quote" }));
+    await user.click(await screen.findByRole("button", { name: "Bind policy" }));
+
+    expect(bindPolicy).toHaveBeenCalledWith(
+      "api-access-token",
+      "quote-123",
+      {
+        effectiveDateUtc: expect.any(String),
+      },
+    );
+    expect(await screen.findByText("Policy bound")).toBeInTheDocument();
+    expect(screen.getByText("LIA-CYB-2026-0001")).toBeInTheDocument();
   });
 });
