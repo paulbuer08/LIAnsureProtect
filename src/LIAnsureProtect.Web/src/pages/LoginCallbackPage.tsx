@@ -1,8 +1,16 @@
-import { Link } from "react-router";
+import { useEffect } from "react";
+import { Link, useNavigate } from "react-router";
 import { useAuth0 } from "@auth0/auth0-react";
 
 export function LoginCallbackPage() {
-  const { isAuthenticated, isLoading, user } = useAuth0();
+  const { error, isAuthenticated, isLoading, user } = useAuth0();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && !error) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [error, isAuthenticated, isLoading, navigate]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
@@ -16,8 +24,9 @@ export function LoginCallbackPage() {
         </h1>
 
         <p className="mt-4 text-slate-300">
-          Auth0 redirected the browser back to the React app. This page shows
-          the current authentication state from the Auth0 React SDK.
+          Auth0 redirected the browser back to the React app. The app will
+          continue to the dashboard automatically after the Auth0 React SDK
+          finishes loading the signed-in session.
         </p>
 
         <div className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-4 text-left text-sm text-slate-200">
@@ -36,6 +45,13 @@ export function LoginCallbackPage() {
             {user?.email ?? "not available"}
           </p>
         </div>
+
+        {error ? (
+          <div className="mt-6 rounded-lg border border-red-500/40 bg-red-950/40 p-4 text-left text-sm text-red-100">
+            <p className="font-semibold">Auth0 callback error</p>
+            <p className="mt-2">{error.message}</p>
+          </div>
+        ) : null}
 
         <Link
           to="/dashboard"

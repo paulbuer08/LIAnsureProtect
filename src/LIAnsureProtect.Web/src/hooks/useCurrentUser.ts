@@ -23,7 +23,6 @@ export function useCurrentUser() {
             audience: auth0Config.audience,
             redirect_uri: auth0Config.callbackUrl,
           },
-          cacheMode: "off",
         }),
       ),
     retry: false,
