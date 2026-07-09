@@ -42,6 +42,7 @@ The format follows simple milestone-based entries.
 
 ### Fixed
 
+- Submission detail now exposes the missing customer **Submit submission** action for Draft submissions and refreshes the detail/list cache so the status changes to `Submitted` during the manual happy-path walkthrough.
 - The role-aware dashboard no longer labels failed `GET /api/v1/me` role lookups as "No roles assigned"; it now shows a clear roles-unavailable diagnostic when the API role lookup cannot complete.
 - The dashboard role lookup now requests the configured Auth0 API audience explicitly, disables retry loops for silent token failures, and offers a **Continue with Auth0** recovery path when Auth0 returns `consent_required`, `interaction_required`, or `login_required`.
 - The Auth0 callback now continues to the dashboard automatically after a successful login or API-consent redirect, and the role lookup reuses the SDK-cached API access token from that redirect instead of forcing another silent token request that can repeat `consent_required`.

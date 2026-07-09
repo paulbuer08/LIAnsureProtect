@@ -9,6 +9,11 @@ export type CreateSubmissionResponse = {
   status: string;
 };
 
+export type SubmitSubmissionResponse = {
+  submissionId: string;
+  status: string;
+};
+
 export type SubmissionListItem = {
   submissionId: string;
   applicantName: string;
