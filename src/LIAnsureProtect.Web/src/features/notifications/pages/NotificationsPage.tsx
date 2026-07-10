@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
+import { useCurrentUser } from "../../../hooks/useCurrentUser";
+import { hasTeamNotificationAccess } from "../../../lib/roleAccess";
 import {
   useMarkNotificationRead,
   useNotifications,
@@ -21,14 +23,48 @@ function getErrorMessage(error: unknown) {
     : "Unable to load notifications.";
 }
 
-function getRelatedSubmissionUrl(attributes: Record<string, string>) {
-  return attributes.submissionId ? `/submissions/${attributes.submissionId}` : null;
+function getNotificationAction(
+  subjectReferenceType: string,
+  subjectReferenceId: string,
+  attributes: Record<string, string>,
+) {
+  if (subjectReferenceType === "policy") {
+    const policyId = attributes.policyId ?? subjectReferenceId;
+    return policyId
+      ? { label: "View policy", to: `/policies/${policyId}` }
+      : null;
+  }
+
+  if (subjectReferenceType === "evidence-request") {
+    return { label: "Open evidence request", to: "/evidence-requests" };
+  }
+
+  if (subjectReferenceType === "quote" || subjectReferenceType === "submission") {
+    const submissionId =
+      attributes.submissionId ??
+      (subjectReferenceType === "submission" ? subjectReferenceId : null);
+    return submissionId
+      ? { label: "Open submission", to: `/submissions/${submissionId}` }
+      : null;
+  }
+
+  return null;
 }
 
 export function NotificationsPage() {
+  const currentUserQuery = useCurrentUser();
   const notificationsQuery = useNotifications();
   const markReadMutation = useMarkNotificationRead();
   const [filter, setFilter] = useState<NotificationFilter>("all");
+  const canFilterByTeam = hasTeamNotificationAccess(
+    currentUserQuery.data?.roles,
+  );
+
+  useEffect(() => {
+    if (!canFilterByTeam && filter !== "personal") {
+      setFilter("personal");
+    }
+  }, [canFilterByTeam, filter]);
 
   const notifications = notificationsQuery.data?.notifications ?? [];
   const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
@@ -82,28 +118,30 @@ export function NotificationsPage() {
 
         {notificationsQuery.isSuccess && notifications.length > 0 && (
           <>
-            <div
-              role="tablist"
-              aria-label="Filter notifications"
-              className="mt-8 inline-flex rounded-lg border border-slate-800 bg-slate-900 p-1"
-            >
-              {filterTabs.map((tab) => (
-                <button
-                  key={tab.value}
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === tab.value}
-                  onClick={() => setFilter(tab.value)}
-                  className={`rounded-md px-4 py-1.5 text-sm font-semibold ${
-                    filter === tab.value
-                      ? "bg-emerald-400 text-slate-950"
-                      : "text-slate-300 hover:text-white"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            {canFilterByTeam && (
+              <div
+                role="tablist"
+                aria-label="Filter notifications"
+                className="mt-8 inline-flex rounded-lg border border-slate-800 bg-slate-900 p-1"
+              >
+                {filterTabs.map((tab) => (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={filter === tab.value}
+                    onClick={() => setFilter(tab.value)}
+                    className={`rounded-md px-4 py-1.5 text-sm font-semibold ${
+                      filter === tab.value
+                        ? "bg-emerald-400 text-slate-950"
+                        : "text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {visibleNotifications.length === 0 ? (
               <p className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-300">
@@ -121,7 +159,9 @@ export function NotificationsPage() {
                     }`}
                   >
                     {(() => {
-                      const relatedSubmissionUrl = getRelatedSubmissionUrl(
+                      const action = getNotificationAction(
+                        notification.subjectReferenceType,
+                        notification.subjectReferenceId,
                         notification.attributes,
                       );
 
@@ -149,12 +189,12 @@ export function NotificationsPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-2 sm:justify-end">
-                        {relatedSubmissionUrl && (
+                        {action && (
                           <Link
-                            to={relatedSubmissionUrl}
+                            to={action.to}
                             className="inline-flex h-fit rounded-lg border border-emerald-400/60 px-4 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-400 hover:text-slate-950"
                           >
-                            Open submission
+                            {action.label}
                           </Link>
                         )}
                         {notification.isRead ? (
