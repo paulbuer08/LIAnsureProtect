@@ -31,6 +31,11 @@ adjudication → settlement)** — as a modular monolith (Platform kernel + Noti
 (S3, SNS/SQS, Redis) proven against LocalStack/Docker at zero cloud cost, a permanent zero-warning
 analyzer gate, and 500+ tests. **Next: Phase 2 — Terraform + real AWS.**
 
+The Customer/Broker policy journey is also complete: customers and brokers can follow separate
+Submission, Quote, and Policy states, open owner-scoped policy pages from notifications, file an
+eligible claim from Policy detail, delete Drafts, and withdraw eligible Submitted applications
+without erasing audit history.
+
 - The story of every milestone: [**The Build History**](docs/build-history.md)
 - The precise current state: [Project Status](docs/project-status.md) · [Changelog](CHANGELOG.md)
 ## Local Run

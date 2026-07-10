@@ -7,6 +7,8 @@ using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Application.Submissions.Commands.CreateSubmission;
 using LIAnsureProtect.Application.Submissions.Commands.SubmitSubmission;
 using LIAnsureProtect.Application.Submissions.Commands.UpdateSubmission;
+using LIAnsureProtect.Application.Submissions.Commands.DeleteDraftSubmission;
+using LIAnsureProtect.Application.Submissions.Commands.WithdrawSubmission;
 using LIAnsureProtect.Application.Submissions.Queries.GetSubmissionDetail;
 using LIAnsureProtect.Application.Submissions.Queries.ListSubmissions;
 using Microsoft.AspNetCore.Authorization;
@@ -134,6 +136,60 @@ public sealed class SubmissionsController(
                 Title = "Submission cannot be submitted.",
                 Detail = exception.Message
             });
+        }
+    }
+
+    [HttpDelete("{submissionId:guid}")]
+    [Authorize(Policy = ApplicationPolicies.DeleteDraftSubmission)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> DeleteDraft(
+        Guid submissionId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var deleted = await sender.Send(
+                new DeleteDraftSubmissionCommand(submissionId),
+                cancellationToken);
+            return deleted ? NoContent() : NotFound();
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Submission cannot be deleted.",
+                exception.Message));
+        }
+    }
+
+    [HttpPost("{submissionId:guid}/withdraw")]
+    [Authorize(Policy = ApplicationPolicies.WithdrawSubmission)]
+    [ProducesResponseType<WithdrawSubmissionResult>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<WithdrawSubmissionResult>> Withdraw(
+        Guid submissionId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new WithdrawSubmissionCommand(submissionId),
+                cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Submission cannot be withdrawn.",
+                exception.Message));
         }
     }
 

@@ -1,6 +1,7 @@
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
+using LIAnsureProtect.Modules.Claims.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -29,6 +30,7 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
     private readonly SqliteConnection submissionConnection = new("DataSource=:memory:");
     private readonly SqliteConnection notificationsConnection = new("DataSource=:memory:");
     private readonly SqliteConnection underwritingConnection = new("DataSource=:memory:");
+    private readonly SqliteConnection claimsConnection = new("DataSource=:memory:");
     private readonly WebApplicationFactory<Program> webApplicationFactory;
     private readonly HttpClient _httpClient;
 
@@ -37,6 +39,7 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
         submissionConnection.Open();
         notificationsConnection.Open();
         underwritingConnection.Open();
+        claimsConnection.Open();
 
         this.webApplicationFactory = webApplicationFactory
             .WithWebHostBuilder(builder =>
@@ -46,14 +49,17 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
                     services.RemoveAll<IDbContextOptionsConfiguration<SubmissionDbContext>>();
                     services.RemoveAll<IDbContextOptionsConfiguration<NotificationsDbContext>>();
                     services.RemoveAll<IDbContextOptionsConfiguration<UnderwritingDbContext>>();
+                    services.RemoveAll<IDbContextOptionsConfiguration<ClaimsDbContext>>();
                     services.RemoveAll<DbContextOptions>();
                     services.RemoveAll<DbContextOptions<SubmissionDbContext>>();
                     services.RemoveAll<DbContextOptions<NotificationsDbContext>>();
                     services.RemoveAll<DbContextOptions<UnderwritingDbContext>>();
+                    services.RemoveAll<DbContextOptions<ClaimsDbContext>>();
 
                     services.AddDbContext<SubmissionDbContext>(options => options.UseSqlite(submissionConnection));
                     services.AddDbContext<NotificationsDbContext>(options => options.UseSqlite(notificationsConnection));
                     services.AddDbContext<UnderwritingDbContext>(options => options.UseSqlite(underwritingConnection));
+                    services.AddDbContext<ClaimsDbContext>(options => options.UseSqlite(claimsConnection));
                 });
 
                 builder.ConfigureLogging(logging =>
@@ -67,6 +73,7 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
             scope.ServiceProvider.GetRequiredService<SubmissionDbContext>().Database.EnsureCreated();
             scope.ServiceProvider.GetRequiredService<NotificationsDbContext>().Database.EnsureCreated();
             scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>().Database.EnsureCreated();
+            scope.ServiceProvider.GetRequiredService<ClaimsDbContext>().Database.EnsureCreated();
         }
 
         _httpClient = this.webApplicationFactory.CreateClient(new WebApplicationFactoryClientOptions
@@ -171,5 +178,6 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
         submissionConnection.Dispose();
         notificationsConnection.Dispose();
         underwritingConnection.Dispose();
+        claimsConnection.Dispose();
     }
 }

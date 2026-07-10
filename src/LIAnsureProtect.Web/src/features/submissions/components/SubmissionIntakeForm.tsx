@@ -124,6 +124,11 @@ export function SubmissionIntakeForm() {
             <span className="font-semibold">Status:</span>{" "}
             {createSubmission.data.status}
           </p>
+          {createSubmission.data.possibleDuplicate && (
+            <p className="mt-4 rounded-md border border-amber-500/50 bg-amber-950/40 p-3 text-amber-100">
+              A draft or submitted application already exists for this company. This new draft was still created because multiple legitimate submissions are allowed; review the existing records before continuing.
+            </p>
+          )}
         </section>
       )}
 
