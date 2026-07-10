@@ -37,6 +37,12 @@ const navItems: NavItem[] = [
     allowedRoles: roleGroups.customerWork,
   },
   {
+    label: "Policies",
+    compactLabel: "P",
+    to: "/policies",
+    allowedRoles: roleGroups.policyWork,
+  },
+  {
     label: "Claims",
     compactLabel: "C",
     to: "/claims",

@@ -86,6 +86,8 @@ const NotificationsPage = lazy(() =>
     default: module.NotificationsPage,
   })),
 );
+const PoliciesPage = lazy(() => import("./features/policies/pages/PoliciesPage").then((module) => ({ default: module.PoliciesPage })));
+const PolicyDetailPage = lazy(() => import("./features/policies/pages/PolicyDetailPage").then((module) => ({ default: module.PolicyDetailPage })));
 
 function RouteLoadingFallback() {
   return (
@@ -200,6 +202,14 @@ function App() {
               <ClaimDetailPage />
             </ProtectedRoute>
           }
+        />
+        <Route
+          path="/policies"
+          element={<ProtectedRoute allowedRoles={roleGroups.policyWork}><PoliciesPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/policies/:policyId"
+          element={<ProtectedRoute allowedRoles={roleGroups.policyWork}><PolicyDetailPage /></ProtectedRoute>}
         />
         <Route
           path="/notifications"

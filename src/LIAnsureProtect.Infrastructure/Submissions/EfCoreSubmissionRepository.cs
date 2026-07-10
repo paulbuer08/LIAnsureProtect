@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Application.Submissions.Queries.GetSubmissionDetail;
 using LIAnsureProtect.Application.Submissions.Queries.ListSubmissions;
+using LIAnsureProtect.Application.Policies.Queries;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -85,6 +86,20 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
             })
             .FirstOrDefaultAsync(cancellationToken);
 
+        var relatedPolicy = await dbContext.Policies
+            .AsNoTracking()
+            .Where(policy => policy.SubmissionId == submission.Id && policy.OwnerUserId == ownerUserId)
+            .OrderByDescending(policy => policy.CreatedAtUtc)
+            .Select(policy => new
+            {
+                policy.Id,
+                policy.PolicyNumber,
+                policy.Status,
+                policy.EffectiveDateUtc,
+                policy.ExpirationDateUtc
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
         return new SubmissionDetailResult(
                 submission.Id,
                 submission.ApplicantName,
@@ -103,7 +118,20 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
                         latestQuote.Status.ToString(),
                         SplitLines(latestQuote.Subjectivities),
                         SplitLines(latestQuote.ReferralReasons),
-                        latestQuote.ExpiresAtUtc));
+                        latestQuote.ExpiresAtUtc),
+                relatedPolicy is null
+                    ? null
+                    : new SubmissionPolicySummaryResult(
+                        relatedPolicy.Id,
+                        relatedPolicy.PolicyNumber,
+                        relatedPolicy.Status.ToString(),
+                        PolicyCoverageState.Compute(
+                            relatedPolicy.Status.ToString(),
+                            relatedPolicy.EffectiveDateUtc,
+                            relatedPolicy.ExpirationDateUtc,
+                            DateTime.UtcNow),
+                        relatedPolicy.EffectiveDateUtc,
+                        relatedPolicy.ExpirationDateUtc));
     }
 
     public Task<Submission?> GetOwnedForUpdateAsync(

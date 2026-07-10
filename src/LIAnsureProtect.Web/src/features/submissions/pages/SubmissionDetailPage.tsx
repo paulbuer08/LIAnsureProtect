@@ -146,6 +146,7 @@ export function SubmissionDetailPage() {
   const canSubmit = displayedSubmission?.status === "Draft";
   const createdQuote = createQuoteMutation.data;
   const latestQuote = displayedSubmission?.latestQuote;
+  const relatedPolicy = displayedSubmission?.relatedPolicy;
   const acceptedQuote = acceptQuoteMutation.data;
   const boundPolicy = bindPolicyMutation.data;
   const activeQuoteId =
@@ -194,6 +195,17 @@ export function SubmissionDetailPage() {
     activeQuoteStatus === "Quoted" || activeQuoteStatus === "Approved";
   const canBindPolicy = activeQuoteStatus === "Accepted";
   const isQuoteReferred = activeQuoteStatus === "Referred";
+  const journeyStage = relatedPolicy || boundPolicy
+    ? `Policy ${relatedPolicy?.coverageState ?? "Bound"}`
+    : activeQuoteStatus === "Accepted"
+      ? "Quote accepted"
+      : activeQuoteStatus === "Referred"
+        ? "Under review"
+        : activeQuoteStatus
+          ? "Quote ready"
+          : displayedSubmission
+            ? `${displayedSubmission.status} intake`
+            : "Loading";
   const priorIncidentCount = Number(priorCyberIncidents);
   const needsPriorIncidentDetails = priorIncidentCount > 0;
   const canGenerateQuoteRequest =
@@ -357,6 +369,16 @@ export function SubmissionDetailPage() {
 
         {displayedSubmission && (
           <section className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-6 text-sm text-slate-200">
+            <div className="mb-6 flex flex-col gap-3 border-b border-slate-800 pb-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase text-emerald-400">Journey stage</p>
+                <p className="mt-1 text-lg font-semibold text-white">{journeyStage}</p>
+              </div>
+              {relatedPolicy && (
+                <Link to={`/policies/${relatedPolicy.policyId}`} className="inline-flex rounded-md bg-emerald-300 px-4 py-2 font-semibold text-slate-950">View policy</Link>
+              )}
+            </div>
+            <h2 className="mb-4 text-xl font-semibold text-white">Submission record</h2>
             <dl className="grid gap-5 sm:grid-cols-2">
               <div>
                 <dt className="font-semibold text-slate-400">Submission ID</dt>
@@ -851,7 +873,7 @@ export function SubmissionDetailPage() {
             {activeQuoteId && (
               <div className="mt-6 border-t border-slate-800 pt-5">
                 <h2 className="text-base font-semibold text-white">
-                  Quote result
+                  Latest quote
                 </h2>
                 <dl className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div>
@@ -1080,6 +1102,20 @@ export function SubmissionDetailPage() {
                   </div>
                 </dl>
               </div>
+            )}
+
+            {relatedPolicy && (
+              <section className="mt-6 rounded-md border border-emerald-500/40 bg-emerald-950/20 p-5">
+                <h2 className="text-base font-semibold text-white">Related policy</h2>
+                <p className="mt-2 text-slate-300">
+                  The submission remains {displayedSubmission.status}; the separate contract is {relatedPolicy.contractualStatus} with coverage {relatedPolicy.coverageState}.
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-4">
+                  <span className="font-semibold text-white">{relatedPolicy.policyNumber}</span>
+                  <span>{new Date(relatedPolicy.effectiveDateUtc).toLocaleDateString()} – {new Date(relatedPolicy.expirationDateUtc).toLocaleDateString()}</span>
+                  <Link to={`/policies/${relatedPolicy.policyId}`} className="font-semibold text-emerald-300">View policy</Link>
+                </div>
+              </section>
             )}
           </section>
         )}

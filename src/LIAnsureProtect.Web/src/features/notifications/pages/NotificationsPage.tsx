@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
@@ -59,12 +59,13 @@ export function NotificationsPage() {
   const canFilterByTeam = hasTeamNotificationAccess(
     currentUserQuery.data?.roles,
   );
-
-  useEffect(() => {
-    if (!canFilterByTeam && filter !== "personal") {
-      setFilter("personal");
-    }
-  }, [canFilterByTeam, filter]);
+  const [previousCanFilterByTeam, setPreviousCanFilterByTeam] = useState(
+    canFilterByTeam,
+  );
+  if (previousCanFilterByTeam !== canFilterByTeam) {
+    setPreviousCanFilterByTeam(canFilterByTeam);
+    setFilter(canFilterByTeam ? "all" : "personal");
+  }
 
   const notifications = notificationsQuery.data?.notifications ?? [];
   const unreadCount = notificationsQuery.data?.unreadCount ?? 0;

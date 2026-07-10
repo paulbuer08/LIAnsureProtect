@@ -143,6 +143,14 @@ export type SubmissionListItem = {
 
 export type SubmissionDetailResponse = SubmissionListItem & {
   latestQuote?: SubmissionQuoteSummary | null;
+  relatedPolicy?: {
+    policyId: string;
+    policyNumber: string;
+    contractualStatus: string;
+    coverageState: string;
+    effectiveDateUtc: string;
+    expirationDateUtc: string;
+  } | null;
 };
 
 export type ListSubmissionsResponse = {
