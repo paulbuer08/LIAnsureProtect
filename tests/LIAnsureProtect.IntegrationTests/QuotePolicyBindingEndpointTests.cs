@@ -368,6 +368,85 @@ public sealed class QuotePolicyBindingEndpointTests
         Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
     }
 
+    [Theory]
+    [InlineData("Customer")]
+    [InlineData("Broker")]
+    [InlineData("Admin")]
+    public async Task Policy_Reads_Return_Owned_Policy_With_Contractual_And_Coverage_State(string role)
+    {
+        var policyId = await BindPolicyAsync("customer-1");
+
+        using var listRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            "/api/v1/policies",
+            role,
+            "customer-1");
+        using var listResponse = await httpClient.SendAsync(
+            listRequest,
+            TestContext.Current.CancellationToken);
+        var listPayload = await listResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        using var detailRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"/api/v1/policies/{policyId}",
+            role,
+            "customer-1");
+        using var detailResponse = await httpClient.SendAsync(
+            detailRequest,
+            TestContext.Current.CancellationToken);
+        var detail = await detailResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.Single(listPayload.GetProperty("policies").EnumerateArray());
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+        Assert.Equal(policyId, detail.GetProperty("policyId").GetGuid());
+        Assert.Equal("Bound", detail.GetProperty("contractualStatus").GetString());
+        var coverageState = detail.GetProperty("coverageState").GetString();
+        Assert.True(
+            coverageState is "Scheduled" or "Active" or "Expired",
+            $"Unexpected coverage state '{coverageState}'.");
+        Assert.Equal("Example Company", detail.GetProperty("companyName").GetString());
+        Assert.Equal("Moderate", detail.GetProperty("quoteRiskTierAtBind").GetString());
+    }
+
+    [Fact]
+    public async Task Policy_Detail_Returns_Not_Found_For_Another_Owner()
+    {
+        var policyId = await BindPolicyAsync("customer-2");
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"/api/v1/policies/{policyId}",
+            "Customer",
+            "customer-1");
+        using var response = await httpClient.SendAsync(
+            request,
+            TestContext.Current.CancellationToken);
+        var responseBody = await response.Content.ReadAsStringAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.True(
+            response.StatusCode == HttpStatusCode.NotFound,
+            $"Expected 404 but received {(int)response.StatusCode}: {responseBody}");
+    }
+
+    [Fact]
+    public async Task Policy_List_Returns_Forbidden_For_Operational_Role()
+    {
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            "/api/v1/policies",
+            "Underwriter",
+            "underwriter-1");
+        using var response = await httpClient.SendAsync(
+            request,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private static HttpRequestMessage CreateAuthenticatedRequest(
         HttpMethod method,
         string path,
@@ -396,6 +475,27 @@ public sealed class QuotePolicyBindingEndpointTests
         await dbContext.Submissions.AddAsync(quote.Submission, TestContext.Current.CancellationToken);
         await dbContext.Quotes.AddAsync(quote.Quote, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<Guid> BindPolicyAsync(string ownerUserId)
+    {
+        var quote = CreateAcceptedQuote(ownerUserId);
+        await SaveQuoteAsync(quote);
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QuotesEndpointPath}/{quote.Id}/bind",
+            "Customer",
+            ownerUserId,
+            CreateBindQuoteRequest());
+        using var response = await httpClient.SendAsync(
+            request,
+            TestContext.Current.CancellationToken);
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return payload.GetProperty("policyId").GetGuid();
     }
 
     private static SeededQuote CreateQuotedQuote(string ownerUserId)
