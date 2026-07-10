@@ -21,4 +21,16 @@ public interface ISubmissionRepository
         Guid submissionId,
         string ownerUserId,
         CancellationToken cancellationToken);
+
+    void Remove(Submission submission);
+
+    Task<bool> HasAcceptedOrBoundQuoteAsync(
+        Guid submissionId,
+        string ownerUserId,
+        CancellationToken cancellationToken);
+
+    Task<bool> HasOpenSubmissionForCompanyAsync(
+        string ownerUserId,
+        string companyName,
+        CancellationToken cancellationToken);
 }

@@ -71,6 +71,22 @@ public static class AuthorizationPolicies
             )
         );
 
+        options.AddPolicy(ApplicationPolicies.DeleteDraftSubmission,
+            policy => policy.RequireRole(
+                ApplicationRoles.Customer,
+                ApplicationRoles.Broker,
+                ApplicationRoles.Admin
+            )
+        );
+
+        options.AddPolicy(ApplicationPolicies.WithdrawSubmission,
+            policy => policy.RequireRole(
+                ApplicationRoles.Customer,
+                ApplicationRoles.Broker,
+                ApplicationRoles.Admin
+            )
+        );
+
         options.AddPolicy(ApplicationPolicies.ReadPolicy,
             policy => policy.RequireRole(
                 ApplicationRoles.Customer,

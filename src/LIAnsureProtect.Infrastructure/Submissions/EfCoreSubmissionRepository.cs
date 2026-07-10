@@ -145,6 +145,39 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    public void Remove(Submission submission)
+    {
+        dbContext.Submissions.Remove(submission);
+    }
+
+    public Task<bool> HasAcceptedOrBoundQuoteAsync(
+        Guid submissionId,
+        string ownerUserId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.Quotes.AnyAsync(
+            quote => quote.SubmissionId == submissionId
+                && quote.OwnerUserId == ownerUserId
+                && (quote.Status == Domain.Quotes.QuoteStatus.Accepted
+                    || quote.Status == Domain.Quotes.QuoteStatus.Bound),
+            cancellationToken);
+    }
+
+    public Task<bool> HasOpenSubmissionForCompanyAsync(
+        string ownerUserId,
+        string companyName,
+        CancellationToken cancellationToken)
+    {
+        var normalizedCompanyName = companyName.Trim();
+
+        return dbContext.Submissions.AnyAsync(
+            submission => submission.OwnerUserId == ownerUserId
+                && (submission.Status == SubmissionStatus.Draft
+                    || submission.Status == SubmissionStatus.Submitted)
+                && submission.CompanyName == normalizedCompanyName,
+            cancellationToken);
+    }
+
     private static List<string> SplitLines(string value)
     {
         return value

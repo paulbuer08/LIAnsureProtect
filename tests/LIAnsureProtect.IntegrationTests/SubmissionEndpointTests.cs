@@ -1141,6 +1141,182 @@ public sealed class SubmissionEndpointTests
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Delete_Draft_Removes_Owned_Draft_Only()
+    {
+        var submission = Submission.CreateDraft(
+            "Jane Applicant",
+            "jane@example.com",
+            "Example Company",
+            "test-user-1",
+            DateTime.UtcNow);
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"{SubmissionsEndpointPath}/{submission.Id}");
+        request.Headers.Add(TestAuthHandler.UserIdHeader, "test-user-1");
+        request.Headers.Add(TestAuthHandler.EmailHeader, "test-user@example.com");
+        request.Headers.Add(TestAuthHandler.RolesHeader, "Customer");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        Assert.False(await verifyDbContext.Submissions.AnyAsync(
+            saved => saved.Id == submission.Id,
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Delete_Submitted_Submission_Returns_Conflict_And_Retains_History()
+    {
+        var submission = CreateSubmittedSubmission("test-user-1");
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"{SubmissionsEndpointPath}/{submission.Id}");
+        request.Headers.Add(TestAuthHandler.UserIdHeader, "test-user-1");
+        request.Headers.Add(TestAuthHandler.EmailHeader, "test-user@example.com");
+        request.Headers.Add(TestAuthHandler.RolesHeader, "Customer");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        Assert.True(await verifyDbContext.Submissions.AnyAsync(
+            saved => saved.Id == submission.Id,
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Withdraw_Submitted_Submission_Is_Idempotent_And_Writes_One_Audit_Event()
+    {
+        var submission = CreateSubmittedSubmission("test-user-1");
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var firstRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/withdraw",
+            "test-user-1");
+        using var firstResponse = await httpClient.SendAsync(firstRequest, TestContext.Current.CancellationToken);
+        using var secondRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/withdraw",
+            "test-user-1");
+        using var secondResponse = await httpClient.SendAsync(secondRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        Assert.Equal(SubmissionStatus.Withdrawn, (await verifyDbContext.Submissions.SingleAsync(
+            saved => saved.Id == submission.Id,
+            TestContext.Current.CancellationToken)).Status);
+        Assert.Equal(1, await verifyDbContext.OutboxMessages.CountAsync(
+            message => message.Type == nameof(SubmissionWithdrawnDomainEvent),
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Withdraw_Submission_Returns_Conflict_After_Quote_Acceptance()
+    {
+        var submission = CreateSubmittedSubmission("test-user-1");
+        var quote = Quote.Generate(
+            submission.Id,
+            "test-user-1",
+            12_000m,
+            1_000_000m,
+            10_000m,
+            CyberRiskTier.Moderate,
+            "BaselineCyber",
+            ["Maintain MFA."],
+            [],
+            DateTime.UtcNow);
+        quote.Accept(
+            "test-user-1",
+            "Jane Applicant",
+            "CFO",
+            true,
+            DateTime.UtcNow);
+        quote.ClearDomainEvents();
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(submission, TestContext.Current.CancellationToken);
+            await dbContext.Quotes.AddAsync(quote, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var request = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/withdraw",
+            "test-user-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        Assert.Equal(SubmissionStatus.Submitted, (await verifyDbContext.Submissions.SingleAsync(
+            saved => saved.Id == submission.Id,
+            TestContext.Current.CancellationToken)).Status);
+    }
+
+    [Fact]
+    public async Task Create_Submission_Warns_About_Possible_Duplicate_But_Allows_It()
+    {
+        var existing = Submission.CreateDraft(
+            "Jane Applicant",
+            "jane@example.com",
+            "Example Company",
+            "test-user-1",
+            DateTime.UtcNow);
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(existing, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var request = CreateAuthenticatedPostRequest(
+            "Customer",
+            SubmissionsEndpointPath,
+            new
+            {
+                applicantName = "Jane Applicant",
+                applicantEmail = "jane@example.com",
+                companyName = "Example Company"
+            },
+            "test-user-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.True(payload.GetProperty("possibleDuplicate").GetBoolean());
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        Assert.Equal(2, await verifyDbContext.Submissions.CountAsync(
+            submission => submission.OwnerUserId == "test-user-1",
+            TestContext.Current.CancellationToken));
+    }
+
 
 
     [Fact]

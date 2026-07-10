@@ -7,6 +7,7 @@ export type CreateSubmissionRequest = {
 export type CreateSubmissionResponse = {
   submissionId: string;
   status: string;
+  possibleDuplicate: boolean;
 };
 
 export type SubmitSubmissionResponse = {
@@ -152,6 +153,8 @@ export type SubmissionDetailResponse = SubmissionListItem & {
     expirationDateUtc: string;
   } | null;
 };
+
+export type WithdrawSubmissionResponse = SubmitSubmissionResponse;
 
 export type ListSubmissionsResponse = {
   submissions: SubmissionListItem[];

@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 
 import { formatCurrency } from "../../../lib/currency";
 import { useAcceptQuote } from "../hooks/useAcceptQuote";
@@ -10,6 +10,7 @@ import { useCreateQuote } from "../hooks/useCreateQuote";
 import { useSubmissionDetail } from "../hooks/useSubmissionDetail";
 import { useSubmitSubmission } from "../hooks/useSubmitSubmission";
 import { useUpdateSubmission } from "../hooks/useUpdateSubmission";
+import { useDeleteDraftSubmission, useWithdrawSubmission } from "../hooks/useSubmissionLifecycle";
 import {
   submissionIntakeSchema,
   type SubmissionIntakeFormValues,
@@ -95,6 +96,7 @@ function HelpButton({ id, label }: { id: keyof typeof helpText; label: string })
 
 export function SubmissionDetailPage() {
   const { submissionId } = useParams();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [industryClass, setIndustryClass] =
     useState<CyberIndustryClass>("ProfessionalServices");
@@ -129,6 +131,8 @@ export function SubmissionDetailPage() {
   const createQuoteMutation = useCreateQuote();
   const acceptQuoteMutation = useAcceptQuote();
   const bindPolicyMutation = useBindPolicy();
+  const deleteDraftMutation = useDeleteDraftSubmission();
+  const withdrawMutation = useWithdrawSubmission();
   const submission = submissionQuery.data;
   const updatedSubmission =
     submission &&
@@ -194,6 +198,9 @@ export function SubmissionDetailPage() {
   const canAcceptQuote =
     activeQuoteStatus === "Quoted" || activeQuoteStatus === "Approved";
   const canBindPolicy = activeQuoteStatus === "Accepted";
+  const canWithdraw = displayedSubmission?.status === "Submitted"
+    && activeQuoteStatus !== "Accepted"
+    && activeQuoteStatus !== "Bound";
   const isQuoteReferred = activeQuoteStatus === "Referred";
   const journeyStage = relatedPolicy || boundPolicy
     ? `Policy ${relatedPolicy?.coverageState ?? "Bound"}`
@@ -336,6 +343,17 @@ export function SubmissionDetailPage() {
         effectiveDateUtc: new Date(`${effectiveDate}T00:00:00.000Z`).toISOString(),
       },
     });
+  }
+
+  async function handleDeleteDraft() {
+    if (!displayedSubmission || !window.confirm("Delete this unsubmitted draft permanently?")) return;
+    await deleteDraftMutation.mutateAsync(displayedSubmission.submissionId);
+    await navigate("/submissions");
+  }
+
+  function handleWithdrawSubmission() {
+    if (!displayedSubmission || !window.confirm("Withdraw this submitted application? Its audit history will be retained.")) return;
+    withdrawMutation.mutate(displayedSubmission.submissionId);
   }
 
   return (
@@ -1103,6 +1121,25 @@ export function SubmissionDetailPage() {
                 </dl>
               </div>
             )}
+
+            {canSubmit && !isEditing && (
+              <div className="mt-6 border-t border-slate-800 pt-5">
+                <h2 className="text-base font-semibold text-white">Delete unsubmitted draft</h2>
+                <p className="mt-2 text-slate-300">Only drafts can be deleted. Once submitted, the application becomes retained audit history.</p>
+                <button type="button" onClick={handleDeleteDraft} disabled={deleteDraftMutation.isPending} className="mt-4 rounded-md border border-red-500/60 px-4 py-2 font-semibold text-red-200">Delete draft</button>
+              </div>
+            )}
+
+            {canWithdraw && (
+              <div className="mt-6 border-t border-slate-800 pt-5">
+                <h2 className="text-base font-semibold text-white">Withdraw application</h2>
+                <p className="mt-2 text-slate-300">Withdrawal retains this submitted record and does not rewrite or delete separate quote history.</p>
+                <button type="button" onClick={handleWithdrawSubmission} disabled={withdrawMutation.isPending} className="mt-4 rounded-md border border-amber-500/60 px-4 py-2 font-semibold text-amber-200">Withdraw submission</button>
+              </div>
+            )}
+
+            {withdrawMutation.isSuccess && <p className="mt-5 rounded-md border border-amber-500/40 bg-amber-950/30 p-3 text-amber-100">Submission withdrawn. The record remains available as audit history.</p>}
+            {(withdrawMutation.isError || deleteDraftMutation.isError) && <p className="mt-5 rounded-md border border-red-900 bg-red-950 p-3 text-red-200">{getErrorMessage(withdrawMutation.error ?? deleteDraftMutation.error)}</p>}
 
             {relatedPolicy && (
               <section className="mt-6 rounded-md border border-emerald-500/40 bg-emerald-950/20 p-5">
