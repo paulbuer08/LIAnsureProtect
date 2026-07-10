@@ -7,12 +7,12 @@
 > decision notes, gotchas, verification artifacts — but you should never *need* it to understand
 > the project.)
 >
-> **How to read it:** the project grew in **six eras**, each with one big idea. Read straight
+> **How to read it:** the project grew in **seven eras**, each with one big idea. Read straight
 > through for the full story, or jump to an era.
 
 ```mermaid
 timeline
-    title The six eras
+    title The seven eras
     Era 1 : Foundations (M1–M8) : a skeleton that can log in
     Era 2 : The submission backbone (M9–M16) : one business object done production-right
     Era 3 : The insurance engine (M17–M24) : rating, underwriting, quotes, policies
@@ -704,7 +704,7 @@ sequenceDiagram
 
 **The one big idea:** build the **post-bind** world — what happens when an insured actually suffers a
 cyber incident and files a claim — as a **new bounded context**, reusing every pattern the previous
-six eras proved, and doing it **on a parallel branch** (`feat/claims-context`) so it could be built
+six earlier eras proved, and doing it **on a parallel branch** (`feat/claims-context`) so it could be built
 autonomously while Phase 2 infrastructure work proceeded on `main`. Nothing new was invented; that's
 the point — a mature platform absorbs a whole new context by *composition*, not reinvention.
 
@@ -731,6 +731,34 @@ The full mechanics live in **Encyclopedia Chapter 12**; this is the milestone st
 tests, five additive `claims` migrations, **zero pushes to main and zero doc conflicts** during the
 build — then one consolidation PR merged the whole context (and its living-doc updates) into `main`.
 A textbook parallel bounded-context delivery.
+
+---
+
+## Post-Claims Customer/Broker walkthrough hardening (July 2026)
+
+**Before:** the API already supported the pre-bind lifecycle, but the first signed-in Customer
+walkthrough exposed missing UI actions, repeated Auth0 consent prompts, role-ineligible navigation,
+refresh-lost quote state, duplicate quote-ready notifications, and an unclear handoff from a bound
+quote to the resulting policy.
+
+**What was built:** server-authoritative role-aware navigation and route guards; a visible,
+gitignored API `.env.local` convention matching the frontend; automatic Auth0 callback/API-audience
+token recovery; a production-facing dashboard without developer token panels; draft edit + submit;
+the submitted -> quote -> accept -> bind owner journey; Philippine-peso rating inputs with accessible
+field help, Other industry, and prior-incident detail; latest-quote projection on Submission detail;
+and idempotent quote retrieval so repeat clicks/refreshes do not create more notifications.
+
+**What the walkthrough clarified:** Submission, Quote, and Policy are separate lifecycle records.
+A Submission remaining `Submitted` after binding is historically correct, but the product must show
+the bound Policy separately. Customer/Broker personal-only inboxes should have no tabs; team filters
+belong only to operational roles. Multiple legitimate submissions remain allowed, submitted history
+is retained, Draft may be deleted, Submitted may be explicitly withdrawn before contractual
+commitment, and bound Policies require audited cancellation rather than deletion.
+
+**What comes next:** a dedicated Customer/Broker policy journey: owner-scoped policy APIs and
+`/policies` pages, policy-aware notification actions, separate lifecycle presentation, and explicit
+withdrawal/cancellation/duplicate controls. The full continuation plan is preserved in
+[Customer/Broker Walkthrough Hardening and Policy Journey Plan](dev/customer-broker-walkthrough-hardening-and-policy-journey-plan.md).
 
 ---
 

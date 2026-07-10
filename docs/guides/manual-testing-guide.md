@@ -33,7 +33,7 @@ Use one shared throwaway password pattern for your tenant (e.g. a password manag
 | `/submissions/:id` | owner | Detail: submit the draft, generate a quote, accept, bind |
 | `/underwriting/quote-referrals` | Underwriter, Admin | The underwriting workbench: referral queue, SLA/triage, notes/tasks/timeline, evidence requests, AI review, approve/decline/adjust |
 | `/evidence-requests` | Customer, Broker, Admin | Owner-side evidence: see requests, respond with text + up to 5 documents, upload replacements |
-| `/notifications` | Customer, Broker, Underwriter, **ClaimsAdjuster**, Admin | Personal + team inbox with unread counts, All/Personal/Team tabs, mark-read; the header shows a compact unread badge |
+| `/notifications` | Customer, Broker, Underwriter, **ClaimsAdjuster**, Admin | Role-scoped inbox with unread counts and mark-read; the header shows a compact unread badge. Current walkthrough build still renders All/Personal/Team filters for every notification role; the next policy-journey slice removes all filters for personal-only Customer/Broker users. |
 | `/claims/new` | Customer, Broker, Admin | File a claim (two-step wizard: pick a **bound policy** → incident form) |
 | `/claims` · `/claims/:id` | owner | Your claims list + detail (verdict, claimed-amount, adjuster questions, scan-gated documents, timeline) |
 | `/claims/adjudication` | **ClaimsAdjuster**, Admin | The adjuster workbench: queue, assign/release, reserves, information requests, accept/deny/close, documents, audit |
@@ -46,6 +46,11 @@ underwriting or claims-adjudication links at all; an underwriter should not see 
 submission or claims filing actions. Direct URLs are still protected: the React route guard checks
 the API-reported roles before mounting the page component, and the API authorization policy remains
 the real enforcement point.
+
+Three related statuses are deliberately separate. A Submission can remain `Submitted` after its
+Quote becomes `Bound` and a Policy is created; that does not mean binding failed. The current detail
+page does not present that separation clearly enough after refresh. The approved next slice adds
+dedicated policy pages and shows Submission, Quote, and Policy state side by side.
 
 ## Scenario 1 — The happy path (clean quote, no referral)
 

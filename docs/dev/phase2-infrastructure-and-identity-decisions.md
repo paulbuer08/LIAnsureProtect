@@ -146,14 +146,26 @@ Only the **post-login roles Action** is in use. The other lifecycle hooks were e
 admin-assigned Auth0 RBAC and are read via `event.authorization.roles` in the post-login Action. This
 keeps privileged roles (Underwriter, ClaimsAdjuster, Admin) un-self-grantable.
 
-### Custom Auth0 domain (deferred, optional portfolio polish)
-`auth.liansureprotect.com` via Auth0 Custom Domains (Auth0-managed cert) → add the CNAME/TXT it gives
-to DNS → verify → then switch `VITE_AUTH0_DOMAIN` **and** API `Authentication:Authority` together
-(issuer must match) and restart. Not needed for the walkthrough.
+### Custom Auth0 domain (completed during the manual walkthrough)
 
-## 5. Manual UI walkthrough (in progress)
+`auth.liansureprotect.com` is now the local application's Auth0 issuer/domain. Auth0 manages the
+certificate; Cloudflare temporarily hosts Auth0's supplied CNAME as **DNS only** so Auth0, rather
+than Cloudflare's proxy, terminates TLS and can verify the record.
 
-The owner is doing the first hands-on UI walkthrough before M45, following
+The switch must always happen on both sides because the token issuer must match:
+
+- frontend: `VITE_AUTH0_DOMAIN=auth.liansureprotect.com`
+- API: `Authentication__Authority=https://auth.liansureprotect.com/`
+
+The original `dev-...us.auth0.com` tenant was not renamed. The custom domain is the stable public
+alias in front of that tenant. When Phase 2 delegates authoritative DNS to Route 53, recreate the
+same CNAME in Route 53 before changing nameservers; no Auth0 tenant change is required.
+
+## 5. Manual UI walkthrough (hardening pass complete; policy journey next)
+
+The owner completed the first hands-on Customer walkthrough before M45, following
 [Running The App](../guides/running-the-app.md) (incl. the one-time Auth0 setup) and the
 [Manual Testing Guide](../guides/manual-testing-guide.md) (five generic personas, four scenarios).
-Design feedback gathered there feeds a possible UI-polish backlog before/alongside Phase 2.
+The walkthrough produced a role-aware navigation/Auth0 recovery/submission/quote hardening branch.
+The complete decisions, implementation record, and approved follow-up plan are preserved in
+[Customer/Broker Walkthrough Hardening and Policy Journey Plan](customer-broker-walkthrough-hardening-and-policy-journey-plan.md).

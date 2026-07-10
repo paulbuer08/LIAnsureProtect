@@ -62,7 +62,13 @@ Key points, mapped to code:
 `GET /api/v1/submissions` → `ListSubmissionsQueryHandler`; `GET /api/v1/submissions/{id}` →
 `GetSubmissionDetailQueryHandler`. Both are **no-tracking** EF Core projections filtered by
 `ICurrentUser.UserId`, rendered by `SubmissionsPage.tsx` / `SubmissionDetailPage.tsx` via TanStack
-Query hooks (`useSubmissions`, `useSubmissionDetail`).
+Query hooks (`useSubmissions`, `useSubmissionDetail`). Detail also returns the latest owned Quote
+snapshot when one exists, so customer quote/accept/bind state survives a browser refresh.
+
+A Draft may be edited before submission through owner-scoped
+`PUT /api/v1/submissions/{submissionId}`. The aggregate guard rejects edits after Draft, and the
+detail UI exposes edit/save/cancel separately from the final Submit command. This preserves the
+important product distinction between "save my unfinished application" and "send it for rating".
 
 ## Part C — Submitting the draft (where events begin)
 
@@ -89,6 +95,10 @@ This is the **transactional outbox** in action (the pattern every later flow reu
 serializes it into `outbox_messages` inside the same transaction as the status change. What
 happens to that row — the Worker, the dispatcher, notifications — is
 [Chapter 10](10-flow-notifications-and-background.md).
+
+After submission, the Submission remains the historical application record. Quote and Policy are
+separate aggregates, so later quote acceptance or policy binding does not rewrite Submission status
+from `Submitted` to `Bound`. The policy-journey follow-up makes those three states visible together.
 
 **Failure honesty:** if the transaction fails, *both* the status change and the event vanish —
 never one without the other. If the process crashes right after commit, the event is safely on

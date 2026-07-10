@@ -8,7 +8,7 @@
 | Question | Read this |
 |---|---|
 | *How does the system work today?* (architecture, patterns, every workflow with diagrams) | [**The Encyclopedia**](encyclopedia/README.md) — 12 chapters, the living project book |
-| *How did we get here?* (every milestone, the six eras, Strangler Fig story) | [**The Build History**](build-history.md) |
+| *How did we get here?* (every milestone, the seven eras, Strangler Fig story) | [**The Build History**](build-history.md) |
 | *How do I run the app?* (setup, Auth0, three-terminal run, LocalStack/Redis) | [**Running The App**](guides/running-the-app.md) |
 | *How do I test the UI as each role?* (personas, scenarios, boundary checks) | [**Manual Testing Guide**](guides/manual-testing-guide.md) |
 | *Where are we and what's next?* | [**Project Status**](project-status.md) + [**Roadmap**](dev/production-transformation-roadmap.md) |
@@ -43,6 +43,8 @@ Build History.
   banner-marked historical).
 - **`dev/post-m44-deep-audit.md`**, **`dev/referral-queue-hardening-spec.md`** — audit reports
   and implemented specs.
+- **`dev/customer-broker-walkthrough-hardening-and-policy-journey-plan.md`** — July 2026 manual
+  walkthrough decisions, completed hardening work, and the approved owner policy-journey plan.
 - **`superpowers/plans/`** — execution plans for the plan-driven milestones.
 - **`dev/run-the-app.md`** — the Milestone-9-era run guide (banner-marked historical; still holds
   the troubleshooting catalog and the manual Auth0-token appendix).

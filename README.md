@@ -68,7 +68,7 @@ Start with the [**Documentation Map**](docs/README.md) — five documents answer
 | | |
 |---|---|
 | [**The Encyclopedia**](docs/encyclopedia/README.md) | How the system works today: technologies, architecture, design patterns, and every workflow in simple English with diagrams that mirror the code. Updated every milestone PR. |
-| [**The Build History**](docs/build-history.md) | How it got here: all milestones across six eras, with the why behind each step. |
+| [**The Build History**](docs/build-history.md) | How it got here: all milestones across seven eras, with the why behind each step. |
 | [**Running The App**](docs/guides/running-the-app.md) | Complete run manual: prerequisites, one-time Auth0 setup, the everyday three-terminal run, opt-in LocalStack/Redis. |
 | [**Manual Testing Guide**](docs/guides/manual-testing-guide.md) | Walk the UI as every role with generic test personas and end-to-end scenarios. |
 | [**Project Status**](docs/project-status.md) + [**Roadmap**](docs/dev/production-transformation-roadmap.md) | Where we are; the fully-baked plan for what comes next. |
