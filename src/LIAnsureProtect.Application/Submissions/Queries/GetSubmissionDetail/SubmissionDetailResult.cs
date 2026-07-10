@@ -7,7 +7,8 @@ public sealed record SubmissionDetailResult(
     string CompanyName,
     string Status,
     DateTime CreatedAtUtc,
-    SubmissionQuoteSummaryResult? LatestQuote = null);
+    SubmissionQuoteSummaryResult? LatestQuote = null,
+    SubmissionPolicySummaryResult? RelatedPolicy = null);
 
 public sealed record SubmissionQuoteSummaryResult(
     Guid QuoteId,
@@ -19,3 +20,11 @@ public sealed record SubmissionQuoteSummaryResult(
     IReadOnlyList<string> Subjectivities,
     IReadOnlyList<string> ReferralReasons,
     DateTime ExpiresAtUtc);
+
+public sealed record SubmissionPolicySummaryResult(
+    Guid PolicyId,
+    string PolicyNumber,
+    string ContractualStatus,
+    string CoverageState,
+    DateTime EffectiveDateUtc,
+    DateTime ExpirationDateUtc);

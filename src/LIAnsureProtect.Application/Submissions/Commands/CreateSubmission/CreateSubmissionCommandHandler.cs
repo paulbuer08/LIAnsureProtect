@@ -15,11 +15,16 @@ public sealed class CreateSubmissionCommandHandler(
         CreateSubmissionCommand request,
         CancellationToken cancellationToken)
     {
+        var ownerUserId = GetRequiredCurrentUserId();
+        var possibleDuplicate = await submissionRepository.HasOpenSubmissionForCompanyAsync(
+            ownerUserId,
+            request.CompanyName,
+            cancellationToken);
         var submission = Submission.CreateDraft(
             request.ApplicantName,
             request.ApplicantEmail,
             request.CompanyName,
-            GetRequiredCurrentUserId(),
+            ownerUserId,
             DateTime.UtcNow);
 
         await submissionRepository.AddAsync(submission, cancellationToken);
@@ -27,7 +32,8 @@ public sealed class CreateSubmissionCommandHandler(
 
         return new CreateSubmissionResult(
             submission.Id,
-            submission.Status.ToString());
+            submission.Status.ToString(),
+            possibleDuplicate);
     }
 
     private string GetRequiredCurrentUserId()

@@ -8,6 +8,9 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Customer/Broker Policy Journey: owner-scoped `Policies.Read` list/detail APIs and `/policies` pages; explicit contractual status plus computed Scheduled/Active/Expired coverage state; policy-first detail with source Submission/Quote links and Claims-authoritative File claim eligibility; role-aware navigation/dashboard and policy-bound notification routing.
+- Audited Submission lifecycle controls: owner-only Draft deletion; idempotent pre-contract withdrawal with `SubmissionWithdrawnDomainEvent` captured through the transactional outbox; accepted/bound Quote guard; non-blocking duplicate-company draft warning. Bound Policies remain undeletable and cancellation is deferred until its full audit/Claims/notification contract is designed.
+
 - **Claims bounded context (Phase 3, CM1–CM8) — the post-bind claim lifecycle**, built in parallel on `feat/claims-context` and merged as one consolidation. New `src/Modules/Claims/{Domain,Application,Infrastructure}` owning a `claims` PostgreSQL schema (`ClaimsDbContext`, five additive migrations, `claims-db` readiness check) and a fourth outbox source (`ClaimsOutboxSource`). The `Claim` aggregate enforces the lifecycle (Filed → UnderReview → InformationRequested → Accepted/Denied → Closed) with a file-time policy snapshot and a `Version` optimistic-concurrency token.
   - **CM1 FNOL:** `POST /api/v1/claims` files against an owned **bound** policy (validated via the read-only `IClaimsPolicyContextReader` port, by-id only), owner-scoped reads, `Claims.File`/`Claims.Read`.
   - **CM2 adjudication:** activated the **ClaimsAdjuster** role + `Claims.Adjudicate`/`Claims.Respond`; the `/api/v1/claims/adjudication` queue; assign/release reusing the M44.5 guarded-claim + concurrency-token pattern (double-assign → 409); work notes; the information-request loop.
@@ -34,6 +37,9 @@ The format follows simple milestone-based entries.
 - Fully-baked spec for the proposed Referral Queue Hardening milestone (optimistic concurrency + short-TTL cached queue): `docs/dev/referral-queue-hardening-spec.md`.
 
 ### Changed
+
+- Personal-only Customer/Broker notification pages now render no filter tabs; team-capable roles retain All/Personal/Team. Notification actions now use subject type to select View policy, Open submission, or Open evidence request.
+- Submission detail now displays separate Submission, Latest quote, and Related policy states plus a readable derived journey stage without rewriting aggregate meanings or offering quote generation after a Quote exists.
 
 - Documentation now preserves the complete July 2026 Customer/Broker walkthrough: Auth0 custom-domain/DNS migration, API/frontend local env convention, role-aware workflow hardening, separate submission/quote/policy lifecycle decisions, custom outbox and future EventBridge/Lambda/Glue fit, and the approved phased policy-journey implementation plan.
 - React protected routes now use a shared server-authoritative role map that mirrors the API policies. Role-ineligible menu/dashboard items are omitted, direct URL attempts are blocked before the protected page mounts or fires its API query, and the dashboard now presents role-specific work cards plus a responsive notifications badge with personal/team inbox context.

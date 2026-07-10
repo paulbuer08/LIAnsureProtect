@@ -143,6 +143,28 @@ This is the richest flow; it exercises the whole Underwriting module.
 | **Outbox at work** | Stop the Worker, accept a quote → no notification appears; start the Worker → it arrives within ~5s. Nothing was lost — that's the transactional outbox |
 | **Health probes** | `/api/v1/health/live` stays Healthy even if you stop Postgres; `/ready` flips to unhealthy |
 
+## Scenario 4A — Policy journey and retained history
+
+1. As **Casey Customer**, open `/notifications` → ✅ there are no All/Personal/Team tabs. As Uma,
+   Charlie, or Adrian → ✅ role-capable inboxes retain those tabs.
+2. Complete Scenario 1 through bind. Open the policy-bound notification → ✅ **View policy** opens
+   `/policies/{id}`, not the source Submission.
+3. Open `/policies` → ✅ all and only Casey's policies appear, with policy number, coverage state,
+   dates, PHP premium, limit, and retention. Policy detail shows `Contractual status: Bound`
+   separately from `Coverage Active/Scheduled/Expired`.
+4. Follow **Open source submission** → ✅ the page simultaneously shows Submission `Submitted`,
+   latest Quote `Bound`, and the related Policy coverage state. No Generate quote control appears.
+5. If the Policy appears in the Claims policy-options endpoint, ✅ **File claim** is visible; otherwise
+   it is omitted. There is no Policy delete control.
+6. Create a second draft for the same company → ✅ it is created and a possible-duplicate warning is
+   shown. Multiple legitimate applications remain allowed.
+7. On a Draft, choose **Delete draft**, reject the confirmation once (nothing changes), then confirm
+   → ✅ the draft disappears. On a Submitted application before acceptance, choose **Withdraw
+   submission**, then repeat the same API request with the same idempotency key → ✅ status remains
+   Withdrawn and only one withdrawal outbox event exists.
+8. Try withdrawal after accepting/binding the Quote → ✅ `409`; the Submission, Quote, and Policy
+   history remain intact.
+
 ## Scenario 5 — The claims lifecycle (Phase 3, end to end)
 
 **Prerequisite:** a **bound policy** — do Scenario 1 first so Casey has one. Use two browser

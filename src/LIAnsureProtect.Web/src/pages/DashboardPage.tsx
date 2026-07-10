@@ -28,6 +28,15 @@ type DashboardSection = {
 
 const dashboardSections: DashboardSection[] = [
   {
+    title: "Policies",
+    eyebrow: "Customer workspace",
+    description: "Review active, scheduled, and expired coverage as contracts separate from submission history.",
+    allowedRoles: roleGroups.policyWork,
+    actions: [{ label: "View policies", to: "/policies", variant: "primary" }],
+    metric: "Coverage contracts",
+    status: "Owner-scoped",
+  },
+  {
     title: "Submission intake",
     eyebrow: "Customer workspace",
     description:

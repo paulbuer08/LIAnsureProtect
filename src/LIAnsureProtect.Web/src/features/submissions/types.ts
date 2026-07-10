@@ -7,6 +7,7 @@ export type CreateSubmissionRequest = {
 export type CreateSubmissionResponse = {
   submissionId: string;
   status: string;
+  possibleDuplicate: boolean;
 };
 
 export type SubmitSubmissionResponse = {
@@ -143,7 +144,17 @@ export type SubmissionListItem = {
 
 export type SubmissionDetailResponse = SubmissionListItem & {
   latestQuote?: SubmissionQuoteSummary | null;
+  relatedPolicy?: {
+    policyId: string;
+    policyNumber: string;
+    contractualStatus: string;
+    coverageState: string;
+    effectiveDateUtc: string;
+    expirationDateUtc: string;
+  } | null;
 };
+
+export type WithdrawSubmissionResponse = SubmitSubmissionResponse;
 
 export type ListSubmissionsResponse = {
   submissions: SubmissionListItem[];

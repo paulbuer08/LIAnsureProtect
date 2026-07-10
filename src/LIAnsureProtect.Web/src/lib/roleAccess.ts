@@ -12,6 +12,11 @@ export const roleGroups = {
     applicationRoles.broker,
     applicationRoles.admin,
   ],
+  policyWork: [
+    applicationRoles.customer,
+    applicationRoles.broker,
+    applicationRoles.admin,
+  ],
   underwritingWork: [applicationRoles.underwriter, applicationRoles.admin],
   claimsAdjudication: [
     applicationRoles.claimsAdjuster,

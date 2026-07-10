@@ -7,6 +7,7 @@ using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.IntegrationTests.Security;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
+using LIAnsureProtect.Modules.Claims.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -39,6 +40,7 @@ public sealed class UnderwritingReferralEndpointTests
     private readonly SqliteConnection databaseConnection;
     private readonly SqliteConnection underwritingConnection;
     private readonly SqliteConnection notificationsConnection;
+    private readonly SqliteConnection claimsConnection;
     private readonly WebApplicationFactory<Program> webApplicationFactory;
     private readonly HttpClient httpClient;
 
@@ -50,6 +52,8 @@ public sealed class UnderwritingReferralEndpointTests
         underwritingConnection.Open();
         notificationsConnection = new SqliteConnection("DataSource=:memory:");
         notificationsConnection.Open();
+        claimsConnection = new SqliteConnection("DataSource=:memory:");
+        claimsConnection.Open();
 
         this.webApplicationFactory = webApplicationFactory.WithWebHostBuilder(builder =>
         {
@@ -86,6 +90,15 @@ public sealed class UnderwritingReferralEndpointTests
                     options.UseSqlite(notificationsConnection);
                 });
 
+                // Claims is the fourth registered outbox source. Replace it as well so dispatcher
+                // tests never depend on a real PostgreSQL instance.
+                services.RemoveAll<IDbContextOptionsConfiguration<ClaimsDbContext>>();
+                services.RemoveAll<DbContextOptions<ClaimsDbContext>>();
+                services.AddDbContext<ClaimsDbContext>(options =>
+                {
+                    options.UseSqlite(claimsConnection);
+                });
+
                 services
                     .AddAuthentication(TestAuthHandler.AuthenticationScheme)
                     .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
@@ -98,6 +111,7 @@ public sealed class UnderwritingReferralEndpointTests
         scope.ServiceProvider.GetRequiredService<SubmissionDbContext>().Database.EnsureCreated();
         scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>().Database.EnsureCreated();
         scope.ServiceProvider.GetRequiredService<NotificationsDbContext>().Database.EnsureCreated();
+        scope.ServiceProvider.GetRequiredService<ClaimsDbContext>().Database.EnsureCreated();
 
         httpClient = this.webApplicationFactory.CreateClient(
             new WebApplicationFactoryClientOptions
@@ -1228,5 +1242,6 @@ public sealed class UnderwritingReferralEndpointTests
         databaseConnection.Dispose();
         underwritingConnection.Dispose();
         notificationsConnection.Dispose();
+        claimsConnection.Dispose();
     }
 }
