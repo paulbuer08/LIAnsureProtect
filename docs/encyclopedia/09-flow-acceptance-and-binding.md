@@ -75,9 +75,21 @@ The records keep independent meanings:
 - Quote status records the offer (`Quoted`, `Accepted`, then `Bound`).
 - Policy status/coverage dates record the contract.
 
-The current notification action still opens the source Submission for both quote and policy events.
-The approved policy-journey slice adds owner-scoped `/policies` pages and changes policy events to
-**View policy** while showing all three lifecycle states on Submission detail.
+Customer/Broker/Admin now have owner-scoped `GET /api/v1/policies` and
+`GET /api/v1/policies/{policyId}` endpoints plus `/policies` and `/policies/:policyId` pages. A
+cross-owner id returns `404`, including for Admin: acting on behalf of another owner needs a future,
+audited workflow rather than a silent bypass.
+
+The read contract separates two kinds of state:
+
+- `contractualStatus` is the persisted Policy state (`Bound` today).
+- `coverageState` is explicitly computed at read time: `Scheduled` before the effective instant,
+  `Active` during the coverage period, and `Expired` at/after expiration. `Cancelled` is reserved for
+  a future real cancellation command; the read model does not fabricate a persisted Active state.
+
+Policy detail is policy-first, links back to its source Submission and Quote snapshot, and offers
+**File claim** only when the Claims context's existing claimable-policy query says the policy is
+eligible. Bound-policy notifications now route directly to **View policy**.
 
 ## What can go wrong
 
@@ -88,3 +100,5 @@ The approved policy-journey slice adds owner-scoped `/policies` pages and change
 | Double-click on accept/bind | idempotency replay | original response again |
 | Binding provider failure | attempt recorded with failure category | error surfaced; retry is safe (idempotent) |
 | Someone else's quote | owner-scoped load | `404` |
+| Someone else's policy | owner-scoped policy projection | `404` |
+| Attempting to delete a bound policy | no delete endpoint exists | impossible by contract |

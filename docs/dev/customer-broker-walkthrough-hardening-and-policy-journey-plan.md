@@ -1,9 +1,10 @@
 # Customer/Broker Walkthrough Hardening and Policy Journey Plan
 
-> **Status:** the walkthrough-hardening work described in Parts 1-4 is implemented on
-> `feat/role-aware-dashboard-navigation`. Part 5 is the approved implementation plan for the next
-> branch. This document preserves the decisions from the July 2026 hands-on walkthrough so a new
-> development session can continue without depending on chat history.
+> **Status:** Parts 1-4 were delivered by the walkthrough-hardening branch. Part 5 was implemented on
+> `feat/customer-broker-policy-journey` on 2026-07-11. Policy cancellation remains deliberately
+> deferred: a bound Policy is never deleted, and cancellation will only be added with explicit
+> effective-date/reason audit, Claims implications, notification events, and tests. See
+> `customer-broker-policy-journey-learnings.md` for the implementation record.
 
 ## Why this work happened
 

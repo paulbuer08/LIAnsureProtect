@@ -86,16 +86,16 @@ Reading (`ListMyNotificationsQueryHandler`) merges personal + team entries for t
 audiences with a combined unread count; `MarkNotificationReadCommandHandler` tries personal, then
 team (gated by the caller's audiences — a customer can never mark a team entry).
 
-Frontend: `features/notifications` — `useNotifications` polls the list, the page currently shows
-**All / Personal / Team** tabs and a Team badge; mark-read invalidates the query. API reads and
-mark-read remain role/audience-gated, so a Customer cannot retrieve or mutate a team entry even
-though the current page renders an empty Team filter. The approved policy-journey follow-up removes
-all filters for personal-only Customer/Broker users and keeps filters only for roles with team
-notification access.
+Frontend: `features/notifications` — `useNotifications` polls the list; mark-read invalidates the
+query. The page reads the existing server-authoritative `/api/v1/me` role result. Customer/Broker
+personal-only users see one inbox with **no tabs at all**. Underwriter, ClaimsAdjuster, and Admin keep
+**All / Personal / Team** tabs and the Team badge. If role capability changes during a session, an
+invalid/stale filter resets safely.
 
-Notification attributes carry related business ids. Quote notifications now link to the related
-Submission. Policy-bound notifications also temporarily use that Submission link; once the dedicated
-policy read model/page lands, subject type + `policyId` will route them to **View policy** instead.
+Notification actions are subject-aware: Policy → **View policy** at `/policies/{policyId}`;
+Quote/Submission → **Open submission**; Evidence request → **Open evidence request**. Subject type is
+the primary decision, with safe attributes supplying related ids. API audience filtering remains the
+security boundary; hiding tabs is role-correct UX, not authorization.
 
 ## The Worker's second job: idempotency cleanup
 

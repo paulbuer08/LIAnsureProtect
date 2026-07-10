@@ -98,7 +98,27 @@ happens to that row — the Worker, the dispatcher, notifications — is
 
 After submission, the Submission remains the historical application record. Quote and Policy are
 separate aggregates, so later quote acceptance or policy binding does not rewrite Submission status
-from `Submitted` to `Bound`. The policy-journey follow-up makes those three states visible together.
+from `Submitted` to `Bound`. Submission detail now shows three separate sections — Submission,
+Latest quote, and Related policy — plus a derived journey-stage label for scanning. The label never
+mutates or replaces an aggregate's real status.
+
+## Part D — Deleting drafts, withdrawing applications, and duplicate warnings
+
+Lifecycle cleanup is deliberately asymmetric because an insurance application becomes audit history
+once submitted:
+
+- `DELETE /api/v1/submissions/{id}` is owner-scoped and accepts only `Draft`. The UI asks for explicit
+  confirmation. A submitted record returns `409` and remains stored.
+- `POST /api/v1/submissions/{id}/withdraw` is owner-scoped and idempotent. Only a `Submitted`
+  application may transition to `Withdrawn`, and only before an accepted or bound Quote exists.
+  `SubmissionWithdrawnDomainEvent` is captured in the transactional outbox in the same commit, so
+  the retained row and audit event cannot disagree.
+- Creating a draft checks for another open Draft/Submitted record for the same owner and company.
+  The response sets `possibleDuplicate=true` and the UI warns the user, but the draft is still
+  created. Multiple legitimate submissions are a supported business case.
+
+Quote decline/expiry and Policy cancellation remain separate lifecycle concepts. Withdrawal never
+overloads Quote or Policy status, and a bound Policy is never deleted.
 
 **Failure honesty:** if the transaction fails, *both* the status change and the event vanish —
 never one without the other. If the process crashes right after commit, the event is safely on
@@ -112,4 +132,6 @@ disk and dispatch happens after restart. Delayed, never lost.
 | Not logged in / wrong role | JWT middleware / policy | `401` / `403` |
 | Submitting someone else's draft | owner-scoped load returns null | `404` (existence is not leaked) |
 | Submitting a non-draft | `Submission.Submit()` guard throws `InvalidOperationException` | `409` ProblemDetails |
+| Deleting submitted history | delete handler state guard | `409`; row retained |
+| Withdrawing after quote acceptance/bind | repository eligibility check | `409`; Submission and contract history unchanged |
 | Network retry / double click | idempotency replay | the original response, again |
