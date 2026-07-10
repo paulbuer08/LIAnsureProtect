@@ -755,10 +755,19 @@ belong only to operational roles. Multiple legitimate submissions remain allowed
 is retained, Draft may be deleted, Submitted may be explicitly withdrawn before contractual
 commitment, and bound Policies require audited cancellation rather than deletion.
 
-**What comes next:** a dedicated Customer/Broker policy journey: owner-scoped policy APIs and
-`/policies` pages, policy-aware notification actions, separate lifecycle presentation, and explicit
-withdrawal/cancellation/duplicate controls. The full continuation plan is preserved in
-[Customer/Broker Walkthrough Hardening and Policy Journey Plan](dev/customer-broker-walkthrough-hardening-and-policy-journey-plan.md).
+**The follow-up policy journey:** the dedicated slice delivered role-correct notification filters,
+subject-aware actions, owner-scoped policy list/detail APIs and `/policies` pages, a deliberate
+persisted-contractual-vs-computed-coverage state model, Claims-authoritative File claim eligibility,
+and Submission detail that simultaneously shows Submission, Quote, Policy, and a readable journey
+stage. Lifecycle controls now delete Draft only, withdraw eligible Submitted applications with one
+outbox audit event, refuse withdrawal after quote acceptance/binding, and warn without blocking when
+a new draft resembles an existing open submission. Bound Policies remain undeletable; cancellation
+was intentionally deferred rather than faked without claims/notification/audit implications.
+
+The source plan and acceptance decisions remain in
+[Customer/Broker Walkthrough Hardening and Policy Journey Plan](dev/customer-broker-walkthrough-hardening-and-policy-journey-plan.md),
+with implementation lessons in
+[Customer/Broker Policy Journey Learnings](dev/customer-broker-policy-journey-learnings.md).
 
 ---
 

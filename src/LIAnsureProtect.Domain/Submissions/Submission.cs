@@ -91,11 +91,18 @@ public sealed class Submission : IHasDomainEvents
         domainEvents.Clear();
     }
 
-    public void Withdraw()
+    public void Withdraw(DateTime withdrawnAtUtc)
     {
         if (Status == SubmissionStatus.Withdrawn)
             return;
 
+        if (Status != SubmissionStatus.Submitted)
+            throw new InvalidOperationException("Only submitted applications can be withdrawn. Delete an unsubmitted draft instead.");
+
         Status = SubmissionStatus.Withdrawn;
+        domainEvents.Add(new SubmissionWithdrawnDomainEvent(
+            Id,
+            OwnerUserId,
+            withdrawnAtUtc));
     }
 }
