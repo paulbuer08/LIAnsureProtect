@@ -105,21 +105,41 @@ public sealed class SubmissionTests
     public void Withdraw_changes_submission_to_withdrawn()
     {
         var submission = CreateDraftSubmission();
+        submission.Submit();
+        submission.ClearDomainEvents();
+        var withdrawnAtUtc = new DateTime(2026, 7, 11, 1, 0, 0, DateTimeKind.Utc);
 
-        submission.Withdraw();
+        submission.Withdraw(withdrawnAtUtc);
 
         Assert.Equal(SubmissionStatus.Withdrawn, submission.Status);
+        var domainEvent = Assert.IsType<SubmissionWithdrawnDomainEvent>(
+            Assert.Single(submission.DomainEvents));
+        Assert.Equal(withdrawnAtUtc, domainEvent.OccurredAtUtc);
     }
 
     [Fact]
     public void Withdraw_keeps_withdrawn_submission_withdrawn()
     {
         var submission = CreateDraftSubmission();
-        submission.Withdraw();
+        submission.Submit();
+        submission.ClearDomainEvents();
+        submission.Withdraw(DateTime.UtcNow);
 
-        submission.Withdraw();
+        submission.Withdraw(DateTime.UtcNow.AddMinutes(1));
 
         Assert.Equal(SubmissionStatus.Withdrawn, submission.Status);
+        Assert.Single(submission.DomainEvents);
+    }
+
+    [Fact]
+    public void Withdraw_rejects_a_draft_that_should_be_deleted_instead()
+    {
+        var submission = CreateDraftSubmission();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            submission.Withdraw(DateTime.UtcNow));
+
+        Assert.Contains("Delete an unsubmitted draft", exception.Message);
     }
 
     private static Submission CreateDraftSubmission()

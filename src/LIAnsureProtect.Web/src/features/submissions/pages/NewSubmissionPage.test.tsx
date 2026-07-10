@@ -87,6 +87,7 @@ describe("NewSubmissionPage", () => {
     vi.mocked(createSubmission).mockResolvedValue({
       submissionId: "submission-456",
       status: "Draft",
+      possibleDuplicate: false,
     });
 
     renderNewSubmissionPage();
@@ -109,5 +110,24 @@ describe("NewSubmissionPage", () => {
     });
     expect(await screen.findByText("submission-456")).toBeInTheDocument();
     expect(screen.getByText("Draft")).toBeInTheDocument();
+  });
+
+  it("warns about a possible duplicate without blocking the new draft", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(createSubmission).mockResolvedValue({
+      submissionId: "submission-duplicate",
+      status: "Draft",
+      possibleDuplicate: true,
+    });
+    renderNewSubmissionPage();
+
+    await user.type(screen.getByLabelText("Applicant name"), "Jane Applicant");
+    await user.type(screen.getByLabelText("Applicant email"), "jane@example.com");
+    await user.type(screen.getByLabelText("Company name"), "Example Company");
+    await user.click(screen.getByRole("button", { name: "Create draft submission" }));
+
+    expect(await screen.findByText(/multiple legitimate submissions are allowed/i)).toBeInTheDocument();
+    expect(screen.getByText("submission-duplicate")).toBeInTheDocument();
   });
 });

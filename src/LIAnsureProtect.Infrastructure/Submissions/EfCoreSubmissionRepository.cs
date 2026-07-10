@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Application.Submissions.Queries.GetSubmissionDetail;
 using LIAnsureProtect.Application.Submissions.Queries.ListSubmissions;
+using LIAnsureProtect.Application.Policies.Queries;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -85,6 +86,20 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
             })
             .FirstOrDefaultAsync(cancellationToken);
 
+        var relatedPolicy = await dbContext.Policies
+            .AsNoTracking()
+            .Where(policy => policy.SubmissionId == submission.Id && policy.OwnerUserId == ownerUserId)
+            .OrderByDescending(policy => policy.CreatedAtUtc)
+            .Select(policy => new
+            {
+                policy.Id,
+                policy.PolicyNumber,
+                policy.Status,
+                policy.EffectiveDateUtc,
+                policy.ExpirationDateUtc
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
         return new SubmissionDetailResult(
                 submission.Id,
                 submission.ApplicantName,
@@ -103,7 +118,20 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
                         latestQuote.Status.ToString(),
                         SplitLines(latestQuote.Subjectivities),
                         SplitLines(latestQuote.ReferralReasons),
-                        latestQuote.ExpiresAtUtc));
+                        latestQuote.ExpiresAtUtc),
+                relatedPolicy is null
+                    ? null
+                    : new SubmissionPolicySummaryResult(
+                        relatedPolicy.Id,
+                        relatedPolicy.PolicyNumber,
+                        relatedPolicy.Status.ToString(),
+                        PolicyCoverageState.Compute(
+                            relatedPolicy.Status.ToString(),
+                            relatedPolicy.EffectiveDateUtc,
+                            relatedPolicy.ExpirationDateUtc,
+                            DateTime.UtcNow),
+                        relatedPolicy.EffectiveDateUtc,
+                        relatedPolicy.ExpirationDateUtc));
     }
 
     public Task<Submission?> GetOwnedForUpdateAsync(
@@ -115,6 +143,39 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
             .Where(submission => submission.Id == submissionId)
             .Where(submission => submission.OwnerUserId == ownerUserId)
             .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public void Remove(Submission submission)
+    {
+        dbContext.Submissions.Remove(submission);
+    }
+
+    public Task<bool> HasAcceptedOrBoundQuoteAsync(
+        Guid submissionId,
+        string ownerUserId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.Quotes.AnyAsync(
+            quote => quote.SubmissionId == submissionId
+                && quote.OwnerUserId == ownerUserId
+                && (quote.Status == Domain.Quotes.QuoteStatus.Accepted
+                    || quote.Status == Domain.Quotes.QuoteStatus.Bound),
+            cancellationToken);
+    }
+
+    public Task<bool> HasOpenSubmissionForCompanyAsync(
+        string ownerUserId,
+        string companyName,
+        CancellationToken cancellationToken)
+    {
+        var normalizedCompanyName = companyName.Trim();
+
+        return dbContext.Submissions.AnyAsync(
+            submission => submission.OwnerUserId == ownerUserId
+                && (submission.Status == SubmissionStatus.Draft
+                    || submission.Status == SubmissionStatus.Submitted)
+                && submission.CompanyName == normalizedCompanyName,
+            cancellationToken);
     }
 
     private static List<string> SplitLines(string value)

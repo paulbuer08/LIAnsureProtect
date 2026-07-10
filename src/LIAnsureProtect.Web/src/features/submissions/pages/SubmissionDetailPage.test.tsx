@@ -7,9 +7,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { acceptQuote } from "../api/acceptQuote";
 import { bindPolicy } from "../api/bindPolicy";
 import { createQuote } from "../api/createQuote";
+import { deleteDraftSubmission } from "../api/deleteDraftSubmission";
 import { getSubmissionDetail } from "../api/getSubmissionDetail";
 import { submitSubmission } from "../api/submitSubmission";
 import { updateSubmission } from "../api/updateSubmission";
+import { withdrawSubmission } from "../api/withdrawSubmission";
 import { SubmissionDetailPage } from "./SubmissionDetailPage";
 
 const getAccessTokenSilently = vi.fn();
@@ -44,6 +46,9 @@ vi.mock("../api/bindPolicy", () => ({
   bindPolicy: vi.fn(),
 }));
 
+vi.mock("../api/deleteDraftSubmission", () => ({ deleteDraftSubmission: vi.fn() }));
+vi.mock("../api/withdrawSubmission", () => ({ withdrawSubmission: vi.fn() }));
+
 function renderSubmissionDetailPage(submissionId = "submission-456") {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -76,6 +81,9 @@ describe("SubmissionDetailPage", () => {
     vi.mocked(createQuote).mockReset();
     vi.mocked(acceptQuote).mockReset();
     vi.mocked(bindPolicy).mockReset();
+    vi.mocked(deleteDraftSubmission).mockReset();
+    vi.mocked(withdrawSubmission).mockReset();
+    vi.restoreAllMocks();
   });
 
   it("shows a loading state while the submission detail is loading", () => {
@@ -142,6 +150,40 @@ describe("SubmissionDetailPage", () => {
       "api-access-token",
       "submission-456",
     );
+  });
+
+  it("requires confirmation before deleting an owned draft", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(deleteDraftSubmission).mockResolvedValue(undefined);
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456", applicantName: "Jane Applicant", applicantEmail: "jane@example.com",
+      companyName: "Example Company", status: "Draft", createdAtUtc: "2026-06-19T08:30:00Z",
+    });
+
+    renderSubmissionDetailPage();
+    await user.click(await screen.findByRole("button", { name: "Delete draft" }));
+
+    expect(window.confirm).toHaveBeenCalled();
+    expect(deleteDraftSubmission).toHaveBeenCalledWith("api-access-token", "submission-456");
+  });
+
+  it("offers withdrawal for an eligible submitted application", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(withdrawSubmission).mockResolvedValue({ submissionId: "submission-456", status: "Withdrawn" });
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456", applicantName: "Jane Applicant", applicantEmail: "jane@example.com",
+      companyName: "Example Company", status: "Submitted", createdAtUtc: "2026-06-19T08:30:00Z",
+    });
+
+    renderSubmissionDetailPage();
+    await user.click(await screen.findByRole("button", { name: "Withdraw submission" }));
+
+    expect(withdrawSubmission).toHaveBeenCalledWith("api-access-token", "submission-456");
+    expect(await screen.findByText(/record remains available as audit history/i)).toBeInTheDocument();
   });
 
   it("submits a draft submission and updates the displayed status", async () => {
