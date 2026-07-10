@@ -39,6 +39,14 @@ public sealed class CreateQuoteCommandHandler(
         if (submission.Status != SubmissionStatus.Submitted)
             throw new InvalidOperationException("Only submitted submissions can be quoted.");
 
+        var existingQuote = await quoteRepository.GetLatestOwnedForSubmissionAsync(
+            submission.Id,
+            ownerUserId,
+            cancellationToken);
+
+        if (existingQuote is not null)
+            return ToResult(existingQuote, CreateExistingQuoteProviderIndication(existingQuote));
+
         var ratingInput = new CyberRatingInput(
             request.IndustryClass,
             request.AnnualRevenueBand,
@@ -49,7 +57,10 @@ public sealed class CreateQuoteCommandHandler(
             request.BackupMaturity,
             request.HasIncidentResponsePlan,
             request.PriorCyberIncidents,
-            request.SensitiveDataExposure);
+            request.SensitiveDataExposure,
+            request.OtherIndustryDescription,
+            request.PriorCyberIncidentTypes,
+            request.PriorCyberIncidentDetails);
         var ratingResult = ratingStrategySelector.Rate(ratingInput);
         var quote = Quote.Generate(
             submission.Id,
@@ -76,6 +87,9 @@ public sealed class CreateQuoteCommandHandler(
             request.HasIncidentResponsePlan,
             request.PriorCyberIncidents,
             request.SensitiveDataExposure,
+            request.OtherIndustryDescription,
+            request.PriorCyberIncidentTypes,
+            request.PriorCyberIncidentDetails,
             quote.Premium,
             quote.RiskTier,
             quote.Status,
@@ -107,6 +121,15 @@ public sealed class CreateQuoteCommandHandler(
         await quoteRepository.AddRatingProviderAttemptAsync(providerAttempt, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        return ToResult(
+            quote,
+            RatingProviderIndicationResult.FromProviderResult(providerResult));
+    }
+
+    private static CreateQuoteResult ToResult(
+        Quote quote,
+        RatingProviderIndicationResult providerIndication)
+    {
         return new CreateQuoteResult(
             quote.Id,
             quote.SubmissionId,
@@ -115,10 +138,35 @@ public sealed class CreateQuoteCommandHandler(
             quote.Retention,
             quote.RiskTier.ToString(),
             quote.Status.ToString(),
-            ratingResult.Subjectivities,
-            ratingResult.ReferralReasons,
+            SplitLines(quote.Subjectivities),
+            SplitLines(quote.ReferralReasons),
             quote.ExpiresAtUtc,
-            RatingProviderIndicationResult.FromProviderResult(providerResult));
+            providerIndication);
+    }
+
+    private static RatingProviderIndicationResult CreateExistingQuoteProviderIndication(Quote quote)
+    {
+        return new RatingProviderIndicationResult(
+            "ExistingQuote",
+            "AlreadyCreated",
+            quote.Status.ToString(),
+            null,
+            null,
+            quote.Premium,
+            quote.RequestedLimit,
+            quote.Retention,
+            null,
+            "None",
+            null,
+            0,
+            0);
+    }
+
+    private static List<string> SplitLines(string value)
+    {
+        return value
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
     }
 
     private string GetRequiredCurrentUserId()

@@ -21,6 +21,10 @@ function getErrorMessage(error: unknown) {
     : "Unable to load notifications.";
 }
 
+function getRelatedSubmissionUrl(attributes: Record<string, string>) {
+  return attributes.submissionId ? `/submissions/${attributes.submissionId}` : null;
+}
+
 export function NotificationsPage() {
   const notificationsQuery = useNotifications();
   const markReadMutation = useMarkNotificationRead();
@@ -116,6 +120,12 @@ export function NotificationsPage() {
                         : "border-emerald-500/40 bg-emerald-950/20"
                     }`}
                   >
+                    {(() => {
+                      const relatedSubmissionUrl = getRelatedSubmissionUrl(
+                        notification.attributes,
+                      );
+
+                      return (
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <div className="flex items-center gap-2">
@@ -138,23 +148,35 @@ export function NotificationsPage() {
                         </p>
                       </div>
 
-                      {notification.isRead ? (
-                        <span className="inline-flex h-fit rounded-md border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">
-                          Read
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            markReadMutation.mutate(notification.notificationId)
-                          }
-                          disabled={markReadMutation.isPending}
-                          className="inline-flex h-fit rounded-lg bg-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-                        >
-                          Mark as read
-                        </button>
-                      )}
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
+                        {relatedSubmissionUrl && (
+                          <Link
+                            to={relatedSubmissionUrl}
+                            className="inline-flex h-fit rounded-lg border border-emerald-400/60 px-4 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-400 hover:text-slate-950"
+                          >
+                            Open submission
+                          </Link>
+                        )}
+                        {notification.isRead ? (
+                          <span className="inline-flex h-fit rounded-md border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">
+                            Read
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              markReadMutation.mutate(notification.notificationId)
+                            }
+                            disabled={markReadMutation.isPending}
+                            className="inline-flex h-fit rounded-lg bg-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+                          >
+                            Mark as read
+                          </button>
+                        )}
+                      </div>
                     </div>
+                      );
+                    })()}
                   </li>
                 ))}
               </ul>

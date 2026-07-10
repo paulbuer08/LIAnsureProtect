@@ -3,6 +3,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import type { FormEvent } from "react";
 import { Link } from "react-router";
 
+import { formatCurrency } from "../../../lib/currency";
 import { downloadUnderwritingEvidenceDocument } from "../api/underwritingApi";
 import {
   useAddQuoteReferralNote,
@@ -33,12 +34,6 @@ import type {
 
 type QueueFilter = "all" | "high" | "expiring";
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
-
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
@@ -54,10 +49,6 @@ const riskRank: Record<string, number> = {
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
-}
-
-function formatCurrency(value: number) {
-  return currencyFormatter.format(value);
 }
 
 function formatDate(value: string) {

@@ -6,4 +6,16 @@ public sealed record SubmissionDetailResult(
     string ApplicantEmail,
     string CompanyName,
     string Status,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    SubmissionQuoteSummaryResult? LatestQuote = null);
+
+public sealed record SubmissionQuoteSummaryResult(
+    Guid QuoteId,
+    decimal Premium,
+    decimal RequestedLimit,
+    decimal Retention,
+    string RiskTier,
+    string Status,
+    IReadOnlyList<string> Subjectivities,
+    IReadOnlyList<string> ReferralReasons,
+    DateTime ExpiresAtUtc);

@@ -2,6 +2,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchCurrentUser } from "../lib/currentUserApi";
+import { auth0Config } from "../lib/auth0Config";
 
 export const currentUserQueryKey = ["current-user"];
 
@@ -15,7 +16,16 @@ export function useCurrentUser() {
 
   return useQuery({
     queryKey: currentUserQueryKey,
-    queryFn: async () => fetchCurrentUser(await getAccessTokenSilently()),
+    queryFn: async () =>
+      fetchCurrentUser(
+        await getAccessTokenSilently({
+          authorizationParams: {
+            audience: auth0Config.audience,
+            redirect_uri: auth0Config.callbackUrl,
+          },
+        }),
+      ),
+    retry: false,
     staleTime: 5 * 60 * 1000,
   });
 }

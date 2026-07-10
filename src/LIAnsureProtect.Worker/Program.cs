@@ -7,6 +7,7 @@ using LIAnsureProtect.Modules.Notifications.Infrastructure;
 using LIAnsureProtect.Modules.Quoting.Infrastructure;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure;
 using LIAnsureProtect.Platform;
+using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Worker;
 
 
@@ -26,6 +27,7 @@ builder.Services.Configure<DocumentStorageOptions>(builder.Configuration.GetSect
 builder.Services.Configure<NotificationPublisherOptions>(builder.Configuration.GetSection("Notifications"));
 builder.Services.Configure<CacheOptions>(builder.Configuration.GetSection("Cache"));
 builder.Services.AddInfrastructure(databaseConnectionString, platformProfile);
+builder.Services.AddScoped<ICurrentUser, WorkerCurrentUser>();
 builder.Services.AddHostedService<Worker>();
 
 var host = builder.Build();

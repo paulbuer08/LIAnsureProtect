@@ -32,6 +32,7 @@ internal static class CyberRatingMath
             CyberIndustryClass.Retail => 1,
             _ => 0
         };
+        score += HasUnclassifiedIndustry(input) ? 1 : 0;
 
         score += input.AnnualRevenueBand switch
         {
@@ -51,6 +52,7 @@ internal static class CyberRatingMath
         };
         score += input.HasIncidentResponsePlan ? 0 : 1;
         score += Math.Min(input.PriorCyberIncidents * 2, 4);
+        score += HasSevereIncidentHistory(input) ? 2 : 0;
         score += input.SensitiveDataExposure switch
         {
             SensitiveDataExposure.High => 2,
@@ -88,6 +90,12 @@ internal static class CyberRatingMath
         if (input.SensitiveDataExposure == SensitiveDataExposure.High)
             subjectivities.Add("High sensitive data exposure requires security-control evidence.");
 
+        if (HasUnclassifiedIndustry(input))
+            subjectivities.Add("Other industry description requires underwriting classification confirmation.");
+
+        if (input.PriorCyberIncidents > 0)
+            subjectivities.Add("Prior incident history requires a loss-history review.");
+
         return subjectivities;
     }
 
@@ -100,6 +108,18 @@ internal static class CyberRatingMath
 
         if (input.PriorCyberIncidents >= 2)
             referralReasons.Add("Prior cyber incident count requires underwriter review.");
+
+        if (HasSevereIncidentHistory(input))
+            referralReasons.Add("Severe prior incident type requires underwriter review.");
+
+        if (input.PriorCyberIncidents > 0
+            && string.IsNullOrWhiteSpace(input.PriorCyberIncidentDetails))
+        {
+            referralReasons.Add("Prior incident details are required for underwriting review.");
+        }
+
+        if (HasUnclassifiedIndustry(input))
+            referralReasons.Add("Other industry class requires underwriter classification review.");
 
         if (input.MfaStatus == CyberSecurityControlStatus.NotImplemented)
             referralReasons.Add("Missing MFA requires underwriter review.");
@@ -213,6 +233,22 @@ internal static class CyberRatingMath
             SensitiveDataExposure.High => 1.25m,
             _ => throw new ArgumentOutOfRangeException(nameof(sensitiveDataExposure))
         };
+    }
+
+    private static bool HasUnclassifiedIndustry(CyberRatingInput input)
+    {
+        return !string.IsNullOrWhiteSpace(input.OtherIndustryDescription);
+    }
+
+    private static bool HasSevereIncidentHistory(CyberRatingInput input)
+    {
+        var incidentTypes = input.PriorCyberIncidentTypes ?? [];
+
+        return incidentTypes.Any(type =>
+            type.Contains("ransomware", StringComparison.OrdinalIgnoreCase)
+            || type.Contains("data breach", StringComparison.OrdinalIgnoreCase)
+            || type.Contains("funds transfer fraud", StringComparison.OrdinalIgnoreCase)
+            || type.Contains("business email compromise", StringComparison.OrdinalIgnoreCase));
     }
 
     private static int GetControlScore(CyberSecurityControlStatus status)

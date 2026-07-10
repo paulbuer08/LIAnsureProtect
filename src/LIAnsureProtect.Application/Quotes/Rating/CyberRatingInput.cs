@@ -12,4 +12,7 @@ public sealed record CyberRatingInput(
     BackupMaturity BackupMaturity,
     bool HasIncidentResponsePlan,
     int PriorCyberIncidents,
-    SensitiveDataExposure SensitiveDataExposure);
+    SensitiveDataExposure SensitiveDataExposure,
+    string? OtherIndustryDescription = null,
+    IReadOnlyCollection<string>? PriorCyberIncidentTypes = null,
+    string? PriorCyberIncidentDetails = null);

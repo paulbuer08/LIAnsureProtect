@@ -51,7 +51,10 @@ public sealed class SubmissionQuotesController(
             request.BackupMaturity,
             request.HasIncidentResponsePlan,
             request.PriorCyberIncidents,
-            request.SensitiveDataExposure);
+            request.SensitiveDataExposure,
+            request.OtherIndustryDescription,
+            request.PriorCyberIncidentTypes,
+            request.PriorCyberIncidentDetails);
 
         var idempotencyKey = GetIdempotencyKey();
         if (!string.IsNullOrWhiteSpace(idempotencyKey))
@@ -224,4 +227,7 @@ public sealed record CreateQuoteRequest(
     BackupMaturity BackupMaturity,
     bool HasIncidentResponsePlan,
     int PriorCyberIncidents,
-    SensitiveDataExposure SensitiveDataExposure);
+    SensitiveDataExposure SensitiveDataExposure,
+    string? OtherIndustryDescription = null,
+    IReadOnlyCollection<string>? PriorCyberIncidentTypes = null,
+    string? PriorCyberIncidentDetails = null);

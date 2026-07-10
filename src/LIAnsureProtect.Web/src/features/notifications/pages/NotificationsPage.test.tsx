@@ -121,6 +121,37 @@ describe("NotificationsPage", () => {
     expect(markNotificationRead).toHaveBeenCalledWith("api-access-token", "n-1");
   });
 
+  it("links quote notifications to the related submission", async () => {
+    vi.mocked(listMyNotifications).mockResolvedValue({
+      notifications: [
+        {
+          notificationId: "n-1",
+          scope: "personal",
+          audience: "customer-or-broker",
+          type: "quote.ready",
+          title: "Your quote is ready",
+          subjectReferenceType: "quote",
+          subjectReferenceId: "q-1",
+          attributes: {
+            quoteId: "q-1",
+            submissionId: "submission-456",
+            status: "Quoted",
+          },
+          occurredAtUtc: "2026-06-22T09:00:00Z",
+          isRead: false,
+          readAtUtc: null,
+        },
+      ],
+      unreadCount: 1,
+    });
+
+    renderNotificationsPage();
+
+    expect(
+      await screen.findByRole("link", { name: "Open submission" }),
+    ).toHaveAttribute("href", "/submissions/submission-456");
+  });
+
   it("badges team notifications and filters them with the Team tab", async () => {
     const user = userEvent.setup();
     vi.mocked(listMyNotifications).mockResolvedValue({

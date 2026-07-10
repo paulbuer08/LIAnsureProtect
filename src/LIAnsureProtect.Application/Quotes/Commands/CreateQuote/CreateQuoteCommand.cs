@@ -14,4 +14,7 @@ public sealed record CreateQuoteCommand(
     BackupMaturity BackupMaturity,
     bool HasIncidentResponsePlan,
     int PriorCyberIncidents,
-    SensitiveDataExposure SensitiveDataExposure) : IRequest<CreateQuoteResult?>;
+    SensitiveDataExposure SensitiveDataExposure,
+    string? OtherIndustryDescription = null,
+    IReadOnlyCollection<string>? PriorCyberIncidentTypes = null,
+    string? PriorCyberIncidentDetails = null) : IRequest<CreateQuoteResult?>;

@@ -86,8 +86,16 @@ Reading (`ListMyNotificationsQueryHandler`) merges personal + team entries for t
 audiences with a combined unread count; `MarkNotificationReadCommandHandler` tries personal, then
 team (gated by the caller's audiences — a customer can never mark a team entry).
 
-Frontend: `features/notifications` — `useNotifications` polls the list, the page shows
-**All / Personal / Team** tabs and a Team badge; mark-read invalidates the query.
+Frontend: `features/notifications` — `useNotifications` polls the list, the page currently shows
+**All / Personal / Team** tabs and a Team badge; mark-read invalidates the query. API reads and
+mark-read remain role/audience-gated, so a Customer cannot retrieve or mutate a team entry even
+though the current page renders an empty Team filter. The approved policy-journey follow-up removes
+all filters for personal-only Customer/Broker users and keeps filters only for roles with team
+notification access.
+
+Notification attributes carry related business ids. Quote notifications now link to the related
+Submission. Policy-bound notifications also temporarily use that Submission link; once the dedicated
+policy read model/page lands, subject type + `policyId` will route them to **View policy** instead.
 
 ## The Worker's second job: idempotency cleanup
 

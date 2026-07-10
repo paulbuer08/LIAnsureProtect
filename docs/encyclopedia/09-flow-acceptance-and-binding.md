@@ -63,6 +63,22 @@ Same reliability recipe as quoting: the provider interaction is **audited per at
 (`policy_binding_attempts`), the domain event commits with the row, and notifications ride the
 outbox — the owner gets "your policy is bound", the operations team sees it in their inbox.
 
+The Customer/Broker submission detail page now drives this complete sequence: generate an eligible
+quote, acknowledge subjectivities and accept it, then bind it. The latest Quote is returned with the
+Submission detail so refreshes do not expose Generate again. The create-quote handler also returns
+the existing owned Quote when one is already present, preventing duplicate QuoteGenerated events and
+duplicate "Your quote is ready" notifications under retries or repeated clicks.
+
+The records keep independent meanings:
+
+- Submission status records the application (`Submitted` remains historically correct).
+- Quote status records the offer (`Quoted`, `Accepted`, then `Bound`).
+- Policy status/coverage dates record the contract.
+
+The current notification action still opens the source Submission for both quote and policy events.
+The approved policy-journey slice adds owner-scoped `/policies` pages and changes policy events to
+**View policy** while showing all three lifecycle states on Submission detail.
+
 ## What can go wrong
 
 | Situation | Guard | Response |

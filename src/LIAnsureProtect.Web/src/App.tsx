@@ -1,8 +1,10 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Route, Routes } from "react-router";
 
+import { AppShell } from "./components/AppShell";
 import { RequireAuth } from "./components/RequireAuth";
 import { RequireRole } from "./components/RequireRole";
+import { roleGroups } from "./lib/roleAccess";
 import "./App.css";
 
 const HomePage = lazy(() =>
@@ -93,6 +95,26 @@ function RouteLoadingFallback() {
   );
 }
 
+function ProtectedRoute({
+  allowedRoles,
+  children,
+}: {
+  allowedRoles?: readonly string[];
+  children: ReactNode;
+}) {
+  const page = <AppShell>{children}</AppShell>;
+
+  return (
+    <RequireAuth>
+      {allowedRoles ? (
+        <RequireRole allowedRoles={[...allowedRoles]}>{page}</RequireRole>
+      ) : (
+        page
+      )}
+    </RequireAuth>
+  );
+}
+
 function App() {
   return (
     <Suspense fallback={<RouteLoadingFallback />}>
@@ -102,97 +124,89 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <RequireAuth>
+            <ProtectedRoute>
               <DashboardPage />
-            </RequireAuth>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/submissions/new"
           element={
-            <RequireAuth>
+            <ProtectedRoute allowedRoles={roleGroups.customerWork}>
               <NewSubmissionPage />
-            </RequireAuth>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/submissions"
           element={
-            <RequireAuth>
+            <ProtectedRoute allowedRoles={roleGroups.customerWork}>
               <SubmissionsPage />
-            </RequireAuth>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/submissions/:submissionId"
           element={
-            <RequireAuth>
+            <ProtectedRoute allowedRoles={roleGroups.customerWork}>
               <SubmissionDetailPage />
-            </RequireAuth>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/underwriting/quote-referrals"
           element={
-            <RequireAuth>
+            <ProtectedRoute allowedRoles={roleGroups.underwritingWork}>
               <UnderwritingQuoteReferralsPage />
-            </RequireAuth>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/evidence-requests"
           element={
-            <RequireAuth>
+            <ProtectedRoute allowedRoles={roleGroups.customerWork}>
               <EvidenceRequestsPage />
-            </RequireAuth>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/claims/adjudication"
           element={
-            <RequireAuth>
-              <RequireRole allowedRoles={["ClaimsAdjuster", "Admin"]}>
-                <ClaimsAdjudicationPage />
-              </RequireRole>
-            </RequireAuth>
+            <ProtectedRoute allowedRoles={roleGroups.claimsAdjudication}>
+              <ClaimsAdjudicationPage />
+            </ProtectedRoute>
           }
         />
         <Route
           path="/claims/new"
           element={
-            <RequireAuth>
-              <RequireRole allowedRoles={["Customer", "Broker", "Admin"]}>
-                <NewClaimPage />
-              </RequireRole>
-            </RequireAuth>
+            <ProtectedRoute allowedRoles={roleGroups.customerWork}>
+              <NewClaimPage />
+            </ProtectedRoute>
           }
         />
         <Route
           path="/claims"
           element={
-            <RequireAuth>
-              <RequireRole allowedRoles={["Customer", "Broker", "Admin"]}>
-                <ClaimsPage />
-              </RequireRole>
-            </RequireAuth>
+            <ProtectedRoute allowedRoles={roleGroups.customerWork}>
+              <ClaimsPage />
+            </ProtectedRoute>
           }
         />
         <Route
           path="/claims/:claimId"
           element={
-            <RequireAuth>
-              <RequireRole allowedRoles={["Customer", "Broker", "Admin"]}>
-                <ClaimDetailPage />
-              </RequireRole>
-            </RequireAuth>
+            <ProtectedRoute allowedRoles={roleGroups.customerWork}>
+              <ClaimDetailPage />
+            </ProtectedRoute>
           }
         />
         <Route
           path="/notifications"
           element={
-            <RequireAuth>
+            <ProtectedRoute allowedRoles={roleGroups.notifications}>
               <NotificationsPage />
-            </RequireAuth>
+            </ProtectedRoute>
           }
         />
       </Routes>

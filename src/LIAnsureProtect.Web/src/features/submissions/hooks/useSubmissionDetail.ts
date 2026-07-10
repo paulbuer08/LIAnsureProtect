@@ -3,12 +3,16 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getSubmissionDetail } from "../api/getSubmissionDetail";
 
+export function submissionDetailQueryKey(submissionId: string | undefined) {
+  return ["submissions", submissionId] as const;
+}
+
 export function useSubmissionDetail(submissionId: string | undefined) {
   const { getAccessTokenSilently } = useAuth0();
 
   return useQuery({
     enabled: Boolean(submissionId),
-    queryKey: ["submissions", submissionId],
+    queryKey: submissionDetailQueryKey(submissionId),
     queryFn: async () => {
       if (!submissionId) {
         throw new Error("Submission ID is required.");

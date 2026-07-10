@@ -71,6 +71,37 @@ public sealed class SubmissionTests
     }
 
     [Fact]
+    public void UpdateDraftDetails_changes_editable_intake_fields()
+    {
+        var submission = CreateDraftSubmission();
+
+        submission.UpdateDraftDetails(
+            "Updated Applicant",
+            "updated@example.com",
+            "Updated Company");
+
+        Assert.Equal("Updated Applicant", submission.ApplicantName);
+        Assert.Equal("updated@example.com", submission.ApplicantEmail);
+        Assert.Equal("Updated Company", submission.CompanyName);
+        Assert.Equal(SubmissionStatus.Draft, submission.Status);
+    }
+
+    [Fact]
+    public void UpdateDraftDetails_rejects_non_draft_submission()
+    {
+        var submission = CreateDraftSubmission();
+        submission.Submit();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            submission.UpdateDraftDetails(
+                "Updated Applicant",
+                "updated@example.com",
+                "Updated Company"));
+
+        Assert.Equal("Only draft submissions can be edited.", exception.Message);
+    }
+
+    [Fact]
     public void Withdraw_changes_submission_to_withdrawn()
     {
         var submission = CreateDraftSubmission();

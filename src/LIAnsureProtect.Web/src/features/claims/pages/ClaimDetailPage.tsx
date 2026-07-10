@@ -2,16 +2,13 @@ import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link, useParams } from "react-router";
 
+import { formatCurrency } from "../../../lib/currency";
 import { downloadOwnerClaimDocument } from "../api/claimsApi";
 import { useClaimDetail, useClaimantActions } from "../hooks/useClaims";
 import { claimDocumentKinds } from "../types";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
-}
-
-function formatMoney(amount: number) {
-  return amount.toLocaleString("en-US");
 }
 
 export function ClaimDetailPage() {
@@ -92,8 +89,8 @@ export function ClaimDetailPage() {
                 Incident {new Date(claim.incidentAtUtc).toLocaleDateString()} ·
                 Discovered{" "}
                 {new Date(claim.discoveredAtUtc).toLocaleDateString()} · Policy
-                limit {formatMoney(claim.policyLimitAtFiling)} · Retention{" "}
-                {formatMoney(claim.policyRetentionAtFiling)}
+                limit {formatCurrency(claim.policyLimitAtFiling)} · Retention{" "}
+                {formatCurrency(claim.policyRetentionAtFiling)}
               </p>
             </section>
 
@@ -103,8 +100,8 @@ export function ClaimDetailPage() {
                 <h2 className="text-lg font-semibold text-white">Decision</h2>
                 {claim.settlementAmount !== null && (
                   <p className="mt-2 text-slate-200">
-                    Settlement of {formatMoney(claim.settlementAmount)} — paid{" "}
-                    {formatMoney(claim.paidAmount)}.
+                    Settlement of {formatCurrency(claim.settlementAmount)} —
+                    paid {formatCurrency(claim.paidAmount)}.
                   </p>
                 )}
                 {claim.denialReason !== null && (
@@ -131,7 +128,7 @@ export function ClaimDetailPage() {
                 <p className="mt-2 text-slate-300">
                   {claim.claimedAmount === null
                     ? "You have not declared a claimed amount yet."
-                    : `Currently declared: ${formatMoney(claim.claimedAmount)}.`}
+                    : `Currently declared: ${formatCurrency(claim.claimedAmount)}.`}
                 </p>
                 <form
                   className="mt-4 flex flex-col gap-3 sm:flex-row"

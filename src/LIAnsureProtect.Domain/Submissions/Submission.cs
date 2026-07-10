@@ -28,11 +28,11 @@ public sealed class Submission : IHasDomainEvents
 
     public string OwnerUserId { get; }
 
-    public string ApplicantName { get; }
+    public string ApplicantName { get; private set; }
 
-    public string ApplicantEmail { get; }
+    public string ApplicantEmail { get; private set; }
 
-    public string CompanyName { get; }
+    public string CompanyName { get; private set; }
 
     public SubmissionStatus Status { get; private set; }
 
@@ -71,6 +71,19 @@ public sealed class Submission : IHasDomainEvents
             Id,
             OwnerUserId,
             DateTime.UtcNow));
+    }
+
+    public void UpdateDraftDetails(
+        string applicantName,
+        string applicantEmail,
+        string companyName)
+    {
+        if (Status != SubmissionStatus.Draft)
+            throw new InvalidOperationException("Only draft submissions can be edited.");
+
+        ApplicantName = applicantName;
+        ApplicantEmail = applicantEmail;
+        CompanyName = companyName;
     }
 
     public void ClearDomainEvents()

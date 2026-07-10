@@ -64,15 +64,46 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
             })
             .SingleOrDefaultAsync(cancellationToken);
 
-        return submission is null
-            ? null
-            : new SubmissionDetailResult(
+        if (submission is null)
+            return null;
+
+        var latestQuote = await dbContext.Quotes
+            .AsNoTracking()
+            .Where(quote => quote.SubmissionId == submission.Id && quote.OwnerUserId == ownerUserId)
+            .OrderByDescending(quote => quote.CreatedAtUtc)
+            .Select(quote => new
+            {
+                quote.Id,
+                quote.Premium,
+                quote.RequestedLimit,
+                quote.Retention,
+                quote.RiskTier,
+                quote.Status,
+                quote.Subjectivities,
+                quote.ReferralReasons,
+                quote.ExpiresAtUtc
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return new SubmissionDetailResult(
                 submission.Id,
                 submission.ApplicantName,
                 submission.ApplicantEmail,
                 submission.CompanyName,
                 submission.Status.ToString(),
-                submission.CreatedAtUtc);
+                submission.CreatedAtUtc,
+                latestQuote is null
+                    ? null
+                    : new SubmissionQuoteSummaryResult(
+                        latestQuote.Id,
+                        latestQuote.Premium,
+                        latestQuote.RequestedLimit,
+                        latestQuote.Retention,
+                        latestQuote.RiskTier.ToString(),
+                        latestQuote.Status.ToString(),
+                        SplitLines(latestQuote.Subjectivities),
+                        SplitLines(latestQuote.ReferralReasons),
+                        latestQuote.ExpiresAtUtc));
     }
 
     public Task<Submission?> GetOwnedForUpdateAsync(
@@ -84,5 +115,12 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
             .Where(submission => submission.Id == submissionId)
             .Where(submission => submission.OwnerUserId == ownerUserId)
             .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    private static List<string> SplitLines(string value)
+    {
+        return value
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
     }
 }
