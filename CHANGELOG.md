@@ -38,6 +38,7 @@ The format follows simple milestone-based entries.
 
 ### Changed
 
+- Draft-submission UX follow-up: exact matching owned Drafts are reused by default; creating another legitimate Draft now requires the explicit `Create another draft anyway` choice. The creation form uses a stable idempotency key, disables while pending, and navigates to the resulting Draft. Submission/dashboard wording now says `Create draft submission`; draft fields edit in place inside the Submission record; deletion uses an accessible application modal headed `Delete this draft?` instead of the browser confirmation dialog. A dedicated configurable per-caller draft-create rate limit provides an API abuse backstop.
 - Personal-only Customer/Broker notification pages now render no filter tabs; team-capable roles retain All/Personal/Team. Notification actions now use subject type to select View policy, Open submission, or Open evidence request.
 - Submission detail now displays separate Submission, Latest quote, and Related policy states plus a readable derived journey stage without rewriting aggregate meanings or offering quote generation after a Quote exists.
 

@@ -137,7 +137,7 @@ This is the richest flow; it exercises the whole Underwriting module.
 | Behavior | How to see it |
 |---|---|
 | **Idempotency** | Repeat a create-submission POST with the same `Idempotency-Key` header (PowerShell) → same response, no duplicate row; reuse the key with a *different* body → **409** |
-| **Rate limiting (M44)** | Flood any endpoint (a loop of ~50+ rapid anonymous POSTs with tightened config, or check `SecurityAndRateLimitingEndpointTests`) → **429** with `Retry-After` |
+| **Rate limiting (M44)** | Flood any endpoint (a loop of ~50+ rapid anonymous POSTs with tightened config, or check `SecurityAndRateLimitingEndpointTests`) → **429** with `Retry-After`. Draft creation also has its own lower configurable per-caller limit. |
 | **Security headers (M44)** | Browser dev tools → Network → any API response → `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, CSP, etc. |
 | **Correlation** | Any API response carries `X-Correlation-ID`; the API logs the same id on every line for that request |
 | **Outbox at work** | Stop the Worker, accept a quote → no notification appears; start the Worker → it arrives within ~5s. Nothing was lost — that's the transactional outbox |
@@ -156,10 +156,15 @@ This is the richest flow; it exercises the whole Underwriting module.
    latest Quote `Bound`, and the related Policy coverage state. No Generate quote control appears.
 5. If the Policy appears in the Claims policy-options endpoint, ✅ **File claim** is visible; otherwise
    it is omitted. There is no Policy delete control.
-6. Create a second draft for the same company → ✅ it is created and a possible-duplicate warning is
-   shown. Multiple legitimate applications remain allowed.
-7. On a Draft, choose **Delete draft**, reject the confirmation once (nothing changes), then confirm
-   → ✅ the draft disappears. On a Submitted application before acceptance, choose **Withdraw
+6. Enter the exact applicant name, email, and company of an existing Draft and choose **Create draft
+   submission** → ✅ no row is inserted; **Continue existing draft** is primary. Choose **Create
+   another draft anyway** → ✅ a separate Draft is created because legitimate multiple applications
+   remain allowed. The successful create navigates to Draft detail.
+7. On a Draft, choose **Edit draft details** → ✅ the existing Applicant, Email, and Company values
+   become inputs in their original Submission-record positions; Save and Cancel remain in that
+   section. Choose **Delete draft**, cancel the styled **Delete this draft?** modal once (nothing
+   changes), then confirm → ✅ the draft disappears. On a Submitted application before acceptance,
+   choose **Withdraw
    submission**, then repeat the same API request with the same idempotency key → ✅ status remains
    Withdrawn and only one withdrawal outbox event exists.
 8. Try withdrawal after accepting/binding the Quote → ✅ `409`; the Submission, Quote, and Policy
