@@ -1279,7 +1279,7 @@ public sealed class SubmissionEndpointTests
     }
 
     [Fact]
-    public async Task Create_Submission_Warns_About_Possible_Duplicate_But_Allows_It()
+    public async Task Create_Submission_Returns_Exact_Matching_Draft_Without_Creating_Another()
     {
         var existing = Submission.CreateDraft(
             "Jane Applicant",
@@ -1308,8 +1308,52 @@ public sealed class SubmissionEndpointTests
         var payload = await response.Content.ReadFromJsonAsync<JsonElement>(
             TestContext.Current.CancellationToken);
 
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(payload.GetProperty("possibleDuplicate").GetBoolean());
+        Assert.True(payload.GetProperty("existingDraft").GetBoolean());
+        Assert.Equal(existing.Id, payload.GetProperty("submissionId").GetGuid());
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        Assert.Equal(1, await verifyDbContext.Submissions.CountAsync(
+            submission => submission.OwnerUserId == "test-user-1",
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Create_Submission_Allows_An_Explicit_Second_Legitimate_Draft()
+    {
+        var existing = Submission.CreateDraft(
+            "Jane Applicant",
+            "jane@example.com",
+            "Example Company",
+            "test-user-1",
+            DateTime.UtcNow);
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddAsync(existing, TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var request = CreateAuthenticatedPostRequest(
+            "Customer",
+            SubmissionsEndpointPath,
+            new
+            {
+                applicantName = "Jane Applicant",
+                applicantEmail = "jane@example.com",
+                companyName = "Example Company",
+                createAnotherDraft = true
+            },
+            "test-user-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.True(payload.GetProperty("possibleDuplicate").GetBoolean());
+        Assert.False(payload.GetProperty("existingDraft").GetBoolean());
+        Assert.NotEqual(existing.Id, payload.GetProperty("submissionId").GetGuid());
         using var verifyScope = webApplicationFactory.Services.CreateScope();
         var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
         Assert.Equal(2, await verifyDbContext.Submissions.CountAsync(

@@ -44,7 +44,7 @@ const dashboardSections: DashboardSection[] = [
     allowedRoles: roleGroups.customerWork,
     actions: [
       { label: "View submissions", to: "/submissions", variant: "primary" },
-      { label: "Create submission", to: "/submissions/new" },
+      { label: "Create draft submission", to: "/submissions/new" },
     ],
     metric: "Drafts and quotes",
     status: "Owner-scoped",

@@ -16,6 +16,26 @@ public sealed class CreateSubmissionCommandHandler(
         CancellationToken cancellationToken)
     {
         var ownerUserId = GetRequiredCurrentUserId();
+
+        if (!request.CreateAnotherDraft)
+        {
+            var matchingDraftId = await submissionRepository.FindMatchingDraftIdAsync(
+                ownerUserId,
+                request.ApplicantName,
+                request.ApplicantEmail,
+                request.CompanyName,
+                cancellationToken);
+
+            if (matchingDraftId.HasValue)
+            {
+                return new CreateSubmissionResult(
+                    matchingDraftId.Value,
+                    nameof(SubmissionStatus.Draft),
+                    PossibleDuplicate: true,
+                    ExistingDraft: true);
+            }
+        }
+
         var possibleDuplicate = await submissionRepository.HasOpenSubmissionForCompanyAsync(
             ownerUserId,
             request.CompanyName,
@@ -33,7 +53,8 @@ public sealed class CreateSubmissionCommandHandler(
         return new CreateSubmissionResult(
             submission.Id,
             submission.Status.ToString(),
-            possibleDuplicate);
+            possibleDuplicate,
+            ExistingDraft: false);
     }
 
     private string GetRequiredCurrentUserId()

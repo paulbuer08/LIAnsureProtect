@@ -82,7 +82,7 @@ describe("DashboardPage", () => {
     );
 
     expect(
-      screen.getByRole("link", { name: "Create submission" }),
+      screen.getByRole("link", { name: "Create draft submission" }),
     ).toHaveAttribute("href", "/submissions/new");
     expect(
       screen.getByRole("link", { name: "View submissions" }),
@@ -117,7 +117,7 @@ describe("DashboardPage", () => {
     );
 
     expect(
-      screen.getByRole("link", { name: "Create submission" }),
+      screen.getByRole("link", { name: "Create draft submission" }),
     ).toHaveAttribute("href", "/submissions/new");
     expect(
       screen.getByRole("link", { name: "View notifications" }),
@@ -153,7 +153,7 @@ describe("DashboardPage", () => {
       screen.getByLabelText("2 unread notifications"),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "Create submission" }),
+      screen.queryByRole("link", { name: "Create draft submission" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "File a claim" }),

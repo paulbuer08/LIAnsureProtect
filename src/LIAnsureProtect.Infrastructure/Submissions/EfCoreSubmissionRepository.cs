@@ -178,6 +178,29 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
             cancellationToken);
     }
 
+    public Task<Guid?> FindMatchingDraftIdAsync(
+        string ownerUserId,
+        string applicantName,
+        string applicantEmail,
+        string companyName,
+        CancellationToken cancellationToken)
+    {
+        var normalizedApplicantName = applicantName.Trim();
+        var normalizedApplicantEmail = applicantEmail.Trim();
+        var normalizedCompanyName = companyName.Trim();
+
+        return dbContext.Submissions
+            .AsNoTracking()
+            .Where(submission => submission.OwnerUserId == ownerUserId)
+            .Where(submission => submission.Status == SubmissionStatus.Draft)
+            .Where(submission => submission.ApplicantName == normalizedApplicantName)
+            .Where(submission => submission.ApplicantEmail == normalizedApplicantEmail)
+            .Where(submission => submission.CompanyName == normalizedCompanyName)
+            .OrderByDescending(submission => submission.CreatedAtUtc)
+            .Select(submission => (Guid?)submission.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     private static List<string> SplitLines(string value)
     {
         return value

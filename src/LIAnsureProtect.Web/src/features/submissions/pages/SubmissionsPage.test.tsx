@@ -63,7 +63,7 @@ describe("SubmissionsPage", () => {
       await screen.findByText("No submissions yet."),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Create submission" }),
+      screen.getByRole("link", { name: "Create draft submission" }),
     ).toHaveAttribute("href", "/submissions/new");
   });
 

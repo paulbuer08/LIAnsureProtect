@@ -1,8 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 
+import { ConfirmationDialog } from "../../../components/ConfirmationDialog";
+import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
 import { formatCurrency } from "../../../lib/currency";
 import { useAcceptQuote } from "../hooks/useAcceptQuote";
 import { useBindPolicy } from "../hooks/useBindPolicy";
@@ -97,7 +99,24 @@ function HelpButton({ id, label }: { id: keyof typeof helpText; label: string })
 export function SubmissionDetailPage() {
   const { submissionId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isEditing, setIsEditing] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
+  const [isSubmittedNoticeVisible, setIsSubmittedNoticeVisible] = useState(false);
+  const [isQuoteAcceptedNoticeVisible, setIsQuoteAcceptedNoticeVisible] =
+    useState(false);
+  const [isWithdrawnNoticeVisible, setIsWithdrawnNoticeVisible] = useState(false);
+  const [draftCreatedNotice, setDraftCreatedNotice] = useState(() => {
+    const routeState = location.state as {
+      draftCreated?: boolean;
+      possibleDuplicate?: boolean;
+    } | null;
+
+    return routeState?.draftCreated
+      ? { possibleDuplicate: Boolean(routeState.possibleDuplicate) }
+      : null;
+  });
   const [industryClass, setIndustryClass] =
     useState<CyberIndustryClass>("ProfessionalServices");
   const [usesOtherIndustry, setUsesOtherIndustry] = useState(false);
@@ -133,6 +152,20 @@ export function SubmissionDetailPage() {
   const bindPolicyMutation = useBindPolicy();
   const deleteDraftMutation = useDeleteDraftSubmission();
   const withdrawMutation = useWithdrawSubmission();
+
+  useEffect(() => {
+    if ((location.state as { draftCreated?: boolean } | null)?.draftCreated) {
+      void navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
+
+  function dismissDraftCreatedNotice() {
+    setDraftCreatedNotice(null);
+  }
+
+  function dismissDraftUpdatedNotice() {
+    updateSubmissionMutation.reset();
+  }
   const submission = submissionQuery.data;
   const updatedSubmission =
     submission &&
@@ -274,7 +307,9 @@ export function SubmissionDetailPage() {
       return;
     }
 
-    submitSubmissionMutation.mutate(displayedSubmission.submissionId);
+    submitSubmissionMutation.mutate(displayedSubmission.submissionId, {
+      onSuccess: () => setIsSubmittedNoticeVisible(true),
+    });
   }
 
   function handleGenerateQuote() {
@@ -321,15 +356,18 @@ export function SubmissionDetailPage() {
       return;
     }
 
-    acceptQuoteMutation.mutate({
-      quoteId: activeQuoteId,
-      request: {
-        acceptedByName:
-          acceptedByName.trim() || displayedSubmission?.applicantName || "",
-        acceptedByTitle,
-        subjectivitiesAcknowledged,
+    acceptQuoteMutation.mutate(
+      {
+        quoteId: activeQuoteId,
+        request: {
+          acceptedByName:
+            acceptedByName.trim() || displayedSubmission?.applicantName || "",
+          acceptedByTitle,
+          subjectivitiesAcknowledged,
+        },
       },
-    });
+      { onSuccess: () => setIsQuoteAcceptedNoticeVisible(true) },
+    );
   }
 
   function handleBindPolicy() {
@@ -345,15 +383,34 @@ export function SubmissionDetailPage() {
     });
   }
 
-  async function handleDeleteDraft() {
-    if (!displayedSubmission || !window.confirm("Delete this unsubmitted draft permanently?")) return;
-    await deleteDraftMutation.mutateAsync(displayedSubmission.submissionId);
-    await navigate("/submissions");
+  function handleDeleteDraft() {
+    setIsDeleteDialogOpen(true);
+  }
+
+  async function confirmDeleteDraft() {
+    if (!displayedSubmission) return;
+    try {
+      await deleteDraftMutation.mutateAsync(displayedSubmission.submissionId);
+      setIsDeleteDialogOpen(false);
+      await navigate("/submissions");
+    } catch {
+      setIsDeleteDialogOpen(false);
+    }
   }
 
   function handleWithdrawSubmission() {
-    if (!displayedSubmission || !window.confirm("Withdraw this submitted application? Its audit history will be retained.")) return;
-    withdrawMutation.mutate(displayedSubmission.submissionId);
+    setIsWithdrawDialogOpen(true);
+  }
+
+  async function confirmWithdrawSubmission() {
+    if (!displayedSubmission) return;
+    try {
+      await withdrawMutation.mutateAsync(displayedSubmission.submissionId);
+      setIsWithdrawDialogOpen(false);
+      setIsWithdrawnNoticeVisible(true);
+    } catch {
+      setIsWithdrawDialogOpen(false);
+    }
   }
 
   return (
@@ -396,165 +453,117 @@ export function SubmissionDetailPage() {
                 <Link to={`/policies/${relatedPolicy.policyId}`} className="inline-flex rounded-md bg-emerald-300 px-4 py-2 font-semibold text-slate-950">View policy</Link>
               )}
             </div>
-            <h2 className="mb-4 text-xl font-semibold text-white">Submission record</h2>
-            <dl className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <dt className="font-semibold text-slate-400">Submission ID</dt>
-                <dd className="mt-1 break-all text-white">
-                  {displayedSubmission.submissionId}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-400">Status</dt>
-                <dd className="mt-1 text-white">{displayedSubmission.status}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-400">Applicant</dt>
-                <dd className="mt-1 text-white">
-                  {displayedSubmission.applicantName}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-400">
-                  Applicant email
-                </dt>
-                <dd className="mt-1 text-white">
-                  {displayedSubmission.applicantEmail}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-400">Company</dt>
-                <dd className="mt-1 text-white">
-                  {displayedSubmission.companyName}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-400">Created UTC</dt>
-                <dd className="mt-1 text-white">
-                  <time dateTime={displayedSubmission.createdAtUtc}>
-                    {displayedSubmission.createdAtUtc}
-                  </time>
-                </dd>
-              </div>
-            </dl>
-
-            {canSubmit && !isEditing && (
-              <div className="mt-6 border-t border-slate-800 pt-5">
-                <h2 className="text-base font-semibold text-white">
-                  Review before submission
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                  This submission is still a draft. Update the intake details
-                  before submitting if anything is incorrect.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleStartEditing}
-                  className="mt-4 inline-flex min-h-10 items-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-slate-500"
-                >
-                  Edit draft details
-                </button>
-              </div>
+            {draftCreatedNotice && (
+              <TransientStatusMessage
+                className="mb-6"
+                onDismiss={dismissDraftCreatedNotice}
+              >
+                <p className="font-semibold text-white">Draft submission created.</p>
+                {draftCreatedNotice.possibleDuplicate && (
+                  <p className="mt-2 leading-6">
+                    Another open application exists for this company. This draft
+                    was created because its details were not an exact draft match.
+                  </p>
+                )}
+              </TransientStatusMessage>
             )}
 
-            {canSubmit && isEditing && (
-              <form
-                className="mt-6 border-t border-slate-800 pt-5"
-                onSubmit={handleSubmit(handleUpdateSubmission)}
-                noValidate
-              >
-                <h2 className="text-base font-semibold text-white">
-                  Edit draft details
-                </h2>
-                <div className="mt-5">
-                  <label
-                    className="text-sm font-semibold text-slate-100"
-                    htmlFor="editApplicantName"
-                  >
-                    Applicant name
-                  </label>
-                  <input
-                    aria-invalid={errors.applicantName ? "true" : "false"}
-                    className={fieldClassName}
-                    id="editApplicantName"
-                    type="text"
-                    {...register("applicantName")}
-                  />
-                  {errors.applicantName && (
-                    <p className="mt-2 text-sm text-red-300">
-                      {errors.applicantName.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-5">
-                  <label
-                    className="text-sm font-semibold text-slate-100"
-                    htmlFor="editApplicantEmail"
-                  >
-                    Applicant email
-                  </label>
-                  <input
-                    aria-invalid={errors.applicantEmail ? "true" : "false"}
-                    className={fieldClassName}
-                    id="editApplicantEmail"
-                    type="email"
-                    {...register("applicantEmail")}
-                  />
-                  {errors.applicantEmail && (
-                    <p className="mt-2 text-sm text-red-300">
-                      {errors.applicantEmail.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-5">
-                  <label
-                    className="text-sm font-semibold text-slate-100"
-                    htmlFor="editCompanyName"
-                  >
-                    Company name
-                  </label>
-                  <input
-                    aria-invalid={errors.companyName ? "true" : "false"}
-                    className={fieldClassName}
-                    id="editCompanyName"
-                    type="text"
-                    {...register("companyName")}
-                  />
-                  {errors.companyName && (
-                    <p className="mt-2 text-sm text-red-300">
-                      {errors.companyName.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <button
-                    type="submit"
-                    disabled={updateSubmissionMutation.isPending}
-                    className="inline-flex min-h-10 items-center rounded-md bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-                  >
-                    {updateSubmissionMutation.isPending
-                      ? "Saving..."
-                      : "Save changes"}
-                  </button>
+            <form onSubmit={handleSubmit(handleUpdateSubmission)} noValidate>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-xl font-semibold text-white">Submission record</h2>
+                {canSubmit && !isEditing && (
                   <button
                     type="button"
-                    onClick={handleCancelEditing}
-                    disabled={updateSubmissionMutation.isPending}
-                    className="inline-flex min-h-10 items-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-slate-500 disabled:cursor-not-allowed disabled:text-slate-500"
+                    onClick={handleStartEditing}
+                    className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-slate-500"
                   >
-                    Cancel
+                    Edit draft details
                   </button>
+                )}
+              </div>
+
+              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                <div>
+                  <p className="font-semibold text-slate-400">Submission ID</p>
+                  <p className="mt-1 break-all text-white">{displayedSubmission.submissionId}</p>
                 </div>
-              </form>
-            )}
+                <div>
+                  <p className="font-semibold text-slate-400">Status</p>
+                  <p className="mt-1 text-white">{displayedSubmission.status}</p>
+                </div>
+                <div>
+                  {isEditing ? (
+                    <>
+                      <label className="font-semibold text-slate-300" htmlFor="editApplicantName">Applicant name</label>
+                      <input autoFocus aria-invalid={errors.applicantName ? "true" : "false"} className={fieldClassName} id="editApplicantName" type="text" {...register("applicantName")} />
+                      {errors.applicantName && <p className="mt-2 text-sm text-red-300">{errors.applicantName.message}</p>}
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-semibold text-slate-400">Applicant</p>
+                      <p className="mt-1 text-white">{displayedSubmission.applicantName}</p>
+                    </>
+                  )}
+                </div>
+                <div>
+                  {isEditing ? (
+                    <>
+                      <label className="font-semibold text-slate-300" htmlFor="editApplicantEmail">Applicant email</label>
+                      <input aria-invalid={errors.applicantEmail ? "true" : "false"} className={fieldClassName} id="editApplicantEmail" type="email" {...register("applicantEmail")} />
+                      {errors.applicantEmail && <p className="mt-2 text-sm text-red-300">{errors.applicantEmail.message}</p>}
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-semibold text-slate-400">Applicant email</p>
+                      <p className="mt-1 text-white">{displayedSubmission.applicantEmail}</p>
+                    </>
+                  )}
+                </div>
+                <div>
+                  {isEditing ? (
+                    <>
+                      <label className="font-semibold text-slate-300" htmlFor="editCompanyName">Company name</label>
+                      <input aria-invalid={errors.companyName ? "true" : "false"} className={fieldClassName} id="editCompanyName" type="text" {...register("companyName")} />
+                      {errors.companyName && <p className="mt-2 text-sm text-red-300">{errors.companyName.message}</p>}
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-semibold text-slate-400">Company</p>
+                      <p className="mt-1 text-white">{displayedSubmission.companyName}</p>
+                    </>
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-400">Created UTC</p>
+                  <p className="mt-1 text-white"><time dateTime={displayedSubmission.createdAtUtc}>{displayedSubmission.createdAtUtc}</time></p>
+                </div>
+              </div>
+
+              {canSubmit && (
+                <div className="mt-6 border-t border-slate-800 pt-5">
+                  {isEditing ? (
+                    <div className="flex flex-wrap gap-3">
+                      <button type="submit" disabled={updateSubmissionMutation.isPending} className="inline-flex min-h-10 items-center rounded-md bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300">
+                        {updateSubmissionMutation.isPending ? "Saving..." : "Save changes"}
+                      </button>
+                      <button type="button" onClick={handleCancelEditing} disabled={updateSubmissionMutation.isPending} className="inline-flex min-h-10 items-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-slate-500 disabled:cursor-not-allowed disabled:text-slate-500">Cancel</button>
+                    </div>
+                  ) : (
+                    <p className="max-w-2xl leading-6 text-slate-300">
+                      Review these details before submitting. Draft fields remain editable until the application is submitted.
+                    </p>
+                  )}
+                </div>
+              )}
+            </form>
 
             {updateSubmissionMutation.isSuccess && !isEditing && (
-              <p className="mt-5 rounded-md border border-emerald-500/40 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+              <TransientStatusMessage
+                className="mt-5 text-sm"
+                onDismiss={dismissDraftUpdatedNotice}
+              >
                 Draft details updated.
-              </p>
+              </TransientStatusMessage>
             )}
 
             {updateSubmissionMutation.isError && (
@@ -585,10 +594,13 @@ export function SubmissionDetailPage() {
               </div>
             )}
 
-            {submitSubmissionMutation.isSuccess && (
-              <p className="mt-5 rounded-md border border-emerald-500/40 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+            {isSubmittedNoticeVisible && (
+              <TransientStatusMessage
+                className="mt-5 text-sm"
+                onDismiss={() => setIsSubmittedNoticeVisible(false)}
+              >
                 Submission submitted successfully.
-              </p>
+              </TransientStatusMessage>
             )}
 
             {submitSubmissionMutation.isError && (
@@ -1043,10 +1055,13 @@ export function SubmissionDetailPage() {
               </p>
             )}
 
-            {acceptQuoteMutation.isSuccess && (
-              <p className="mt-5 rounded-md border border-emerald-500/40 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+            {isQuoteAcceptedNoticeVisible && (
+              <TransientStatusMessage
+                className="mt-5 text-sm"
+                onDismiss={() => setIsQuoteAcceptedNoticeVisible(false)}
+              >
                 Quote accepted successfully.
-              </p>
+              </TransientStatusMessage>
             )}
 
             {canBindPolicy && (
@@ -1124,7 +1139,7 @@ export function SubmissionDetailPage() {
 
             {canSubmit && !isEditing && (
               <div className="mt-6 border-t border-slate-800 pt-5">
-                <h2 className="text-base font-semibold text-white">Delete unsubmitted draft</h2>
+                <h2 className="text-base font-semibold text-white">Delete this draft</h2>
                 <p className="mt-2 text-slate-300">Only drafts can be deleted. Once submitted, the application becomes retained audit history.</p>
                 <button type="button" onClick={handleDeleteDraft} disabled={deleteDraftMutation.isPending} className="mt-4 rounded-md border border-red-500/60 px-4 py-2 font-semibold text-red-200">Delete draft</button>
               </div>
@@ -1138,7 +1153,15 @@ export function SubmissionDetailPage() {
               </div>
             )}
 
-            {withdrawMutation.isSuccess && <p className="mt-5 rounded-md border border-amber-500/40 bg-amber-950/30 p-3 text-amber-100">Submission withdrawn. The record remains available as audit history.</p>}
+            {isWithdrawnNoticeVisible && (
+              <TransientStatusMessage
+                className="mt-5"
+                onDismiss={() => setIsWithdrawnNoticeVisible(false)}
+                tone="warning"
+              >
+                Submission withdrawn. The record remains available as audit history.
+              </TransientStatusMessage>
+            )}
             {(withdrawMutation.isError || deleteDraftMutation.isError) && <p className="mt-5 rounded-md border border-red-900 bg-red-950 p-3 text-red-200">{getErrorMessage(withdrawMutation.error ?? deleteDraftMutation.error)}</p>}
 
             {relatedPolicy && (
@@ -1157,6 +1180,39 @@ export function SubmissionDetailPage() {
           </section>
         )}
       </section>
+      {isDeleteDialogOpen && displayedSubmission && (
+        <ConfirmationDialog
+          title="Delete this draft?"
+          description={`This permanently deletes the draft for ${displayedSubmission.companyName}. This action cannot be undone.`}
+          confirmLabel="Delete draft"
+          information={{
+            title: "Why can this draft be deleted?",
+            description:
+              "This application has not been submitted yet, so it is still an editable draft and may be permanently removed. After you select Submit submission and the system accepts it, the application becomes retained business and audit history. It can no longer be deleted; when eligible, it may only be withdrawn so the record remains traceable.",
+          }}
+          isPending={deleteDraftMutation.isPending}
+          onCancel={() => setIsDeleteDialogOpen(false)}
+          onConfirm={() => void confirmDeleteDraft()}
+          pendingLabel="Deleting draft..."
+        />
+      )}
+      {isWithdrawDialogOpen && displayedSubmission && (
+        <ConfirmationDialog
+          title="Withdraw this application?"
+          description={`This stops the submitted application for ${displayedSubmission.companyName} from continuing through the eligible pre-contract journey.`}
+          confirmLabel="Withdraw application"
+          information={{
+            title: "Why is withdrawal different from deletion?",
+            description:
+              "A submitted application is retained business and audit history, so withdrawal changes its status without erasing the record. Separate quote history is also preserved. Withdrawal is unavailable after a quote is accepted or a policy is bound.",
+          }}
+          isPending={withdrawMutation.isPending}
+          onCancel={() => setIsWithdrawDialogOpen(false)}
+          onConfirm={() => void confirmWithdrawSubmission()}
+          pendingLabel="Withdrawing application..."
+          tone="warning"
+        />
+      )}
     </main>
   );
 }

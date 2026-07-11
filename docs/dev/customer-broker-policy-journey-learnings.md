@@ -42,9 +42,57 @@ an invalid filter when capability changes. Subject type now drives action labels
 - A bound Policy is never deleted. Cancellation was not added because a real cancellation needs an
   effective instant, reason, audit event, Claims eligibility implications, and notifications.
 
-Duplicate detection is advisory. A same-owner, same-company open record sets `possibleDuplicate`,
-but the API still creates the new draft because renewals, different products/entities, replacement
-applications, and Broker client work make multiple submissions legitimate.
+Company-level duplicate detection is advisory because renewals, different products/entities,
+replacement applications, and Broker client work make multiple submissions legitimate. The
+manual-retest follow-up below adds a narrower exact-Draft safeguard without changing that rule.
+
+## Manual-retest follow-up: prevent accidental duplicate Drafts
+
+The first walkthrough showed that a warning delivered after creation was too late for an exact
+duplicate: a customer could remain on the form and create the same Draft repeatedly. The follow-up
+keeps the multiple-submission decision but makes intent explicit:
+
+- an exact owned Draft match (applicant name, email, and company) is returned instead of inserting;
+- the UI offers **Continue existing draft** as the primary action;
+- **Create another draft anyway** sends an explicit override for renewals, replacement applications,
+  distinct entities, or other legitimate cases;
+- one stable `Idempotency-Key` is reused when the same failed form attempt is retried;
+- the create button is disabled while pending and successful creation navigates away from the form;
+- a dedicated configurable per-caller draft-create rate limit stops high-volume API abuse.
+
+This is deliberately not a database uniqueness constraint. The system prevents accidental repetition
+without declaring that two applications with the same first-page details can never be legitimate.
+
+The same follow-up replaced the browser delete confirmation with an accessible, focus-managed modal,
+changed copy to **Delete this draft**, and made the existing Submission-record values become inputs in
+place when **Edit draft details** is selected. Immutable id/status/creation metadata remains read-only.
+
+The next manual pass distinguished transient confirmation from durable business information. An app-wide
+frontend audit found seven true transient messages: **Draft submission created**, **Draft details updated**,
+**Submission submitted**, **Submission withdrawn**, **Quote accepted**, **Evidence response saved**, and
+**Manual action saved**. All now use the reusable polite live-region status message: five seconds total
+gives more reading time than a three-second toast, the final half-second fades and collapses smoothly,
+reduced-motion preferences are respected, timers are cleaned up on unmount, and the message is then
+removed from the DOM.
+
+The audit deliberately did not convert durable policy/quote/evidence-document result cards, timelines,
+claim decisions, saved responses, audit records, warnings, errors, or empty states. Those remain visible
+because they are business information, actionable content, or information needed to recover from a
+problem—not disposable confirmation chrome.
+
+The confirmation dialog now accepts a visible information panel rather than hiding important rules only
+behind hover. Draft deletion explains that an unsubmitted Draft is still removable, while a successfully
+Submitted application becomes retained business/audit history and may only be withdrawn when eligible.
+The withdrawal confirmation was the other directly applicable lifecycle action, so it now uses the same
+focus-managed modal and explains why withdrawal changes status without erasing Submission or Quote history.
+
+Local follow-up verification passed with a zero-warning Debug solution build, UnitTests 196,
+IntegrationTests 258 plus 4 intentional service opt-in skips, clean pending-model checks for all four
+DbContexts, and frontend TypeScript/ESLint/production build plus 88 tests. Full Docker-backed local CI
+then applied all four migration sets to fresh PostgreSQL and passed UnitTests 196, IntegrationTests
+259 plus 3 intentional external-service skips, frontend build/lint/all 88 tests, artifact creation,
+and Docker cleanup. The script printed `Local CI passed.` and wrote
+`TestResults/local-ci-20260711-192630.zip`.
 
 ## Verification
 
