@@ -134,6 +134,22 @@ builder.Services.Configure<RateLimitingOptions>(builder.Configuration.GetSection
 builder.Services.AddRateLimiter(rateLimiterOptions =>
 {
     rateLimiterOptions.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    rateLimiterOptions.AddPolicy("submission-draft-create", context =>
+    {
+        var limits = context.RequestServices.GetRequiredService<IOptions<RateLimitingOptions>>().Value;
+        var callerKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? context.Connection.RemoteIpAddress?.ToString()
+            ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            $"submission-draft-create:{callerKey}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = limits.DraftCreatePermitLimit,
+                Window = TimeSpan.FromSeconds(limits.DraftCreateWindowSeconds),
+                QueueLimit = 0
+            });
+    });
     rateLimiterOptions.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
     {
         var limits = context.RequestServices.GetRequiredService<IOptions<RateLimitingOptions>>().Value;

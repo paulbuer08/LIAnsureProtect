@@ -1,5 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router";
 
 import { useCreateSubmission } from "../hooks/useCreateSubmission";
 import {
@@ -11,8 +13,14 @@ const fieldClassName =
   "mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-400";
 
 export function SubmissionIntakeForm() {
+  const navigate = useNavigate();
+  const [matchingDraftId, setMatchingDraftId] = useState<string>();
+  const [lastAttempt, setLastAttempt] = useState<
+    { fingerprint: string; idempotencyKey: string } | undefined
+  >(undefined);
   const {
     formState: { errors },
+    getValues,
     handleSubmit,
     register,
   } = useForm<SubmissionIntakeFormValues>({
@@ -26,8 +34,42 @@ export function SubmissionIntakeForm() {
 
   const createSubmission = useCreateSubmission();
 
+  function submitDraft(
+    values: SubmissionIntakeFormValues,
+    createAnotherDraft: boolean,
+  ) {
+    const request = { ...values, createAnotherDraft };
+    const fingerprint = JSON.stringify(request);
+    const previousAttempt = lastAttempt;
+    const idempotencyKey =
+      previousAttempt?.fingerprint === fingerprint
+        ? previousAttempt.idempotencyKey
+        : crypto.randomUUID();
+
+    setLastAttempt({ fingerprint, idempotencyKey });
+    createSubmission.mutate(
+      { request, idempotencyKey },
+      {
+        onSuccess: (result) => {
+          if (result.existingDraft) {
+            setMatchingDraftId(result.submissionId);
+            return;
+          }
+
+          void navigate(`/submissions/${result.submissionId}`, {
+            replace: true,
+            state: {
+              draftCreated: true,
+              possibleDuplicate: result.possibleDuplicate,
+            },
+          });
+        },
+      },
+    );
+  }
+
   function onSubmit(values: SubmissionIntakeFormValues) {
-    createSubmission.mutate(values);
+    submitDraft(values, false);
   }
 
   return (
@@ -47,6 +89,7 @@ export function SubmissionIntakeForm() {
           <input
             aria-invalid={errors.applicantName ? "true" : "false"}
             className={fieldClassName}
+            disabled={Boolean(matchingDraftId)}
             id="applicantName"
             type="text"
             {...register("applicantName")}
@@ -68,6 +111,7 @@ export function SubmissionIntakeForm() {
           <input
             aria-invalid={errors.applicantEmail ? "true" : "false"}
             className={fieldClassName}
+            disabled={Boolean(matchingDraftId)}
             id="applicantEmail"
             type="email"
             {...register("applicantEmail")}
@@ -89,6 +133,7 @@ export function SubmissionIntakeForm() {
           <input
             aria-invalid={errors.companyName ? "true" : "false"}
             className={fieldClassName}
+            disabled={Boolean(matchingDraftId)}
             id="companyName"
             type="text"
             {...register("companyName")}
@@ -102,33 +147,44 @@ export function SubmissionIntakeForm() {
 
         <button
           className="mt-6 rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-          disabled={createSubmission.isPending}
+          disabled={createSubmission.isPending || Boolean(matchingDraftId)}
           type="submit"
         >
           {createSubmission.isPending
-            ? "Creating submission..."
+            ? "Creating draft..."
             : "Create draft submission"}
         </button>
       </form>
 
-      {createSubmission.isSuccess && (
-        <section className="mt-6 rounded-lg border border-emerald-900 bg-emerald-950 p-5 text-sm text-emerald-100">
+      {matchingDraftId && (
+        <section className="mt-6 rounded-lg border border-amber-500/50 bg-amber-950/30 p-5 text-sm text-amber-100">
           <h2 className="text-base font-semibold text-white">
-            Draft submission created
+            A matching draft already exists
           </h2>
-          <p className="mt-3">
-            <span className="font-semibold">Submission ID:</span>{" "}
-            {createSubmission.data.submissionId}
+          <p className="mt-3 leading-6">
+            Continue the existing draft to avoid an accidental duplicate. If
+            this is a genuinely separate application, you can create another
+            draft explicitly.
           </p>
-          <p className="mt-2">
-            <span className="font-semibold">Status:</span>{" "}
-            {createSubmission.data.status}
-          </p>
-          {createSubmission.data.possibleDuplicate && (
-            <p className="mt-4 rounded-md border border-amber-500/50 bg-amber-950/40 p-3 text-amber-100">
-              A draft or submitted application already exists for this company. This new draft was still created because multiple legitimate submissions are allowed; review the existing records before continuing.
-            </p>
-          )}
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className="rounded-md bg-emerald-300 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-200"
+              onClick={() => void navigate(`/submissions/${matchingDraftId}`)}
+            >
+              Continue existing draft
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-amber-400/60 px-4 py-2 font-semibold text-amber-100 hover:bg-amber-950"
+              disabled={createSubmission.isPending}
+              onClick={() => submitDraft(getValues(), true)}
+            >
+              {createSubmission.isPending
+                ? "Creating another draft..."
+                : "Create another draft anyway"}
+            </button>
+          </div>
         </section>
       )}
 

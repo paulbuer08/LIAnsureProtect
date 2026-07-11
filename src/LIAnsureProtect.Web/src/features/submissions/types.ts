@@ -2,12 +2,14 @@ export type CreateSubmissionRequest = {
   applicantName: string;
   applicantEmail: string;
   companyName: string;
+  createAnotherDraft?: boolean;
 };
 
 export type CreateSubmissionResponse = {
   submissionId: string;
   status: string;
   possibleDuplicate: boolean;
+  existingDraft: boolean;
 };
 
 export type SubmitSubmissionResponse = {

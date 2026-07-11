@@ -4,14 +4,19 @@ import { useMutation } from "@tanstack/react-query";
 import { createSubmission } from "../api/createSubmission";
 import type { CreateSubmissionRequest } from "../types";
 
+type CreateSubmissionVariables = {
+  request: CreateSubmissionRequest;
+  idempotencyKey: string;
+};
+
 export function useCreateSubmission() {
   const { getAccessTokenSilently } = useAuth0();
 
   return useMutation({
-    mutationFn: async (request: CreateSubmissionRequest) => {
+    mutationFn: async ({ request, idempotencyKey }: CreateSubmissionVariables) => {
       const accessToken = await getAccessTokenSilently();
 
-      return createSubmission(accessToken, request);
+      return createSubmission(accessToken, request, idempotencyKey);
     },
   });
 }

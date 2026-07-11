@@ -33,4 +33,11 @@ public interface ISubmissionRepository
         string ownerUserId,
         string companyName,
         CancellationToken cancellationToken);
+
+    Task<Guid?> FindMatchingDraftIdAsync(
+        string ownerUserId,
+        string applicantName,
+        string applicantEmail,
+        string companyName,
+        CancellationToken cancellationToken);
 }

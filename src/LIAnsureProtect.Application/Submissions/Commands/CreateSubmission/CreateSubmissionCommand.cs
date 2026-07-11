@@ -5,5 +5,6 @@ namespace LIAnsureProtect.Application.Submissions.Commands.CreateSubmission;
 public sealed record CreateSubmissionCommand(
     string ApplicantName,
     string ApplicantEmail,
-    string CompanyName)
+    string CompanyName,
+    bool CreateAnotherDraft = false)
     : IRequest<CreateSubmissionResult>;

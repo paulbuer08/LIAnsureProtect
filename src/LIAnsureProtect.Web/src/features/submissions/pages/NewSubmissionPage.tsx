@@ -21,13 +21,13 @@ export function NewSubmissionPage() {
         </p>
 
         <h1 className="mt-4 text-4xl font-bold tracking-tight">
-          Create submission
+          Create draft submission
         </h1>
 
         <p className="mt-4 text-slate-300">
           Enter the first applicant details for a cyber insurance submission.
-          The app will request an Auth0 access token and create a protected
-          draft through the ASP.NET API.
+          This creates an editable draft; it does not submit the application
+          for underwriting yet.
         </p>
 
         {user?.email && (

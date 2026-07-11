@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -66,6 +66,7 @@ function renderSubmissionDetailPage(submissionId = "submission-456") {
             path="/submissions/:submissionId"
             element={<SubmissionDetailPage />}
           />
+          <Route path="/submissions" element={<p>Submission list destination</p>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -152,10 +153,9 @@ describe("SubmissionDetailPage", () => {
     );
   });
 
-  it("requires confirmation before deleting an owned draft", async () => {
+  it("uses an accessible confirmation dialog before deleting an owned draft", async () => {
     const user = userEvent.setup();
     getAccessTokenSilently.mockResolvedValue("api-access-token");
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.mocked(deleteDraftSubmission).mockResolvedValue(undefined);
     vi.mocked(getSubmissionDetail).mockResolvedValue({
       submissionId: "submission-456", applicantName: "Jane Applicant", applicantEmail: "jane@example.com",
@@ -165,8 +165,51 @@ describe("SubmissionDetailPage", () => {
     renderSubmissionDetailPage();
     await user.click(await screen.findByRole("button", { name: "Delete draft" }));
 
-    expect(window.confirm).toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog", { name: "Delete this draft?" });
+    expect(dialog).toHaveTextContent(
+      "This permanently deletes the draft for Example Company.",
+    );
+    expect(deleteDraftSubmission).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole("button", { name: "Delete draft" }));
+
     expect(deleteDraftSubmission).toHaveBeenCalledWith("api-access-token", "submission-456");
+  });
+
+  it("cancels draft deletion without calling the API", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456", applicantName: "Jane Applicant", applicantEmail: "jane@example.com",
+      companyName: "Example Company", status: "Draft", createdAtUtc: "2026-06-19T08:30:00Z",
+    });
+
+    renderSubmissionDetailPage();
+    await user.click(await screen.findByRole("button", { name: "Delete draft" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(deleteDraftSubmission).not.toHaveBeenCalled();
+  });
+
+  it("closes the dialog and shows the API error when draft deletion fails", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(deleteDraftSubmission).mockRejectedValue(
+      new Error("Draft could not be deleted."),
+    );
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456", applicantName: "Jane Applicant", applicantEmail: "jane@example.com",
+      companyName: "Example Company", status: "Draft", createdAtUtc: "2026-06-19T08:30:00Z",
+    });
+
+    renderSubmissionDetailPage();
+    await user.click(await screen.findByRole("button", { name: "Delete draft" }));
+    const dialog = screen.getByRole("dialog", { name: "Delete this draft?" });
+    await user.click(within(dialog).getByRole("button", { name: "Delete draft" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await screen.findByText("Draft could not be deleted.")).toBeInTheDocument();
   });
 
   it("offers withdrawal for an eligible submitted application", async () => {

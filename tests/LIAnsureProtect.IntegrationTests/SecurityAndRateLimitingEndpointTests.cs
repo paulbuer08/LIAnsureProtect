@@ -32,7 +32,9 @@ public sealed class SecurityAndRateLimitingEndpointTests
                 {
                     ["RateLimiting:UnsafePermitLimit"] = "2",
                     ["RateLimiting:SafePermitLimit"] = "5000",
-                    ["RateLimiting:WindowSeconds"] = "60"
+                    ["RateLimiting:WindowSeconds"] = "60",
+                    ["RateLimiting:DraftCreatePermitLimit"] = "2",
+                    ["RateLimiting:DraftCreateWindowSeconds"] = "60"
                 });
             });
         });
@@ -67,6 +69,40 @@ public sealed class SecurityAndRateLimitingEndpointTests
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/submissions");
             using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+            statuses.Add(response.StatusCode);
+        }
+
+        Assert.Contains(HttpStatusCode.TooManyRequests, statuses);
+    }
+
+    [Fact]
+    public async Task Draft_Creation_Has_A_Dedicated_Lower_Rate_Limit()
+    {
+        using var dedicatedFactory = webApplicationFactory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, configuration) =>
+            {
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["RateLimiting:UnsafePermitLimit"] = "5000",
+                    ["RateLimiting:DraftCreatePermitLimit"] = "2",
+                    ["RateLimiting:DraftCreateWindowSeconds"] = "60"
+                });
+            });
+        });
+        using var dedicatedClient = dedicatedFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = TestServerBaseAddress,
+            AllowAutoRedirect = false
+        });
+        var statuses = new List<HttpStatusCode>();
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/submissions");
+            using var response = await dedicatedClient.SendAsync(
+                request,
+                TestContext.Current.CancellationToken);
             statuses.Add(response.StatusCode);
         }
 

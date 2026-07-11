@@ -38,7 +38,7 @@ export function SubmissionsPage() {
             to="/submissions/new"
             className="inline-flex rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300"
           >
-            Create submission
+            Create draft submission
           </Link>
         </div>
 

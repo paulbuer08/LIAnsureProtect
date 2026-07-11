@@ -3,4 +3,5 @@ namespace LIAnsureProtect.Application.Submissions.Commands.CreateSubmission;
 public sealed record CreateSubmissionResult(
     Guid SubmissionId,
     string Status,
-    bool PossibleDuplicate);
+    bool PossibleDuplicate,
+    bool ExistingDraft);

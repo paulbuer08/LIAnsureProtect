@@ -1,8 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 
+import { ConfirmationDialog } from "../../../components/ConfirmationDialog";
 import { formatCurrency } from "../../../lib/currency";
 import { useAcceptQuote } from "../hooks/useAcceptQuote";
 import { useBindPolicy } from "../hooks/useBindPolicy";
@@ -97,7 +98,9 @@ function HelpButton({ id, label }: { id: keyof typeof helpText; label: string })
 export function SubmissionDetailPage() {
   const { submissionId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isEditing, setIsEditing] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [industryClass, setIndustryClass] =
     useState<CyberIndustryClass>("ProfessionalServices");
   const [usesOtherIndustry, setUsesOtherIndustry] = useState(false);
@@ -345,10 +348,19 @@ export function SubmissionDetailPage() {
     });
   }
 
-  async function handleDeleteDraft() {
-    if (!displayedSubmission || !window.confirm("Delete this unsubmitted draft permanently?")) return;
-    await deleteDraftMutation.mutateAsync(displayedSubmission.submissionId);
-    await navigate("/submissions");
+  function handleDeleteDraft() {
+    setIsDeleteDialogOpen(true);
+  }
+
+  async function confirmDeleteDraft() {
+    if (!displayedSubmission) return;
+    try {
+      await deleteDraftMutation.mutateAsync(displayedSubmission.submissionId);
+      setIsDeleteDialogOpen(false);
+      await navigate("/submissions");
+    } catch {
+      setIsDeleteDialogOpen(false);
+    }
   }
 
   function handleWithdrawSubmission() {
@@ -396,160 +408,106 @@ export function SubmissionDetailPage() {
                 <Link to={`/policies/${relatedPolicy.policyId}`} className="inline-flex rounded-md bg-emerald-300 px-4 py-2 font-semibold text-slate-950">View policy</Link>
               )}
             </div>
-            <h2 className="mb-4 text-xl font-semibold text-white">Submission record</h2>
-            <dl className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <dt className="font-semibold text-slate-400">Submission ID</dt>
-                <dd className="mt-1 break-all text-white">
-                  {displayedSubmission.submissionId}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-400">Status</dt>
-                <dd className="mt-1 text-white">{displayedSubmission.status}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-400">Applicant</dt>
-                <dd className="mt-1 text-white">
-                  {displayedSubmission.applicantName}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-400">
-                  Applicant email
-                </dt>
-                <dd className="mt-1 text-white">
-                  {displayedSubmission.applicantEmail}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-400">Company</dt>
-                <dd className="mt-1 text-white">
-                  {displayedSubmission.companyName}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-400">Created UTC</dt>
-                <dd className="mt-1 text-white">
-                  <time dateTime={displayedSubmission.createdAtUtc}>
-                    {displayedSubmission.createdAtUtc}
-                  </time>
-                </dd>
-              </div>
-            </dl>
-
-            {canSubmit && !isEditing && (
-              <div className="mt-6 border-t border-slate-800 pt-5">
-                <h2 className="text-base font-semibold text-white">
-                  Review before submission
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                  This submission is still a draft. Update the intake details
-                  before submitting if anything is incorrect.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleStartEditing}
-                  className="mt-4 inline-flex min-h-10 items-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-slate-500"
-                >
-                  Edit draft details
-                </button>
+            {(location.state as { draftCreated?: boolean } | null)?.draftCreated && (
+              <div className="mb-6 rounded-md border border-emerald-500/40 bg-emerald-950/30 p-4 text-emerald-100">
+                <p className="font-semibold text-white">Draft submission created.</p>
+                {(location.state as { possibleDuplicate?: boolean } | null)?.possibleDuplicate && (
+                  <p className="mt-2 leading-6">
+                    Another open application exists for this company. This draft
+                    was created because its details were not an exact draft match.
+                  </p>
+                )}
               </div>
             )}
 
-            {canSubmit && isEditing && (
-              <form
-                className="mt-6 border-t border-slate-800 pt-5"
-                onSubmit={handleSubmit(handleUpdateSubmission)}
-                noValidate
-              >
-                <h2 className="text-base font-semibold text-white">
-                  Edit draft details
-                </h2>
-                <div className="mt-5">
-                  <label
-                    className="text-sm font-semibold text-slate-100"
-                    htmlFor="editApplicantName"
-                  >
-                    Applicant name
-                  </label>
-                  <input
-                    aria-invalid={errors.applicantName ? "true" : "false"}
-                    className={fieldClassName}
-                    id="editApplicantName"
-                    type="text"
-                    {...register("applicantName")}
-                  />
-                  {errors.applicantName && (
-                    <p className="mt-2 text-sm text-red-300">
-                      {errors.applicantName.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-5">
-                  <label
-                    className="text-sm font-semibold text-slate-100"
-                    htmlFor="editApplicantEmail"
-                  >
-                    Applicant email
-                  </label>
-                  <input
-                    aria-invalid={errors.applicantEmail ? "true" : "false"}
-                    className={fieldClassName}
-                    id="editApplicantEmail"
-                    type="email"
-                    {...register("applicantEmail")}
-                  />
-                  {errors.applicantEmail && (
-                    <p className="mt-2 text-sm text-red-300">
-                      {errors.applicantEmail.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-5">
-                  <label
-                    className="text-sm font-semibold text-slate-100"
-                    htmlFor="editCompanyName"
-                  >
-                    Company name
-                  </label>
-                  <input
-                    aria-invalid={errors.companyName ? "true" : "false"}
-                    className={fieldClassName}
-                    id="editCompanyName"
-                    type="text"
-                    {...register("companyName")}
-                  />
-                  {errors.companyName && (
-                    <p className="mt-2 text-sm text-red-300">
-                      {errors.companyName.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <button
-                    type="submit"
-                    disabled={updateSubmissionMutation.isPending}
-                    className="inline-flex min-h-10 items-center rounded-md bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-                  >
-                    {updateSubmissionMutation.isPending
-                      ? "Saving..."
-                      : "Save changes"}
-                  </button>
+            <form onSubmit={handleSubmit(handleUpdateSubmission)} noValidate>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-xl font-semibold text-white">Submission record</h2>
+                {canSubmit && !isEditing && (
                   <button
                     type="button"
-                    onClick={handleCancelEditing}
-                    disabled={updateSubmissionMutation.isPending}
-                    className="inline-flex min-h-10 items-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-slate-500 disabled:cursor-not-allowed disabled:text-slate-500"
+                    onClick={handleStartEditing}
+                    className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-slate-500"
                   >
-                    Cancel
+                    Edit draft details
                   </button>
+                )}
+              </div>
+
+              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                <div>
+                  <p className="font-semibold text-slate-400">Submission ID</p>
+                  <p className="mt-1 break-all text-white">{displayedSubmission.submissionId}</p>
                 </div>
-              </form>
-            )}
+                <div>
+                  <p className="font-semibold text-slate-400">Status</p>
+                  <p className="mt-1 text-white">{displayedSubmission.status}</p>
+                </div>
+                <div>
+                  {isEditing ? (
+                    <>
+                      <label className="font-semibold text-slate-300" htmlFor="editApplicantName">Applicant name</label>
+                      <input autoFocus aria-invalid={errors.applicantName ? "true" : "false"} className={fieldClassName} id="editApplicantName" type="text" {...register("applicantName")} />
+                      {errors.applicantName && <p className="mt-2 text-sm text-red-300">{errors.applicantName.message}</p>}
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-semibold text-slate-400">Applicant</p>
+                      <p className="mt-1 text-white">{displayedSubmission.applicantName}</p>
+                    </>
+                  )}
+                </div>
+                <div>
+                  {isEditing ? (
+                    <>
+                      <label className="font-semibold text-slate-300" htmlFor="editApplicantEmail">Applicant email</label>
+                      <input aria-invalid={errors.applicantEmail ? "true" : "false"} className={fieldClassName} id="editApplicantEmail" type="email" {...register("applicantEmail")} />
+                      {errors.applicantEmail && <p className="mt-2 text-sm text-red-300">{errors.applicantEmail.message}</p>}
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-semibold text-slate-400">Applicant email</p>
+                      <p className="mt-1 text-white">{displayedSubmission.applicantEmail}</p>
+                    </>
+                  )}
+                </div>
+                <div>
+                  {isEditing ? (
+                    <>
+                      <label className="font-semibold text-slate-300" htmlFor="editCompanyName">Company name</label>
+                      <input aria-invalid={errors.companyName ? "true" : "false"} className={fieldClassName} id="editCompanyName" type="text" {...register("companyName")} />
+                      {errors.companyName && <p className="mt-2 text-sm text-red-300">{errors.companyName.message}</p>}
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-semibold text-slate-400">Company</p>
+                      <p className="mt-1 text-white">{displayedSubmission.companyName}</p>
+                    </>
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-400">Created UTC</p>
+                  <p className="mt-1 text-white"><time dateTime={displayedSubmission.createdAtUtc}>{displayedSubmission.createdAtUtc}</time></p>
+                </div>
+              </div>
+
+              {canSubmit && (
+                <div className="mt-6 border-t border-slate-800 pt-5">
+                  {isEditing ? (
+                    <div className="flex flex-wrap gap-3">
+                      <button type="submit" disabled={updateSubmissionMutation.isPending} className="inline-flex min-h-10 items-center rounded-md bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300">
+                        {updateSubmissionMutation.isPending ? "Saving..." : "Save changes"}
+                      </button>
+                      <button type="button" onClick={handleCancelEditing} disabled={updateSubmissionMutation.isPending} className="inline-flex min-h-10 items-center rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-slate-500 disabled:cursor-not-allowed disabled:text-slate-500">Cancel</button>
+                    </div>
+                  ) : (
+                    <p className="max-w-2xl leading-6 text-slate-300">
+                      Review these details before submitting. Draft fields remain editable until the application is submitted.
+                    </p>
+                  )}
+                </div>
+              )}
+            </form>
 
             {updateSubmissionMutation.isSuccess && !isEditing && (
               <p className="mt-5 rounded-md border border-emerald-500/40 bg-emerald-950/30 p-3 text-sm text-emerald-100">
@@ -1124,7 +1082,7 @@ export function SubmissionDetailPage() {
 
             {canSubmit && !isEditing && (
               <div className="mt-6 border-t border-slate-800 pt-5">
-                <h2 className="text-base font-semibold text-white">Delete unsubmitted draft</h2>
+                <h2 className="text-base font-semibold text-white">Delete this draft</h2>
                 <p className="mt-2 text-slate-300">Only drafts can be deleted. Once submitted, the application becomes retained audit history.</p>
                 <button type="button" onClick={handleDeleteDraft} disabled={deleteDraftMutation.isPending} className="mt-4 rounded-md border border-red-500/60 px-4 py-2 font-semibold text-red-200">Delete draft</button>
               </div>
@@ -1157,6 +1115,16 @@ export function SubmissionDetailPage() {
           </section>
         )}
       </section>
+      {isDeleteDialogOpen && displayedSubmission && (
+        <ConfirmationDialog
+          title="Delete this draft?"
+          description={`This permanently deletes the draft for ${displayedSubmission.companyName}. This action cannot be undone. Submitted applications cannot be deleted.`}
+          confirmLabel="Delete draft"
+          isPending={deleteDraftMutation.isPending}
+          onCancel={() => setIsDeleteDialogOpen(false)}
+          onConfirm={() => void confirmDeleteDraft()}
+        />
+      )}
     </main>
   );
 }

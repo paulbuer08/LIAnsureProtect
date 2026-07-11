@@ -13,6 +13,7 @@ using LIAnsureProtect.Application.Submissions.Queries.GetSubmissionDetail;
 using LIAnsureProtect.Application.Submissions.Queries.ListSubmissions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using MediatR;
 using ApplicationValidationException = LIAnsureProtect.Application.Common.Exceptions.ValidationException;
 
@@ -236,10 +237,12 @@ public sealed class SubmissionsController(
     }
 
     [HttpPost]
+    [EnableRateLimiting("submission-draft-create")]
     [Authorize(Policy = ApplicationPolicies.CreateSubmission)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<CreateSubmissionResult>(StatusCodes.Status200OK)]
     [ProducesResponseType<CreateSubmissionResult>(StatusCodes.Status201Created)]
     public async Task<ActionResult<CreateSubmissionResult>> Create(
         CreateSubmissionRequest request,
@@ -248,7 +251,8 @@ public sealed class SubmissionsController(
         var command = new CreateSubmissionCommand(
             request.ApplicantName,
             request.ApplicantEmail,
-            request.CompanyName);
+            request.CompanyName,
+            request.CreateAnotherDraft);
 
         var idempotencyKey = GetIdempotencyKey();
         if (!string.IsNullOrEmpty(idempotencyKey))
@@ -272,7 +276,9 @@ public sealed class SubmissionsController(
                         var location = $"/api/v1/submissions/{result.SubmissionId}";
 
                         return IdempotencyActionResponse.Json(
-                            StatusCodes.Status201Created,
+                            result.ExistingDraft
+                                ? StatusCodes.Status200OK
+                                : StatusCodes.Status201Created,
                             result,
                             location);
                     }
@@ -292,7 +298,9 @@ public sealed class SubmissionsController(
         {
             var result = await sender.Send(command, cancellationToken);
 
-            return Created($"/api/v1/submissions/{result.SubmissionId}", result);
+            return result.ExistingDraft
+                ? Ok(result)
+                : Created($"/api/v1/submissions/{result.SubmissionId}", result);
         }
         catch (ApplicationValidationException exception)
         {
@@ -389,7 +397,8 @@ public sealed class SubmissionsController(
 public sealed record CreateSubmissionRequest(
     string ApplicantName,
     string ApplicantEmail,
-    string CompanyName);
+    string CompanyName,
+    bool CreateAnotherDraft = false);
 
 public sealed record UpdateSubmissionRequest(
     string ApplicantName,
