@@ -169,6 +169,11 @@ describe("SubmissionDetailPage", () => {
     expect(dialog).toHaveTextContent(
       "This permanently deletes the draft for Example Company.",
     );
+    expect(dialog).toHaveTextContent("Why can this draft be deleted?");
+    expect(dialog).toHaveTextContent(
+      /after you select Submit submission and the system accepts it/i,
+    );
+    expect(dialog).toHaveTextContent(/may only be withdrawn/i);
     expect(deleteDraftSubmission).not.toHaveBeenCalled();
 
     await user.click(within(dialog).getByRole("button", { name: "Delete draft" }));
@@ -215,7 +220,6 @@ describe("SubmissionDetailPage", () => {
   it("offers withdrawal for an eligible submitted application", async () => {
     const user = userEvent.setup();
     getAccessTokenSilently.mockResolvedValue("api-access-token");
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.mocked(withdrawSubmission).mockResolvedValue({ submissionId: "submission-456", status: "Withdrawn" });
     vi.mocked(getSubmissionDetail).mockResolvedValue({
       submissionId: "submission-456", applicantName: "Jane Applicant", applicantEmail: "jane@example.com",
@@ -224,6 +228,19 @@ describe("SubmissionDetailPage", () => {
 
     renderSubmissionDetailPage();
     await user.click(await screen.findByRole("button", { name: "Withdraw submission" }));
+
+    const dialog = screen.getByRole("dialog", {
+      name: "Withdraw this application?",
+    });
+    expect(dialog).toHaveTextContent(
+      "Why is withdrawal different from deletion?",
+    );
+    expect(dialog).toHaveTextContent(/without erasing the record/i);
+    expect(withdrawSubmission).not.toHaveBeenCalled();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Withdraw application" }),
+    );
 
     expect(withdrawSubmission).toHaveBeenCalledWith("api-access-token", "submission-456");
     expect(await screen.findByText(/record remains available as audit history/i)).toBeInTheDocument();

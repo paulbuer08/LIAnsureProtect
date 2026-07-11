@@ -1,9 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 
 import { ConfirmationDialog } from "../../../components/ConfirmationDialog";
+import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
 import { formatCurrency } from "../../../lib/currency";
 import { useAcceptQuote } from "../hooks/useAcceptQuote";
 import { useBindPolicy } from "../hooks/useBindPolicy";
@@ -101,6 +102,17 @@ export function SubmissionDetailPage() {
   const location = useLocation();
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
+  const [draftCreatedNotice, setDraftCreatedNotice] = useState(() => {
+    const routeState = location.state as {
+      draftCreated?: boolean;
+      possibleDuplicate?: boolean;
+    } | null;
+
+    return routeState?.draftCreated
+      ? { possibleDuplicate: Boolean(routeState.possibleDuplicate) }
+      : null;
+  });
   const [industryClass, setIndustryClass] =
     useState<CyberIndustryClass>("ProfessionalServices");
   const [usesOtherIndustry, setUsesOtherIndustry] = useState(false);
@@ -136,6 +148,20 @@ export function SubmissionDetailPage() {
   const bindPolicyMutation = useBindPolicy();
   const deleteDraftMutation = useDeleteDraftSubmission();
   const withdrawMutation = useWithdrawSubmission();
+
+  useEffect(() => {
+    if ((location.state as { draftCreated?: boolean } | null)?.draftCreated) {
+      void navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
+
+  function dismissDraftCreatedNotice() {
+    setDraftCreatedNotice(null);
+  }
+
+  function dismissDraftUpdatedNotice() {
+    updateSubmissionMutation.reset();
+  }
   const submission = submissionQuery.data;
   const updatedSubmission =
     submission &&
@@ -364,8 +390,17 @@ export function SubmissionDetailPage() {
   }
 
   function handleWithdrawSubmission() {
-    if (!displayedSubmission || !window.confirm("Withdraw this submitted application? Its audit history will be retained.")) return;
-    withdrawMutation.mutate(displayedSubmission.submissionId);
+    setIsWithdrawDialogOpen(true);
+  }
+
+  async function confirmWithdrawSubmission() {
+    if (!displayedSubmission) return;
+    try {
+      await withdrawMutation.mutateAsync(displayedSubmission.submissionId);
+      setIsWithdrawDialogOpen(false);
+    } catch {
+      setIsWithdrawDialogOpen(false);
+    }
   }
 
   return (
@@ -408,16 +443,19 @@ export function SubmissionDetailPage() {
                 <Link to={`/policies/${relatedPolicy.policyId}`} className="inline-flex rounded-md bg-emerald-300 px-4 py-2 font-semibold text-slate-950">View policy</Link>
               )}
             </div>
-            {(location.state as { draftCreated?: boolean } | null)?.draftCreated && (
-              <div className="mb-6 rounded-md border border-emerald-500/40 bg-emerald-950/30 p-4 text-emerald-100">
+            {draftCreatedNotice && (
+              <TransientStatusMessage
+                className="mb-6"
+                onDismiss={dismissDraftCreatedNotice}
+              >
                 <p className="font-semibold text-white">Draft submission created.</p>
-                {(location.state as { possibleDuplicate?: boolean } | null)?.possibleDuplicate && (
+                {draftCreatedNotice.possibleDuplicate && (
                   <p className="mt-2 leading-6">
                     Another open application exists for this company. This draft
                     was created because its details were not an exact draft match.
                   </p>
                 )}
-              </div>
+              </TransientStatusMessage>
             )}
 
             <form onSubmit={handleSubmit(handleUpdateSubmission)} noValidate>
@@ -510,9 +548,12 @@ export function SubmissionDetailPage() {
             </form>
 
             {updateSubmissionMutation.isSuccess && !isEditing && (
-              <p className="mt-5 rounded-md border border-emerald-500/40 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+              <TransientStatusMessage
+                className="mt-5 text-sm"
+                onDismiss={dismissDraftUpdatedNotice}
+              >
                 Draft details updated.
-              </p>
+              </TransientStatusMessage>
             )}
 
             {updateSubmissionMutation.isError && (
@@ -1118,11 +1159,34 @@ export function SubmissionDetailPage() {
       {isDeleteDialogOpen && displayedSubmission && (
         <ConfirmationDialog
           title="Delete this draft?"
-          description={`This permanently deletes the draft for ${displayedSubmission.companyName}. This action cannot be undone. Submitted applications cannot be deleted.`}
+          description={`This permanently deletes the draft for ${displayedSubmission.companyName}. This action cannot be undone.`}
           confirmLabel="Delete draft"
+          information={{
+            title: "Why can this draft be deleted?",
+            description:
+              "This application has not been submitted yet, so it is still an editable draft and may be permanently removed. After you select Submit submission and the system accepts it, the application becomes retained business and audit history. It can no longer be deleted; when eligible, it may only be withdrawn so the record remains traceable.",
+          }}
           isPending={deleteDraftMutation.isPending}
           onCancel={() => setIsDeleteDialogOpen(false)}
           onConfirm={() => void confirmDeleteDraft()}
+          pendingLabel="Deleting draft..."
+        />
+      )}
+      {isWithdrawDialogOpen && displayedSubmission && (
+        <ConfirmationDialog
+          title="Withdraw this application?"
+          description={`This stops the submitted application for ${displayedSubmission.companyName} from continuing through the eligible pre-contract journey.`}
+          confirmLabel="Withdraw application"
+          information={{
+            title: "Why is withdrawal different from deletion?",
+            description:
+              "A submitted application is retained business and audit history, so withdrawal changes its status without erasing the record. Separate quote history is also preserved. Withdrawal is unavailable after a quote is accepted or a policy is bound.",
+          }}
+          isPending={withdrawMutation.isPending}
+          onCancel={() => setIsWithdrawDialogOpen(false)}
+          onConfirm={() => void confirmWithdrawSubmission()}
+          pendingLabel="Withdrawing application..."
+          tone="warning"
         />
       )}
     </main>

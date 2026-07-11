@@ -1,21 +1,32 @@
 import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 
+type ConfirmationDialogInformation = {
+  title: string;
+  description: string;
+};
+
 type ConfirmationDialogProps = {
   title: string;
   description: string;
   confirmLabel: string;
+  information?: ConfirmationDialogInformation;
   isPending?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
+  pendingLabel?: string;
+  tone?: "danger" | "warning";
 };
 
 export function ConfirmationDialog({
   title,
   description,
   confirmLabel,
+  information,
   isPending = false,
   onCancel,
   onConfirm,
+  pendingLabel = "Working...",
+  tone = "danger",
 }: ConfirmationDialogProps) {
   const titleId = useId();
   const descriptionId = useId();
@@ -79,7 +90,11 @@ export function ConfirmationDialog({
       >
         <div
           aria-hidden="true"
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-red-500/15 text-xl text-red-300"
+          className={`flex h-11 w-11 items-center justify-center rounded-full text-xl ${
+            tone === "warning"
+              ? "bg-amber-500/15 text-amber-300"
+              : "bg-red-500/15 text-red-300"
+          }`}
         >
           !
         </div>
@@ -89,6 +104,24 @@ export function ConfirmationDialog({
         <p id={descriptionId} className="mt-3 text-sm leading-6 text-slate-300">
           {description}
         </p>
+        {information && (
+          <aside className="mt-5 rounded-lg border border-sky-400/30 bg-sky-950/30 p-4 text-sm text-sky-100">
+            <div className="flex items-start gap-3">
+              <span
+                aria-hidden="true"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-sky-300/60 font-semibold"
+              >
+                ?
+              </span>
+              <div>
+                <h3 className="font-semibold text-white">{information.title}</h3>
+                <p className="mt-2 leading-6 text-slate-200">
+                  {information.description}
+                </p>
+              </div>
+            </div>
+          </aside>
+        )}
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
             ref={cancelButtonRef}
@@ -103,9 +136,13 @@ export function ConfirmationDialog({
             type="button"
             disabled={isPending}
             onClick={onConfirm}
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400 disabled:cursor-not-allowed disabled:bg-red-950 disabled:text-red-300"
+            className={`inline-flex min-h-11 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed ${
+              tone === "warning"
+                ? "bg-amber-500 hover:bg-amber-400 disabled:bg-amber-950 disabled:text-amber-300"
+                : "bg-red-500 hover:bg-red-400 disabled:bg-red-950 disabled:text-red-300"
+            }`}
           >
-            {isPending ? "Deleting draft..." : confirmLabel}
+            {isPending ? pendingLabel : confirmLabel}
           </button>
         </div>
       </div>
