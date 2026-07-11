@@ -175,6 +175,30 @@ Chapters 2/3/11 updated.
   **M48** Identity (Cognito option) · **M49** CD pipeline (Actions→ECR→EKS blue/green, gated migrations, smoke tests) ·
   **M50** Security & compliance (GuardDuty/Security Hub/Config/Inspector/Macie/CloudTrail/WAF/rotation).
 
+### Production environment and HTTPS contract (required before M47 implementation)
+
+Local development deliberately uses `http://localhost:5223`. The API's HTTP-only launch profile
+therefore must not be mistaken for the production network contract. Phase 2 plans and implementation
+must keep these two configuration decisions separate:
+
+- `ASPNETCORE_ENVIRONMENT=Production` (or `DOTNET_ENVIRONMENT=Production`) selects ASP.NET Core's
+  environment behavior. `launchSettings.json` is local tooling and is not the production source of
+  truth. If neither environment variable is set, ASP.NET Core defaults to Production, but the workload
+  definition should still set it explicitly so intent is auditable.
+- `Platform__Profile=Aws` selects the AWS infrastructure adapters. It does not set the ASP.NET Core
+  environment and it does not configure an HTTPS endpoint.
+
+The expected public endpoint is HTTPS on port 443. CloudFront and the ALB/Ingress terminate TLS using
+ACM; the API workload may listen on private HTTP behind that trusted proxy. M47 must configure and test
+forwarded headers before HTTPS redirection so `X-Forwarded-Proto: https` is trusted only from the known
+proxy path and ASP.NET Core sees the original public scheme. This prevents redirect loops and incorrect
+absolute URLs. If a later deployment terminates TLS directly in Kestrel instead, that deployment must
+explicitly configure the HTTPS listener, certificate, and redirect port (normally 443).
+
+Acceptance evidence for M47 must include: HTTP-to-HTTPS behavior at the public edge, an HTTPS request
+that reaches the API without a redirect loop, rejected/bypassed untrusted forwarded headers, correct
+Production environment startup, and confirmation that `Platform__Profile=Aws` is independently set.
+
 **Phase 3 — Later (after a working production deployment):** other specialty products, AI/RAG (Bedrock + pgvector),
 analytics (S3 data-lake + Glue + Athena/QuickSight), partner API, payments/e-sign.
 
