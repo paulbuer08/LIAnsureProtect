@@ -162,11 +162,14 @@ This is the richest flow; it exercises the whole Underwriting module.
    remain allowed. The successful create navigates to Draft detail.
 7. On a Draft, choose **Edit draft details** → ✅ the existing Applicant, Email, and Company values
    become inputs in their original Submission-record positions; Save and Cancel remain in that
-   section. Choose **Delete draft**, cancel the styled **Delete this draft?** modal once (nothing
-   changes), then confirm → ✅ the draft disappears. On a Submitted application before acceptance,
-   choose **Withdraw
-   submission**, then repeat the same API request with the same idempotency key → ✅ status remains
-   Withdrawn and only one withdrawal outbox event exists.
+   section. After Save, **Draft details updated** remains readable for about five seconds, fades, and
+   leaves the page layout; **Draft submission created** behaves the same after creation. Choose
+   **Delete draft** → ✅ the styled **Delete this draft?** modal visibly explains why a Draft can be
+   removed and when Submitted audit history becomes non-deletable. Cancel once (nothing changes),
+   then confirm → ✅ the draft disappears. On a Submitted application before acceptance, choose
+   **Withdraw submission** → ✅ the styled modal explains that withdrawal preserves Submission and
+   Quote history. Confirm, then repeat the same API request with the same idempotency key → ✅ status
+   remains Withdrawn and only one withdrawal outbox event exists.
 8. Try withdrawal after accepting/binding the Quote → ✅ `409`; the Submission, Quote, and Policy
    history remain intact.
 

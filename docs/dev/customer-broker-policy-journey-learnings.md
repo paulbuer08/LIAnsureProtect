@@ -67,13 +67,25 @@ The same follow-up replaced the browser delete confirmation with an accessible, 
 changed copy to **Delete this draft**, and made the existing Submission-record values become inputs in
 place when **Edit draft details** is selected. Immutable id/status/creation metadata remains read-only.
 
+The next manual pass distinguished transient confirmation from durable business information. **Draft
+submission created** and **Draft details updated** now use a reusable polite live-region status message:
+five seconds total gives more reading time than a three-second toast, the final half-second fades and
+collapses smoothly, reduced-motion preferences are respected, timers are cleaned up on unmount, and the
+message is then removed from the DOM. Important errors and lifecycle/audit explanations do not auto-hide.
+
+The confirmation dialog now accepts a visible information panel rather than hiding important rules only
+behind hover. Draft deletion explains that an unsubmitted Draft is still removable, while a successfully
+Submitted application becomes retained business/audit history and may only be withdrawn when eligible.
+The withdrawal confirmation was the other directly applicable lifecycle action, so it now uses the same
+focus-managed modal and explains why withdrawal changes status without erasing Submission or Quote history.
+
 Local follow-up verification passed with a zero-warning Debug solution build, UnitTests 196,
 IntegrationTests 258 plus 4 intentional service opt-in skips, clean pending-model checks for all four
-DbContexts, and frontend TypeScript/ESLint/production build plus 87 tests. Full Docker-backed local CI
+DbContexts, and frontend TypeScript/ESLint/production build plus 88 tests. Full Docker-backed local CI
 then applied all four migration sets to fresh PostgreSQL and passed UnitTests 196, IntegrationTests
-259 plus 3 intentional external-service skips, frontend build/lint/all 87 tests, artifact creation,
+259 plus 3 intentional external-service skips, frontend build/lint/all 88 tests, artifact creation,
 and Docker cleanup. The script printed `Local CI passed.` and wrote
-`TestResults/local-ci-20260711-122705.zip`.
+`TestResults/local-ci-20260711-191008.zip`.
 
 ## Verification
 
