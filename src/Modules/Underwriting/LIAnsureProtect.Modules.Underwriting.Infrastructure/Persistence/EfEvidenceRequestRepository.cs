@@ -32,6 +32,18 @@ public sealed class EfEvidenceRequestRepository(UnderwritingDbContext dbContext)
             cancellationToken);
     }
 
+    public Task<bool> ExistsForQuoteCategoryAsync(
+        Guid quoteId,
+        string category,
+        CancellationToken cancellationToken)
+    {
+        return Enum.TryParse<EvidenceRequestCategory>(category, out var parsed)
+            ? dbContext.Set<QuoteEvidenceRequest>().AnyAsync(
+                request => request.QuoteId == quoteId && request.Category == parsed,
+                cancellationToken)
+            : Task.FromResult(false);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken)
         => dbContext.SaveChangesAsync(cancellationToken);
 }

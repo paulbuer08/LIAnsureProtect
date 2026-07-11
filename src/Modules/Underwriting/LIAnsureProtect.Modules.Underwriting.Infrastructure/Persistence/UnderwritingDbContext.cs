@@ -32,6 +32,9 @@ public sealed class UnderwritingDbContext(DbContextOptions<UnderwritingDbContext
 
     public DbSet<QuoteEvidenceDocument> QuoteEvidenceDocuments => Set<QuoteEvidenceDocument>();
 
+    public DbSet<QuoteAssuranceProjectedMessage> QuoteAssuranceProjectedMessages
+        => Set<QuoteAssuranceProjectedMessage>();
+
     public DbSet<ModuleOutboxMessage> OutboxMessages => Set<ModuleOutboxMessage>();
 
     protected override string? Schema => SchemaName;

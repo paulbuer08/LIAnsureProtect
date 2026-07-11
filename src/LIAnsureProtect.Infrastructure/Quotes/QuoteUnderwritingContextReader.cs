@@ -1,4 +1,5 @@
 using LIAnsureProtect.Application.Quotes;
+using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Modules.Underwriting.Application;
 
 namespace LIAnsureProtect.Infrastructure.Quotes;
@@ -54,6 +55,36 @@ public sealed class QuoteUnderwritingContextReader(IQuoteRepository quoteReposit
             quote.CreatedAtUtc,
             quote.ExpiresAtUtc);
     }
+
+    public async Task<QuoteAssuranceRequirementContext?> GetForAssuranceAsync(
+        Guid quoteId,
+        CancellationToken cancellationToken)
+    {
+        var quote = await quoteRepository.GetForUnderwritingReviewAsync(quoteId, cancellationToken);
+        if (quote is null)
+            return null;
+
+        return new QuoteAssuranceRequirementContext(
+            quote.Id,
+            quote.SubmissionId,
+            quote.OwnerUserId,
+            quote.ControlAssertions
+                .Select(assertion => new QuoteAssuranceRequirement(
+                    ToEvidenceCategory(assertion.ControlType),
+                    assertion.EvidenceRequired,
+                    assertion.EvidenceReason))
+                .ToArray());
+    }
+
+    private static string ToEvidenceCategory(ControlType controlType) => controlType switch
+    {
+        ControlType.MultiFactorAuthentication => "MultiFactorAuthentication",
+        ControlType.EndpointDetectionAndResponse => "EndpointDetectionAndResponse",
+        ControlType.BackupRecovery => "BackupRecovery",
+        ControlType.IncidentResponsePlan => "IncidentResponsePlan",
+        ControlType.SensitiveData => "SecurityQuestionnaireClarification",
+        _ => "SecurityQuestionnaireClarification"
+    };
 
     private static string[] SplitLines(string value)
     {

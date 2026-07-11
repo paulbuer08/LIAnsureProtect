@@ -42,7 +42,9 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
 
     public async Task<Quote?> GetForUnderwritingReviewAsync(Guid quoteId, CancellationToken cancellationToken)
     {
-        return await dbContext.Quotes.SingleOrDefaultAsync(
+        return await dbContext.Quotes
+            .Include(quote => quote.ControlAssertions)
+            .SingleOrDefaultAsync(
             quote => quote.Id == quoteId,
             cancellationToken);
     }
