@@ -16,6 +16,31 @@ import { SubmissionDetailPage } from "./SubmissionDetailPage";
 
 const getAccessTokenSilently = vi.fn();
 
+const expectedStrongControlDetails = {
+  mfaCoversPrivilegedAccess: true,
+  mfaCoversEmail: true,
+  mfaCoversRemoteAccess: true,
+  mfaCoversWorkforce: true,
+  mfaPhishingResistant: false,
+  edrCoveragePercent: 98,
+  edrCoversServers: true,
+  edrActivelyMonitored: true,
+  edrTamperProtection: true,
+  backupsImmutableOrOffline: true,
+  backupCredentialsSeparated: true,
+  restoreTestedLast12Months: true,
+  recoveryPointObjectiveHours: 4,
+  recoveryTimeObjectiveHours: 8,
+  incidentPlanApproved: true,
+  incidentPlanUpdatedLast12Months: true,
+  incidentPlanTestedLast12Months: true,
+  incidentRolesNamed: true,
+  sensitiveDataInventoryMaintained: true,
+  sensitiveDataEncrypted: true,
+  sensitiveDataTypes: ["Personal data", "Credentials"],
+  sensitiveDataVolume: "Moderate",
+};
+
 vi.mock("@auth0/auth0-react", () => ({
   useAuth0: () => ({
     getAccessTokenSilently,
@@ -465,6 +490,7 @@ describe("SubmissionDetailPage", () => {
         attestedByName: "Jane Applicant",
         attestedByTitle: "CFO",
         isReassessment: false,
+        controlDetails: expectedStrongControlDetails,
       },
     );
     expect(await screen.findByText("quote-123")).toBeInTheDocument();

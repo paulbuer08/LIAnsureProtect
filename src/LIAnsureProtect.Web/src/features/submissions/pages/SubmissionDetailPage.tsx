@@ -21,9 +21,16 @@ import type {
   AnnualRevenueBand,
   BackupMaturity,
   CyberIndustryClass,
+  CyberControlDetails,
   CyberSecurityControlStatus,
   SensitiveDataExposure,
 } from "../types";
+
+type BooleanControlDetailKey = {
+  [K in keyof CyberControlDetails]: CyberControlDetails[K] extends boolean
+    ? K
+    : never;
+}[keyof CyberControlDetails];
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unable to load submission.";
@@ -47,6 +54,54 @@ const incidentTypeOptions = [
   "Malware or endpoint compromise",
   "Vendor / supply-chain incident",
   "Other",
+];
+
+const defaultControlDetails: CyberControlDetails = {
+  mfaCoversPrivilegedAccess: true,
+  mfaCoversEmail: true,
+  mfaCoversRemoteAccess: true,
+  mfaCoversWorkforce: true,
+  mfaPhishingResistant: false,
+  edrCoveragePercent: 98,
+  edrCoversServers: true,
+  edrActivelyMonitored: true,
+  edrTamperProtection: true,
+  backupsImmutableOrOffline: true,
+  backupCredentialsSeparated: true,
+  restoreTestedLast12Months: true,
+  recoveryPointObjectiveHours: 4,
+  recoveryTimeObjectiveHours: 8,
+  incidentPlanApproved: true,
+  incidentPlanUpdatedLast12Months: true,
+  incidentPlanTestedLast12Months: true,
+  incidentRolesNamed: true,
+  sensitiveDataInventoryMaintained: true,
+  sensitiveDataEncrypted: true,
+  sensitiveDataTypes: ["Personal data", "Credentials"],
+  sensitiveDataVolume: "Moderate",
+};
+
+const controlDetailCheckboxes: ReadonlyArray<{
+  key: BooleanControlDetailKey;
+  label: string;
+}> = [
+  { key: "mfaCoversPrivilegedAccess", label: "MFA covers privileged access" },
+  { key: "mfaCoversEmail", label: "MFA covers email" },
+  { key: "mfaCoversRemoteAccess", label: "MFA covers remote access" },
+  { key: "mfaCoversWorkforce", label: "MFA covers the workforce" },
+  { key: "mfaPhishingResistant", label: "Phishing-resistant MFA is used" },
+  { key: "edrCoversServers", label: "EDR covers servers" },
+  { key: "edrActivelyMonitored", label: "EDR alerts are actively monitored" },
+  { key: "edrTamperProtection", label: "EDR tamper protection is enabled" },
+  { key: "backupsImmutableOrOffline", label: "Backups include immutable or offline copies" },
+  { key: "backupCredentialsSeparated", label: "Backup credentials are separated" },
+  { key: "restoreTestedLast12Months", label: "A restore was tested in the last 12 months" },
+  { key: "incidentPlanApproved", label: "Incident plan is formally approved" },
+  { key: "incidentPlanUpdatedLast12Months", label: "Incident plan was updated in the last 12 months" },
+  { key: "incidentPlanTestedLast12Months", label: "Incident plan was exercised in the last 12 months" },
+  { key: "incidentRolesNamed", label: "Incident roles and contacts are named" },
+  { key: "sensitiveDataInventoryMaintained", label: "A sensitive-data inventory is maintained" },
+  { key: "sensitiveDataEncrypted", label: "Sensitive data is encrypted" },
 ];
 
 const helpText: Record<string, string> = {
@@ -143,6 +198,9 @@ export function SubmissionDetailPage() {
   const [attestedByName, setAttestedByName] = useState("");
   const [attestedByTitle, setAttestedByTitle] = useState("");
   const [isReassessing, setIsReassessing] = useState(false);
+  const [controlDetails, setControlDetails] = useState<CyberControlDetails>(
+    defaultControlDetails,
+  );
   const [acceptedByName, setAcceptedByName] = useState("");
   const [acceptedByTitle, setAcceptedByTitle] = useState("CFO");
   const [subjectivitiesAcknowledged, setSubjectivitiesAcknowledged] =
@@ -371,6 +429,7 @@ export function SubmissionDetailPage() {
         attestedByName: attestedByName.trim(),
           attestedByTitle: attestedByTitle.trim(),
           isReassessment: isReassessing,
+          controlDetails,
         },
       },
       {
@@ -865,6 +924,102 @@ export function SubmissionDetailPage() {
                     </span>
                   </label>
                 </div>
+
+                <fieldset className="mt-5 rounded-md border border-slate-700 bg-slate-950/50 p-4">
+                  <legend className="px-2 text-sm font-semibold text-white">
+                    How the controls are implemented
+                  </legend>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    These details make broad answers measurable. They are still
+                    customer assertions and may require documents or read-only
+                    system evidence before underwriting treats them as verified.
+                  </p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {controlDetailCheckboxes.map((detail) => (
+                      <label
+                        key={detail.key}
+                        className="flex items-start gap-3 text-sm text-slate-100"
+                      >
+                        <input
+                          checked={controlDetails[detail.key]}
+                          className="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-950"
+                          type="checkbox"
+                          onChange={(event) =>
+                            setControlDetails((current) => ({
+                              ...current,
+                              [detail.key]: event.target.checked,
+                            }))
+                          }
+                        />
+                        <span>{detail.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <label className="text-sm font-semibold text-slate-100">
+                      EDR coverage %
+                      <input
+                        className={fieldClassName}
+                        min="0"
+                        max="100"
+                        type="number"
+                        value={controlDetails.edrCoveragePercent}
+                        onChange={(event) =>
+                          setControlDetails((current) => ({
+                            ...current,
+                            edrCoveragePercent: Number(event.target.value),
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="text-sm font-semibold text-slate-100">
+                      Recovery point hours
+                      <input
+                        className={fieldClassName}
+                        min="0"
+                        max="720"
+                        type="number"
+                        value={controlDetails.recoveryPointObjectiveHours}
+                        onChange={(event) =>
+                          setControlDetails((current) => ({
+                            ...current,
+                            recoveryPointObjectiveHours: Number(event.target.value),
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="text-sm font-semibold text-slate-100">
+                      Recovery time hours
+                      <input
+                        className={fieldClassName}
+                        min="0"
+                        max="720"
+                        type="number"
+                        value={controlDetails.recoveryTimeObjectiveHours}
+                        onChange={(event) =>
+                          setControlDetails((current) => ({
+                            ...current,
+                            recoveryTimeObjectiveHours: Number(event.target.value),
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="text-sm font-semibold text-slate-100">
+                      Sensitive-data volume
+                      <input
+                        className={fieldClassName}
+                        type="text"
+                        value={controlDetails.sensitiveDataVolume}
+                        onChange={(event) =>
+                          setControlDetails((current) => ({
+                            ...current,
+                            sensitiveDataVolume: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                  </div>
+                </fieldset>
 
                 {needsPriorIncidentDetails && (
                   <div className="mt-5 rounded-md border border-slate-700 bg-slate-950/60 p-4">

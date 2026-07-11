@@ -55,7 +55,8 @@ public sealed class CreateQuoteCommandHandler(
             request.BackupMaturity,
             request.HasIncidentResponsePlan,
             request.PriorCyberIncidents,
-            request.SensitiveDataExposure));
+            request.SensitiveDataExposure,
+            request.ControlDetails));
         if (existingQuote is not null)
         {
             assertionDecisions = ControlAssurancePolicy.ApplyReassessmentRules(
@@ -110,7 +111,8 @@ public sealed class CreateQuoteCommandHandler(
                 decision.ClaimedState,
                 decision.EvidenceRequired,
                 decision.EvidenceReason,
-                quoteCreatedAtUtc));
+                quoteCreatedAtUtc,
+                decision.DetailsJson));
         }
         var providerRequest = new RatingProviderRequest(
             quote.Id,

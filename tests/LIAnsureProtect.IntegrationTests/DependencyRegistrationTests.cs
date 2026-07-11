@@ -119,6 +119,7 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("ix_quotes_submission_id", script);
         Assert.Contains("CREATE TABLE quote_control_assertions", script);
         Assert.Contains("ux_quote_control_assertions_quote_id_control_type", script);
+        Assert.Contains("details_json", script);
         Assert.Contains("assurance_status", script);
         Assert.Contains("attestation_wording_version", script);
         Assert.Contains("ux_quotes_submission_id_version", script);

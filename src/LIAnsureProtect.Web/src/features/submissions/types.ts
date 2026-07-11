@@ -41,6 +41,31 @@ export type BackupMaturity = "Weak" | "Partial" | "Mature";
 
 export type SensitiveDataExposure = "Unknown" | "Low" | "Moderate" | "High";
 
+export type CyberControlDetails = {
+  mfaCoversPrivilegedAccess: boolean;
+  mfaCoversEmail: boolean;
+  mfaCoversRemoteAccess: boolean;
+  mfaCoversWorkforce: boolean;
+  mfaPhishingResistant: boolean;
+  edrCoveragePercent: number;
+  edrCoversServers: boolean;
+  edrActivelyMonitored: boolean;
+  edrTamperProtection: boolean;
+  backupsImmutableOrOffline: boolean;
+  backupCredentialsSeparated: boolean;
+  restoreTestedLast12Months: boolean;
+  recoveryPointObjectiveHours: number;
+  recoveryTimeObjectiveHours: number;
+  incidentPlanApproved: boolean;
+  incidentPlanUpdatedLast12Months: boolean;
+  incidentPlanTestedLast12Months: boolean;
+  incidentRolesNamed: boolean;
+  sensitiveDataInventoryMaintained: boolean;
+  sensitiveDataEncrypted: boolean;
+  sensitiveDataTypes: string[];
+  sensitiveDataVolume: string;
+};
+
 export type CreateQuoteRequest = {
   industryClass: CyberIndustryClass;
   annualRevenueBand: AnnualRevenueBand;
@@ -59,6 +84,7 @@ export type CreateQuoteRequest = {
   attestedByName: string;
   attestedByTitle: string;
   isReassessment?: boolean;
+  controlDetails: CyberControlDetails;
 };
 
 export type RatingProviderIndication = {

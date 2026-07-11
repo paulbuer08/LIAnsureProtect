@@ -62,4 +62,40 @@ public sealed class ControlAssurancePolicyTests
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(command.AttestedByName));
         Assert.Contains(result.Errors, error => error.PropertyName == nameof(command.AttestedByTitle));
     }
+
+    [Fact]
+    public void Implemented_control_claim_rejects_internally_inconsistent_details()
+    {
+        var validator = new CreateQuoteCommandValidator();
+        var command = new CreateQuoteCommand(
+            Guid.NewGuid(),
+            CyberIndustryClass.ProfessionalServices,
+            AnnualRevenueBand.From10MTo50M,
+            1_000_000m,
+            10_000m,
+            CyberSecurityControlStatus.Implemented,
+            CyberSecurityControlStatus.Implemented,
+            BackupMaturity.Mature,
+            true,
+            0,
+            SensitiveDataExposure.Low,
+            AttestationAccepted: true,
+            AttestedByName: "Jane Applicant",
+            AttestedByTitle: "CFO",
+            ControlDetails: new CyberControlDetails(
+                false, false, false, false, false,
+                10, false, false, false,
+                false, false, false, 72, 72,
+                false, false, false, false,
+                false, false, [], "Unknown"));
+
+        var result = validator.Validate(command);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.ErrorMessage.Contains("Implemented MFA", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.ErrorMessage.Contains("Implemented EDR", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.ErrorMessage.Contains("Mature backups", StringComparison.Ordinal));
+        Assert.Contains(result.Errors, error => error.ErrorMessage.Contains("incident plan", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Errors, error => error.ErrorMessage.Contains("Low sensitive-data", StringComparison.Ordinal));
+    }
 }

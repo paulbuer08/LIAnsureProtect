@@ -19,6 +19,7 @@ public sealed class ControlAssertionConfiguration : IEntityTypeConfiguration<Con
         builder.Property(assertion => assertion.AssuranceState).HasColumnName("assurance_state").HasConversion<string>().HasMaxLength(50).IsRequired();
         builder.Property(assertion => assertion.EvidenceRequired).HasColumnName("evidence_required").IsRequired();
         builder.Property(assertion => assertion.EvidenceReason).HasColumnName("evidence_reason").HasColumnType("text").IsRequired();
+        builder.Property(assertion => assertion.DetailsJson).HasColumnName("details_json").HasColumnType("jsonb").IsRequired();
         builder.Property(assertion => assertion.CapturedAtUtc).HasColumnName("captured_at_utc").IsRequired();
         builder.Property(assertion => assertion.VerifiedByUserId).HasColumnName("verified_by_user_id").HasMaxLength(256);
         builder.Property(assertion => assertion.VerifiedAtUtc).HasColumnName("verified_at_utc");

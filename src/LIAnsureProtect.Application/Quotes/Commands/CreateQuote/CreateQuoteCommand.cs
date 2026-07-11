@@ -1,4 +1,5 @@
 using LIAnsureProtect.Domain.Quotes;
+using LIAnsureProtect.Application.Quotes.Assurance;
 using MediatR;
 
 namespace LIAnsureProtect.Application.Quotes.Commands.CreateQuote;
@@ -21,4 +22,5 @@ public sealed record CreateQuoteCommand(
     bool AttestationAccepted = false,
     string? AttestedByName = null,
     string? AttestedByTitle = null,
-    bool IsReassessment = false) : IRequest<CreateQuoteResult?>;
+    bool IsReassessment = false,
+    CyberControlDetails? ControlDetails = null) : IRequest<CreateQuoteResult?>;

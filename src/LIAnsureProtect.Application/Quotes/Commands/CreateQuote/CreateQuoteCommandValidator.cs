@@ -1,4 +1,5 @@
 using FluentValidation;
+using LIAnsureProtect.Domain.Quotes;
 
 namespace LIAnsureProtect.Application.Quotes.Commands.CreateQuote;
 
@@ -54,6 +55,67 @@ public sealed class CreateQuoteCommandValidator : AbstractValidator<CreateQuoteC
         RuleFor(command => command.AttestedByTitle)
             .NotEmpty()
             .MaximumLength(200);
+
+        RuleFor(command => command.ControlDetails)
+            .NotNull()
+            .WithMessage("Detailed control implementation answers are required.");
+
+        When(command => command.ControlDetails is not null, () =>
+        {
+            RuleFor(command => command.ControlDetails!.EdrCoveragePercent)
+                .InclusiveBetween(0, 100);
+            RuleFor(command => command.ControlDetails!.RecoveryPointObjectiveHours)
+                .InclusiveBetween(0, 720);
+            RuleFor(command => command.ControlDetails!.RecoveryTimeObjectiveHours)
+                .InclusiveBetween(0, 720);
+            RuleFor(command => command.ControlDetails!.SensitiveDataTypes)
+                .Must(types => types is null || types.All(type =>
+                    !string.IsNullOrWhiteSpace(type) && type.Length <= 100))
+                .WithMessage("Sensitive data types must be non-empty and no more than 100 characters each.");
+            RuleFor(command => command.ControlDetails!.SensitiveDataVolume)
+                .MaximumLength(100);
+
+            When(command => command.MfaStatus == CyberSecurityControlStatus.Implemented, () =>
+            {
+                RuleFor(command => command.ControlDetails!)
+                    .Must(details => details.MfaCoversPrivilegedAccess
+                        && details.MfaCoversEmail
+                        && details.MfaCoversRemoteAccess)
+                    .WithMessage("Implemented MFA must cover privileged access, email, and remote access.");
+            });
+            When(command => command.EdrStatus == CyberSecurityControlStatus.Implemented, () =>
+            {
+                RuleFor(command => command.ControlDetails!)
+                    .Must(details => details.EdrCoveragePercent >= 90
+                        && details.EdrCoversServers
+                        && details.EdrActivelyMonitored
+                        && details.EdrTamperProtection)
+                    .WithMessage("Implemented EDR requires at least 90% coverage, servers, active monitoring, and tamper protection.");
+            });
+            When(command => command.BackupMaturity == BackupMaturity.Mature, () =>
+            {
+                RuleFor(command => command.ControlDetails!)
+                    .Must(details => details.BackupsImmutableOrOffline
+                        && details.BackupCredentialsSeparated
+                        && details.RestoreTestedLast12Months)
+                    .WithMessage("Mature backups require immutable/offline copies, separate credentials, and a recent restore test.");
+            });
+            When(command => command.HasIncidentResponsePlan, () =>
+            {
+                RuleFor(command => command.ControlDetails!)
+                    .Must(details => details.IncidentPlanApproved
+                        && details.IncidentPlanUpdatedLast12Months
+                        && details.IncidentPlanTestedLast12Months
+                        && details.IncidentRolesNamed)
+                    .WithMessage("An in-place incident plan must be approved, current, tested, and assign named roles.");
+            });
+            When(command => command.SensitiveDataExposure == SensitiveDataExposure.Low, () =>
+            {
+                RuleFor(command => command.ControlDetails!)
+                    .Must(details => details.SensitiveDataInventoryMaintained && details.SensitiveDataEncrypted)
+                    .WithMessage("Low sensitive-data exposure requires a maintained inventory and encryption support.");
+            });
+        });
 
         RuleFor(command => command.PriorCyberIncidentTypes)
             .Must(types => types is null || types.All(type => !string.IsNullOrWhiteSpace(type) && type.Length <= 100))

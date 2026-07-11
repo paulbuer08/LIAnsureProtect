@@ -58,7 +58,8 @@ public sealed class SubmissionQuotesController(
             request.AttestationAccepted,
             request.AttestedByName,
             request.AttestedByTitle,
-            request.IsReassessment);
+            request.IsReassessment,
+            request.ControlDetails);
 
         var idempotencyKey = GetIdempotencyKey();
         if (!string.IsNullOrWhiteSpace(idempotencyKey))
@@ -238,4 +239,5 @@ public sealed record CreateQuoteRequest(
     bool AttestationAccepted = false,
     string? AttestedByName = null,
     string? AttestedByTitle = null,
-    bool IsReassessment = false);
+    bool IsReassessment = false,
+    LIAnsureProtect.Application.Quotes.Assurance.CyberControlDetails? ControlDetails = null);

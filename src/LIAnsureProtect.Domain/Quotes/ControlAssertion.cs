@@ -25,6 +25,7 @@ public sealed class ControlAssertion
     {
         ClaimedState = string.Empty;
         EvidenceReason = string.Empty;
+        DetailsJson = "{}";
     }
 
     public Guid Id { get; private set; }
@@ -43,6 +44,8 @@ public sealed class ControlAssertion
 
     public string EvidenceReason { get; private set; }
 
+    public string DetailsJson { get; private set; }
+
     public DateTime CapturedAtUtc { get; private set; }
 
     public string? VerifiedByUserId { get; private set; }
@@ -56,7 +59,8 @@ public sealed class ControlAssertion
         string claimedState,
         bool evidenceRequired,
         string evidenceReason,
-        DateTime capturedAtUtc)
+        DateTime capturedAtUtc,
+        string? detailsJson = null)
     {
         if (quoteId == Guid.Empty)
             throw new ArgumentException("Quote id is required.", nameof(quoteId));
@@ -79,6 +83,7 @@ public sealed class ControlAssertion
             AssuranceState = ControlAssuranceState.SelfAttested,
             EvidenceRequired = evidenceRequired,
             EvidenceReason = evidenceReason.Trim(),
+            DetailsJson = string.IsNullOrWhiteSpace(detailsJson) ? "{}" : detailsJson,
             CapturedAtUtc = capturedAtUtc
         };
     }

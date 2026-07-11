@@ -1,0 +1,25 @@
+namespace LIAnsureProtect.Application.Quotes.Assurance;
+
+public sealed record CyberControlDetails(
+    bool MfaCoversPrivilegedAccess,
+    bool MfaCoversEmail,
+    bool MfaCoversRemoteAccess,
+    bool MfaCoversWorkforce,
+    bool MfaPhishingResistant,
+    int EdrCoveragePercent,
+    bool EdrCoversServers,
+    bool EdrActivelyMonitored,
+    bool EdrTamperProtection,
+    bool BackupsImmutableOrOffline,
+    bool BackupCredentialsSeparated,
+    bool RestoreTestedLast12Months,
+    int RecoveryPointObjectiveHours,
+    int RecoveryTimeObjectiveHours,
+    bool IncidentPlanApproved,
+    bool IncidentPlanUpdatedLast12Months,
+    bool IncidentPlanTestedLast12Months,
+    bool IncidentRolesNamed,
+    bool SensitiveDataInventoryMaintained,
+    bool SensitiveDataEncrypted,
+    IReadOnlyCollection<string>? SensitiveDataTypes,
+    string? SensitiveDataVolume);

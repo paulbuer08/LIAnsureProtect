@@ -1,4 +1,5 @@
 using LIAnsureProtect.Domain.Quotes;
+using System.Text.Json;
 
 namespace LIAnsureProtect.Application.Quotes.Assurance;
 
@@ -6,7 +7,8 @@ public sealed record ControlAssertionDecision(
     ControlType ControlType,
     string ClaimedState,
     bool EvidenceRequired,
-    string EvidenceReason);
+    string EvidenceReason,
+    string DetailsJson);
 
 public static class ControlAssurancePolicy
 {
@@ -23,27 +25,64 @@ public static class ControlAssurancePolicy
                 ControlType.MultiFactorAuthentication,
                 input.MfaStatus.ToString(),
                 input.MfaStatus == CyberSecurityControlStatus.Implemented,
-                "MFA is claimed as implemented and receives material rating credit."),
+                "MFA is claimed as implemented and receives material rating credit.",
+                new
+                {
+                    input.ControlDetails?.MfaCoversPrivilegedAccess,
+                    input.ControlDetails?.MfaCoversEmail,
+                    input.ControlDetails?.MfaCoversRemoteAccess,
+                    input.ControlDetails?.MfaCoversWorkforce,
+                    input.ControlDetails?.MfaPhishingResistant
+                }),
             Decide(
                 ControlType.EndpointDetectionAndResponse,
                 input.EdrStatus.ToString(),
                 input.EdrStatus == CyberSecurityControlStatus.Implemented && (materialLimit || priorLoss),
-                "EDR is claimed as implemented for a materially exposed risk."),
+                "EDR is claimed as implemented for a materially exposed risk.",
+                new
+                {
+                    input.ControlDetails?.EdrCoveragePercent,
+                    input.ControlDetails?.EdrCoversServers,
+                    input.ControlDetails?.EdrActivelyMonitored,
+                    input.ControlDetails?.EdrTamperProtection
+                }),
             Decide(
                 ControlType.BackupRecovery,
                 input.BackupMaturity.ToString(),
                 input.BackupMaturity == BackupMaturity.Mature,
-                "Mature backup and recovery is claimed and receives material rating credit."),
+                "Mature backup and recovery is claimed and receives material rating credit.",
+                new
+                {
+                    input.ControlDetails?.BackupsImmutableOrOffline,
+                    input.ControlDetails?.BackupCredentialsSeparated,
+                    input.ControlDetails?.RestoreTestedLast12Months,
+                    input.ControlDetails?.RecoveryPointObjectiveHours,
+                    input.ControlDetails?.RecoveryTimeObjectiveHours
+                }),
             Decide(
                 ControlType.IncidentResponsePlan,
                 input.HasIncidentResponsePlan ? "InPlace" : "NotInPlace",
                 input.HasIncidentResponsePlan,
-                "An incident response plan is claimed in place and receives rating credit."),
+                "An incident response plan is claimed in place and receives rating credit.",
+                new
+                {
+                    input.ControlDetails?.IncidentPlanApproved,
+                    input.ControlDetails?.IncidentPlanUpdatedLast12Months,
+                    input.ControlDetails?.IncidentPlanTestedLast12Months,
+                    input.ControlDetails?.IncidentRolesNamed
+                }),
             Decide(
                 ControlType.SensitiveData,
                 input.SensitiveDataExposure.ToString(),
                 input.SensitiveDataExposure == SensitiveDataExposure.Low && (materialLimit || priorLoss),
-                "Low sensitive-data exposure is claimed for a materially exposed risk.")
+                "Low sensitive-data exposure is claimed for a materially exposed risk.",
+                new
+                {
+                    input.ControlDetails?.SensitiveDataInventoryMaintained,
+                    input.ControlDetails?.SensitiveDataEncrypted,
+                    input.ControlDetails?.SensitiveDataTypes,
+                    input.ControlDetails?.SensitiveDataVolume
+                })
         ];
     }
 
@@ -112,13 +151,15 @@ public static class ControlAssurancePolicy
         ControlType controlType,
         string claimedState,
         bool evidenceRequired,
-        string reason)
+        string reason,
+        object details)
     {
         return new ControlAssertionDecision(
             controlType,
             claimedState,
             evidenceRequired,
-            evidenceRequired ? reason : string.Empty);
+            evidenceRequired ? reason : string.Empty,
+            JsonSerializer.Serialize(details, JsonSerializerOptions.Web));
     }
 }
 
@@ -129,4 +170,5 @@ public sealed record CreateQuoteAssuranceInput(
     BackupMaturity BackupMaturity,
     bool HasIncidentResponsePlan,
     int PriorCyberIncidents,
-    SensitiveDataExposure SensitiveDataExposure);
+    SensitiveDataExposure SensitiveDataExposure,
+    CyberControlDetails? ControlDetails = null);
