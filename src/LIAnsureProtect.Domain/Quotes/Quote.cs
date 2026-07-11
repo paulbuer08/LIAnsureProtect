@@ -178,6 +178,28 @@ public sealed class Quote : IHasDomainEvents
         controlAssertions.Add(assertion);
     }
 
+    public void RecordAssuranceDecision(
+        ControlType controlType,
+        bool satisfied,
+        string reviewedByUserId,
+        DateTime reviewedAtUtc)
+    {
+        var assertion = controlAssertions.SingleOrDefault(item => item.ControlType == controlType);
+        if (assertion is null || !assertion.EvidenceRequired)
+            return;
+
+        assertion.RecordHumanVerification(reviewedByUserId, satisfied, reviewedAtUtc);
+        EvidenceSatisfiedCount = controlAssertions.Count(item =>
+            item.EvidenceRequired && item.AssuranceState == ControlAssuranceState.HumanVerified);
+
+        AssuranceStatus = controlAssertions.Any(item =>
+            item.EvidenceRequired && item.AssuranceState == ControlAssuranceState.Rejected)
+                ? QuoteAssuranceStatus.Rejected
+                : EvidenceSatisfiedCount == EvidenceRequiredCount
+                    ? QuoteAssuranceStatus.Verified
+                    : QuoteAssuranceStatus.EvidenceRequired;
+    }
+
     public QuoteUnderwritingReview ApproveReferral(
         string reviewedByUserId,
         string reason,

@@ -4,6 +4,7 @@ using LIAnsureProtect.Application.Policies;
 using LIAnsureProtect.Application.Policies.Binding;
 using LIAnsureProtect.Application.Quotes;
 using LIAnsureProtect.Application.Quotes.RatingProviders;
+using LIAnsureProtect.Application.Quotes.Assurance;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Infrastructure.Documents;
 using LIAnsureProtect.Infrastructure.Persistence;
@@ -93,6 +94,10 @@ public static class DependencyInjection
         services.AddScoped<IOutboxMessageConsumer, ReferralOperationOutboxMessageConsumer>();
         services.AddScoped<IOutboxMessageMapper<QuoteAssuranceEvent>, QuoteGeneratedAssuranceMapper>();
         services.AddScoped<IOutboxMessageConsumer, QuoteAssuranceOutboxMessageConsumer>();
+        services.AddScoped<IOutboxMessageMapper<QuoteAssuranceDecisionEvent>, EvidenceAcceptedAssuranceDecisionMapper>();
+        services.AddScoped<IOutboxMessageMapper<QuoteAssuranceDecisionEvent>, EvidenceRemediationAssuranceDecisionMapper>();
+        services.AddScoped<IQuoteAssuranceDecisionProjector, QuoteAssuranceDecisionProjector>();
+        services.AddScoped<IOutboxMessageConsumer, QuoteAssuranceDecisionOutboxMessageConsumer>();
         services.AddScoped<IOutboxMessageConsumer, NotificationOutboxMessageConsumer>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
         services.AddOptions<DocumentStorageOptions>();

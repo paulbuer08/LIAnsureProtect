@@ -28,6 +28,9 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
 
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
 
+    public DbSet<QuoteAssuranceDecisionProjectedMessage> QuoteAssuranceDecisionProjectedMessages
+        => Set<QuoteAssuranceDecisionProjectedMessage>();
+
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         var entitiesWithDomainEvents = ChangeTracker

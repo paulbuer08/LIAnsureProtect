@@ -1,7 +1,9 @@
 using System.Diagnostics.Metrics;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
+using LIAnsureProtect.Application.Quotes.Assurance;
 using LIAnsureProtect.Infrastructure.Persistence;
+using LIAnsureProtect.Infrastructure.Quotes;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox.Consumers;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping.Notifications;
@@ -41,6 +43,7 @@ public sealed class OutboxDispatcherTests : IDisposable
     private readonly NotificationInboxProjector projector;
     private readonly ReferralOperationProjector referralProjector;
     private readonly QuoteAssuranceProjector quoteAssuranceProjector;
+    private readonly QuoteAssuranceDecisionProjector quoteAssuranceDecisionProjector;
 
     public OutboxDispatcherTests()
     {
@@ -84,6 +87,7 @@ public sealed class OutboxDispatcherTests : IDisposable
             underwritingDbContext,
             quoteContextReaderStub.Object,
             new EfEvidenceRequestRepository(underwritingDbContext));
+        quoteAssuranceDecisionProjector = new QuoteAssuranceDecisionProjector(dbContext);
     }
 
     [Fact]
@@ -797,6 +801,13 @@ public sealed class OutboxDispatcherTests : IDisposable
                 new QuoteAssuranceOutboxMessageConsumer(
                     new OutboxMessageMapperRegistry<QuoteAssuranceEvent>([new QuoteGeneratedAssuranceMapper()]),
                     quoteAssuranceProjector),
+                new QuoteAssuranceDecisionOutboxMessageConsumer(
+                    new OutboxMessageMapperRegistry<QuoteAssuranceDecisionEvent>(
+                    [
+                        new EvidenceAcceptedAssuranceDecisionMapper(),
+                        new EvidenceRemediationAssuranceDecisionMapper()
+                    ]),
+                    quoteAssuranceDecisionProjector),
                 new NotificationOutboxMessageConsumer(CreateNotificationRegistry(), projector, publisher)
             ],
             NullLogger<OutboxDispatcher>.Instance);
