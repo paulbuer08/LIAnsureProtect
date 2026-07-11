@@ -67,11 +67,18 @@ The same follow-up replaced the browser delete confirmation with an accessible, 
 changed copy to **Delete this draft**, and made the existing Submission-record values become inputs in
 place when **Edit draft details** is selected. Immutable id/status/creation metadata remains read-only.
 
-The next manual pass distinguished transient confirmation from durable business information. **Draft
-submission created** and **Draft details updated** now use a reusable polite live-region status message:
-five seconds total gives more reading time than a three-second toast, the final half-second fades and
-collapses smoothly, reduced-motion preferences are respected, timers are cleaned up on unmount, and the
-message is then removed from the DOM. Important errors and lifecycle/audit explanations do not auto-hide.
+The next manual pass distinguished transient confirmation from durable business information. An app-wide
+frontend audit found seven true transient messages: **Draft submission created**, **Draft details updated**,
+**Submission submitted**, **Submission withdrawn**, **Quote accepted**, **Evidence response saved**, and
+**Manual action saved**. All now use the reusable polite live-region status message: five seconds total
+gives more reading time than a three-second toast, the final half-second fades and collapses smoothly,
+reduced-motion preferences are respected, timers are cleaned up on unmount, and the message is then
+removed from the DOM.
+
+The audit deliberately did not convert durable policy/quote/evidence-document result cards, timelines,
+claim decisions, saved responses, audit records, warnings, errors, or empty states. Those remain visible
+because they are business information, actionable content, or information needed to recover from a
+problem—not disposable confirmation chrome.
 
 The confirmation dialog now accepts a visible information panel rather than hiding important rules only
 behind hover. Draft deletion explains that an unsubmitted Draft is still removable, while a successfully
@@ -85,7 +92,7 @@ DbContexts, and frontend TypeScript/ESLint/production build plus 88 tests. Full 
 then applied all four migration sets to fresh PostgreSQL and passed UnitTests 196, IntegrationTests
 259 plus 3 intentional external-service skips, frontend build/lint/all 88 tests, artifact creation,
 and Docker cleanup. The script printed `Local CI passed.` and wrote
-`TestResults/local-ci-20260711-191008.zip`.
+`TestResults/local-ci-20260711-192630.zip`.
 
 ## Verification
 

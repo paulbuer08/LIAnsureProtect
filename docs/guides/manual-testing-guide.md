@@ -172,6 +172,10 @@ This is the richest flow; it exercises the whole Underwriting module.
    remains Withdrawn and only one withdrawal outbox event exists.
 8. Try withdrawal after accepting/binding the Quote → ✅ `409`; the Submission, Quote, and Policy
    history remain intact.
+9. Complete a Submission submit, Quote acceptance, eligible Submission withdrawal, customer Evidence
+   response, and manual Underwriting approve/decline/adjust action → ✅ each success confirmation stays
+   for about five seconds, fades, and leaves the DOM. Durable Quote/Policy/document result cards,
+   timelines, decisions, warnings, errors, and empty states remain visible.
 
 ## Scenario 5 — The claims lifecycle (Phase 3, end to end)
 
