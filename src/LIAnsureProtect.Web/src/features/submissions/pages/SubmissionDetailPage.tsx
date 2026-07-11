@@ -103,6 +103,10 @@ export function SubmissionDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
+  const [isSubmittedNoticeVisible, setIsSubmittedNoticeVisible] = useState(false);
+  const [isQuoteAcceptedNoticeVisible, setIsQuoteAcceptedNoticeVisible] =
+    useState(false);
+  const [isWithdrawnNoticeVisible, setIsWithdrawnNoticeVisible] = useState(false);
   const [draftCreatedNotice, setDraftCreatedNotice] = useState(() => {
     const routeState = location.state as {
       draftCreated?: boolean;
@@ -303,7 +307,9 @@ export function SubmissionDetailPage() {
       return;
     }
 
-    submitSubmissionMutation.mutate(displayedSubmission.submissionId);
+    submitSubmissionMutation.mutate(displayedSubmission.submissionId, {
+      onSuccess: () => setIsSubmittedNoticeVisible(true),
+    });
   }
 
   function handleGenerateQuote() {
@@ -350,15 +356,18 @@ export function SubmissionDetailPage() {
       return;
     }
 
-    acceptQuoteMutation.mutate({
-      quoteId: activeQuoteId,
-      request: {
-        acceptedByName:
-          acceptedByName.trim() || displayedSubmission?.applicantName || "",
-        acceptedByTitle,
-        subjectivitiesAcknowledged,
+    acceptQuoteMutation.mutate(
+      {
+        quoteId: activeQuoteId,
+        request: {
+          acceptedByName:
+            acceptedByName.trim() || displayedSubmission?.applicantName || "",
+          acceptedByTitle,
+          subjectivitiesAcknowledged,
+        },
       },
-    });
+      { onSuccess: () => setIsQuoteAcceptedNoticeVisible(true) },
+    );
   }
 
   function handleBindPolicy() {
@@ -398,6 +407,7 @@ export function SubmissionDetailPage() {
     try {
       await withdrawMutation.mutateAsync(displayedSubmission.submissionId);
       setIsWithdrawDialogOpen(false);
+      setIsWithdrawnNoticeVisible(true);
     } catch {
       setIsWithdrawDialogOpen(false);
     }
@@ -584,10 +594,13 @@ export function SubmissionDetailPage() {
               </div>
             )}
 
-            {submitSubmissionMutation.isSuccess && (
-              <p className="mt-5 rounded-md border border-emerald-500/40 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+            {isSubmittedNoticeVisible && (
+              <TransientStatusMessage
+                className="mt-5 text-sm"
+                onDismiss={() => setIsSubmittedNoticeVisible(false)}
+              >
                 Submission submitted successfully.
-              </p>
+              </TransientStatusMessage>
             )}
 
             {submitSubmissionMutation.isError && (
@@ -1042,10 +1055,13 @@ export function SubmissionDetailPage() {
               </p>
             )}
 
-            {acceptQuoteMutation.isSuccess && (
-              <p className="mt-5 rounded-md border border-emerald-500/40 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+            {isQuoteAcceptedNoticeVisible && (
+              <TransientStatusMessage
+                className="mt-5 text-sm"
+                onDismiss={() => setIsQuoteAcceptedNoticeVisible(false)}
+              >
                 Quote accepted successfully.
-              </p>
+              </TransientStatusMessage>
             )}
 
             {canBindPolicy && (
@@ -1137,7 +1153,15 @@ export function SubmissionDetailPage() {
               </div>
             )}
 
-            {withdrawMutation.isSuccess && <p className="mt-5 rounded-md border border-amber-500/40 bg-amber-950/30 p-3 text-amber-100">Submission withdrawn. The record remains available as audit history.</p>}
+            {isWithdrawnNoticeVisible && (
+              <TransientStatusMessage
+                className="mt-5"
+                onDismiss={() => setIsWithdrawnNoticeVisible(false)}
+                tone="warning"
+              >
+                Submission withdrawn. The record remains available as audit history.
+              </TransientStatusMessage>
+            )}
             {(withdrawMutation.isError || deleteDraftMutation.isError) && <p className="mt-5 rounded-md border border-red-900 bg-red-950 p-3 text-red-200">{getErrorMessage(withdrawMutation.error ?? deleteDraftMutation.error)}</p>}
 
             {relatedPolicy && (

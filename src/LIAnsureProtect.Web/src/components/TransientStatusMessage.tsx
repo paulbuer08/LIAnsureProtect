@@ -5,6 +5,7 @@ type TransientStatusMessageProps = {
   className?: string;
   durationMs?: number;
   onDismiss: () => void;
+  tone?: "success" | "warning";
 };
 
 const fadeDurationMs = 500;
@@ -14,6 +15,7 @@ export function TransientStatusMessage({
   className = "",
   durationMs = 5_000,
   onDismiss,
+  tone = "success",
 }: TransientStatusMessageProps) {
   const [isFading, setIsFading] = useState(false);
   const onDismissRef = useRef(onDismiss);
@@ -49,7 +51,13 @@ export function TransientStatusMessage({
       } ${className}`}
     >
       <div className="overflow-hidden">
-        <div className="rounded-md border border-emerald-500/40 bg-emerald-950/30 p-4 text-emerald-100">
+        <div
+          className={`rounded-md border p-4 ${
+            tone === "warning"
+              ? "border-amber-500/40 bg-amber-950/30 text-amber-100"
+              : "border-emerald-500/40 bg-emerald-950/30 text-emerald-100"
+          }`}
+        >
           {children}
         </div>
       </div>

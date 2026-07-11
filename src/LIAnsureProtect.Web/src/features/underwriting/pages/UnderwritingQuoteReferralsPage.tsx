@@ -3,6 +3,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import type { FormEvent } from "react";
 import { Link } from "react-router";
 
+import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
 import { formatCurrency } from "../../../lib/currency";
 import { downloadUnderwritingEvidenceDocument } from "../api/underwritingApi";
 import {
@@ -1043,6 +1044,7 @@ function ManualActionsPanel({
   onAdjust,
   onApprove,
   onDecline,
+  onDismissActionResult,
   quote,
 }: {
   actionError: unknown;
@@ -1056,6 +1058,7 @@ function ManualActionsPanel({
   }) => void;
   onApprove: (request: { reason: string; notes: string }) => void;
   onDecline: (request: { reason: string; notes: string }) => void;
+  onDismissActionResult: () => void;
   quote: QuoteReferral;
 }) {
   const [approvalReason, setApprovalReason] = useState("");
@@ -1113,9 +1116,12 @@ function ManualActionsPanel({
       </p>
 
       {actionResult && (
-        <p className="mt-4 rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm font-semibold text-emerald-100">
+        <TransientStatusMessage
+          className="mt-4 text-sm font-semibold"
+          onDismiss={onDismissActionResult}
+        >
           Manual action saved: {actionResult.status}
-        </p>
+        </TransientStatusMessage>
       )}
 
       {actionError !== null && actionError !== undefined && (
@@ -1534,6 +1540,7 @@ export function UnderwritingQuoteReferralsPage() {
                   }
                   onApprove={handleApprove}
                   onDecline={handleDecline}
+                  onDismissActionResult={() => setActionResult(undefined)}
                   onAdjust={handleAdjust}
                 />
               </aside>

@@ -3,6 +3,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import type { FormEvent } from "react";
 import { Link } from "react-router";
 
+import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
 import { downloadOwnerEvidenceDocument } from "../api/evidenceRequestsApi";
 import {
   useEvidenceRequests,
@@ -173,9 +174,12 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
       </section>
 
       {savedStatus && (
-        <p className="mt-4 rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm font-semibold text-emerald-100">
+        <TransientStatusMessage
+          className="mt-4 text-sm font-semibold"
+          onDismiss={() => setSavedStatus(undefined)}
+        >
           Evidence response saved: {savedStatus}
-        </p>
+        </TransientStatusMessage>
       )}
 
       {respondToEvidenceRequest.error !== null &&
