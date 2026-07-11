@@ -25,6 +25,7 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         CancellationToken cancellationToken)
     {
         return await dbContext.Quotes
+            .Include(quote => quote.ControlAssertions)
             .Where(quote => quote.SubmissionId == submissionId && quote.OwnerUserId == ownerUserId)
             .OrderByDescending(quote => quote.CreatedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);

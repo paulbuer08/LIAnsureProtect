@@ -11,4 +11,17 @@ public sealed record CreateQuoteResult(
     IReadOnlyList<string> Subjectivities,
     IReadOnlyList<string> ReferralReasons,
     DateTime ExpiresAtUtc,
-    RatingProviderIndicationResult ProviderIndication);
+    RatingProviderIndicationResult ProviderIndication,
+    int Version,
+    Guid? SupersedesQuoteId,
+    string AssuranceStatus,
+    int EvidenceRequiredCount,
+    int EvidenceSatisfiedCount,
+    IReadOnlyList<ControlAssertionResult> ControlAssertions);
+
+public sealed record ControlAssertionResult(
+    string ControlType,
+    string ClaimedState,
+    string AssuranceState,
+    bool EvidenceRequired,
+    string EvidenceReason);

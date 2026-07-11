@@ -82,7 +82,12 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
                 quote.Status,
                 quote.Subjectivities,
                 quote.ReferralReasons,
-                quote.ExpiresAtUtc
+                quote.ExpiresAtUtc,
+                quote.Version,
+                quote.SupersedesQuoteId,
+                quote.AssuranceStatus,
+                quote.EvidenceRequiredCount,
+                quote.EvidenceSatisfiedCount
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -118,7 +123,12 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
                         latestQuote.Status.ToString(),
                         SplitLines(latestQuote.Subjectivities),
                         SplitLines(latestQuote.ReferralReasons),
-                        latestQuote.ExpiresAtUtc),
+                        latestQuote.ExpiresAtUtc,
+                        latestQuote.Version,
+                        latestQuote.SupersedesQuoteId,
+                        latestQuote.AssuranceStatus.ToString(),
+                        latestQuote.EvidenceRequiredCount,
+                        latestQuote.EvidenceSatisfiedCount),
                 relatedPolicy is null
                     ? null
                     : new SubmissionPolicySummaryResult(

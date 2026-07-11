@@ -139,6 +139,9 @@ export function SubmissionDetailPage() {
   const [priorCyberIncidentDetails, setPriorCyberIncidentDetails] = useState("");
   const [sensitiveDataExposure, setSensitiveDataExposure] =
     useState<SensitiveDataExposure>("Moderate");
+  const [attestationAccepted, setAttestationAccepted] = useState(false);
+  const [attestedByName, setAttestedByName] = useState("");
+  const [attestedByTitle, setAttestedByTitle] = useState("");
   const [acceptedByName, setAcceptedByName] = useState("");
   const [acceptedByTitle, setAcceptedByTitle] = useState("CFO");
   const [subjectivitiesAcknowledged, setSubjectivitiesAcknowledged] =
@@ -226,10 +229,22 @@ export function SubmissionDetailPage() {
     [];
   const activeReferralReasons =
     createdQuote?.referralReasons ?? latestQuote?.referralReasons ?? [];
+  const activeAssuranceStatus =
+    createdQuote?.assuranceStatus ?? latestQuote?.assuranceStatus;
+  const activeEvidenceRequiredCount =
+    createdQuote?.evidenceRequiredCount ??
+    latestQuote?.evidenceRequiredCount ??
+    0;
+  const activeEvidenceSatisfiedCount =
+    createdQuote?.evidenceSatisfiedCount ??
+    latestQuote?.evidenceSatisfiedCount ??
+    0;
   const canGenerateQuote =
     displayedSubmission?.status === "Submitted" && activeQuoteStatus === undefined;
   const canAcceptQuote =
-    activeQuoteStatus === "Quoted" || activeQuoteStatus === "Approved";
+    (activeQuoteStatus === "Quoted" || activeQuoteStatus === "Approved") &&
+    activeAssuranceStatus !== "EvidenceRequired" &&
+    activeAssuranceStatus !== "Rejected";
   const canBindPolicy = activeQuoteStatus === "Accepted";
   const canWithdraw = displayedSubmission?.status === "Submitted"
     && activeQuoteStatus !== "Accepted"
@@ -249,9 +264,12 @@ export function SubmissionDetailPage() {
   const priorIncidentCount = Number(priorCyberIncidents);
   const needsPriorIncidentDetails = priorIncidentCount > 0;
   const canGenerateQuoteRequest =
-    !needsPriorIncidentDetails ||
-    (priorCyberIncidentTypes.length > 0 &&
-      priorCyberIncidentDetails.trim().length > 0);
+    attestationAccepted &&
+    attestedByName.trim().length > 0 &&
+    attestedByTitle.trim().length > 0 &&
+    (!needsPriorIncidentDetails ||
+      (priorCyberIncidentTypes.length > 0 &&
+        priorCyberIncidentDetails.trim().length > 0));
   const {
     formState: { errors },
     handleSubmit,
@@ -339,6 +357,9 @@ export function SubmissionDetailPage() {
         priorCyberIncidentDetails: needsPriorIncidentDetails
           ? priorCyberIncidentDetails.trim()
           : null,
+        attestationAccepted,
+        attestedByName: attestedByName.trim(),
+        attestedByTitle: attestedByTitle.trim(),
       },
     });
   }
@@ -615,9 +636,11 @@ export function SubmissionDetailPage() {
                   Generate quote
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                  Complete the rating inputs for this submitted risk. The
-                  defaults represent a clean cyber profile for the happy-path
-                  walkthrough.
+                  Provide your organization&apos;s current security posture as
+                  accurately as possible. These answers affect the risk
+                  assessment, premium, and whether underwriting evidence is
+                  required. Any quote may remain subject to verification of
+                  selected controls.
                 </p>
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -783,6 +806,7 @@ export function SubmissionDetailPage() {
                         )
                       }
                     >
+                      <option value="Unknown">Unknown / not assessed</option>
                       <option value="Low">Low</option>
                       <option value="Moderate">Moderate</option>
                       <option value="High">High</option>
@@ -879,6 +903,53 @@ export function SubmissionDetailPage() {
                   </div>
                 )}
 
+                <div className="mt-5 rounded-md border border-sky-800 bg-sky-950/40 p-4">
+                  <h3 className="text-sm font-semibold text-sky-100">
+                    Control attestation
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-200">
+                    I confirm that these answers are accurate to the best of my
+                    knowledge and understand that supporting evidence may be
+                    requested. Verified differences may change the risk
+                    assessment, premium, quote terms, or underwriting decision.
+                  </p>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <label className="text-sm font-semibold text-slate-100">
+                      Attesting person
+                      <input
+                        className={fieldClassName}
+                        type="text"
+                        value={attestedByName}
+                        onChange={(event) => setAttestedByName(event.target.value)}
+                        placeholder={displayedSubmission?.applicantName ?? "Full name"}
+                      />
+                    </label>
+                    <label className="text-sm font-semibold text-slate-100">
+                      Title or role
+                      <input
+                        className={fieldClassName}
+                        type="text"
+                        value={attestedByTitle}
+                        onChange={(event) => setAttestedByTitle(event.target.value)}
+                        placeholder="Example: Chief Information Security Officer"
+                      />
+                    </label>
+                  </div>
+                  <label className="mt-4 flex items-start gap-3 text-sm text-slate-100">
+                    <input
+                      checked={attestationAccepted}
+                      className="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-950"
+                      type="checkbox"
+                      onChange={(event) => setAttestationAccepted(event.target.checked)}
+                    />
+                    <span>I confirm this attestation.</span>
+                  </label>
+                  <p className="mt-3 text-xs leading-5 text-slate-400">
+                    This wording is a product-hardening draft and must receive
+                    legal/compliance approval before production use.
+                  </p>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleGenerateQuote}
@@ -905,6 +976,21 @@ export function SubmissionDetailPage() {
                 <h2 className="text-base font-semibold text-white">
                   Latest quote
                 </h2>
+                {activeAssuranceStatus === "EvidenceRequired" && (
+                  <div className="mt-4 rounded-md border border-amber-700 bg-amber-950/40 p-4 text-sm text-amber-100">
+                    <p className="font-semibold">Provisional — evidence required</p>
+                    <p className="mt-2 leading-6">
+                      Underwriting must satisfy {activeEvidenceRequiredCount} control
+                      verification{activeEvidenceRequiredCount === 1 ? "" : "s"} before
+                      this quote can be accepted. {activeEvidenceSatisfiedCount} currently
+                      satisfied. Automated checks assist review but do not make the final
+                      insurance decision.
+                    </p>
+                    <Link className="mt-3 inline-block font-semibold text-amber-200 underline" to="/evidence">
+                      Open evidence requests
+                    </Link>
+                  </div>
+                )}
                 <dl className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div>
                     <dt className="font-semibold text-slate-400">Quote ID</dt>

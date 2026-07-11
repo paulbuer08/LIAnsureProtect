@@ -73,6 +73,15 @@ function renderSubmissionDetailPage(submissionId = "submission-456") {
   );
 }
 
+async function completeQuoteAttestation(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(
+    await screen.findByLabelText("Attesting person"),
+    "Jane Applicant",
+  );
+  await user.type(screen.getByLabelText("Title or role"), "CFO");
+  await user.click(screen.getByLabelText("I confirm this attestation."));
+}
+
 describe("SubmissionDetailPage", () => {
   beforeEach(() => {
     getAccessTokenSilently.mockReset();
@@ -429,6 +438,8 @@ describe("SubmissionDetailPage", () => {
 
     renderSubmissionDetailPage();
 
+    await completeQuoteAttestation(user);
+
     await user.click(
       await screen.findByRole("button", { name: "Generate quote" }),
     );
@@ -450,6 +461,9 @@ describe("SubmissionDetailPage", () => {
         otherIndustryDescription: null,
         priorCyberIncidentTypes: null,
         priorCyberIncidentDetails: null,
+        attestationAccepted: true,
+        attestedByName: "Jane Applicant",
+        attestedByTitle: "CFO",
       },
     );
     expect(await screen.findByText("quote-123")).toBeInTheDocument();
@@ -553,6 +567,8 @@ describe("SubmissionDetailPage", () => {
 
     renderSubmissionDetailPage();
 
+    await completeQuoteAttestation(user);
+
     await user.click(
       await screen.findByRole("button", { name: "Generate quote" }),
     );
@@ -647,6 +663,8 @@ describe("SubmissionDetailPage", () => {
     });
 
     renderSubmissionDetailPage();
+
+    await completeQuoteAttestation(user);
 
     await user.click(
       await screen.findByRole("button", { name: "Generate quote" }),

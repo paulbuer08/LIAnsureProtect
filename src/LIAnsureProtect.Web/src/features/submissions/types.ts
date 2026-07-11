@@ -39,7 +39,7 @@ export type CyberSecurityControlStatus =
 
 export type BackupMaturity = "Weak" | "Partial" | "Mature";
 
-export type SensitiveDataExposure = "Low" | "Moderate" | "High";
+export type SensitiveDataExposure = "Unknown" | "Low" | "Moderate" | "High";
 
 export type CreateQuoteRequest = {
   industryClass: CyberIndustryClass;
@@ -55,6 +55,10 @@ export type CreateQuoteRequest = {
   otherIndustryDescription?: string | null;
   priorCyberIncidentTypes?: string[] | null;
   priorCyberIncidentDetails?: string | null;
+  attestationAccepted: boolean;
+  attestedByName: string;
+  attestedByTitle: string;
+  isReassessment?: boolean;
 };
 
 export type RatingProviderIndication = {
@@ -85,6 +89,18 @@ export type CreateQuoteResponse = {
   referralReasons: string[];
   expiresAtUtc: string;
   providerIndication: RatingProviderIndication;
+  version?: number;
+  supersedesQuoteId?: string | null;
+  assuranceStatus?: string;
+  evidenceRequiredCount?: number;
+  evidenceSatisfiedCount?: number;
+  controlAssertions?: Array<{
+    controlType: string;
+    claimedState: string;
+    assuranceState: string;
+    evidenceRequired: boolean;
+    evidenceReason: string;
+  }>;
 };
 
 export type SubmissionQuoteSummary = Omit<

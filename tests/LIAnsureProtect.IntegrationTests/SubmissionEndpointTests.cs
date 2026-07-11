@@ -1658,7 +1658,10 @@ public sealed class SubmissionEndpointTests
             backupMaturity = "Mature",
             hasIncidentResponsePlan = true,
             priorCyberIncidents = 0,
-            sensitiveDataExposure = "Moderate"
+            sensitiveDataExposure = "Moderate",
+            attestationAccepted = true,
+            attestedByName = "Jane Applicant",
+            attestedByTitle = "CFO"
         };
     }
 
@@ -1679,7 +1682,10 @@ public sealed class SubmissionEndpointTests
             priorCyberIncidents = 2,
             priorCyberIncidentTypes = new[] { "Ransomware", "Data breach" },
             priorCyberIncidentDetails = "Two prior incidents affected regulated systems; recovery and control remediation are under review.",
-            sensitiveDataExposure = "High"
+            sensitiveDataExposure = "High",
+            attestationAccepted = true,
+            attestedByName = "Jane Applicant",
+            attestedByTitle = "CFO"
         };
     }
 

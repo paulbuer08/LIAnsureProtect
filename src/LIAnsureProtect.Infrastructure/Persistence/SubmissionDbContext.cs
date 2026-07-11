@@ -14,6 +14,8 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
 
     public DbSet<Quote> Quotes => Set<Quote>();
 
+    public DbSet<ControlAssertion> ControlAssertions => Set<ControlAssertion>();
+
     public DbSet<QuoteRatingProviderAttempt> QuoteRatingProviderAttempts => Set<QuoteRatingProviderAttempt>();
 
     public DbSet<QuoteUnderwritingReview> QuoteUnderwritingReviews => Set<QuoteUnderwritingReview>();

@@ -2,6 +2,7 @@ using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Application.Quotes.Rating;
 using LIAnsureProtect.Application.Quotes.RatingProviders;
+using LIAnsureProtect.Application.Quotes.Assurance;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
@@ -47,6 +48,16 @@ public sealed class CreateQuoteCommandHandler(
         if (existingQuote is not null)
             return ToResult(existingQuote, CreateExistingQuoteProviderIndication(existingQuote));
 
+        var assertionDecisions = ControlAssurancePolicy.Evaluate(new CreateQuoteAssuranceInput(
+            request.RequestedLimit,
+            request.MfaStatus,
+            request.EdrStatus,
+            request.BackupMaturity,
+            request.HasIncidentResponsePlan,
+            request.PriorCyberIncidents,
+            request.SensitiveDataExposure));
+        var evidenceRequiredCount = assertionDecisions.Count(decision => decision.EvidenceRequired);
+
         var ratingInput = new CyberRatingInput(
             request.IndustryClass,
             request.AnnualRevenueBand,
@@ -62,6 +73,7 @@ public sealed class CreateQuoteCommandHandler(
             request.PriorCyberIncidentTypes,
             request.PriorCyberIncidentDetails);
         var ratingResult = ratingStrategySelector.Rate(ratingInput);
+        var quoteCreatedAtUtc = DateTime.UtcNow;
         var quote = Quote.Generate(
             submission.Id,
             ownerUserId,
@@ -72,7 +84,24 @@ public sealed class CreateQuoteCommandHandler(
             ratingResult.StrategyName,
             ratingResult.Subjectivities,
             ratingResult.ReferralReasons,
-            DateTime.UtcNow);
+            quoteCreatedAtUtc,
+            attestedByUserId: ownerUserId,
+            attestedByName: request.AttestedByName,
+            attestedByTitle: request.AttestedByTitle,
+            attestationWordingVersion: ControlAssurancePolicy.AttestationWordingVersion,
+            evidenceRequiredCount: evidenceRequiredCount);
+
+        foreach (var decision in assertionDecisions)
+        {
+            quote.AddControlAssertion(ControlAssertion.Create(
+                quote.Id,
+                quote.Version,
+                decision.ControlType,
+                decision.ClaimedState,
+                decision.EvidenceRequired,
+                decision.EvidenceReason,
+                quoteCreatedAtUtc));
+        }
         var providerRequest = new RatingProviderRequest(
             quote.Id,
             submission.Id,
@@ -141,7 +170,21 @@ public sealed class CreateQuoteCommandHandler(
             SplitLines(quote.Subjectivities),
             SplitLines(quote.ReferralReasons),
             quote.ExpiresAtUtc,
-            providerIndication);
+            providerIndication,
+            quote.Version,
+            quote.SupersedesQuoteId,
+            quote.AssuranceStatus.ToString(),
+            quote.EvidenceRequiredCount,
+            quote.EvidenceSatisfiedCount,
+            quote.ControlAssertions
+                .OrderBy(assertion => assertion.ControlType)
+                .Select(assertion => new ControlAssertionResult(
+                    assertion.ControlType.ToString(),
+                    assertion.ClaimedState,
+                    assertion.AssuranceState.ToString(),
+                    assertion.EvidenceRequired,
+                    assertion.EvidenceReason))
+                .ToList());
     }
 
     private static RatingProviderIndicationResult CreateExistingQuoteProviderIndication(Quote quote)

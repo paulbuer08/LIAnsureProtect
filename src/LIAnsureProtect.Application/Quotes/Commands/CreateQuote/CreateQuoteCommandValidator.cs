@@ -43,6 +43,18 @@ public sealed class CreateQuoteCommandValidator : AbstractValidator<CreateQuoteC
         RuleFor(command => command.PriorCyberIncidentDetails)
             .MaximumLength(2_000);
 
+        RuleFor(command => command.AttestationAccepted)
+            .Equal(true)
+            .WithMessage("You must confirm the control attestation before a quote can be generated.");
+
+        RuleFor(command => command.AttestedByName)
+            .NotEmpty()
+            .MaximumLength(200);
+
+        RuleFor(command => command.AttestedByTitle)
+            .NotEmpty()
+            .MaximumLength(200);
+
         RuleFor(command => command.PriorCyberIncidentTypes)
             .Must(types => types is null || types.All(type => !string.IsNullOrWhiteSpace(type) && type.Length <= 100))
             .WithMessage("Prior cyber incident types must be non-empty and no more than 100 characters each.");

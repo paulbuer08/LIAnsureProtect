@@ -17,4 +17,8 @@ public sealed record CreateQuoteCommand(
     SensitiveDataExposure SensitiveDataExposure,
     string? OtherIndustryDescription = null,
     IReadOnlyCollection<string>? PriorCyberIncidentTypes = null,
-    string? PriorCyberIncidentDetails = null) : IRequest<CreateQuoteResult?>;
+    string? PriorCyberIncidentDetails = null,
+    bool AttestationAccepted = false,
+    string? AttestedByName = null,
+    string? AttestedByTitle = null,
+    bool IsReassessment = false) : IRequest<CreateQuoteResult?>;

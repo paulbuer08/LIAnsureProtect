@@ -117,6 +117,11 @@ public sealed class DependencyRegistrationTests
         Assert.Contains("ix_idempotency_records_status_completed_at_utc", script);
         Assert.Contains("CREATE TABLE quotes", script);
         Assert.Contains("ix_quotes_submission_id", script);
+        Assert.Contains("CREATE TABLE quote_control_assertions", script);
+        Assert.Contains("ux_quote_control_assertions_quote_id_control_type", script);
+        Assert.Contains("assurance_status", script);
+        Assert.Contains("attestation_wording_version", script);
+        Assert.Contains("ux_quotes_submission_id_version", script);
         Assert.Contains("CREATE TABLE quote_underwriting_reviews", script);
         Assert.Contains("ix_quote_underwriting_reviews_quote_id_created_at_utc", script);
         Assert.Contains("CREATE TABLE quote_rating_provider_attempts", script);

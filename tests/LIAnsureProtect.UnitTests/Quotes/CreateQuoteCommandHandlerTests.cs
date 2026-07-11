@@ -77,6 +77,11 @@ public sealed class CreateQuoteCommandHandlerTests
         Assert.Equal("CNT-REF-1001", savedAttempt.ProviderReference);
         Assert.Equal("CNT-Q-9001", result.ProviderIndication.ProviderQuoteNumber);
         Assert.Equal("Quoted", result.ProviderIndication.MarketDisposition);
+        Assert.Equal(QuoteAssuranceStatus.EvidenceRequired, savedQuote.AssuranceStatus);
+        Assert.Equal(4, savedQuote.EvidenceRequiredCount);
+        Assert.Equal(5, savedQuote.ControlAssertions.Count);
+        Assert.Equal("Jane Applicant", savedQuote.AttestedByName);
+        Assert.Equal("CFO", savedQuote.AttestedByTitle);
     }
 
     [Fact]
@@ -247,7 +252,10 @@ public sealed class CreateQuoteCommandHandlerTests
             BackupMaturity.Mature,
             true,
             0,
-            SensitiveDataExposure.Moderate);
+            SensitiveDataExposure.Moderate,
+            AttestationAccepted: true,
+            AttestedByName: "Jane Applicant",
+            AttestedByTitle: "CFO");
     }
 
     private sealed class TestCurrentUser(string userId) : ICurrentUser
