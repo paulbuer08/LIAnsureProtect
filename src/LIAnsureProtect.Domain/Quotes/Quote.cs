@@ -200,6 +200,20 @@ public sealed class Quote : IHasDomainEvents
                     : QuoteAssuranceStatus.EvidenceRequired;
     }
 
+    public void Supersede(DateTime supersededAtUtc)
+    {
+        if (Status is QuoteStatus.Accepted or QuoteStatus.Bound)
+            throw new InvalidOperationException("Accepted or bound quotes cannot be reassessed. Use endorsement or renewal workflows after binding.");
+
+        if (Status == QuoteStatus.Superseded)
+            throw new InvalidOperationException("This quote version is already superseded.");
+
+        if (supersededAtUtc < CreatedAtUtc)
+            throw new InvalidOperationException("A quote cannot be superseded before it was created.");
+
+        Status = QuoteStatus.Superseded;
+    }
+
     public QuoteUnderwritingReview ApproveReferral(
         string reviewedByUserId,
         string reason,

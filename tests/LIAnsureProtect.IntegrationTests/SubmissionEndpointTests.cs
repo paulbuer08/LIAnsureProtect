@@ -1484,6 +1484,57 @@ public sealed class SubmissionEndpointTests
                 TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task Create_Quote_Reassessment_Creates_New_Version_And_Supersedes_Prior_Quote()
+    {
+        var submission = CreateSubmittedSubmission("test-user-1");
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            dbContext.Submissions.Add(submission);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var initialRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes",
+            CreateBaselineQuoteRequest(),
+            "test-user-1");
+        using var initialResponse = await httpClient.SendAsync(
+            initialRequest,
+            TestContext.Current.CancellationToken);
+        var initialPayload = await initialResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+        var initialQuoteId = initialPayload.GetProperty("quoteId").GetGuid();
+
+        using var reassessmentRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes",
+            CreateBaselineQuoteRequest(isReassessment: true, mfaStatus: "Partial"),
+            "test-user-1");
+        using var reassessmentResponse = await httpClient.SendAsync(
+            reassessmentRequest,
+            TestContext.Current.CancellationToken);
+        var reassessmentPayload = await reassessmentResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, initialResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, reassessmentResponse.StatusCode);
+        Assert.Equal(2, reassessmentPayload.GetProperty("version").GetInt32());
+        Assert.Equal(initialQuoteId, reassessmentPayload.GetProperty("supersedesQuoteId").GetGuid());
+
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var quotes = await verifyDbContext.Quotes
+            .Where(quote => quote.SubmissionId == submission.Id)
+            .OrderBy(quote => quote.Version)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, quotes.Count);
+        Assert.Equal(QuoteStatus.Superseded, quotes[0].Status);
+        Assert.Equal(2, quotes[1].Version);
+        Assert.Equal(initialQuoteId, quotes[1].SupersedesQuoteId);
+    }
+
 
 
     [Fact]
@@ -1645,7 +1696,9 @@ public sealed class SubmissionEndpointTests
 
 
 
-    private static object CreateBaselineQuoteRequest()
+    private static object CreateBaselineQuoteRequest(
+        bool isReassessment = false,
+        string mfaStatus = "Implemented")
     {
         return new
         {
@@ -1653,7 +1706,7 @@ public sealed class SubmissionEndpointTests
             annualRevenueBand = "From10MTo50M",
             requestedLimit = 1_000_000m,
             retention = 10_000m,
-            mfaStatus = "Implemented",
+            mfaStatus,
             edrStatus = "Implemented",
             backupMaturity = "Mature",
             hasIncidentResponsePlan = true,
@@ -1661,7 +1714,8 @@ public sealed class SubmissionEndpointTests
             sensitiveDataExposure = "Moderate",
             attestationAccepted = true,
             attestedByName = "Jane Applicant",
-            attestedByTitle = "CFO"
+            attestedByTitle = "CFO",
+            isReassessment
         };
     }
 

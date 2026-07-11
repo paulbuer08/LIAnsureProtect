@@ -45,7 +45,7 @@ public sealed class CreateQuoteCommandHandler(
             ownerUserId,
             cancellationToken);
 
-        if (existingQuote is not null)
+        if (existingQuote is not null && !request.IsReassessment)
             return ToResult(existingQuote, CreateExistingQuoteProviderIndication(existingQuote));
 
         var assertionDecisions = ControlAssurancePolicy.Evaluate(new CreateQuoteAssuranceInput(
@@ -56,6 +56,13 @@ public sealed class CreateQuoteCommandHandler(
             request.HasIncidentResponsePlan,
             request.PriorCyberIncidents,
             request.SensitiveDataExposure));
+        if (existingQuote is not null)
+        {
+            assertionDecisions = ControlAssurancePolicy.ApplyReassessmentRules(
+                assertionDecisions,
+                existingQuote.ControlAssertions);
+        }
+
         var evidenceRequiredCount = assertionDecisions.Count(decision => decision.EvidenceRequired);
 
         var ratingInput = new CyberRatingInput(
@@ -74,6 +81,7 @@ public sealed class CreateQuoteCommandHandler(
             request.PriorCyberIncidentDetails);
         var ratingResult = ratingStrategySelector.Rate(ratingInput);
         var quoteCreatedAtUtc = DateTime.UtcNow;
+        existingQuote?.Supersede(quoteCreatedAtUtc);
         var quote = Quote.Generate(
             submission.Id,
             ownerUserId,
@@ -85,6 +93,8 @@ public sealed class CreateQuoteCommandHandler(
             ratingResult.Subjectivities,
             ratingResult.ReferralReasons,
             quoteCreatedAtUtc,
+            version: existingQuote is null ? 1 : existingQuote.Version + 1,
+            supersedesQuoteId: existingQuote?.Id,
             attestedByUserId: ownerUserId,
             attestedByName: request.AttestedByName,
             attestedByTitle: request.AttestedByTitle,

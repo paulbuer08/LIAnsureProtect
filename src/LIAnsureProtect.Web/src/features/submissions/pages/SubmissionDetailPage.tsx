@@ -142,6 +142,7 @@ export function SubmissionDetailPage() {
   const [attestationAccepted, setAttestationAccepted] = useState(false);
   const [attestedByName, setAttestedByName] = useState("");
   const [attestedByTitle, setAttestedByTitle] = useState("");
+  const [isReassessing, setIsReassessing] = useState(false);
   const [acceptedByName, setAcceptedByName] = useState("");
   const [acceptedByTitle, setAcceptedByTitle] = useState("CFO");
   const [subjectivitiesAcknowledged, setSubjectivitiesAcknowledged] =
@@ -239,6 +240,7 @@ export function SubmissionDetailPage() {
     createdQuote?.evidenceSatisfiedCount ??
     latestQuote?.evidenceSatisfiedCount ??
     0;
+  const activeQuoteVersion = createdQuote?.version ?? latestQuote?.version ?? 1;
   const canGenerateQuote =
     displayedSubmission?.status === "Submitted" && activeQuoteStatus === undefined;
   const canAcceptQuote =
@@ -246,6 +248,13 @@ export function SubmissionDetailPage() {
     activeAssuranceStatus !== "EvidenceRequired" &&
     activeAssuranceStatus !== "Rejected";
   const canBindPolicy = activeQuoteStatus === "Accepted";
+  const canStartReassessment =
+    activeQuoteId !== undefined &&
+    !relatedPolicy &&
+    !boundPolicy &&
+    activeQuoteStatus !== "Accepted" &&
+    activeQuoteStatus !== "Bound" &&
+    activeQuoteStatus !== "Superseded";
   const canWithdraw = displayedSubmission?.status === "Submitted"
     && activeQuoteStatus !== "Accepted"
     && activeQuoteStatus !== "Bound";
@@ -335,9 +344,10 @@ export function SubmissionDetailPage() {
       return;
     }
 
-    createQuoteMutation.mutate({
-      submissionId: displayedSubmission.submissionId,
-      request: {
+    createQuoteMutation.mutate(
+      {
+        submissionId: displayedSubmission.submissionId,
+        request: {
         industryClass,
         annualRevenueBand,
         requestedLimit: Number(requestedLimit),
@@ -359,9 +369,17 @@ export function SubmissionDetailPage() {
           : null,
         attestationAccepted,
         attestedByName: attestedByName.trim(),
-        attestedByTitle: attestedByTitle.trim(),
+          attestedByTitle: attestedByTitle.trim(),
+          isReassessment: isReassessing,
+        },
       },
-    });
+      {
+        onSuccess: () => {
+          setIsReassessing(false);
+          setAttestationAccepted(false);
+        },
+      },
+    );
   }
 
   function handleIncidentTypeChange(incidentType: string, checked: boolean) {
@@ -630,17 +648,15 @@ export function SubmissionDetailPage() {
               </p>
             )}
 
-            {canGenerateQuote && (
+            {(canGenerateQuote || isReassessing) && (
               <div className="mt-6 border-t border-slate-800 pt-5">
                 <h2 className="text-base font-semibold text-white">
-                  Generate quote
+                  {isReassessing ? "Reassess quote" : "Generate quote"}
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                  Provide your organization&apos;s current security posture as
-                  accurately as possible. These answers affect the risk
-                  assessment, premium, and whether underwriting evidence is
-                  required. Any quote may remain subject to verification of
-                  selected controls.
+                  {isReassessing
+                    ? "Change at least one control answer. Claimed improvements require supporting evidence, and a new quote version will preserve the prior result. A better outcome is not guaranteed."
+                    : "Provide your organization's current security posture as accurately as possible. These answers affect the risk assessment, premium, and whether underwriting evidence is required. Any quote may remain subject to verification of selected controls."}
                 </p>
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -960,7 +976,9 @@ export function SubmissionDetailPage() {
                 >
                   {createQuoteMutation.isPending
                     ? "Generating..."
-                    : "Generate quote"}
+                    : isReassessing
+                      ? "Create reassessment"
+                      : "Generate quote"}
                 </button>
               </div>
             )}
@@ -974,7 +992,7 @@ export function SubmissionDetailPage() {
             {activeQuoteId && (
               <div className="mt-6 border-t border-slate-800 pt-5">
                 <h2 className="text-base font-semibold text-white">
-                  Latest quote
+                  Latest quote · version {activeQuoteVersion}
                 </h2>
                 {activeAssuranceStatus === "EvidenceRequired" && (
                   <div className="mt-4 rounded-md border border-amber-700 bg-amber-950/40 p-4 text-sm text-amber-100">
@@ -1068,6 +1086,30 @@ export function SubmissionDetailPage() {
                         <li key={reason}>{reason}</li>
                       ))}
                     </ul>
+                  </div>
+                )}
+
+                {canStartReassessment && !isReassessing && (
+                  <div className="mt-5 rounded-md border border-slate-700 bg-slate-950/50 p-4 text-sm text-slate-200">
+                    <p className="font-semibold text-white">Controls changed?</p>
+                    <p className="mt-2 leading-6">
+                      Request a reassessment before acceptance or binding. The
+                      current quote remains in audit history as superseded, and
+                      claimed improvements require evidence. Reassessment does
+                      not guarantee a lower premium or approval.
+                    </p>
+                    <button
+                      className="mt-3 inline-flex min-h-10 items-center rounded-md border border-slate-600 px-4 py-2 font-semibold text-white hover:border-emerald-300 hover:text-emerald-200"
+                      type="button"
+                      onClick={() => {
+                        setIsReassessing(true);
+                        setAttestationAccepted(false);
+                        setAttestedByName("");
+                        setAttestedByTitle("");
+                      }}
+                    >
+                      Reassess controls
+                    </button>
                   </div>
                 )}
               </div>

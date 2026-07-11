@@ -194,6 +194,73 @@ public sealed class CreateQuoteCommandHandlerTests
             Times.Never);
     }
 
+    [Fact]
+    public async Task Handle_Reassessment_Creates_New_Version_And_Supersedes_Prior_Quote()
+    {
+        var submission = CreateSubmittedSubmission();
+        var existingQuote = CreateQuoteWithMfaAssertion(submission.Id, "NotImplemented");
+        Quote? savedQuote = null;
+        var quoteRepository = new Mock<IQuoteRepository>();
+        quoteRepository
+            .Setup(repository => repository.GetLatestOwnedForSubmissionAsync(
+                submission.Id,
+                "auth0|owner-user-1",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingQuote);
+        quoteRepository
+            .Setup(repository => repository.AddAsync(It.IsAny<Quote>(), It.IsAny<CancellationToken>()))
+            .Callback<Quote, CancellationToken>((quote, _) => savedQuote = quote)
+            .Returns(Task.CompletedTask);
+        quoteRepository
+            .Setup(repository => repository.AddRatingProviderAttemptAsync(
+                It.IsAny<QuoteRatingProviderAttempt>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var providerClient = CreateSuccessfulProviderClient();
+        var handler = CreateHandler(submission, quoteRepository.Object, providerClient.Object);
+        var command = CreateCommand(submission.Id) with { IsReassessment = true };
+
+        var result = await handler.Handle(command, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.NotNull(savedQuote);
+        Assert.Equal(QuoteStatus.Superseded, existingQuote.Status);
+        Assert.Equal(2, savedQuote.Version);
+        Assert.Equal(existingQuote.Id, savedQuote.SupersedesQuoteId);
+        Assert.Contains(savedQuote.ControlAssertions, assertion =>
+            assertion.ControlType == ControlType.MultiFactorAuthentication
+            && assertion.EvidenceRequired
+            && assertion.EvidenceReason.Contains("improved control", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Handle_Reassessment_Rejects_Request_When_No_Control_Assertion_Changed()
+    {
+        var submission = CreateSubmittedSubmission();
+        var existingQuote = CreateQuoteWithMfaAssertion(submission.Id, "Implemented");
+        var quoteRepository = new Mock<IQuoteRepository>();
+        quoteRepository
+            .Setup(repository => repository.GetLatestOwnedForSubmissionAsync(
+                submission.Id,
+                "auth0|owner-user-1",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingQuote);
+        var providerClient = new Mock<IRatingProviderClient>();
+        var handler = CreateHandler(submission, quoteRepository.Object, providerClient.Object);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(
+            CreateCommand(submission.Id) with { IsReassessment = true },
+            TestContext.Current.CancellationToken));
+
+        Assert.Contains("changed control assertion", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.NotEqual(QuoteStatus.Superseded, existingQuote.Status);
+        providerClient.Verify(
+            client => client.GetMarketIndicationAsync(
+                It.IsAny<RatingProviderRequest>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
     private static CreateQuoteCommandHandler CreateHandler(
         Submission submission,
         IQuoteRepository quoteRepository,
@@ -237,6 +304,55 @@ public sealed class CreateQuoteCommandHandlerTests
         submission.ClearDomainEvents();
 
         return submission;
+    }
+
+    private static Quote CreateQuoteWithMfaAssertion(Guid submissionId, string claimedState)
+    {
+        var createdAtUtc = new DateTime(2026, 6, 21, 1, 0, 0, DateTimeKind.Utc);
+        var quote = Quote.Generate(
+            submissionId,
+            "auth0|owner-user-1",
+            6_500m,
+            1_000_000m,
+            10_000m,
+            CyberRiskTier.Low,
+            "BaselineCyber",
+            [],
+            [],
+            createdAtUtc);
+        quote.AddControlAssertion(ControlAssertion.Create(
+            quote.Id,
+            1,
+            ControlType.MultiFactorAuthentication,
+            claimedState,
+            false,
+            string.Empty,
+            createdAtUtc));
+        quote.ClearDomainEvents();
+        return quote;
+    }
+
+    private static Mock<IRatingProviderClient> CreateSuccessfulProviderClient()
+    {
+        var providerClient = new Mock<IRatingProviderClient>();
+        providerClient
+            .Setup(client => client.GetMarketIndicationAsync(
+                It.IsAny<RatingProviderRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((RatingProviderRequest request, CancellationToken _) =>
+                RatingProviderResult.Succeeded(
+                    "Contoso Specialty",
+                    RatingProviderMarketDisposition.Quoted,
+                    "CNT-REASSESS",
+                    "CNT-Q-REASSESS",
+                    request.LocalPremium,
+                    request.RequestedLimit,
+                    request.Retention,
+                    200,
+                    1,
+                    TimeSpan.FromMilliseconds(20),
+                    new DateTime(2026, 6, 21, 2, 0, 0, DateTimeKind.Utc)));
+        return providerClient;
     }
 
     private static CreateQuoteCommand CreateCommand(Guid submissionId)

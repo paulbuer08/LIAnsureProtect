@@ -24,7 +24,15 @@ public sealed record SubmissionQuoteSummaryResult(
     Guid? SupersedesQuoteId,
     string AssuranceStatus,
     int EvidenceRequiredCount,
-    int EvidenceSatisfiedCount);
+    int EvidenceSatisfiedCount,
+    IReadOnlyList<SubmissionControlAssertionResult> ControlAssertions);
+
+public sealed record SubmissionControlAssertionResult(
+    string ControlType,
+    string ClaimedState,
+    string AssuranceState,
+    bool EvidenceRequired,
+    string EvidenceReason);
 
 public sealed record SubmissionPolicySummaryResult(
     Guid PolicyId,

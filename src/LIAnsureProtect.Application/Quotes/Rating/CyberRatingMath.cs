@@ -57,6 +57,7 @@ internal static class CyberRatingMath
         {
             SensitiveDataExposure.High => 2,
             SensitiveDataExposure.Moderate => 1,
+            SensitiveDataExposure.Unknown => 2,
             _ => 0
         };
 
@@ -89,6 +90,9 @@ internal static class CyberRatingMath
 
         if (input.SensitiveDataExposure == SensitiveDataExposure.High)
             subjectivities.Add("High sensitive data exposure requires security-control evidence.");
+
+        if (input.SensitiveDataExposure == SensitiveDataExposure.Unknown)
+            subjectivities.Add("Sensitive data exposure is unknown and requires inventory clarification.");
 
         if (HasUnclassifiedIndustry(input))
             subjectivities.Add("Other industry description requires underwriting classification confirmation.");
@@ -231,6 +235,7 @@ internal static class CyberRatingMath
             SensitiveDataExposure.Low => 1.00m,
             SensitiveDataExposure.Moderate => 1.10m,
             SensitiveDataExposure.High => 1.25m,
+            SensitiveDataExposure.Unknown => 1.20m,
             _ => throw new ArgumentOutOfRangeException(nameof(sensitiveDataExposure))
         };
     }

@@ -105,6 +105,20 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
             })
             .FirstOrDefaultAsync(cancellationToken);
 
+        IReadOnlyList<SubmissionControlAssertionResult> latestQuoteAssertions = latestQuote is null
+            ? []
+            : await dbContext.ControlAssertions
+                .AsNoTracking()
+                .Where(assertion => assertion.QuoteId == latestQuote.Id)
+                .OrderBy(assertion => assertion.ControlType)
+                .Select(assertion => new SubmissionControlAssertionResult(
+                    assertion.ControlType.ToString(),
+                    assertion.ClaimedState,
+                    assertion.AssuranceState.ToString(),
+                    assertion.EvidenceRequired,
+                    assertion.EvidenceReason))
+                .ToListAsync(cancellationToken);
+
         return new SubmissionDetailResult(
                 submission.Id,
                 submission.ApplicantName,
@@ -128,7 +142,8 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
                         latestQuote.SupersedesQuoteId,
                         latestQuote.AssuranceStatus.ToString(),
                         latestQuote.EvidenceRequiredCount,
-                        latestQuote.EvidenceSatisfiedCount),
+                        latestQuote.EvidenceSatisfiedCount,
+                        latestQuoteAssertions),
                 relatedPolicy is null
                     ? null
                     : new SubmissionPolicySummaryResult(

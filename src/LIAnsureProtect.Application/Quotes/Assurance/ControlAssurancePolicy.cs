@@ -47,6 +47,67 @@ public static class ControlAssurancePolicy
         ];
     }
 
+    public static IReadOnlyList<ControlAssertionDecision> ApplyReassessmentRules(
+        IReadOnlyCollection<ControlAssertionDecision> current,
+        IReadOnlyCollection<ControlAssertion> previous)
+    {
+        var previousByType = previous.ToDictionary(assertion => assertion.ControlType);
+        var changed = current
+            .Where(decision => previousByType.TryGetValue(decision.ControlType, out var prior)
+                && !string.Equals(prior.ClaimedState, decision.ClaimedState, StringComparison.Ordinal))
+            .ToArray();
+
+        if (changed.Length == 0)
+            throw new InvalidOperationException("Reassessment requires at least one changed control assertion.");
+
+        return current
+            .Select(decision =>
+            {
+                if (!previousByType.TryGetValue(decision.ControlType, out var prior)
+                    || !IsImprovement(decision.ControlType, prior.ClaimedState, decision.ClaimedState))
+                {
+                    return decision;
+                }
+
+                return decision with
+                {
+                    EvidenceRequired = true,
+                    EvidenceReason = "This reassessment claims an improved control. Supporting evidence is required before acceptance."
+                };
+            })
+            .ToArray();
+    }
+
+    private static bool IsImprovement(ControlType controlType, string previous, string current)
+    {
+        return Rank(controlType, current) > Rank(controlType, previous);
+    }
+
+    private static int Rank(ControlType controlType, string value) => controlType switch
+    {
+        ControlType.MultiFactorAuthentication or ControlType.EndpointDetectionAndResponse => value switch
+        {
+            "Implemented" => 3,
+            "Partial" => 2,
+            _ => 1
+        },
+        ControlType.BackupRecovery => value switch
+        {
+            "Mature" => 3,
+            "Partial" => 2,
+            _ => 1
+        },
+        ControlType.IncidentResponsePlan => value == "InPlace" ? 2 : 1,
+        ControlType.SensitiveData => value switch
+        {
+            "Low" => 4,
+            "Moderate" => 3,
+            "High" => 2,
+            _ => 1
+        },
+        _ => 0
+    };
+
     private static ControlAssertionDecision Decide(
         ControlType controlType,
         string claimedState,

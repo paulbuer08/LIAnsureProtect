@@ -464,6 +464,7 @@ describe("SubmissionDetailPage", () => {
         attestationAccepted: true,
         attestedByName: "Jane Applicant",
         attestedByTitle: "CFO",
+        isReassessment: false,
       },
     );
     expect(await screen.findByText("quote-123")).toBeInTheDocument();
@@ -509,6 +510,47 @@ describe("SubmissionDetailPage", () => {
       screen.queryByRole("button", { name: "Generate quote" }),
     ).not.toBeInTheDocument();
     expect(createQuote).not.toHaveBeenCalled();
+  });
+
+  it("offers a versioned reassessment before quote acceptance", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456",
+      applicantName: "Jane Applicant",
+      applicantEmail: "jane@example.com",
+      companyName: "Example Company",
+      status: "Submitted",
+      createdAtUtc: "2026-06-19T08:30:00Z",
+      latestQuote: {
+        quoteId: "quote-existing",
+        premium: 6500,
+        requestedLimit: 1000000,
+        retention: 10000,
+        riskTier: "Low",
+        status: "Quoted",
+        subjectivities: [],
+        referralReasons: [],
+        expiresAtUtc: "2026-07-19T08:30:00Z",
+        version: 1,
+        assuranceStatus: "EvidenceRequired",
+        evidenceRequiredCount: 1,
+        evidenceSatisfiedCount: 0,
+      },
+    });
+
+    renderSubmissionDetailPage();
+    await user.click(
+      await screen.findByRole("button", { name: "Reassess controls" }),
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Reassess quote" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/new quote version will preserve/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create reassessment" }),
+    ).toBeDisabled();
   });
 
   it("accepts a generated quote and then shows the bind action", async () => {
