@@ -87,6 +87,23 @@ public sealed class QuoteEvidenceDocumentConfiguration : IEntityTypeConfiguratio
             .HasColumnName("sha256")
             .HasMaxLength(64);
 
+        builder.Property(document => document.AssessmentVersion)
+            .HasColumnName("assessment_version")
+            .HasMaxLength(100);
+
+        builder.Property(document => document.PlausibilityStatus)
+            .HasColumnName("plausibility_status")
+            .HasMaxLength(50);
+
+        builder.Property(document => document.ClaimConsistencyStatus)
+            .HasColumnName("claim_consistency_status")
+            .HasMaxLength(50);
+
+        builder.Property(document => document.AdvisoryFindingsJson)
+            .HasColumnName("advisory_findings_json")
+            .HasColumnType("jsonb")
+            .IsRequired();
+
         builder.HasIndex(document => new
             {
                 document.EvidenceRequestId,

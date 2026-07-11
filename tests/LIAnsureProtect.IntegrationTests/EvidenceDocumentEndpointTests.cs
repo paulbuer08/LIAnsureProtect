@@ -124,6 +124,10 @@ public sealed class EvidenceDocumentEndpointTests
             Assert.Equal("NO_THREATS_FOUND", document.GetProperty("scanResultCode").GetString());
             Assert.True(document.GetProperty("isDownloadAvailable").GetBoolean());
             Assert.False(string.IsNullOrWhiteSpace(document.GetProperty("sha256").GetString()));
+            Assert.Equal("local-advisory-evidence-v1", document.GetProperty("assessmentVersion").GetString());
+            Assert.Equal("NeedsReview", document.GetProperty("plausibilityStatus").GetString());
+            Assert.Equal("NeedsHumanReview", document.GetProperty("claimConsistencyStatus").GetString());
+            Assert.True(document.GetProperty("advisoryFindings").GetArrayLength() > 0);
         });
 
         using var ownerListRequest = CreateAuthenticatedRequest(
@@ -172,6 +176,10 @@ public sealed class EvidenceDocumentEndpointTests
             Assert.NotNull(document.ScannedAtUtc);
             Assert.False(string.IsNullOrWhiteSpace(document.Sha256));
             Assert.True(document.IsDownloadAvailable);
+            Assert.Equal("local-advisory-evidence-v1", document.AssessmentVersion);
+            Assert.Equal("NeedsReview", document.PlausibilityStatus);
+            Assert.Equal("NeedsHumanReview", document.ClaimConsistencyStatus);
+            Assert.NotEqual("[]", document.AdvisoryFindingsJson);
         });
 
         var firstStoredFile = Path.Combine(storageRootPath, savedDocuments[0].StorageKey);
