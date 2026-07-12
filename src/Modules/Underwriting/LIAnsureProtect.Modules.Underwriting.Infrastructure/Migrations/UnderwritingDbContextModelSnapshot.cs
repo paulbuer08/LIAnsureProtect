@@ -147,6 +147,21 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("AdvisoryFindingsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("advisory_findings_json");
+
+                    b.Property<string>("AssessmentVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("assessment_version");
+
+                    b.Property<string>("ClaimConsistencyStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("claim_consistency_status");
+
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -168,6 +183,11 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("owner_user_id");
+
+                    b.Property<string>("PlausibilityStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("plausibility_status");
 
                     b.Property<Guid>("QuoteId")
                         .HasColumnType("uuid")
@@ -245,6 +265,21 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasDatabaseName("ix_quote_evidence_documents_scan_status_uploaded_at_utc");
 
                     b.ToTable("quote_evidence_documents", "underwriting");
+                });
+
+            modelBuilder.Entity("LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteAssuranceProjectedMessage", b =>
+                {
+                    b.Property<Guid>("SourceOutboxMessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_outbox_message_id");
+
+                    b.Property<DateTime>("ProjectedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("projected_at_utc");
+
+                    b.HasKey("SourceOutboxMessageId");
+
+                    b.ToTable("quote_assurance_projected_messages", "underwriting");
                 });
 
             modelBuilder.Entity("LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequest", b =>

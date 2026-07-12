@@ -39,7 +39,32 @@ export type CyberSecurityControlStatus =
 
 export type BackupMaturity = "Weak" | "Partial" | "Mature";
 
-export type SensitiveDataExposure = "Low" | "Moderate" | "High";
+export type SensitiveDataExposure = "Unknown" | "Low" | "Moderate" | "High";
+
+export type CyberControlDetails = {
+  mfaCoversPrivilegedAccess: boolean;
+  mfaCoversEmail: boolean;
+  mfaCoversRemoteAccess: boolean;
+  mfaCoversWorkforce: boolean;
+  mfaPhishingResistant: boolean;
+  edrCoveragePercent: number;
+  edrCoversServers: boolean;
+  edrActivelyMonitored: boolean;
+  edrTamperProtection: boolean;
+  backupsImmutableOrOffline: boolean;
+  backupCredentialsSeparated: boolean;
+  restoreTestedLast12Months: boolean;
+  recoveryPointObjectiveHours: number;
+  recoveryTimeObjectiveHours: number;
+  incidentPlanApproved: boolean;
+  incidentPlanUpdatedLast12Months: boolean;
+  incidentPlanTestedLast12Months: boolean;
+  incidentRolesNamed: boolean;
+  sensitiveDataInventoryMaintained: boolean;
+  sensitiveDataEncrypted: boolean;
+  sensitiveDataTypes: string[];
+  sensitiveDataVolume: string;
+};
 
 export type CreateQuoteRequest = {
   industryClass: CyberIndustryClass;
@@ -55,6 +80,11 @@ export type CreateQuoteRequest = {
   otherIndustryDescription?: string | null;
   priorCyberIncidentTypes?: string[] | null;
   priorCyberIncidentDetails?: string | null;
+  attestationAccepted: boolean;
+  attestedByName: string;
+  attestedByTitle: string;
+  isReassessment?: boolean;
+  controlDetails: CyberControlDetails;
 };
 
 export type RatingProviderIndication = {
@@ -85,6 +115,18 @@ export type CreateQuoteResponse = {
   referralReasons: string[];
   expiresAtUtc: string;
   providerIndication: RatingProviderIndication;
+  version?: number;
+  supersedesQuoteId?: string | null;
+  assuranceStatus?: string;
+  evidenceRequiredCount?: number;
+  evidenceSatisfiedCount?: number;
+  controlAssertions?: Array<{
+    controlType: string;
+    claimedState: string;
+    assuranceState: string;
+    evidenceRequired: boolean;
+    evidenceReason: string;
+  }>;
 };
 
 export type SubmissionQuoteSummary = Omit<

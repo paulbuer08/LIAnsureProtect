@@ -11,6 +11,10 @@ public interface IUnderwritingQuoteContextReader
 
     /// <summary>Minimal quote facts needed to create a referral operation (risk tier, referred-at, expiry).</summary>
     Task<ReferralQuoteContext?> GetForReferralOperationAsync(Guid quoteId, CancellationToken cancellationToken);
+
+    Task<QuoteAssuranceRequirementContext?> GetForAssuranceAsync(
+        Guid quoteId,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>Read-only snapshot of a quote plus its prior underwriting decisions, for AI review context.</summary>
@@ -34,3 +38,14 @@ public sealed record ReferralQuoteContext(
     string RiskTier,
     DateTime ReferredAtUtc,
     DateTime ExpiresAtUtc);
+
+public sealed record QuoteAssuranceRequirementContext(
+    Guid QuoteId,
+    Guid SubmissionId,
+    string OwnerUserId,
+    IReadOnlyCollection<QuoteAssuranceRequirement> Requirements);
+
+public sealed record QuoteAssuranceRequirement(
+    string Category,
+    bool EvidenceRequired,
+    string Reason);

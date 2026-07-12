@@ -15,6 +15,11 @@ public sealed class QuoteConfiguration : IEntityTypeConfiguration<Quote>
 
         builder.Ignore(quote => quote.DomainEvents);
 
+        builder.HasMany(quote => quote.ControlAssertions)
+            .WithOne()
+            .HasForeignKey(assertion => assertion.QuoteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.Property(quote => quote.Id)
             .HasColumnName("id")
             .ValueGeneratedNever();
@@ -54,6 +59,46 @@ public sealed class QuoteConfiguration : IEntityTypeConfiguration<Quote>
             .HasConversion<string>()
             .HasMaxLength(50)
             .IsRequired();
+
+        builder.Property(quote => quote.Version)
+            .HasColumnName("version")
+            .IsRequired();
+
+        builder.Property(quote => quote.SupersedesQuoteId)
+            .HasColumnName("supersedes_quote_id");
+
+        builder.Property(quote => quote.AssuranceStatus)
+            .HasColumnName("assurance_status")
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .IsRequired();
+
+        builder.Property(quote => quote.EvidenceRequiredCount)
+            .HasColumnName("evidence_required_count")
+            .IsRequired();
+
+        builder.Property(quote => quote.EvidenceSatisfiedCount)
+            .HasColumnName("evidence_satisfied_count")
+            .IsRequired();
+
+        builder.Property(quote => quote.AttestedByUserId)
+            .HasColumnName("attested_by_user_id")
+            .HasMaxLength(256);
+
+        builder.Property(quote => quote.AttestedByName)
+            .HasColumnName("attested_by_name")
+            .HasMaxLength(200);
+
+        builder.Property(quote => quote.AttestedByTitle)
+            .HasColumnName("attested_by_title")
+            .HasMaxLength(200);
+
+        builder.Property(quote => quote.AttestationWordingVersion)
+            .HasColumnName("attestation_wording_version")
+            .HasMaxLength(50);
+
+        builder.Property(quote => quote.AttestedAtUtc)
+            .HasColumnName("attested_at_utc");
 
         builder.Property(quote => quote.StrategyName)
             .HasColumnName("strategy_name")
@@ -128,6 +173,10 @@ public sealed class QuoteConfiguration : IEntityTypeConfiguration<Quote>
 
         builder.HasIndex(quote => quote.SubmissionId)
             .HasDatabaseName("ix_quotes_submission_id");
+
+        builder.HasIndex(quote => new { quote.SubmissionId, quote.Version })
+            .IsUnique()
+            .HasDatabaseName("ux_quotes_submission_id_version");
 
         builder.HasOne<Submission>()
             .WithMany()

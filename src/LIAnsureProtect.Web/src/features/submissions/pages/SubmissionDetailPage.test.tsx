@@ -16,6 +16,31 @@ import { SubmissionDetailPage } from "./SubmissionDetailPage";
 
 const getAccessTokenSilently = vi.fn();
 
+const expectedStrongControlDetails = {
+  mfaCoversPrivilegedAccess: true,
+  mfaCoversEmail: true,
+  mfaCoversRemoteAccess: true,
+  mfaCoversWorkforce: true,
+  mfaPhishingResistant: false,
+  edrCoveragePercent: 98,
+  edrCoversServers: true,
+  edrActivelyMonitored: true,
+  edrTamperProtection: true,
+  backupsImmutableOrOffline: true,
+  backupCredentialsSeparated: true,
+  restoreTestedLast12Months: true,
+  recoveryPointObjectiveHours: 4,
+  recoveryTimeObjectiveHours: 8,
+  incidentPlanApproved: true,
+  incidentPlanUpdatedLast12Months: true,
+  incidentPlanTestedLast12Months: true,
+  incidentRolesNamed: true,
+  sensitiveDataInventoryMaintained: true,
+  sensitiveDataEncrypted: true,
+  sensitiveDataTypes: ["Personal data", "Credentials"],
+  sensitiveDataVolume: "Moderate",
+};
+
 vi.mock("@auth0/auth0-react", () => ({
   useAuth0: () => ({
     getAccessTokenSilently,
@@ -71,6 +96,15 @@ function renderSubmissionDetailPage(submissionId = "submission-456") {
       </MemoryRouter>
     </QueryClientProvider>,
   );
+}
+
+async function completeQuoteAttestation(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(
+    await screen.findByLabelText("Attesting person"),
+    "Jane Applicant",
+  );
+  await user.type(screen.getByLabelText("Title or role"), "CFO");
+  await user.click(screen.getByLabelText("I confirm this attestation."));
 }
 
 describe("SubmissionDetailPage", () => {
@@ -429,6 +463,8 @@ describe("SubmissionDetailPage", () => {
 
     renderSubmissionDetailPage();
 
+    await completeQuoteAttestation(user);
+
     await user.click(
       await screen.findByRole("button", { name: "Generate quote" }),
     );
@@ -450,6 +486,11 @@ describe("SubmissionDetailPage", () => {
         otherIndustryDescription: null,
         priorCyberIncidentTypes: null,
         priorCyberIncidentDetails: null,
+        attestationAccepted: true,
+        attestedByName: "Jane Applicant",
+        attestedByTitle: "CFO",
+        isReassessment: false,
+        controlDetails: expectedStrongControlDetails,
       },
     );
     expect(await screen.findByText("quote-123")).toBeInTheDocument();
@@ -495,6 +536,47 @@ describe("SubmissionDetailPage", () => {
       screen.queryByRole("button", { name: "Generate quote" }),
     ).not.toBeInTheDocument();
     expect(createQuote).not.toHaveBeenCalled();
+  });
+
+  it("offers a versioned reassessment before quote acceptance", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456",
+      applicantName: "Jane Applicant",
+      applicantEmail: "jane@example.com",
+      companyName: "Example Company",
+      status: "Submitted",
+      createdAtUtc: "2026-06-19T08:30:00Z",
+      latestQuote: {
+        quoteId: "quote-existing",
+        premium: 6500,
+        requestedLimit: 1000000,
+        retention: 10000,
+        riskTier: "Low",
+        status: "Quoted",
+        subjectivities: [],
+        referralReasons: [],
+        expiresAtUtc: "2026-07-19T08:30:00Z",
+        version: 1,
+        assuranceStatus: "EvidenceRequired",
+        evidenceRequiredCount: 1,
+        evidenceSatisfiedCount: 0,
+      },
+    });
+
+    renderSubmissionDetailPage();
+    await user.click(
+      await screen.findByRole("button", { name: "Reassess controls" }),
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Reassess quote" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/new quote version will preserve/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create reassessment" }),
+    ).toBeDisabled();
   });
 
   it("accepts a generated quote and then shows the bind action", async () => {
@@ -552,6 +634,8 @@ describe("SubmissionDetailPage", () => {
     });
 
     renderSubmissionDetailPage();
+
+    await completeQuoteAttestation(user);
 
     await user.click(
       await screen.findByRole("button", { name: "Generate quote" }),
@@ -647,6 +731,8 @@ describe("SubmissionDetailPage", () => {
     });
 
     renderSubmissionDetailPage();
+
+    await completeQuoteAttestation(user);
 
     await user.click(
       await screen.findByRole("button", { name: "Generate quote" }),

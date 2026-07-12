@@ -97,6 +97,33 @@ public sealed class PolicyBindingTests
     }
 
     [Fact]
+    public void Provisional_quote_with_required_evidence_cannot_be_accepted()
+    {
+        var quote = Quote.Generate(
+            Guid.NewGuid(),
+            "customer-1",
+            12_000m,
+            1_000_000m,
+            10_000m,
+            CyberRiskTier.Moderate,
+            "BaselineCyber",
+            ["MFA evidence required."],
+            [],
+            new DateTime(2026, 6, 21, 0, 0, 0, DateTimeKind.Utc),
+            evidenceRequiredCount: 1);
+
+        var exception = Assert.Throws<InvalidOperationException>(() => quote.Accept(
+            "customer-1",
+            "Jane Applicant",
+            "Chief Financial Officer",
+            true,
+            new DateTime(2026, 6, 21, 2, 0, 0, DateTimeKind.Utc)));
+
+        Assert.Contains("control evidence", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(QuoteStatus.Quoted, quote.Status);
+    }
+
+    [Fact]
     public void Accepted_quote_cannot_be_accepted_again()
     {
         var quote = CreateQuotedQuote();

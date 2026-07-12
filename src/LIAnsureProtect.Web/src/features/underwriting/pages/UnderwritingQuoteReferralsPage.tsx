@@ -496,6 +496,24 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
                         Download unavailable until security screening is clean.
                       </p>
                     )}
+                    {document.plausibilityStatus && (
+                      <div className="mt-2 rounded-md border border-cyan-900 bg-cyan-950/30 p-2 text-xs text-cyan-100">
+                        <p className="font-semibold">
+                          Advisory document assessment: {document.plausibilityStatus}
+                        </p>
+                        <p className="mt-1">
+                          Claim consistency: {document.claimConsistencyStatus}. This
+                          automated result cannot approve evidence or change quote terms.
+                        </p>
+                        {(document.advisoryFindings?.length ?? 0) > 0 && (
+                          <ul className="mt-1 list-disc space-y-1 pl-4">
+                            {document.advisoryFindings?.map((finding) => (
+                              <li key={finding}>{finding}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

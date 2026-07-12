@@ -42,6 +42,14 @@ public sealed class QuoteEvidenceDocument
 
     public string? Sha256 { get; private set; }
 
+    public string? AssessmentVersion { get; private set; }
+
+    public string? PlausibilityStatus { get; private set; }
+
+    public string? ClaimConsistencyStatus { get; private set; }
+
+    public string AdvisoryFindingsJson { get; private set; } = "[]";
+
     public bool IsDownloadAvailable => ScanStatus == EvidenceDocumentScanStatus.Clean;
 
     public static QuoteEvidenceDocument Create(
@@ -86,7 +94,11 @@ public sealed class QuoteEvidenceDocument
         string scanResultCode,
         string scanResultReason,
         string sha256,
-        DateTime scannedAtUtc)
+        DateTime scannedAtUtc,
+        string assessmentVersion = "security-scan-only-v1",
+        string plausibilityStatus = "NotAssessed",
+        string claimConsistencyStatus = "NotAssessed",
+        string advisoryFindingsJson = "[]")
     {
         if (scanStatus == EvidenceDocumentScanStatus.PendingScan)
             throw new ArgumentException("Scan result must be clean, rejected, or failed.", nameof(scanStatus));
@@ -97,6 +109,10 @@ public sealed class QuoteEvidenceDocument
         ScanResultReason = ValidateRequired(scanResultReason, nameof(scanResultReason), "Scan result reason is required.");
         Sha256 = ValidateSha256(sha256);
         ScannedAtUtc = scannedAtUtc;
+        AssessmentVersion = ValidateRequired(assessmentVersion, nameof(assessmentVersion), "Assessment version is required.");
+        PlausibilityStatus = ValidateRequired(plausibilityStatus, nameof(plausibilityStatus), "Plausibility status is required.");
+        ClaimConsistencyStatus = ValidateRequired(claimConsistencyStatus, nameof(claimConsistencyStatus), "Claim consistency status is required.");
+        AdvisoryFindingsJson = ValidateRequired(advisoryFindingsJson, nameof(advisoryFindingsJson), "Advisory findings are required.");
     }
 
     private static void ValidateGuid(Guid value, string parameterName, string message)

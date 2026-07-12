@@ -65,14 +65,29 @@ dedicated policy pages and shows Submission, Quote, and Policy state side by sid
    (clear the email field and try) proves Zod + React Hook Form gate bad input **before** any API call.
 4. Open `/submissions` → ✅ your submission is listed (and *only* yours — ownership scoping).
 5. Open the detail page → **Submit** the submission → ✅ status becomes **Submitted**.
-6. **Generate quote** → the rating strategies run. A low-risk answer set produces status
-   **Quoted** with premium/limit/retention and subjectivities.
-7. **Accept** the quote: enter acceptor name/title (e.g. `Jane Applicant`, `CFO`), tick the
-   subjectivities-acknowledged box → ✅ status **Accepted**. (Try accepting *without* the tick —
-   expect a clear rejection: attestation is mandatory.)
-8. **Bind policy** → ✅ a policy appears with a policy number and bound timestamps.
-9. Open `/notifications` → ✅ quote-ready / accepted / policy-bound notifications with unread
+6. **Generate quote**: complete the detailed control implementation fields, enter the attesting
+   person's name/title, and confirm the control attestation. Try without the confirmation first → ✅
+   the button remains unavailable/API validation rejects an incomplete attestation.
+7. ✅ Expect an immediate quote and a separate assurance state. Positive material claims (for example
+   implemented MFA or mature backups) normally produce **Provisional — evidence required**. This is
+   intentional: an answer can influence rating before it has been independently verified.
+8. Run the Worker and open `/evidence-requests` → ✅ category-specific requests arrive through the
+   outbox. Upload a relevant clean text/PDF/image file. Malware status and advisory plausibility are
+   separate; only an underwriter can mark the evidence Satisfied.
+9. As Uma Underwriter, review every automatically requested category. ✅ Satisfied decisions advance
+   the quote's assurance count; Insufficient/Needs clarification keeps acceptance blocked.
+10. Return as Casey and refresh. ✅ Once all requirements are satisfied, assurance is **Verified** and
+    **Accept quote** becomes available. Enter acceptor name/title and acknowledge subjectivities.
+11. **Bind policy** → ✅ a policy appears with a policy number and bound timestamps.
+12. Open `/notifications` → ✅ quote-ready / evidence / accepted / policy-bound notifications with unread
    badges; mark one read and see the count drop. (Worker must be running — see the run guide.)
+
+### Reassessment check
+
+Before accepting, choose **Reassess controls**, change at least one answer, and attest again. ✅ A new
+quote version appears and the prior version becomes `Superseded`; history is not overwritten. A claimed
+improvement requires evidence and does not promise a better premium or approval. After acceptance or
+binding, reassessment is rejected because that change belongs to a future endorsement/renewal workflow.
 
 ## Scenario 2 — The referral path (the underwriting workbench end-to-end)
 

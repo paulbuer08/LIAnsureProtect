@@ -168,6 +168,25 @@ public sealed class QuotePolicyBindingEndpointTests
     }
 
     [Fact]
+    public async Task Accept_Quote_Returns_Conflict_While_Control_Evidence_Is_Required()
+    {
+        var quote = CreateProvisionalQuotedQuote("customer-1");
+        await SaveQuoteAsync(quote);
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QuotesEndpointPath}/{quote.Id}/accept",
+            "Customer",
+            "customer-1",
+            CreateAcceptQuoteRequest());
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("control evidence", content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Bind_Accepted_Quote_Returns_Created_And_Persists_Policy_Attempt_And_Outbox()
     {
         var quote = CreateAcceptedQuote("customer-1");
@@ -528,6 +547,25 @@ public sealed class QuotePolicyBindingEndpointTests
         quote.Quote.ClearDomainEvents();
 
         return quote;
+    }
+
+    private static SeededQuote CreateProvisionalQuotedQuote(string ownerUserId)
+    {
+        var submission = CreateSubmittedSubmission(ownerUserId);
+        var quote = Quote.Generate(
+            submission.Id,
+            ownerUserId,
+            12_000m,
+            1_000_000m,
+            10_000m,
+            CyberRiskTier.Moderate,
+            "BaselineCyber",
+            ["MFA evidence required."],
+            [],
+            new DateTime(2026, 6, 21, 0, 0, 0, DateTimeKind.Utc),
+            evidenceRequiredCount: 1);
+
+        return new SeededQuote(submission, quote);
     }
 
     private static SeededQuote CreateReferredQuote(string ownerUserId)

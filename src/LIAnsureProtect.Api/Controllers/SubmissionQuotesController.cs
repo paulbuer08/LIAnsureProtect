@@ -54,7 +54,12 @@ public sealed class SubmissionQuotesController(
             request.SensitiveDataExposure,
             request.OtherIndustryDescription,
             request.PriorCyberIncidentTypes,
-            request.PriorCyberIncidentDetails);
+            request.PriorCyberIncidentDetails,
+            request.AttestationAccepted,
+            request.AttestedByName,
+            request.AttestedByTitle,
+            request.IsReassessment,
+            request.ControlDetails);
 
         var idempotencyKey = GetIdempotencyKey();
         if (!string.IsNullOrWhiteSpace(idempotencyKey))
@@ -230,4 +235,9 @@ public sealed record CreateQuoteRequest(
     SensitiveDataExposure SensitiveDataExposure,
     string? OtherIndustryDescription = null,
     IReadOnlyCollection<string>? PriorCyberIncidentTypes = null,
-    string? PriorCyberIncidentDetails = null);
+    string? PriorCyberIncidentDetails = null,
+    bool AttestationAccepted = false,
+    string? AttestedByName = null,
+    string? AttestedByTitle = null,
+    bool IsReassessment = false,
+    LIAnsureProtect.Application.Quotes.Assurance.CyberControlDetails? ControlDetails = null);

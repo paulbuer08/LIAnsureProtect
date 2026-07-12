@@ -33,6 +33,35 @@ Workers
   |-- AI review processing later
 ```
 
+## Control assurance across Quoting and Underwriting
+
+Quoting owns what the customer claimed and how it affected rating. Underwriting owns the evidence
+used to test that claim. They do not write each other's tables:
+
+```mermaid
+sequenceDiagram
+    participant C as Customer
+    participant Q as Quoting / SubmissionDbContext
+    participant O as Transactional outbox
+    participant U as Underwriting / UnderwritingDbContext
+    C->>Q: Attest + generate quote
+    Q->>Q: Save quote version + control assertions
+    Q->>O: Save QuoteGenerated in same transaction
+    O-->>U: Project required evidence requests (idempotent)
+    C->>U: Upload evidence
+    U->>U: Malware scan + advisory plausibility findings
+    U->>U: Human evidence review
+    U->>O: Save accepted/remediation event
+    O-->>Q: Project assurance decision (idempotent)
+    Q->>Q: Recompute acceptance eligibility
+```
+
+This is a two-ledger design: the Quote lifecycle (`Quoted`, `Referred`, `Accepted`, `Bound`) is not
+overwritten by assurance (`SelfAttested`, `EvidenceRequired`, `Verified`, `Rejected`). Like a passport
+application, the submitted form and the verification result are related but not the same record.
+Every projector deduplicates by source outbox-message id, so retrying delivery cannot create duplicate
+requests or count one review twice.
+
 ## Backend Layers
 
 - Domain: business entities, enums, value objects, and domain rules.

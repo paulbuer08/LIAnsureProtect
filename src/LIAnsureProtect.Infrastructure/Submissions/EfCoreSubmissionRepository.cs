@@ -82,7 +82,12 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
                 quote.Status,
                 quote.Subjectivities,
                 quote.ReferralReasons,
-                quote.ExpiresAtUtc
+                quote.ExpiresAtUtc,
+                quote.Version,
+                quote.SupersedesQuoteId,
+                quote.AssuranceStatus,
+                quote.EvidenceRequiredCount,
+                quote.EvidenceSatisfiedCount
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -99,6 +104,20 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
                 policy.ExpirationDateUtc
             })
             .FirstOrDefaultAsync(cancellationToken);
+
+        IReadOnlyList<SubmissionControlAssertionResult> latestQuoteAssertions = latestQuote is null
+            ? []
+            : await dbContext.ControlAssertions
+                .AsNoTracking()
+                .Where(assertion => assertion.QuoteId == latestQuote.Id)
+                .OrderBy(assertion => assertion.ControlType)
+                .Select(assertion => new SubmissionControlAssertionResult(
+                    assertion.ControlType.ToString(),
+                    assertion.ClaimedState,
+                    assertion.AssuranceState.ToString(),
+                    assertion.EvidenceRequired,
+                    assertion.EvidenceReason))
+                .ToListAsync(cancellationToken);
 
         return new SubmissionDetailResult(
                 submission.Id,
@@ -118,7 +137,13 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
                         latestQuote.Status.ToString(),
                         SplitLines(latestQuote.Subjectivities),
                         SplitLines(latestQuote.ReferralReasons),
-                        latestQuote.ExpiresAtUtc),
+                        latestQuote.ExpiresAtUtc,
+                        latestQuote.Version,
+                        latestQuote.SupersedesQuoteId,
+                        latestQuote.AssuranceStatus.ToString(),
+                        latestQuote.EvidenceRequiredCount,
+                        latestQuote.EvidenceSatisfiedCount,
+                        latestQuoteAssertions),
                 relatedPolicy is null
                     ? null
                     : new SubmissionPolicySummaryResult(

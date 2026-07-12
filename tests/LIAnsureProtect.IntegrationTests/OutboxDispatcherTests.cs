@@ -1,16 +1,20 @@
 using System.Diagnostics.Metrics;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
+using LIAnsureProtect.Application.Quotes.Assurance;
 using LIAnsureProtect.Infrastructure.Persistence;
+using LIAnsureProtect.Infrastructure.Quotes;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox.Consumers;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping.Notifications;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping.ReferralOperations;
+using LIAnsureProtect.Infrastructure.Persistence.Outbox.Mapping.Assurance;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.Modules.Notifications.Application;
 using LIAnsureProtect.Modules.Notifications.Domain;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Underwriting.Application;
+using LIAnsureProtect.Modules.Underwriting.Application.Assurance;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 using LIAnsureProtect.Platform.Abstractions.Observability;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
@@ -38,6 +42,8 @@ public sealed class OutboxDispatcherTests : IDisposable
     private readonly UnderwritingDbContext underwritingDbContext;
     private readonly NotificationInboxProjector projector;
     private readonly ReferralOperationProjector referralProjector;
+    private readonly QuoteAssuranceProjector quoteAssuranceProjector;
+    private readonly QuoteAssuranceDecisionProjector quoteAssuranceDecisionProjector;
 
     public OutboxDispatcherTests()
     {
@@ -69,11 +75,19 @@ public sealed class OutboxDispatcherTests : IDisposable
         quoteContextReaderStub
             .Setup(r => r.GetForReferralOperationAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((LIAnsureProtect.Modules.Underwriting.Application.ReferralQuoteContext?)null);
+        quoteContextReaderStub
+            .Setup(r => r.GetForAssuranceAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((QuoteAssuranceRequirementContext?)null);
 
         projector = new NotificationInboxProjector(notificationsDbContext);
         referralProjector = new ReferralOperationProjector(
             underwritingDbContext,
             new EfReferralOperationRepository(underwritingDbContext, quoteContextReaderStub.Object));
+        quoteAssuranceProjector = new QuoteAssuranceProjector(
+            underwritingDbContext,
+            quoteContextReaderStub.Object,
+            new EfEvidenceRequestRepository(underwritingDbContext));
+        quoteAssuranceDecisionProjector = new QuoteAssuranceDecisionProjector(dbContext);
     }
 
     [Fact]
@@ -784,6 +798,16 @@ public sealed class OutboxDispatcherTests : IDisposable
             sources,
             [
                 new ReferralOperationOutboxMessageConsumer(CreateReferralRegistry(), referralProjector),
+                new QuoteAssuranceOutboxMessageConsumer(
+                    new OutboxMessageMapperRegistry<QuoteAssuranceEvent>([new QuoteGeneratedAssuranceMapper()]),
+                    quoteAssuranceProjector),
+                new QuoteAssuranceDecisionOutboxMessageConsumer(
+                    new OutboxMessageMapperRegistry<QuoteAssuranceDecisionEvent>(
+                    [
+                        new EvidenceAcceptedAssuranceDecisionMapper(),
+                        new EvidenceRemediationAssuranceDecisionMapper()
+                    ]),
+                    quoteAssuranceDecisionProjector),
                 new NotificationOutboxMessageConsumer(CreateNotificationRegistry(), projector, publisher)
             ],
             NullLogger<OutboxDispatcher>.Instance);

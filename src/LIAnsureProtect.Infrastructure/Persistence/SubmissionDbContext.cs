@@ -14,6 +14,8 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
 
     public DbSet<Quote> Quotes => Set<Quote>();
 
+    public DbSet<ControlAssertion> ControlAssertions => Set<ControlAssertion>();
+
     public DbSet<QuoteRatingProviderAttempt> QuoteRatingProviderAttempts => Set<QuoteRatingProviderAttempt>();
 
     public DbSet<QuoteUnderwritingReview> QuoteUnderwritingReviews => Set<QuoteUnderwritingReview>();
@@ -25,6 +27,9 @@ public sealed class SubmissionDbContext(DbContextOptions<SubmissionDbContext> op
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
+
+    public DbSet<QuoteAssuranceDecisionProjectedMessage> QuoteAssuranceDecisionProjectedMessages
+        => Set<QuoteAssuranceDecisionProjectedMessage>();
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

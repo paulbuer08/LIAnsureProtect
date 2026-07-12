@@ -1404,7 +1404,9 @@ public sealed class SubmissionEndpointTests
 
         using var verifyScope = webApplicationFactory.Services.CreateScope();
         var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
-        var savedQuote = await verifyDbContext.Set<Quote>().SingleAsync(
+        var savedQuote = await verifyDbContext.Set<Quote>()
+            .Include(quote => quote.ControlAssertions)
+            .SingleAsync(
             quote => quote.Id == quoteId,
             TestContext.Current.CancellationToken);
         var outboxMessage = await verifyDbContext.Set<OutboxMessage>().SingleAsync(
@@ -1417,6 +1419,12 @@ public sealed class SubmissionEndpointTests
         Assert.Equal(submission.Id, savedQuote.SubmissionId);
         Assert.Equal("test-user-1", savedQuote.OwnerUserId);
         Assert.Equal(QuoteStatus.Quoted, savedQuote.Status);
+        Assert.Equal(5, savedQuote.ControlAssertions.Count);
+        Assert.Contains(
+            "mfaCoversPrivilegedAccess",
+            savedQuote.ControlAssertions.Single(assertion =>
+                assertion.ControlType == ControlType.MultiFactorAuthentication).DetailsJson,
+            StringComparison.Ordinal);
         Assert.Equal("Contoso Specialty", providerAttempt.ProviderName);
         Assert.Equal(RatingProviderAttemptStatus.Succeeded, providerAttempt.Status);
         Assert.Equal(RatingProviderMarketDisposition.Quoted, providerAttempt.MarketDisposition);
@@ -1482,6 +1490,57 @@ public sealed class SubmissionEndpointTests
             await verifyDbContext.OutboxMessages.CountAsync(
                 message => message.Type == nameof(QuoteGeneratedDomainEvent),
                 TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Create_Quote_Reassessment_Creates_New_Version_And_Supersedes_Prior_Quote()
+    {
+        var submission = CreateSubmittedSubmission("test-user-1");
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            dbContext.Submissions.Add(submission);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var initialRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes",
+            CreateBaselineQuoteRequest(),
+            "test-user-1");
+        using var initialResponse = await httpClient.SendAsync(
+            initialRequest,
+            TestContext.Current.CancellationToken);
+        var initialPayload = await initialResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+        var initialQuoteId = initialPayload.GetProperty("quoteId").GetGuid();
+
+        using var reassessmentRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes",
+            CreateBaselineQuoteRequest(isReassessment: true, mfaStatus: "Partial"),
+            "test-user-1");
+        using var reassessmentResponse = await httpClient.SendAsync(
+            reassessmentRequest,
+            TestContext.Current.CancellationToken);
+        var reassessmentPayload = await reassessmentResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, initialResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, reassessmentResponse.StatusCode);
+        Assert.Equal(2, reassessmentPayload.GetProperty("version").GetInt32());
+        Assert.Equal(initialQuoteId, reassessmentPayload.GetProperty("supersedesQuoteId").GetGuid());
+
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var quotes = await verifyDbContext.Quotes
+            .Where(quote => quote.SubmissionId == submission.Id)
+            .OrderBy(quote => quote.Version)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, quotes.Count);
+        Assert.Equal(QuoteStatus.Superseded, quotes[0].Status);
+        Assert.Equal(2, quotes[1].Version);
+        Assert.Equal(initialQuoteId, quotes[1].SupersedesQuoteId);
     }
 
 
@@ -1645,7 +1704,9 @@ public sealed class SubmissionEndpointTests
 
 
 
-    private static object CreateBaselineQuoteRequest()
+    private static object CreateBaselineQuoteRequest(
+        bool isReassessment = false,
+        string mfaStatus = "Implemented")
     {
         return new
         {
@@ -1653,12 +1714,17 @@ public sealed class SubmissionEndpointTests
             annualRevenueBand = "From10MTo50M",
             requestedLimit = 1_000_000m,
             retention = 10_000m,
-            mfaStatus = "Implemented",
+            mfaStatus,
             edrStatus = "Implemented",
             backupMaturity = "Mature",
             hasIncidentResponsePlan = true,
             priorCyberIncidents = 0,
-            sensitiveDataExposure = "Moderate"
+            sensitiveDataExposure = "Moderate",
+            attestationAccepted = true,
+            attestedByName = "Jane Applicant",
+            attestedByTitle = "CFO",
+            isReassessment,
+            controlDetails = CreateStrongControlDetails()
         };
     }
 
@@ -1679,7 +1745,64 @@ public sealed class SubmissionEndpointTests
             priorCyberIncidents = 2,
             priorCyberIncidentTypes = new[] { "Ransomware", "Data breach" },
             priorCyberIncidentDetails = "Two prior incidents affected regulated systems; recovery and control remediation are under review.",
-            sensitiveDataExposure = "High"
+            sensitiveDataExposure = "High",
+            attestationAccepted = true,
+            attestedByName = "Jane Applicant",
+            attestedByTitle = "CFO",
+            controlDetails = new
+            {
+                mfaCoversPrivilegedAccess = false,
+                mfaCoversEmail = false,
+                mfaCoversRemoteAccess = false,
+                mfaCoversWorkforce = false,
+                mfaPhishingResistant = false,
+                edrCoveragePercent = 0,
+                edrCoversServers = false,
+                edrActivelyMonitored = false,
+                edrTamperProtection = false,
+                backupsImmutableOrOffline = false,
+                backupCredentialsSeparated = false,
+                restoreTestedLast12Months = false,
+                recoveryPointObjectiveHours = 72,
+                recoveryTimeObjectiveHours = 72,
+                incidentPlanApproved = false,
+                incidentPlanUpdatedLast12Months = false,
+                incidentPlanTestedLast12Months = false,
+                incidentRolesNamed = false,
+                sensitiveDataInventoryMaintained = false,
+                sensitiveDataEncrypted = false,
+                sensitiveDataTypes = Array.Empty<string>(),
+                sensitiveDataVolume = "Unknown"
+            }
+        };
+    }
+
+    private static object CreateStrongControlDetails()
+    {
+        return new
+        {
+            mfaCoversPrivilegedAccess = true,
+            mfaCoversEmail = true,
+            mfaCoversRemoteAccess = true,
+            mfaCoversWorkforce = true,
+            mfaPhishingResistant = false,
+            edrCoveragePercent = 98,
+            edrCoversServers = true,
+            edrActivelyMonitored = true,
+            edrTamperProtection = true,
+            backupsImmutableOrOffline = true,
+            backupCredentialsSeparated = true,
+            restoreTestedLast12Months = true,
+            recoveryPointObjectiveHours = 4,
+            recoveryTimeObjectiveHours = 8,
+            incidentPlanApproved = true,
+            incidentPlanUpdatedLast12Months = true,
+            incidentPlanTestedLast12Months = true,
+            incidentRolesNamed = true,
+            sensitiveDataInventoryMaintained = true,
+            sensitiveDataEncrypted = true,
+            sensitiveDataTypes = new[] { "Personal data", "Credentials" },
+            sensitiveDataVolume = "Moderate"
         };
     }
 

@@ -18,5 +18,10 @@ public interface IEvidenceRequestRepository
         string ownerUserId,
         CancellationToken cancellationToken);
 
+    Task<bool> ExistsForQuoteCategoryAsync(
+        Guid quoteId,
+        string category,
+        CancellationToken cancellationToken);
+
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

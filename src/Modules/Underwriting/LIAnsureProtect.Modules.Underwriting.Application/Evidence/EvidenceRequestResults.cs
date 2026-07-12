@@ -53,7 +53,11 @@ public sealed record QuoteEvidenceDocumentResult(
     string? ScanResultReason,
     DateTime? ScannedAtUtc,
     string? Sha256,
-    bool IsDownloadAvailable);
+    bool IsDownloadAvailable,
+    string? AssessmentVersion,
+    string? PlausibilityStatus,
+    string? ClaimConsistencyStatus,
+    IReadOnlyCollection<string> AdvisoryFindings);
 
 internal static class QuoteEvidenceRequestResultFactory
 {
@@ -156,7 +160,16 @@ internal static class QuoteEvidenceRequestResultFactory
             document.ScanResultReason,
             document.ScannedAtUtc,
             document.Sha256,
-            document.IsDownloadAvailable);
+            document.IsDownloadAvailable,
+            document.AssessmentVersion,
+            document.PlausibilityStatus,
+            document.ClaimConsistencyStatus,
+            DeserializeFindings(document.AdvisoryFindingsJson));
+    }
+
+    private static string[] DeserializeFindings(string value)
+    {
+        return System.Text.Json.JsonSerializer.Deserialize<string[]>(value) ?? [];
     }
 }
 

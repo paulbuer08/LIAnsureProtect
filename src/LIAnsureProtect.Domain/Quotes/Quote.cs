@@ -5,6 +5,7 @@ namespace LIAnsureProtect.Domain.Quotes;
 public sealed class Quote : IHasDomainEvents
 {
     private readonly List<IDomainEvent> domainEvents = [];
+    private readonly List<ControlAssertion> controlAssertions = [];
 
     // The only constructor: EF Core materializes through it, and the Generate factory assigns
     // state via the private property setters. Keeping construction property-based (instead of a
@@ -32,6 +33,26 @@ public sealed class Quote : IHasDomainEvents
     public CyberRiskTier RiskTier { get; private set; }
 
     public QuoteStatus Status { get; private set; }
+
+    public int Version { get; private set; }
+
+    public Guid? SupersedesQuoteId { get; private set; }
+
+    public QuoteAssuranceStatus AssuranceStatus { get; private set; }
+
+    public int EvidenceRequiredCount { get; private set; }
+
+    public int EvidenceSatisfiedCount { get; private set; }
+
+    public string? AttestedByUserId { get; private set; }
+
+    public string? AttestedByName { get; private set; }
+
+    public string? AttestedByTitle { get; private set; }
+
+    public string? AttestationWordingVersion { get; private set; }
+
+    public DateTime? AttestedAtUtc { get; private set; }
 
     public string StrategyName { get; private set; }
 
@@ -63,6 +84,8 @@ public sealed class Quote : IHasDomainEvents
 
     public IReadOnlyCollection<IDomainEvent> DomainEvents => domainEvents.AsReadOnly();
 
+    public IReadOnlyCollection<ControlAssertion> ControlAssertions => controlAssertions.AsReadOnly();
+
     public static Quote Generate(
         Guid submissionId,
         string ownerUserId,
@@ -73,7 +96,14 @@ public sealed class Quote : IHasDomainEvents
         string strategyName,
         IReadOnlyCollection<string> subjectivities,
         IReadOnlyCollection<string> referralReasons,
-        DateTime createdAtUtc)
+        DateTime createdAtUtc,
+        int version = 1,
+        Guid? supersedesQuoteId = null,
+        string? attestedByUserId = null,
+        string? attestedByName = null,
+        string? attestedByTitle = null,
+        string? attestationWordingVersion = null,
+        int evidenceRequiredCount = 0)
     {
         if (submissionId == Guid.Empty)
             throw new ArgumentException("Submission id is required.", nameof(submissionId));
@@ -90,6 +120,9 @@ public sealed class Quote : IHasDomainEvents
         if (retention <= 0)
             throw new ArgumentOutOfRangeException(nameof(retention), "Retention must be greater than zero.");
 
+        ArgumentOutOfRangeException.ThrowIfLessThan(version, 1);
+        ArgumentOutOfRangeException.ThrowIfNegative(evidenceRequiredCount);
+
         var status = referralReasons.Count == 0
             ? QuoteStatus.Quoted
             : QuoteStatus.Referred;
@@ -104,6 +137,17 @@ public sealed class Quote : IHasDomainEvents
             Retention = retention,
             RiskTier = riskTier,
             Status = status,
+            Version = version,
+            SupersedesQuoteId = supersedesQuoteId,
+            AssuranceStatus = evidenceRequiredCount == 0
+                ? QuoteAssuranceStatus.SelfAttested
+                : QuoteAssuranceStatus.EvidenceRequired,
+            EvidenceRequiredCount = evidenceRequiredCount,
+            AttestedByUserId = NormalizeOptional(attestedByUserId),
+            AttestedByName = NormalizeOptional(attestedByName),
+            AttestedByTitle = NormalizeOptional(attestedByTitle),
+            AttestationWordingVersion = NormalizeOptional(attestationWordingVersion),
+            AttestedAtUtc = string.IsNullOrWhiteSpace(attestedByUserId) ? null : createdAtUtc,
             StrategyName = strategyName,
             Subjectivities = JoinLines(subjectivities),
             ReferralReasons = JoinLines(referralReasons),
@@ -119,6 +163,55 @@ public sealed class Quote : IHasDomainEvents
             createdAtUtc));
 
         return quote;
+    }
+
+    public void AddControlAssertion(ControlAssertion assertion)
+    {
+        ArgumentNullException.ThrowIfNull(assertion);
+
+        if (assertion.QuoteId != Id || assertion.QuoteVersion != Version)
+            throw new InvalidOperationException("Control assertion must belong to this quote version.");
+
+        if (controlAssertions.Any(existing => existing.ControlType == assertion.ControlType))
+            throw new InvalidOperationException("A quote version can contain only one assertion per control type.");
+
+        controlAssertions.Add(assertion);
+    }
+
+    public void RecordAssuranceDecision(
+        ControlType controlType,
+        bool satisfied,
+        string reviewedByUserId,
+        DateTime reviewedAtUtc)
+    {
+        var assertion = controlAssertions.SingleOrDefault(item => item.ControlType == controlType);
+        if (assertion is null || !assertion.EvidenceRequired)
+            return;
+
+        assertion.RecordHumanVerification(reviewedByUserId, satisfied, reviewedAtUtc);
+        EvidenceSatisfiedCount = controlAssertions.Count(item =>
+            item.EvidenceRequired && item.AssuranceState == ControlAssuranceState.HumanVerified);
+
+        AssuranceStatus = controlAssertions.Any(item =>
+            item.EvidenceRequired && item.AssuranceState == ControlAssuranceState.Rejected)
+                ? QuoteAssuranceStatus.Rejected
+                : EvidenceSatisfiedCount == EvidenceRequiredCount
+                    ? QuoteAssuranceStatus.Verified
+                    : QuoteAssuranceStatus.EvidenceRequired;
+    }
+
+    public void Supersede(DateTime supersededAtUtc)
+    {
+        if (Status is QuoteStatus.Accepted or QuoteStatus.Bound)
+            throw new InvalidOperationException("Accepted or bound quotes cannot be reassessed. Use endorsement or renewal workflows after binding.");
+
+        if (Status == QuoteStatus.Superseded)
+            throw new InvalidOperationException("This quote version is already superseded.");
+
+        if (supersededAtUtc < CreatedAtUtc)
+            throw new InvalidOperationException("A quote cannot be superseded before it was created.");
+
+        Status = QuoteStatus.Superseded;
     }
 
     public QuoteUnderwritingReview ApproveReferral(
@@ -238,6 +331,9 @@ public sealed class Quote : IHasDomainEvents
         bool subjectivitiesAcknowledged,
         DateTime acceptedAtUtc)
     {
+        if (AssuranceStatus is QuoteAssuranceStatus.EvidenceRequired or QuoteAssuranceStatus.Rejected)
+            throw new InvalidOperationException("Required control evidence must be satisfied before this provisional quote can be accepted.");
+
         if (Status != QuoteStatus.Quoted && Status != QuoteStatus.Approved)
             throw new InvalidOperationException("Only quoted or approved quotes can be accepted.");
 
@@ -290,6 +386,11 @@ public sealed class Quote : IHasDomainEvents
     private static string JoinLines(IReadOnlyCollection<string> values)
     {
         return string.Join("\n", values.Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private void EnsureCanReview()

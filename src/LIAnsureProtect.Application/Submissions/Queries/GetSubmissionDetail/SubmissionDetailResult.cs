@@ -19,7 +19,20 @@ public sealed record SubmissionQuoteSummaryResult(
     string Status,
     IReadOnlyList<string> Subjectivities,
     IReadOnlyList<string> ReferralReasons,
-    DateTime ExpiresAtUtc);
+    DateTime ExpiresAtUtc,
+    int Version,
+    Guid? SupersedesQuoteId,
+    string AssuranceStatus,
+    int EvidenceRequiredCount,
+    int EvidenceSatisfiedCount,
+    IReadOnlyList<SubmissionControlAssertionResult> ControlAssertions);
+
+public sealed record SubmissionControlAssertionResult(
+    string ControlType,
+    string ClaimedState,
+    string AssuranceState,
+    bool EvidenceRequired,
+    string EvidenceReason);
 
 public sealed record SubmissionPolicySummaryResult(
     Guid PolicyId,

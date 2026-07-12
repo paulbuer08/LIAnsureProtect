@@ -13,6 +13,7 @@ public sealed record EvidenceDocumentScanRequest(
     string OriginalFileName,
     string ContentType,
     long SizeBytes,
+    string EvidenceCategory,
     Stream Content);
 
 public sealed record EvidenceDocumentScanResult(
@@ -21,4 +22,8 @@ public sealed record EvidenceDocumentScanResult(
     string ScanResultCode,
     string ScanResultReason,
     string Sha256,
-    DateTime ScannedAtUtc);
+    DateTime ScannedAtUtc,
+    string AssessmentVersion,
+    string PlausibilityStatus,
+    string ClaimConsistencyStatus,
+    IReadOnlyCollection<string> AdvisoryFindings);

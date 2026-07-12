@@ -25,6 +25,7 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         CancellationToken cancellationToken)
     {
         return await dbContext.Quotes
+            .Include(quote => quote.ControlAssertions)
             .Where(quote => quote.SubmissionId == submissionId && quote.OwnerUserId == ownerUserId)
             .OrderByDescending(quote => quote.CreatedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
@@ -41,7 +42,9 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
 
     public async Task<Quote?> GetForUnderwritingReviewAsync(Guid quoteId, CancellationToken cancellationToken)
     {
-        return await dbContext.Quotes.SingleOrDefaultAsync(
+        return await dbContext.Quotes
+            .Include(quote => quote.ControlAssertions)
+            .SingleOrDefaultAsync(
             quote => quote.Id == quoteId,
             cancellationToken);
     }
@@ -62,7 +65,9 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
         string ownerUserId,
         CancellationToken cancellationToken)
     {
-        return await dbContext.Quotes.SingleOrDefaultAsync(
+        return await dbContext.Quotes
+            .Include(quote => quote.ControlAssertions)
+            .SingleOrDefaultAsync(
             quote => quote.Id == quoteId && quote.OwnerUserId == ownerUserId,
             cancellationToken);
     }

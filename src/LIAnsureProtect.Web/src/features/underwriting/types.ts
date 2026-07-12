@@ -141,6 +141,10 @@ export type QuoteEvidenceDocument = {
   scannedAtUtc: string | null;
   sha256: string | null;
   isDownloadAvailable: boolean;
+  assessmentVersion?: string | null;
+  plausibilityStatus?: string | null;
+  claimConsistencyStatus?: string | null;
+  advisoryFindings?: string[];
 };
 
 export type CreateQuoteEvidenceRequest = {

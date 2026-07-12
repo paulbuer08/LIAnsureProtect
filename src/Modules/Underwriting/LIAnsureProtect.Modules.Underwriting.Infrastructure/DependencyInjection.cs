@@ -3,6 +3,7 @@ using LIAnsureProtect.Modules.Underwriting.Application.Ai;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
 using LIAnsureProtect.Modules.Underwriting.Application.Referrals;
+using LIAnsureProtect.Modules.Underwriting.Application.Assurance;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Ai;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Evidence.Documents;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
@@ -40,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IReferralOperationRepository, EfReferralOperationRepository>();
         services.AddScoped<IReferralOperationsReader, ReferralOperationsReader>();
         services.AddScoped<IReferralOperationProjector, ReferralOperationProjector>();
+        services.AddScoped<IQuoteAssuranceProjector, QuoteAssuranceProjector>();
         services.AddScoped<IOutboxSource, UnderwritingOutboxSource>();
         services.AddScoped<IEvidenceRequestRepository, EfEvidenceRequestRepository>();
         services.AddScoped<IEvidenceDocumentRepository, EfEvidenceDocumentRepository>();

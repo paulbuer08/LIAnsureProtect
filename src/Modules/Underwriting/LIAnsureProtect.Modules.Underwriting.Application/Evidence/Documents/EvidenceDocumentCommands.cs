@@ -350,7 +350,8 @@ internal sealed record EvidenceDocumentRequestFacts(
     Guid EvidenceRequestId,
     Guid QuoteId,
     Guid SubmissionId,
-    string OwnerUserId)
+    string OwnerUserId,
+    string Category)
 {
     public static EvidenceDocumentRequestFacts FromRequest(QuoteEvidenceRequest request)
     {
@@ -358,7 +359,8 @@ internal sealed record EvidenceDocumentRequestFacts(
             request.Id,
             request.QuoteId,
             request.SubmissionId,
-            request.OwnerUserId);
+            request.OwnerUserId,
+            request.Category.ToString());
     }
 }
 
@@ -438,6 +440,7 @@ internal static class EvidenceDocumentUploadWorkflow
                         evidenceDocument.OriginalFileName,
                         evidenceDocument.ContentType,
                         evidenceDocument.SizeBytes,
+                        evidenceRequest.Category,
                         storedDownload.Content),
                     cancellationToken);
 
@@ -447,7 +450,11 @@ internal static class EvidenceDocumentUploadWorkflow
                     scanResult.ScanResultCode,
                     scanResult.ScanResultReason,
                     scanResult.Sha256,
-                    scanResult.ScannedAtUtc);
+                    scanResult.ScannedAtUtc,
+                    scanResult.AssessmentVersion,
+                    scanResult.PlausibilityStatus,
+                    scanResult.ClaimConsistencyStatus,
+                    System.Text.Json.JsonSerializer.Serialize(scanResult.AdvisoryFindings));
             }
 
             evidenceDocuments.Add(evidenceDocument);

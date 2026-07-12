@@ -172,6 +172,74 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                     b.ToTable("policy_binding_attempts", (string)null);
                 });
 
+            modelBuilder.Entity("LIAnsureProtect.Domain.Quotes.ControlAssertion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AssuranceState")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("assurance_state");
+
+                    b.Property<DateTime>("CapturedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("captured_at_utc");
+
+                    b.Property<string>("ClaimedState")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("claimed_state");
+
+                    b.Property<string>("ControlType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("control_type");
+
+                    b.Property<string>("DetailsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("details_json");
+
+                    b.Property<string>("EvidenceReason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("evidence_reason");
+
+                    b.Property<bool>("EvidenceRequired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("evidence_required");
+
+                    b.Property<Guid>("QuoteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("quote_id");
+
+                    b.Property<int>("QuoteVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("quote_version");
+
+                    b.Property<DateTime?>("VerifiedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verified_at_utc");
+
+                    b.Property<string>("VerifiedByUserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("verified_by_user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuoteId", "ControlType")
+                        .IsUnique()
+                        .HasDatabaseName("ux_quote_control_assertions_quote_id_control_type");
+
+                    b.ToTable("quote_control_assertions", (string)null);
+                });
+
             modelBuilder.Entity("LIAnsureProtect.Domain.Quotes.Quote", b =>
                 {
                     b.Property<Guid>("Id")
@@ -197,9 +265,47 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("accepted_by_user_id");
 
+                    b.Property<string>("AssuranceStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("assurance_status");
+
+                    b.Property<string>("AttestationWordingVersion")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("attestation_wording_version");
+
+                    b.Property<DateTime?>("AttestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("attested_at_utc");
+
+                    b.Property<string>("AttestedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("attested_by_name");
+
+                    b.Property<string>("AttestedByTitle")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("attested_by_title");
+
+                    b.Property<string>("AttestedByUserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("attested_by_user_id");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
+
+                    b.Property<int>("EvidenceRequiredCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("evidence_required_count");
+
+                    b.Property<int>("EvidenceSatisfiedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("evidence_satisfied_count");
 
                     b.Property<DateTime>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -271,6 +377,10 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("submission_id");
 
+                    b.Property<Guid?>("SupersedesQuoteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supersedes_quote_id");
+
                     b.Property<string>("UnderwritingDecisionNotes")
                         .HasColumnType("text")
                         .HasColumnName("underwriting_decision_notes");
@@ -278,6 +388,10 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                     b.Property<string>("UnderwritingDecisionReason")
                         .HasColumnType("text")
                         .HasColumnName("underwriting_decision_reason");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
 
                     b.HasKey("Id");
 
@@ -289,6 +403,10 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Status", "CreatedAtUtc")
                         .HasDatabaseName("ix_quotes_status_created_at_utc");
+
+                    b.HasIndex("SubmissionId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ux_quotes_submission_id_version");
 
                     b.ToTable("quotes", (string)null);
                 });
@@ -646,6 +764,21 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                     b.ToTable("outbox_messages", (string)null);
                 });
 
+            modelBuilder.Entity("LIAnsureProtect.Infrastructure.Persistence.QuoteAssuranceDecisionProjectedMessage", b =>
+                {
+                    b.Property<Guid>("SourceOutboxMessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_outbox_message_id");
+
+                    b.Property<DateTime>("ProjectedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("projected_at_utc");
+
+                    b.HasKey("SourceOutboxMessageId");
+
+                    b.ToTable("quote_assurance_decision_projected_messages", (string)null);
+                });
+
             modelBuilder.Entity("LIAnsureProtect.Domain.Policies.Policy", b =>
                 {
                     b.HasOne("LIAnsureProtect.Domain.Quotes.Quote", null)
@@ -661,6 +794,15 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("PolicyId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LIAnsureProtect.Domain.Quotes.ControlAssertion", b =>
+                {
+                    b.HasOne("LIAnsureProtect.Domain.Quotes.Quote", null)
+                        .WithMany("ControlAssertions")
+                        .HasForeignKey("QuoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
@@ -691,6 +833,11 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                         .HasForeignKey("QuoteId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("LIAnsureProtect.Domain.Quotes.Quote", b =>
+                {
+                    b.Navigation("ControlAssertions");
                 });
 #pragma warning restore 612, 618
         }

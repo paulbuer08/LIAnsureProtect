@@ -36,6 +36,12 @@ Submission, Quote, and Policy states, open owner-scoped policy pages from notifi
 eligible claim from Policy detail, delete Drafts, and withdraw eligible Submitted applications
 without erasing audit history.
 
+The quote journey now distinguishes a customer's security-control assertion from an independently
+verified fact. Customers attest to detailed control coverage, receive an immediate risk assessment,
+and see when a quote is provisional. Required evidence is created through the transactional outbox,
+reviewed by Underwriting, and must be satisfied before acceptance. Pre-acceptance improvements use
+immutable quote reassessment versions; automated document findings remain advisory.
+
 - The story of every milestone: [**The Build History**](docs/build-history.md)
 - The precise current state: [Project Status](docs/project-status.md) · [Changelog](CHANGELOG.md)
 ## Local Run
