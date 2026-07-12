@@ -63,4 +63,3 @@
    tests/build, and Docker-backed local CI.
 4. Open a protected-main PR, inspect CI/CodeQL/Claude threads, address findings, and squash-merge only
    when fully green.
-

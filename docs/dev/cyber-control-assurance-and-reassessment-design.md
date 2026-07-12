@@ -217,4 +217,3 @@ explains that improving a control permits reassessment but does not guarantee a 
 - Legal/compliance-approved production attestation wording.
 - Post-bind endorsement and renewal reassessment.
 - A separate Risk Engineer/Security Reviewer role.
-
