@@ -769,6 +769,35 @@ The source plan and acceptance decisions remain in
 with implementation lessons in
 [Customer/Broker Policy Journey Learnings](dev/customer-broker-policy-journey-learnings.md).
 
+### Control assurance and precise customer follow-up
+
+The next manual walkthrough asked a harder insurance question: “how can a quote trust a checked
+security-control box?” The answer was to stop treating self-report as verified fact. Quote generation
+now records a named, versioned attestation and detailed MFA, endpoint detection, backup/recovery,
+incident-response, and sensitive-data assertions. Deterministic rules can create risk-based evidence
+requests through the transactional outbox; only human Underwriting review can satisfy them. Quote
+commercial status remains separate from assurance state, and material pre-acceptance improvements
+create an immutable reassessment version rather than rewriting history.
+
+The customer-error/notification hardening follow-up then made that model navigable and operable. One
+shared Zod-validated frontend boundary converts reviewed Problem Details codes into friendly guidance
+and hides unknown internals; support IDs preserve developer traceability. Reassessment is cancellable
+local UI state and cannot be created until a canonical control assertion changes. Evidence uses
+cursor-paged summaries plus an exact owner-scoped request page; quote-ready and evidence-requested
+notifications carry event-time snapshots and open exact immutable subjects. Equal-timestamp evidence
+records use ID as the final cursor tie-breaker, preventing silent gaps.
+
+Production/Aws hosts now emit structured request outcomes and privacy-safe metrics, but this slice
+deliberately does not create AWS resources. The CloudWatch log groups, metric filters, alarms, SNS
+targets, and browser RUM identity/origin/sampling controls remain Terraform-owned Phase 2 work. This
+keeps observability reproducible and destroyable rather than hidden in manual console state.
+
+Design and operational records:
+[Cyber Control Assurance and Reassessment](dev/cyber-control-assurance-and-reassessment-design.md),
+[Customer Error and Notification Hardening](dev/customer-error-and-notification-hardening-design.md),
+[Hardening Learnings](dev/customer-error-and-notification-hardening-learnings.md), and
+[Production Observability and Customer Error Runbook](dev/production-observability-and-customer-errors-runbook.md).
+
 ---
 
 # Where the story goes next

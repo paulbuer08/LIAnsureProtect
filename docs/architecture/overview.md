@@ -183,11 +183,33 @@ GET /api/v1/health/live
 GET /api/v1/health/ready
 ```
 
-Readiness checks all three current EF Core contexts: `SubmissionDbContext`, `NotificationsDbContext`,
-and `UnderwritingDbContext`. The dispatcher now emits native .NET activities, structured logs, counters
+Readiness checks all four current EF Core contexts: `SubmissionDbContext`, `NotificationsDbContext`,
+`UnderwritingDbContext`, and `ClaimsDbContext`. The dispatcher now emits native .NET activities, structured logs, counters
 for batches/pending/processed/failed messages, and a duration histogram. Exporters and dashboards
 remain later infrastructure work; M41 exposes the signals that OpenTelemetry, CloudWatch, X-Ray, or
 Datadog can subscribe to later.
+
+The July 2026 customer-error and notification hardening slice builds on that baseline at both host
+edges. The API has a central exception handler and Problem Details filter: reviewed 4xx contracts keep
+stable public codes and actionable text, while unknown 5xx internals are logged with correlation and
+replaced by safe customer output. `RequestOutcomeMiddleware` emits route-template/status-class/duration
+signals and Production/Aws composition roots use JSON console logs. React feature clients share one
+Zod-validated error boundary and an application error boundary; optional browser telemetry is
+disabled by default and accepts only sanitized categories through a deployment-provided RUM adapter.
+
+Evidence and quote navigation now distinguish collection from identity:
+
+```text
+GET /api/v1/evidence-requests                     -> owner cursor-paged summaries, no documents
+GET /api/v1/evidence-requests/{evidenceRequestId} -> one owner detail with documents
+GET /api/v1/submissions/{submissionId}/quotes/{quoteId} -> exact owner quote version
+```
+
+Notification actions carry those exact IDs. The creating Quoting/Underwriting transaction adds safe
+display snapshots to the existing domain event and transactional outbox; the Notifications projector
+stores the snapshot. Inbox reads therefore remain self-contained and do not cross into another
+context to decorate a title. The production collector, CloudWatch resources, alarms, and RUM identity
+remain Terraform-owned infrastructure described in the production observability runbook.
 
 ## Application Use Case Pattern
 

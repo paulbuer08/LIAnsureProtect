@@ -27,7 +27,7 @@ Names live in `Platform.Abstractions.Observability.ObservabilityNames`, shared b
 | Route | Question | Checks |
 |---|---|---|
 | `/api/v1/health/live` (and legacy `/api/v1/health`) | "Is the process up?" | `self` only — no dependencies, so a database outage never gets the pod killed. |
-| `/api/v1/health/ready` | "Should traffic come here?" | `DbContextHealthCheck<T>` × 3 — Submission, Notifications, Underwriting contexts each `CanConnectAsync`. Any failure → not ready → load balancer routes around the instance. |
+| `/api/v1/health/ready` | "Should traffic come here?" | `DbContextHealthCheck<T>` × 4 — Submission, Notifications, Underwriting, and Claims contexts each `CanConnectAsync`. Any failure → not ready → load balancer routes around the instance. |
 
 The health check itself is fail-safe: exceptions become `Unhealthy` results, never crashes.
 
@@ -66,6 +66,29 @@ Three capabilities keep the API fast and safe under load:
 | **Caching** | `ICacheService` (`Platform.Abstractions.Caching`) → `InMemoryCacheService` (Local) / `RedisCacheService` (Aws) | Cache-aside for **rebuildable, non-PII** data. A query opts in by implementing `ICacheableRequest` (kernel marker: key + TTL); the `CachingBehavior` MediatR behavior then serves it from cache. `RemoveAsync` is the invalidation hook. **Adopted in production:** (1) the evidence reference-data query (`GET /api/v1/evidence-requests/reference`, versioned key, 1h TTL); (2) the **underwriting referral queue** (M44.5): `ListQuoteReferralsQuery` cached shared for **10s** under `underwriting:referral-queue:v1`, with read-your-writes preserved by an API-edge invalidation filter on every queue-affecting write controller — made safe by write-side optimistic concurrency landing first. Per-user/PII reads stay uncached. |
 | **Rate limiting** | `Program.cs` global `PartitionedRateLimiter` | Fixed-window per caller (authenticated user id, client-IP fallback), **stricter for unsafe methods**. Over the limit → **429** with `ProblemDetails` + `Retry-After`. Limits come from `RateLimitingOptions` (read per request), generous by default, tightened in production via `RateLimiting:*` config. |
 | **Security headers** | `SecurityHeadersMiddleware` | Every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, a locked-down `Content-Security-Policy`, and a restrictive `Permissions-Policy`. |
+
+## Customer-safe failures and developer diagnostics
+
+A failure now has two audiences. `GlobalExceptionHandler` and `SafeProblemDetailsFilter` make the HTTP
+contract safe; the shared React `apiClient` validates that contract with Zod and maps stable codes to
+actionable copy. A customer never needs to interpret raw JSON, exception types, stack traces, provider
+responses, or database messages. Unexpected failures use generic retry guidance and include the
+correlation ID as a support ID when available.
+
+Developers still receive the diagnostic trail. `RequestOutcomeMiddleware` records the route template
+(not a concrete customer/resource URL), method, status class, duration, and correlation ID under a
+stable event ID. Unhandled exceptions use a separate error event ID. Production/Aws hosts write JSON to
+stdout so the future EKS collector can forward it without making CloudWatch a request-time dependency.
+Native counters/histograms provide request volume and duration without user IDs or error messages as
+high-cardinality dimensions.
+
+The browser has a disabled-by-default sanitized telemetry bridge. Terraform/deployment must provide the
+official CloudWatch RUM client, allowlisted origins, least-privilege identity, sampling, retention, and
+privacy controls before setting `VITE_CLOUDWATCH_RUM_ENABLED=true`. RUM is a regression detector; it is
+not domain audit history.
+
+The complete production collection, alarm, privacy, and support-ID procedure is in
+[`production-observability-and-customer-errors-runbook.md`](../dev/production-observability-and-customer-errors-runbook.md).
 
 The cache adapter follows the same **Local ⇄ AWS profile switch** as S3 (M42) and SNS (M43): local
 in-memory vs Redis (ElastiCache), chosen by `Platform:Profile`, fail-fast on a missing Redis
