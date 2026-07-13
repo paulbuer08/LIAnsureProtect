@@ -49,7 +49,8 @@ public sealed class CreateQuoteEvidenceRequestCommandHandler(
             request.Title,
             request.Description,
             request.DueAtUtc,
-            requestedAtUtc);
+            requestedAtUtc,
+            quote.Version);
 
         await evidence.AddAsync(evidenceRequest, cancellationToken);
         await evidence.SaveChangesAsync(cancellationToken);

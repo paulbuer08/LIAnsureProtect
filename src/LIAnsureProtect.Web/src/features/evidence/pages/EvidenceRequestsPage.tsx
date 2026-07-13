@@ -4,13 +4,14 @@ import type { FormEvent } from "react";
 import { Link } from "react-router";
 
 import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { downloadOwnerEvidenceDocument } from "../api/evidenceRequestsApi";
 import {
   useEvidenceRequests,
   useRespondToEvidenceRequest,
   useUploadReplacementEvidenceDocuments,
 } from "../hooks/useEvidenceRequests";
-import type { QuoteEvidenceRequest } from "../types";
+import type { EvidenceRequestSummary, QuoteEvidenceRequest } from "../types";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -23,10 +24,12 @@ function formatDate(value: string) {
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
+  return getUserErrorMessage(error, fallback);
 }
 
-function formatEvidenceDueLabel(request: QuoteEvidenceRequest) {
+function formatEvidenceDueLabel(
+  request: Pick<QuoteEvidenceRequest, "isOverdue" | "daysUntilDue">,
+) {
   if (request.isOverdue) {
     const overdueDays = Math.abs(request.daysUntilDue);
 
@@ -41,7 +44,7 @@ function formatEvidenceDueLabel(request: QuoteEvidenceRequest) {
   return `Due in ${request.daysUntilDue} days`;
 }
 
-function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
+export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
   const { getAccessTokenSilently } = useAuth0();
   const respondToEvidenceRequest = useRespondToEvidenceRequest();
   const uploadReplacementEvidenceDocuments = useUploadReplacementEvidenceDocuments();
@@ -339,8 +342,32 @@ function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
 }
 
 export function EvidenceRequestsPage() {
-  const evidenceRequestsQuery = useEvidenceRequests();
+  const [status, setStatus] = useState("");
+  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [cursor, setCursor] = useState<string>();
+  const [cursorHistory, setCursorHistory] = useState<Array<string | undefined>>([]);
+  const evidenceRequestsQuery = useEvidenceRequests({
+    status: status || undefined,
+    overdue: overdueOnly || undefined,
+    cursor,
+    pageSize: 12,
+  });
   const evidenceRequests = evidenceRequestsQuery.data?.evidenceRequests ?? [];
+
+  function openNextPage() {
+    const next = evidenceRequestsQuery.data?.nextCursor;
+    if (!next) return;
+    setCursorHistory((history) => [...history, cursor]);
+    setCursor(next);
+  }
+
+  function openPreviousPage() {
+    setCursorHistory((history) => {
+      const previous = history.at(-1);
+      setCursor(previous);
+      return history.slice(0, -1);
+    });
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
@@ -359,9 +386,42 @@ export function EvidenceRequestsPage() {
           Underwriting evidence requests
         </h1>
         <p className="mt-4 max-w-3xl text-slate-300">
-          Respond to underwriter requests for supporting cyber-control evidence.
-          This milestone stores uploaded evidence files privately through the API.
+          Review concise request summaries here, then open one request to provide
+          supporting cyber-control evidence and manage its private documents.
         </p>
+
+        <div className="mt-6 flex flex-wrap items-end gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4">
+          <label className="text-sm font-semibold text-slate-200">
+            Status
+            <select
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setCursor(undefined);
+                setCursorHistory([]);
+              }}
+              className="mt-2 block min-h-10 rounded-md border border-slate-700 bg-slate-950 px-3 text-white"
+            >
+              <option value="">All statuses</option>
+              <option value="Open">Open</option>
+              <option value="Responded">Responded</option>
+              <option value="Accepted">Accepted</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </label>
+          <label className="flex min-h-10 items-center gap-2 text-sm font-semibold text-slate-200">
+            <input
+              type="checkbox"
+              checked={overdueOnly}
+              onChange={(event) => {
+                setOverdueOnly(event.target.checked);
+                setCursor(undefined);
+                setCursorHistory([]);
+              }}
+            />
+            Overdue only
+          </label>
+        </div>
 
         {evidenceRequestsQuery.isPending && (
           <p className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-300">
@@ -392,12 +452,59 @@ export function EvidenceRequestsPage() {
 
         {evidenceRequests.length > 0 && (
           <section className="mt-8 space-y-4">
-            {evidenceRequests.map((request) => (
-              <EvidenceRequestCard
+            {evidenceRequests.map((request: EvidenceRequestSummary) => (
+              <article
                 key={request.evidenceRequestId}
-                request={request}
-              />
+                className="rounded-lg border border-slate-800 bg-slate-900 p-5"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">{request.title}</h2>
+                    <p className="mt-2 text-sm text-slate-300">{request.description}</p>
+                    <p className="mt-3 text-xs text-slate-400">
+                      {request.category} · Quote {request.quoteId}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+                    <span className="rounded-md border border-amber-700 px-3 py-1 text-xs font-semibold text-amber-200">
+                      {request.status}
+                    </span>
+                    <span className={request.isOverdue ? "text-sm text-red-200" : "text-sm text-emerald-200"}>
+                      {formatEvidenceDueLabel(request)}
+                    </span>
+                  </div>
+                </div>
+                {request.remediationGuidance && (
+                  <p className="mt-4 rounded-md border border-amber-800 bg-amber-950/30 p-3 text-sm text-amber-100">
+                    {request.remediationGuidance}
+                  </p>
+                )}
+                <Link
+                  to={`/evidence-requests/${request.evidenceRequestId}`}
+                  className="mt-4 inline-flex rounded-md border border-emerald-400/60 px-4 py-2 text-sm font-semibold text-emerald-200 hover:bg-emerald-400 hover:text-slate-950"
+                >
+                  Open evidence request
+                </Link>
+              </article>
             ))}
+            <nav aria-label="Evidence request pages" className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                disabled={cursorHistory.length === 0}
+                onClick={openPreviousPage}
+                className="rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                disabled={!evidenceRequestsQuery.data?.nextCursor}
+                onClick={openNextPage}
+                className="rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold disabled:opacity-40"
+              >
+                Next
+              </button>
+            </nav>
           </section>
         )}
       </section>

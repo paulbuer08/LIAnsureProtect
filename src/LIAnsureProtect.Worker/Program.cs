@@ -17,6 +17,13 @@ var databaseConnectionString = builder.Configuration.GetConnectionString("LIAnsu
 // Platform:Profile selects the Local <-> AWS adapter set (see the API host for the same pattern).
 var platformProfile = PlatformProfileResolver.Resolve(builder.Configuration);
 
+if (builder.Environment.IsProduction()
+    || platformProfile == LIAnsureProtect.Platform.Abstractions.PlatformProfile.Aws)
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
+}
+
 builder.Services.AddPlatform(builder.Configuration);
 builder.Services.AddNotificationsModule(databaseConnectionString, platformProfile);
 builder.Services.AddQuotingModule();

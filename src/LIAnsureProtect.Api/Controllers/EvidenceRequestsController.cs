@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using ModuleEvidence = LIAnsureProtect.Modules.Underwriting.Application.Evidence;
 using ModuleEvidenceDocuments = LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
 using ModuleOwnerEvidenceRequests = LIAnsureProtect.Modules.Underwriting.Application.Evidence.Queries.ListOwnerEvidenceRequests;
+using ModuleOwnerEvidenceRequest = LIAnsureProtect.Modules.Underwriting.Application.Evidence.Queries.GetOwnerEvidenceRequest;
 
 namespace LIAnsureProtect.Api.Controllers;
 
@@ -18,11 +19,51 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ModuleEvidence.ListOwnerEvidenceRequestsResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ModuleEvidence.ListOwnerEvidenceRequestsResult>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<ModuleEvidence.ListOwnerEvidenceRequestsResult>> List(
+        [FromQuery] string? status,
+        [FromQuery] string? category,
+        [FromQuery] Guid? quoteId,
+        [FromQuery] bool? overdue,
+        [FromQuery] string? cursor,
+        [FromQuery] int pageSize = 12,
+        CancellationToken cancellationToken = default)
     {
-        var result = await sender.Send(new ModuleOwnerEvidenceRequests.ListOwnerEvidenceRequestsQuery(), cancellationToken);
+        try
+        {
+            var result = await sender.Send(
+                new ModuleOwnerEvidenceRequests.ListOwnerEvidenceRequestsQuery(
+                    status,
+                    category,
+                    quoteId,
+                    overdue,
+                    cursor,
+                    pageSize),
+                cancellationToken);
 
-        return Ok(result);
+            return Ok(result);
+        }
+        catch (ArgumentException)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Evidence request filters are invalid."));
+        }
+    }
+
+    [HttpGet("{evidenceRequestId:guid}")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ModuleEvidence.QuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleEvidence.QuoteEvidenceRequestResult>> Get(
+        Guid evidenceRequestId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new ModuleOwnerEvidenceRequest.GetOwnerEvidenceRequestQuery(evidenceRequestId),
+            cancellationToken);
+
+        return result is null ? NotFound() : Ok(result);
     }
 
     [HttpPost("{evidenceRequestId:guid}/respond")]

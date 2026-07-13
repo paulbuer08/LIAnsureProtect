@@ -1,9 +1,10 @@
 import { Link } from "react-router";
 
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { useSubmissions } from "../hooks/useSubmissions";
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to load submissions.";
+  return getUserErrorMessage(error, "Unable to load submissions.");
 }
 
 export function SubmissionsPage() {

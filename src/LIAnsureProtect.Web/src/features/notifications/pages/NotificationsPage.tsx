@@ -3,6 +3,8 @@ import { Link } from "react-router";
 
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
 import { hasTeamNotificationAccess } from "../../../lib/roleAccess";
+import { formatCurrency } from "../../../lib/currency";
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import {
   useMarkNotificationRead,
   useNotifications,
@@ -18,9 +20,7 @@ const filterTabs: { value: NotificationFilter; label: string }[] = [
 ];
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "Unable to load notifications.";
+  return getUserErrorMessage(error, "Unable to load notifications.");
 }
 
 function getNotificationAction(
@@ -36,19 +36,56 @@ function getNotificationAction(
   }
 
   if (subjectReferenceType === "evidence-request") {
-    return { label: "Open evidence request", to: "/evidence-requests" };
+    const evidenceRequestId = attributes.evidenceRequestId ?? subjectReferenceId;
+    return evidenceRequestId
+      ? {
+          label: "Open evidence request",
+          to: `/evidence-requests/${evidenceRequestId}`,
+        }
+      : null;
   }
 
-  if (subjectReferenceType === "quote" || subjectReferenceType === "submission") {
+  if (subjectReferenceType === "quote") {
+    const submissionId = attributes.submissionId;
+    const quoteId = attributes.quoteId ?? subjectReferenceId;
+    return submissionId && quoteId
+      ? {
+          label: "View quote",
+          to: `/submissions/${submissionId}/quotes/${quoteId}`,
+        }
+      : null;
+  }
+
+  if (subjectReferenceType === "submission") {
     const submissionId =
       attributes.submissionId ??
-      (subjectReferenceType === "submission" ? subjectReferenceId : null);
+      subjectReferenceId;
     return submissionId
       ? { label: "Open submission", to: `/submissions/${submissionId}` }
       : null;
   }
 
   return null;
+}
+
+function NotificationDetails({ attributes }: { attributes: Record<string, string> }) {
+  const details: string[] = [];
+  if (attributes.category) details.push(`Control: ${attributes.category}`);
+  if (attributes.quoteVersion) details.push(`Quote version ${attributes.quoteVersion}`);
+  if (attributes.version) details.push(`Quote version ${attributes.version}`);
+  if (attributes.premium && Number.isFinite(Number(attributes.premium))) {
+    details.push(`Premium ${formatCurrency(Number(attributes.premium))}`);
+  }
+  if (attributes.dueAtUtc) {
+    details.push(`Due ${new Date(attributes.dueAtUtc).toLocaleDateString()}`);
+  }
+  if (attributes.expiresAtUtc) {
+    details.push(`Expires ${new Date(attributes.expiresAtUtc).toLocaleDateString()}`);
+  }
+
+  return details.length > 0 ? (
+    <p className="mt-2 text-sm text-slate-300">{details.join(" · ")}</p>
+  ) : null;
 }
 
 export function NotificationsPage() {
@@ -184,6 +221,7 @@ export function NotificationsPage() {
                             {notification.attributes.remediationGuidance}
                           </p>
                         )}
+                        <NotificationDetails attributes={notification.attributes} />
                         <p className="mt-2 text-xs text-slate-400">
                           {new Date(notification.occurredAtUtc).toLocaleString()}
                         </p>

@@ -130,6 +130,7 @@ public sealed class AiUnderwritingReviewCommandHandlerTests
             Retention: 10_000m,
             RiskTier: "Severe",
             Status: "Referred",
+            Version: 1,
             StrategyName: "HighRiskCyber",
             Subjectivities: ["MFA evidence required."],
             ReferralReasons: ["Severe risk tier requires underwriter review."],

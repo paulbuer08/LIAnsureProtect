@@ -187,7 +187,10 @@ describe("NewSubmissionPage", () => {
     await user.type(screen.getByLabelText("Applicant email"), "jane@example.com");
     await user.type(screen.getByLabelText("Company name"), "Example Company");
     await user.click(screen.getByRole("button", { name: "Create draft submission" }));
-    expect(await screen.findByText("Temporary network failure")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Unable to create the draft submission."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Temporary network failure")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Create draft submission" }));
 

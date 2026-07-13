@@ -18,6 +18,7 @@ import {
 } from "../api/claimsApi";
 import type { ClaimAdjudicationDetail } from "../types";
 import { ClaimsAdjudicationPage } from "./ClaimsAdjudicationPage";
+import { ApiError } from "../../../lib/apiClient";
 
 const getAccessTokenSilently = vi.fn();
 
@@ -183,7 +184,11 @@ describe("ClaimsAdjudicationPage", () => {
   it("shows the losing adjuster the conflict and refetches the truth", async () => {
     const user = userEvent.setup();
     vi.mocked(assignClaimToMe).mockRejectedValue(
-      new Error("This claim is already assigned to another adjuster."),
+      new ApiError(
+        "This claim is already assigned to another adjuster.",
+        409,
+        "claim.assignment.conflict",
+      ),
     );
 
     renderWorkbench();

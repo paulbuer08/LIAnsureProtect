@@ -175,9 +175,9 @@ describe("DashboardPage", () => {
         name: "We could not load your assigned roles.",
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("Current-user lookup failed with 401."),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/account roles could not be loaded/i)).toBeInTheDocument();
+    expect(screen.queryByText("Current-user lookup failed with 401.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
     expect(
       screen.queryByText("No application workspace is available yet."),
     ).not.toBeInTheDocument();
@@ -193,7 +193,8 @@ describe("DashboardPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Consent required")).toBeInTheDocument();
+    expect(screen.queryByText("Consent required")).not.toBeInTheDocument();
+    expect(screen.getByText(/additional authorization step/i)).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: "Continue with Auth0" }),

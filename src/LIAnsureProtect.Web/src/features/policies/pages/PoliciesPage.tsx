@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { usePolicies } from "../hooks/usePolicies";
 
@@ -13,7 +14,7 @@ export function PoliciesPage() {
       <h1 className="mt-3 text-4xl font-bold">My policies</h1>
       <p className="mt-3 text-slate-300">Review bound contracts independently from their source submissions.</p>
       {query.isPending && <p className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-5">Loading policies...</p>}
-      {query.isError && <p className="mt-8 rounded-lg border border-red-900 bg-red-950 p-5 text-red-200">{query.error instanceof Error ? query.error.message : "Unable to load policies."}</p>}
+      {query.isError && <p className="mt-8 rounded-lg border border-red-900 bg-red-950 p-5 text-red-200">{getUserErrorMessage(query.error, "Unable to load policies.")}</p>}
       {query.isSuccess && policies.length === 0 && <p className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-6 text-slate-300">No policies are bound yet.</p>}
       <div className="mt-8 grid gap-4 lg:grid-cols-2">
         {policies.map((policy) => <article key={policy.policyId} className="rounded-lg border border-slate-800 bg-slate-900 p-6">

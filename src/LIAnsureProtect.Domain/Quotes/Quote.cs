@@ -160,7 +160,10 @@ public sealed class Quote : IHasDomainEvents
             quote.SubmissionId,
             quote.OwnerUserId,
             quote.Status,
-            createdAtUtc));
+            createdAtUtc,
+            quote.Version,
+            quote.Premium,
+            quote.ExpiresAtUtc));
 
         return quote;
     }

@@ -19,7 +19,8 @@ public sealed class QuoteEvidenceRequestTests
             title: "Confirm MFA rollout",
             description: "Please provide current MFA rollout evidence for privileged and email access.",
             dueAtUtc: dueAtUtc,
-            requestedAtUtc: requestedAtUtc);
+            requestedAtUtc: requestedAtUtc,
+            quoteVersion: 2);
 
         Assert.Equal(EvidenceRequestStatus.Open, request.Status);
         Assert.Equal(EvidenceReviewDecisionStatus.NotReviewed, request.ReviewDecision);
@@ -43,6 +44,8 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Equal("underwriter-1", domainEvent.RequestedByUserId);
         Assert.Equal(EvidenceRequestCategory.MultiFactorAuthentication, domainEvent.Category);
         Assert.Equal(dueAtUtc, domainEvent.DueAtUtc);
+        Assert.Equal("Confirm MFA rollout", domainEvent.Title);
+        Assert.Equal(2, domainEvent.QuoteVersion);
     }
 
     [Fact]

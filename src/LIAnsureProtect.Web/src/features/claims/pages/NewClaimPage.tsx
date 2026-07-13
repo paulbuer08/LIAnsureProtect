@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router";
 
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { useClaimablePolicies, useFileClaim } from "../hooks/useClaims";
 import { claimIncidentTypes, type ClaimablePolicy } from "../types";
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to file the claim.";
+  return getUserErrorMessage(error, "Unable to file the claim.");
 }
 
 export function NewClaimPage() {

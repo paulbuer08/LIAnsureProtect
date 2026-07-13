@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router";
 
 import { ConfirmationDialog } from "../../../components/ConfirmationDialog";
 import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { useAcceptQuote } from "../hooks/useAcceptQuote";
 import { useBindPolicy } from "../hooks/useBindPolicy";
@@ -33,7 +34,7 @@ type BooleanControlDetailKey = {
 }[keyof CyberControlDetails];
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to load submission.";
+  return getUserErrorMessage(error, "Unable to load submission.");
 }
 
 const fieldClassName =
@@ -80,6 +81,79 @@ const defaultControlDetails: CyberControlDetails = {
   sensitiveDataTypes: ["Personal data", "Credentials"],
   sensitiveDataVolume: "Moderate",
 };
+
+type QuoteControlSource = {
+  requestedLimit: number;
+  retention: number;
+  controlAssertions?: Array<{
+    controlType: string;
+    claimedState: string;
+    detailsJson: string;
+  }>;
+};
+
+type QuoteControlState = {
+  requestedLimit: string;
+  retention: string;
+  mfaStatus: CyberSecurityControlStatus;
+  edrStatus: CyberSecurityControlStatus;
+  backupMaturity: BackupMaturity;
+  hasIncidentResponsePlan: boolean;
+  sensitiveDataExposure: SensitiveDataExposure;
+  controlDetails: CyberControlDetails;
+};
+
+function readDetailsJson(value: string) {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function quoteControlState(source: QuoteControlSource): QuoteControlState {
+  const assertions = source.controlAssertions ?? [];
+  const byType = new Map(
+    assertions.map((assertion) => [assertion.controlType, assertion]),
+  );
+  const details = { ...defaultControlDetails };
+
+  for (const assertion of assertions) {
+    for (const [rawKey, value] of Object.entries(
+      readDetailsJson(assertion.detailsJson),
+    )) {
+      const key = `${rawKey.charAt(0).toLowerCase()}${rawKey.slice(1)}` as keyof CyberControlDetails;
+      if (key in details && value !== null && value !== undefined) {
+        (details as Record<string, unknown>)[key] = value;
+      }
+    }
+  }
+
+  return {
+    requestedLimit: String(source.requestedLimit),
+    retention: String(source.retention),
+    mfaStatus: (byType.get("MultiFactorAuthentication")?.claimedState ??
+      "Implemented") as CyberSecurityControlStatus,
+    edrStatus: (byType.get("EndpointDetectionAndResponse")?.claimedState ??
+      "Implemented") as CyberSecurityControlStatus,
+    backupMaturity: (byType.get("BackupRecovery")?.claimedState ??
+      "Mature") as BackupMaturity,
+    hasIncidentResponsePlan:
+      byType.get("IncidentResponsePlan")?.claimedState === "InPlace",
+    sensitiveDataExposure: (byType.get("SensitiveData")?.claimedState ??
+      "Moderate") as SensitiveDataExposure,
+    controlDetails: details,
+  };
+}
+
+function controlFingerprint(
+  state: Omit<QuoteControlState, "requestedLimit" | "retention">,
+) {
+  return JSON.stringify(state);
+}
 
 const controlDetailCheckboxes: ReadonlyArray<{
   key: BooleanControlDetailKey;
@@ -158,6 +232,8 @@ export function SubmissionDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
+  const [isCancelReassessmentDialogOpen, setIsCancelReassessmentDialogOpen] =
+    useState(false);
   const [isSubmittedNoticeVisible, setIsSubmittedNoticeVisible] = useState(false);
   const [isQuoteAcceptedNoticeVisible, setIsQuoteAcceptedNoticeVisible] =
     useState(false);
@@ -198,6 +274,7 @@ export function SubmissionDetailPage() {
   const [attestedByName, setAttestedByName] = useState("");
   const [attestedByTitle, setAttestedByTitle] = useState("");
   const [isReassessing, setIsReassessing] = useState(false);
+  const [reassessmentBaseline, setReassessmentBaseline] = useState<string>();
   const [controlDetails, setControlDetails] = useState<CyberControlDetails>(
     defaultControlDetails,
   );
@@ -337,6 +414,18 @@ export function SubmissionDetailPage() {
     (!needsPriorIncidentDetails ||
       (priorCyberIncidentTypes.length > 0 &&
         priorCyberIncidentDetails.trim().length > 0));
+  const currentControlFingerprint = controlFingerprint({
+    mfaStatus,
+    edrStatus,
+    backupMaturity,
+    hasIncidentResponsePlan,
+    sensitiveDataExposure,
+    controlDetails,
+  });
+  const hasReassessmentChanges =
+    !isReassessing ||
+    (reassessmentBaseline !== undefined &&
+      reassessmentBaseline !== currentControlFingerprint);
   const {
     formState: { errors },
     handleSubmit,
@@ -398,7 +487,11 @@ export function SubmissionDetailPage() {
   }
 
   function handleGenerateQuote() {
-    if (!displayedSubmission || !canGenerateQuoteRequest) {
+    if (
+      !displayedSubmission ||
+      !canGenerateQuoteRequest ||
+      !hasReassessmentChanges
+    ) {
       return;
     }
 
@@ -435,10 +528,52 @@ export function SubmissionDetailPage() {
       {
         onSuccess: () => {
           setIsReassessing(false);
+          setReassessmentBaseline(undefined);
           setAttestationAccepted(false);
         },
       },
     );
+  }
+
+  function applyQuoteControls(source: QuoteControlSource) {
+    const state = quoteControlState(source);
+    setRequestedLimit(state.requestedLimit);
+    setRetention(state.retention);
+    setMfaStatus(state.mfaStatus);
+    setEdrStatus(state.edrStatus);
+    setBackupMaturity(state.backupMaturity);
+    setHasIncidentResponsePlan(state.hasIncidentResponsePlan);
+    setSensitiveDataExposure(state.sensitiveDataExposure);
+    setControlDetails(state.controlDetails);
+    return controlFingerprint({
+      mfaStatus: state.mfaStatus,
+      edrStatus: state.edrStatus,
+      backupMaturity: state.backupMaturity,
+      hasIncidentResponsePlan: state.hasIncidentResponsePlan,
+      sensitiveDataExposure: state.sensitiveDataExposure,
+      controlDetails: state.controlDetails,
+    });
+  }
+
+  function finishCancellingReassessment() {
+    const source = createdQuote ?? latestQuote;
+    if (source) applyQuoteControls(source);
+    setIsReassessing(false);
+    setReassessmentBaseline(undefined);
+    setIsCancelReassessmentDialogOpen(false);
+    setAttestationAccepted(false);
+    setAttestedByName("");
+    setAttestedByTitle("");
+    createQuoteMutation.reset();
+  }
+
+  function handleCancelReassessment() {
+    if (hasReassessmentChanges) {
+      setIsCancelReassessmentDialogOpen(true);
+      return;
+    }
+
+    finishCancellingReassessment();
   }
 
   function handleIncidentTypeChange(incidentType: string, checked: boolean) {
@@ -719,10 +854,13 @@ export function SubmissionDetailPage() {
                 </p>
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                  <label className="text-sm font-semibold text-slate-100">
-                    Industry class
-                    <HelpButton id="industryClass" label="Industry class" />
+                  <div className="text-sm font-semibold text-slate-100">
+                    <div>
+                      <label htmlFor="quote-industry-class">Industry class</label>
+                      <HelpButton id="industryClass" label="Industry class" />
+                    </div>
                     <select
+                      id="quote-industry-class"
                       className={selectClassName}
                       value={usesOtherIndustry ? "Other" : industryClass}
                       onChange={(event) => {
@@ -747,7 +885,7 @@ export function SubmissionDetailPage() {
                       </option>
                       <option value="Other">Other / not listed</option>
                     </select>
-                  </label>
+                  </div>
 
                   {usesOtherIndustry && (
                     <label className="text-sm font-semibold text-slate-100">
@@ -814,10 +952,13 @@ export function SubmissionDetailPage() {
                     </select>
                   </label>
 
-                  <label className="text-sm font-semibold text-slate-100">
-                    MFA status
-                    <HelpButton id="mfaStatus" label="MFA status" />
+                  <div className="text-sm font-semibold text-slate-100">
+                    <div>
+                      <label htmlFor="quote-mfa-status">MFA status</label>
+                      <HelpButton id="mfaStatus" label="MFA status" />
+                    </div>
                     <select
+                      id="quote-mfa-status"
                       className={selectClassName}
                       value={mfaStatus}
                       onChange={(event) =>
@@ -830,7 +971,7 @@ export function SubmissionDetailPage() {
                       <option value="Partial">Partial</option>
                       <option value="NotImplemented">Not implemented</option>
                     </select>
-                  </label>
+                  </div>
 
                   <label className="text-sm font-semibold text-slate-100">
                     EDR status
@@ -1125,7 +1266,9 @@ export function SubmissionDetailPage() {
                   type="button"
                   onClick={handleGenerateQuote}
                   disabled={
-                    createQuoteMutation.isPending || !canGenerateQuoteRequest
+                    createQuoteMutation.isPending ||
+                    !canGenerateQuoteRequest ||
+                    !hasReassessmentChanges
                   }
                   className="mt-5 inline-flex min-h-10 items-center rounded-md bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
                 >
@@ -1135,6 +1278,20 @@ export function SubmissionDetailPage() {
                       ? "Create reassessment"
                       : "Generate quote"}
                 </button>
+                {isReassessing && (
+                  <button
+                    type="button"
+                    onClick={handleCancelReassessment}
+                    className="ml-3 mt-5 inline-flex min-h-10 items-center rounded-md border border-slate-600 px-4 py-2 text-sm font-semibold text-white hover:border-slate-400"
+                  >
+                    Cancel reassessment
+                  </button>
+                )}
+                {isReassessing && !hasReassessmentChanges && (
+                  <p className="mt-3 text-sm text-amber-200">
+                    Change at least one control answer before creating a reassessment.
+                  </p>
+                )}
               </div>
             )}
 
@@ -1159,7 +1316,7 @@ export function SubmissionDetailPage() {
                       satisfied. Automated checks assist review but do not make the final
                       insurance decision.
                     </p>
-                    <Link className="mt-3 inline-block font-semibold text-amber-200 underline" to="/evidence">
+                    <Link className="mt-3 inline-block font-semibold text-amber-200 underline" to="/evidence-requests">
                       Open evidence requests
                     </Link>
                   </div>
@@ -1257,6 +1414,10 @@ export function SubmissionDetailPage() {
                       className="mt-3 inline-flex min-h-10 items-center rounded-md border border-slate-600 px-4 py-2 font-semibold text-white hover:border-emerald-300 hover:text-emerald-200"
                       type="button"
                       onClick={() => {
+                        const source = createdQuote ?? latestQuote;
+                        if (source) {
+                          setReassessmentBaseline(applyQuoteControls(source));
+                        }
                         setIsReassessing(true);
                         setAttestationAccepted(false);
                         setAttestedByName("");
@@ -1494,6 +1655,21 @@ export function SubmissionDetailPage() {
           onConfirm={() => void confirmWithdrawSubmission()}
           pendingLabel="Withdrawing application..."
           tone="warning"
+        />
+      )}
+      {isCancelReassessmentDialogOpen && (
+        <ConfirmationDialog
+          title="Discard reassessment changes?"
+          description="This removes the control edits in this reassessment form. It does not change or delete the current quote."
+          confirmLabel="Discard changes"
+          tone="warning"
+          information={{
+            title: "Your current quote stays unchanged",
+            description:
+              "A reassessment is not saved until creation succeeds. Cancelling restores the answers from the current quote and keeps its audit history intact.",
+          }}
+          onCancel={() => setIsCancelReassessmentDialogOpen(false)}
+          onConfirm={finishCancellingReassessment}
         />
       )}
     </main>

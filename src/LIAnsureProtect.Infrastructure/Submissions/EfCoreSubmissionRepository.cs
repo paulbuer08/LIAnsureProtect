@@ -116,7 +116,8 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
                     assertion.ClaimedState,
                     assertion.AssuranceState.ToString(),
                     assertion.EvidenceRequired,
-                    assertion.EvidenceReason))
+                    assertion.EvidenceReason,
+                    assertion.DetailsJson))
                 .ToListAsync(cancellationToken);
 
         return new SubmissionDetailResult(

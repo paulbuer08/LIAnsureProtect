@@ -32,6 +32,7 @@ public sealed class QuoteUnderwritingContextReader(IQuoteRepository quoteReposit
             quote.Retention,
             quote.RiskTier.ToString(),
             quote.Status.ToString(),
+            quote.Version,
             quote.StrategyName,
             SplitLines(quote.Subjectivities),
             SplitLines(quote.ReferralReasons),

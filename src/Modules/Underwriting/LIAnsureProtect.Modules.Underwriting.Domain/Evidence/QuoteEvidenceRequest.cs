@@ -83,7 +83,8 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         string title,
         string description,
         DateTime dueAtUtc,
-        DateTime requestedAtUtc)
+        DateTime requestedAtUtc,
+        int quoteVersion = 1)
     {
         ValidateGuid(quoteId, nameof(quoteId), "Quote id is required.");
         ValidateGuid(submissionId, nameof(submissionId), "Submission id is required.");
@@ -120,7 +121,9 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             evidenceRequest.RequestedByUserId,
             evidenceRequest.Category,
             evidenceRequest.DueAtUtc,
-            requestedAtUtc));
+            requestedAtUtc,
+            evidenceRequest.Title,
+            quoteVersion));
 
         return evidenceRequest;
     }

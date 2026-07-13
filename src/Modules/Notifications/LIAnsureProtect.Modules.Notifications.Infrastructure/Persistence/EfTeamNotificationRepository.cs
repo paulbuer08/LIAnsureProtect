@@ -40,18 +40,22 @@ public sealed class EfTeamNotificationRepository(NotificationsDbContext dbContex
             .ToListAsync(cancellationToken);
 
         return entries
-            .Select(entry => new NotificationInboxItemResult(
+            .Select(entry =>
+            {
+                var attributes = DeserializeAttributes(entry.AttributesJson);
+                return new NotificationInboxItemResult(
                 entry.Id,
                 NotificationScopes.Team,
                 entry.Audience,
                 entry.Type,
-                NotificationInboxTitles.For(entry.Type),
+                NotificationInboxTitles.For(entry.Type, attributes),
                 entry.SubjectReferenceType,
                 entry.SubjectReferenceId,
-                DeserializeAttributes(entry.AttributesJson),
+                attributes,
                 entry.OccurredAtUtc,
                 entry.ReadAtUtc is not null,
-                entry.ReadAtUtc))
+                entry.ReadAtUtc);
+            })
             .ToList();
     }
 

@@ -6,6 +6,7 @@ using LIAnsureProtect.Application.Common.Idempotency;
 using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Application.Quotes.Commands.CreateQuote;
+using LIAnsureProtect.Application.Quotes.Queries.GetOwnedQuoteDetail;
 using LIAnsureProtect.Domain.Quotes;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -26,6 +27,24 @@ public sealed class SubmissionQuotesController(
 {
     private const string IdempotencyKeyHeaderName = "Idempotency-Key";
     private static readonly JsonSerializerOptions FingerprintJsonOptions = JsonSerializerOptions.Web;
+
+    [HttpGet("{quoteId:guid}")]
+    [Authorize(Policy = ApplicationPolicies.ReadSubmission)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<OwnedQuoteDetailResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<OwnedQuoteDetailResult>> Get(
+        Guid submissionId,
+        Guid quoteId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new GetOwnedQuoteDetailQuery(submissionId, quoteId),
+            cancellationToken);
+
+        return result is null ? NotFound() : Ok(result);
+    }
 
     [HttpPost]
     [Authorize(Policy = ApplicationPolicies.CreateQuote)]
@@ -102,6 +121,16 @@ public sealed class SubmissionQuotesController(
                             StatusCodes.Status400BadRequest,
                             CreateValidationProblemDetails(exception));
                     }
+                    catch (BusinessConflictException exception)
+                    {
+                        return IdempotencyActionResponse.Json(
+                            StatusCodes.Status409Conflict,
+                            CreateProblemDetails(
+                                StatusCodes.Status409Conflict,
+                                "Reassessment needs a change.",
+                                exception.PublicMessage,
+                                exception.Code));
+                    }
                     catch (InvalidOperationException exception)
                     {
                         return IdempotencyActionResponse.Json(
@@ -128,6 +157,14 @@ public sealed class SubmissionQuotesController(
         catch (ApplicationValidationException exception)
         {
             return BadRequest(CreateValidationProblemDetails(exception));
+        }
+        catch (BusinessConflictException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Reassessment needs a change.",
+                exception.PublicMessage,
+                exception.Code));
         }
         catch (InvalidOperationException exception)
         {
@@ -195,17 +232,24 @@ public sealed class SubmissionQuotesController(
         };
     }
 
-    private static ProblemDetails CreateProblemDetails(
+    private ProblemDetails CreateProblemDetails(
         int status,
         string title,
-        string? detail = null)
+        string? detail = null,
+        string? code = null)
     {
-        return new ProblemDetails
+        var problem = new ProblemDetails
         {
             Status = status,
             Title = title,
             Detail = detail
         };
+
+        problem.Extensions["correlationId"] = HttpContext.TraceIdentifier;
+        if (!string.IsNullOrWhiteSpace(code))
+            problem.Extensions["code"] = code;
+
+        return problem;
     }
 
     private static HttpValidationProblemDetails CreateValidationProblemDetails(

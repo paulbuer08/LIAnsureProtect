@@ -195,7 +195,8 @@ public sealed class CreateQuoteCommandHandler(
                     assertion.ClaimedState,
                     assertion.AssuranceState.ToString(),
                     assertion.EvidenceRequired,
-                    assertion.EvidenceReason))
+                    assertion.EvidenceReason,
+                    assertion.DetailsJson))
                 .ToList());
     }
 

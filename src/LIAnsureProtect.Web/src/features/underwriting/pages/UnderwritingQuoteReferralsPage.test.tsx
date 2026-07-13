@@ -217,8 +217,11 @@ describe("UnderwritingQuoteReferralsPage", () => {
     renderWorkbench();
 
     expect(
-      await screen.findByText("API request failed with 500 Internal Server Error"),
+      await screen.findByText("Unable to load underwriting referrals."),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText("API request failed with 500 Internal Server Error"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders referred quotes with risk, expiry, referral reasons, and subjectivities", async () => {

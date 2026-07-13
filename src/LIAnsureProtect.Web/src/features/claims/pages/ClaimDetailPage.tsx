@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link, useParams } from "react-router";
 
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { downloadOwnerClaimDocument } from "../api/claimsApi";
 import { useClaimDetail, useClaimantActions } from "../hooks/useClaims";
 import { claimDocumentKinds } from "../types";
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Something went wrong.";
+  return getUserErrorMessage(error, "Something went wrong.");
 }
 
 export function ClaimDetailPage() {

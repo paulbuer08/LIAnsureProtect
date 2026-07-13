@@ -1402,6 +1402,30 @@ public sealed class SubmissionEndpointTests
         Assert.Equal("CNT-Q-TEST-1", providerIndication.GetProperty("providerQuoteNumber").GetString());
         Assert.Equal($"/api/v1/quotes/{quoteId}", response.Headers.Location?.OriginalString);
 
+        using var ownerDetailRequest = CreateAuthenticatedGetRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes/{quoteId}",
+            "test-user-1");
+        using var ownerDetailResponse = await httpClient.SendAsync(
+            ownerDetailRequest,
+            TestContext.Current.CancellationToken);
+        var ownerDetail = await ownerDetailResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, ownerDetailResponse.StatusCode);
+        Assert.Equal(quoteId, ownerDetail.GetProperty("quoteId").GetGuid());
+        Assert.Equal(1, ownerDetail.GetProperty("version").GetInt32());
+        Assert.Equal("Quoted", ownerDetail.GetProperty("status").GetString());
+
+        using var otherOwnerDetailRequest = CreateAuthenticatedGetRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes/{quoteId}",
+            "customer-2");
+        using var otherOwnerDetailResponse = await httpClient.SendAsync(
+            otherOwnerDetailRequest,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, otherOwnerDetailResponse.StatusCode);
+
         using var verifyScope = webApplicationFactory.Services.CreateScope();
         var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
         var savedQuote = await verifyDbContext.Set<Quote>()

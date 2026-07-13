@@ -29,7 +29,11 @@ public sealed class EvidenceRequestCreatedNotificationMapper : IOutboxMessageMap
             domainEvent.Category,
             domainEvent.DueAtUtc,
             domainEvent.OccurredAtUtc,
-            []);
+            new Dictionary<string, string>
+            {
+                ["requestTitle"] = domainEvent.Title ?? domainEvent.Category.ToString(),
+                ["quoteVersion"] = domainEvent.QuoteVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            });
     }
 }
 

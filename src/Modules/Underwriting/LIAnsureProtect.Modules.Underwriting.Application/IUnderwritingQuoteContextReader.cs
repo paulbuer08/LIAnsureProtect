@@ -27,6 +27,7 @@ public sealed record UnderwritingQuoteContext(
     decimal Retention,
     string RiskTier,
     string Status,
+    int Version,
     string StrategyName,
     IReadOnlyCollection<string> Subjectivities,
     IReadOnlyCollection<string> ReferralReasons,

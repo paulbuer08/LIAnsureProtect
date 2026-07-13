@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { Link } from "react-router";
 
 import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { downloadUnderwritingEvidenceDocument } from "../api/underwritingApi";
 import {
@@ -49,7 +50,7 @@ const riskRank: Record<string, number> = {
 };
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
+  return getUserErrorMessage(error, fallback);
 }
 
 function formatDate(value: string) {

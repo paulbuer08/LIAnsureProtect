@@ -1,4 +1,5 @@
 import { downloadDocumentWithToken } from "../../../lib/documentDownload";
+import { parseJsonResponse as parseApiJsonResponse } from "../../../lib/apiClient";
 import type {
   AdjustQuoteReferralRequest,
   AiUnderwritingReviewResponse,
@@ -24,19 +25,7 @@ async function parseJsonResponse<T>(
   response: Response,
   notFoundMessage: string,
 ) {
-  if (response.status === 404) {
-    throw new Error(notFoundMessage);
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-
-    throw new Error(
-      `API request failed with ${response.status} ${response.statusText}: ${errorBody}`,
-    );
-  }
-
-  return (await response.json()) as T;
+  return parseApiJsonResponse<T>(response, { notFoundMessage });
 }
 
 function authHeaders(accessToken: string) {

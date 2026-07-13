@@ -32,7 +32,8 @@ public sealed record SubmissionControlAssertionResult(
     string ClaimedState,
     string AssuranceState,
     bool EvidenceRequired,
-    string EvidenceReason);
+    string EvidenceReason,
+    string DetailsJson);
 
 public sealed record SubmissionPolicySummaryResult(
     Guid PolicyId,

@@ -132,7 +132,7 @@ describe("NotificationsPage", () => {
     expect(markNotificationRead).toHaveBeenCalledWith("api-access-token", "n-1");
   });
 
-  it("links quote notifications to the related submission", async () => {
+  it("links quote notifications to the exact immutable quote", async () => {
     vi.mocked(listMyNotifications).mockResolvedValue({
       notifications: [
         {
@@ -159,8 +159,8 @@ describe("NotificationsPage", () => {
     renderNotificationsPage();
 
     expect(
-      await screen.findByRole("link", { name: "Open submission" }),
-    ).toHaveAttribute("href", "/submissions/submission-456");
+      await screen.findByRole("link", { name: "View quote" }),
+    ).toHaveAttribute("href", "/submissions/submission-456/quotes/q-1");
   });
 
   it("shows no filter tabs for a personal-only customer", async () => {
@@ -230,7 +230,7 @@ describe("NotificationsPage", () => {
     );
     expect(screen.getByRole("link", { name: "Open evidence request" })).toHaveAttribute(
       "href",
-      "/evidence-requests",
+      "/evidence-requests/evidence-123",
     );
   });
 

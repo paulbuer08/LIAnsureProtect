@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router";
 
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { downloadAdjudicationClaimDocument } from "../api/claimsApi";
 import {
@@ -12,7 +13,7 @@ import {
 import { claimDenialReasons } from "../types";
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Something went wrong.";
+  return getUserErrorMessage(error, "Something went wrong.");
 }
 
 export function ClaimsAdjudicationPage() {

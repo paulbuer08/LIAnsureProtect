@@ -36,19 +36,77 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
         return request is null ? null : ToSnapshot(request, DateTime.UtcNow);
     }
 
-    public async Task<IReadOnlyCollection<EvidenceRequestOwnerItem>> GetOwnerRequestsAsync(
+    public async Task<IReadOnlyCollection<EvidenceRequestOwnerSummaryItem>> GetOwnerRequestsPageAsync(
         string ownerUserId,
+        EvidenceRequestStatus? status,
+        EvidenceRequestCategory? category,
+        Guid? quoteId,
+        bool? overdue,
+        DateTime? cursorDueAtUtc,
+        DateTime? cursorRequestedAtUtc,
+        Guid? cursorEvidenceRequestId,
+        int take,
         CancellationToken cancellationToken)
     {
-        var requests = await dbContext.Set<QuoteEvidenceRequest>()
+        var nowUtc = DateTime.UtcNow;
+        var query = dbContext.Set<QuoteEvidenceRequest>()
             .AsNoTracking()
-            .Where(request => request.OwnerUserId == ownerUserId)
+            .Where(request => request.OwnerUserId == ownerUserId);
+
+        if (status.HasValue)
+            query = query.Where(request => request.Status == status.Value);
+
+        if (category.HasValue)
+            query = query.Where(request => request.Category == category.Value);
+
+        if (quoteId.HasValue)
+            query = query.Where(request => request.QuoteId == quoteId.Value);
+
+        if (overdue == true)
+            query = query.Where(request => request.Status == EvidenceRequestStatus.Open && request.DueAtUtc < nowUtc);
+        else if (overdue == false)
+            query = query.Where(request => request.Status != EvidenceRequestStatus.Open || request.DueAtUtc >= nowUtc);
+
+        if (cursorDueAtUtc.HasValue
+            && cursorRequestedAtUtc.HasValue
+            && cursorEvidenceRequestId.HasValue)
+        {
+            query = query.Where(request =>
+                request.DueAtUtc > cursorDueAtUtc.Value
+                || (request.DueAtUtc == cursorDueAtUtc.Value
+                    && request.RequestedAtUtc < cursorRequestedAtUtc.Value)
+                || (request.DueAtUtc == cursorDueAtUtc.Value
+                    && request.RequestedAtUtc == cursorRequestedAtUtc.Value
+                    && request.Id.CompareTo(cursorEvidenceRequestId.Value) > 0));
+        }
+
+        var requests = await query
             .OrderBy(request => request.DueAtUtc)
             .ThenByDescending(request => request.RequestedAtUtc)
+            .ThenBy(request => request.Id)
+            .Take(take)
+            .Select(request => new EvidenceRequestOwnerSummaryItem(
+                request.Id,
+                request.QuoteId,
+                request.SubmissionId,
+                request.Category,
+                request.Title,
+                request.Description,
+                request.DueAtUtc,
+                request.Status,
+                false,
+                0,
+                request.RequestedAtUtc,
+                request.ReviewDecision,
+                request.RemediationGuidance,
+                request.UpdatedAtUtc))
             .ToListAsync(cancellationToken);
 
-        var nowUtc = DateTime.UtcNow;
-        return requests.Select(request => ToOwnerItem(request, nowUtc)).ToList();
+        return requests.Select(request => request with
+        {
+            IsOverdue = request.Status == EvidenceRequestStatus.Open && request.DueAtUtc < nowUtc,
+            DaysUntilDue = (request.DueAtUtc.Date - nowUtc.Date).Days
+        }).ToList();
     }
 
     public async Task<IReadOnlyCollection<EvidenceRequestSummaryItem>> GetSummariesAsync(
@@ -77,42 +135,6 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
             request.QuoteId,
             request.SubmissionId,
             request.OwnerUserId,
-            request.Category.ToString(),
-            request.Title,
-            request.Description,
-            request.DueAtUtc,
-            request.Status.ToString(),
-            request.Status == EvidenceRequestStatus.Open && request.DueAtUtc < nowUtc,
-            (request.DueAtUtc.Date - nowUtc.Date).Days,
-            request.RequestedByUserId,
-            request.RequestedAtUtc,
-            request.RespondedByUserId,
-            request.RespondentName,
-            request.RespondentTitle,
-            request.ResponseText,
-            request.AttachmentFileName,
-            request.AttachmentContentType,
-            request.AttachmentSizeBytes,
-            request.RespondedAtUtc,
-            request.AcceptedByUserId,
-            request.AcceptedAtUtc,
-            request.CancelledByUserId,
-            request.CancelledAtUtc,
-            request.ReviewNotes,
-            request.ReviewDecision.ToString(),
-            request.ReviewReason,
-            request.RemediationGuidance,
-            request.ReviewedByUserId,
-            request.ReviewedAtUtc,
-            request.UpdatedAtUtc);
-    }
-
-    private static EvidenceRequestOwnerItem ToOwnerItem(QuoteEvidenceRequest request, DateTime nowUtc)
-    {
-        return new EvidenceRequestOwnerItem(
-            request.Id,
-            request.QuoteId,
-            request.SubmissionId,
             request.Category.ToString(),
             request.Title,
             request.Description,

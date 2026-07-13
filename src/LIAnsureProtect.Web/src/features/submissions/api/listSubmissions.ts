@@ -1,4 +1,5 @@
 import type { ListSubmissionsResponse } from "../types";
+import { parseJsonResponse } from "../../../lib/apiClient";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5223";
 
@@ -9,13 +10,5 @@ export async function listSubmissions(accessToken: string) {
     },
   });
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-
-    throw new Error(
-      `API request failed with ${response.status} ${response.statusText}: ${errorBody}`,
-    );
-  }
-
-  return (await response.json()) as ListSubmissionsResponse;
+  return parseJsonResponse<ListSubmissionsResponse>(response);
 }

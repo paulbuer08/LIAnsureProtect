@@ -30,7 +30,10 @@ public sealed class QuoteGeneratedNotificationMapper : IOutboxMessageMapper<Noti
             {
                 ["quoteId"] = domainEvent.QuoteId.ToString(),
                 ["submissionId"] = domainEvent.SubmissionId.ToString(),
-                ["status"] = domainEvent.Status.ToString()
+                ["status"] = domainEvent.Status.ToString(),
+                ["version"] = domainEvent.Version.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["premium"] = domainEvent.Premium.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["expiresAtUtc"] = (domainEvent.ExpiresAtUtc ?? domainEvent.OccurredAtUtc).ToString("O")
             });
     }
 }

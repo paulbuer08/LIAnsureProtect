@@ -126,6 +126,7 @@ export type CreateQuoteResponse = {
     assuranceState: string;
     evidenceRequired: boolean;
     evidenceReason: string;
+    detailsJson: string;
   }>;
 };
 
@@ -133,6 +134,12 @@ export type SubmissionQuoteSummary = Omit<
   CreateQuoteResponse,
   "submissionId" | "providerIndication"
 >;
+
+export type OwnedQuoteDetail = SubmissionQuoteSummary & {
+  quoteId: string;
+  submissionId: string;
+  createdAtUtc: string;
+};
 
 export type AcceptQuoteRequest = {
   acceptedByName: string;

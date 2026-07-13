@@ -1,9 +1,10 @@
 import { Link } from "react-router";
 
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { useMyClaims } from "../hooks/useClaims";
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to load claims.";
+  return getUserErrorMessage(error, "Unable to load claims.");
 }
 
 export function ClaimsPage() {

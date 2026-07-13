@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { useNotifications } from "../features/notifications/hooks/useNotifications";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { getUserErrorMessage } from "../lib/apiClient";
 import { auth0Config } from "../lib/auth0Config";
 import {
   getNotificationScopeLabel,
@@ -171,13 +172,15 @@ export function DashboardPage() {
     : roles.length > 0
       ? roles.join(", ")
       : "No roles assigned";
-  const roleLookupError =
-    currentUserQuery.error instanceof Error
-      ? currentUserQuery.error.message
-      : "The API could not load your roles.";
   const roleLookupNeedsAuth0Consent = needsInteractiveAuth0Authorization(
     currentUserQuery.error,
   );
+  const roleLookupError = roleLookupNeedsAuth0Consent
+    ? "One additional authorization step is required before your workspace can open."
+    : getUserErrorMessage(
+        currentUserQuery.error,
+        "Your account roles could not be loaded. Please try again.",
+      );
 
   async function handleAuthorizeApiAccess() {
     await loginWithRedirect({
@@ -255,13 +258,9 @@ export function DashboardPage() {
               We could not load your assigned roles.
             </h2>
             <p className="mt-2 text-sm leading-6 text-red-100">
-              The dashboard cannot show Customer, Underwriter, Adjuster, or
-              Admin workspaces until the API returns your roles from{" "}
-              <code className="rounded bg-red-950 px-1.5 py-0.5 text-red-100">
-                GET /api/v1/me
-              </code>
-              . Check that the API is running with the same Auth0 authority,
-              audience, and role-claim type as the frontend.
+              Your workspace permissions could not be confirmed. Try again in
+              a moment. If the problem continues, contact support and include
+              the support ID shown below when one is available.
             </p>
             <p className="mt-3 break-all rounded-md border border-red-500/30 bg-red-950 p-3 text-xs text-red-100">
               {roleLookupError}
@@ -280,6 +279,15 @@ export function DashboardPage() {
                   Continue with Auth0
                 </button>
               </div>
+            )}
+            {!roleLookupNeedsAuth0Consent && (
+              <button
+                type="button"
+                onClick={() => void currentUserQuery.refetch()}
+                className="mt-4 inline-flex min-h-10 items-center rounded-md bg-red-100 px-4 py-2 text-sm font-semibold text-red-950 hover:bg-white"
+              >
+                Try again
+              </button>
             )}
           </section>
         ) : visibleSections.length === 0 ? (

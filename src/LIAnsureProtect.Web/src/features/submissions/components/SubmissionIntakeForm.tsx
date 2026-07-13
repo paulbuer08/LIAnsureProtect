@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { useCreateSubmission } from "../hooks/useCreateSubmission";
 import {
   submissionIntakeSchema,
@@ -190,9 +191,10 @@ export function SubmissionIntakeForm() {
 
       {createSubmission.isError && (
         <p className="mt-6 whitespace-pre-wrap rounded-lg border border-red-900 bg-red-950 p-4 text-sm text-red-200">
-          {createSubmission.error instanceof Error
-            ? createSubmission.error.message
-            : "Unable to create submission."}
+          {getUserErrorMessage(
+            createSubmission.error,
+            "Unable to create the draft submission.",
+          )}
         </p>
       )}
     </>

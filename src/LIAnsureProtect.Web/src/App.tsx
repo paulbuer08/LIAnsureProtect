@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { Route, Routes } from "react-router";
+import { Navigate, Route, Routes } from "react-router";
 
 import { AppShell } from "./components/AppShell";
 import { RequireAuth } from "./components/RequireAuth";
@@ -54,6 +54,18 @@ const UnderwritingQuoteReferralsPage = lazy(() =>
 const EvidenceRequestsPage = lazy(() =>
   import("./features/evidence/pages/EvidenceRequestsPage").then((module) => ({
     default: module.EvidenceRequestsPage,
+  })),
+);
+
+const QuoteDetailPage = lazy(() =>
+  import("./features/submissions/pages/QuoteDetailPage").then((module) => ({
+    default: module.QuoteDetailPage,
+  })),
+);
+
+const EvidenceRequestDetailPage = lazy(() =>
+  import("./features/evidence/pages/EvidenceRequestDetailPage").then((module) => ({
+    default: module.EvidenceRequestDetailPage,
   })),
 );
 
@@ -171,6 +183,23 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/submissions/:submissionId/quotes/:quoteId"
+          element={
+            <ProtectedRoute allowedRoles={roleGroups.customerWork}>
+              <QuoteDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/evidence-requests/:evidenceRequestId"
+          element={
+            <ProtectedRoute allowedRoles={roleGroups.customerWork}>
+              <EvidenceRequestDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/evidence" element={<Navigate to="/evidence-requests" replace />} />
         <Route
           path="/claims/adjudication"
           element={

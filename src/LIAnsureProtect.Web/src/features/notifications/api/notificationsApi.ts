@@ -1,19 +1,10 @@
 import type { ListMyNotificationsResponse } from "../types";
+import { ensureSuccess } from "../../../lib/apiClient";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5223";
 
 async function ensureOk(response: Response, notFoundMessage: string) {
-  if (response.status === 404) {
-    throw new Error(notFoundMessage);
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-
-    throw new Error(
-      `API request failed with ${response.status} ${response.statusText}: ${errorBody}`,
-    );
-  }
+  await ensureSuccess(response, { notFoundMessage });
 }
 
 function authHeaders(accessToken: string) {

@@ -76,8 +76,11 @@ describe("SubmissionsPage", () => {
     renderSubmissionsPage();
 
     expect(
-      await screen.findByText("API request failed with 500 Internal Server Error"),
+      await screen.findByText("Unable to load submissions."),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText("API request failed with 500 Internal Server Error"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders submission rows from the protected API", async () => {

@@ -3,7 +3,34 @@ import type { QuoteEvidenceRequest } from "../underwriting/types";
 export type { QuoteEvidenceRequest };
 
 export type ListEvidenceRequestsResponse = {
-  evidenceRequests: QuoteEvidenceRequest[];
+  evidenceRequests: EvidenceRequestSummary[];
+  nextCursor?: string | null;
+};
+
+export type EvidenceRequestSummary = {
+  evidenceRequestId: string;
+  quoteId: string;
+  submissionId: string;
+  category: string;
+  title: string;
+  description: string;
+  dueAtUtc: string;
+  status: string;
+  isOverdue: boolean;
+  daysUntilDue: number;
+  requestedAtUtc: string;
+  reviewDecision: string;
+  remediationGuidance?: string | null;
+  updatedAtUtc: string;
+};
+
+export type EvidenceRequestFilters = {
+  status?: string;
+  category?: string;
+  quoteId?: string;
+  overdue?: boolean;
+  cursor?: string;
+  pageSize?: number;
 };
 
 export type RespondToEvidenceRequest = {
