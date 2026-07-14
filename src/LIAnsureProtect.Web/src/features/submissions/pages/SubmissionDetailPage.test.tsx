@@ -143,7 +143,7 @@ describe("SubmissionDetailPage", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Submission was not found.")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Back to submissions" }),
+      screen.getByRole("link", { name: "Submissions" }),
     ).toHaveAttribute("href", "/submissions");
   });
 

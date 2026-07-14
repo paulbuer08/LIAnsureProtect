@@ -12,11 +12,22 @@ public sealed class ListSubmissionsQueryHandler(
         ListSubmissionsQuery request,
         CancellationToken cancellationToken)
     {
-        var submissions = await submissionRepository.ListAsync(
-            GetRequiredCurrentUserId(),
-            cancellationToken);
+        if (request.PageSize is < 1 or > 50)
+            throw new ArgumentOutOfRangeException(nameof(request), "Page size must be between 1 and 50.");
 
-        return new ListSubmissionsResult(submissions);
+        if (!string.IsNullOrWhiteSpace(request.Search) && request.Search.Trim().Length > 200)
+            throw new ArgumentException("Search text must not exceed 200 characters.", nameof(request));
+
+        return await submissionRepository.ListAsync(
+            GetRequiredCurrentUserId(),
+            new SubmissionListFilter(
+                request.Search?.Trim(),
+                request.Status?.Trim(),
+                request.CreatedFromUtc,
+                request.CreatedToUtc,
+                request.Cursor,
+                request.PageSize),
+            cancellationToken);
     }
 
     private string GetRequiredCurrentUserId()

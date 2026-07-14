@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Application.Submissions;
 using LIAnsureProtect.Application.Submissions.Commands.CreateSubmission;
+using LIAnsureProtect.Application.Submissions.Queries.GetSubmissionDetail;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.UnitTests.Submissions;
 using Moq;
@@ -84,6 +85,19 @@ public sealed class CreateSubmissionCommandHandlerTests
                 "Example Company",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingDraftId);
+        repository
+            .Setup(repo => repo.GetDetailAsync(
+                existingDraftId,
+                "auth0|owner-user-1",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubmissionDetailResult(
+                existingDraftId,
+                "SUB-2026-1234567890ABCDEF",
+                "Jane Applicant",
+                "jane@example.com",
+                "Example Company",
+                "Draft",
+                new DateTime(2026, 7, 14, 0, 0, 0, DateTimeKind.Utc)));
 
         var handler = new CreateSubmissionCommandHandler(
             repository.Object,

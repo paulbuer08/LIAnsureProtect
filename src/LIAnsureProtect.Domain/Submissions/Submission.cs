@@ -8,6 +8,7 @@ public sealed class Submission : IHasDomainEvents
 
     private Submission(
         Guid id,
+        string reference,
         string ownerUserId,
         string applicantName,
         string applicantEmail,
@@ -16,6 +17,7 @@ public sealed class Submission : IHasDomainEvents
         DateTime createdAtUtc)
     {
         Id = id;
+        Reference = reference;
         OwnerUserId = ownerUserId;
         ApplicantName = applicantName;
         ApplicantEmail = applicantEmail;
@@ -25,6 +27,8 @@ public sealed class Submission : IHasDomainEvents
     }
 
     public Guid Id { get; }
+
+    public string Reference { get; }
 
     public string OwnerUserId { get; }
 
@@ -50,14 +54,24 @@ public sealed class Submission : IHasDomainEvents
         if (string.IsNullOrWhiteSpace(ownerUserId))
             throw new ArgumentException("Owner user id is required.", nameof(ownerUserId));
 
+        var id = Guid.NewGuid();
+
         return new Submission(
-            Guid.NewGuid(),
+            id,
+            CreateReference(id, createdAtUtc),
             ownerUserId,
             applicantName,
             applicantEmail,
             companyName,
             SubmissionStatus.Draft,
             createdAtUtc);
+    }
+
+    private static string CreateReference(Guid id, DateTime createdAtUtc)
+    {
+        var year = createdAtUtc.ToUniversalTime().Year;
+        var compactId = id.ToString("N")[..16].ToUpperInvariant();
+        return $"SUB-{year}-{compactId}";
     }
 
     public void Submit()

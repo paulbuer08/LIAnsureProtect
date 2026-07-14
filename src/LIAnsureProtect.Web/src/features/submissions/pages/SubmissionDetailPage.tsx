@@ -3,10 +3,12 @@ import { useEffect, useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { ConfirmationDialog } from "../../../components/ConfirmationDialog";
 import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
+import { formatLocalDateTime } from "../../../lib/dateTime";
 import { useAcceptQuote } from "../hooks/useAcceptQuote";
 import { useBindPolicy } from "../hooks/useBindPolicy";
 import { useCreateQuote } from "../hooks/useCreateQuote";
@@ -649,12 +651,7 @@ export function SubmissionDetailPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
       <section className="mx-auto max-w-4xl">
-        <Link
-          to="/submissions"
-          className="inline-flex text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-        >
-          Back to submissions
-        </Link>
+        <Breadcrumbs items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Submissions", to: "/submissions" }, { label: displayedSubmission?.submissionReference ?? "Submission detail" }]} />
 
         <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-emerald-400">
           Submission
@@ -717,8 +714,8 @@ export function SubmissionDetailPage() {
 
               <div className="mt-5 grid gap-5 sm:grid-cols-2">
                 <div>
-                  <p className="font-semibold text-slate-400">Submission ID</p>
-                  <p className="mt-1 break-all text-white">{displayedSubmission.submissionId}</p>
+                  <p className="font-semibold text-slate-400">Submission reference</p>
+                  <p className="mt-1 font-mono text-emerald-300">{displayedSubmission.submissionReference ?? displayedSubmission.submissionId}</p>
                 </div>
                 <div>
                   <p className="font-semibold text-slate-400">Status</p>
@@ -767,9 +764,10 @@ export function SubmissionDetailPage() {
                   )}
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-400">Created UTC</p>
-                  <p className="mt-1 text-white"><time dateTime={displayedSubmission.createdAtUtc}>{displayedSubmission.createdAtUtc}</time></p>
+                  <p className="font-semibold text-slate-400">Created</p>
+                  <p className="mt-1 text-white"><time dateTime={displayedSubmission.createdAtUtc} title={displayedSubmission.createdAtUtc}>{formatLocalDateTime(displayedSubmission.createdAtUtc)}</time></p>
                 </div>
+                <details className="sm:col-span-2 text-slate-400"><summary className="cursor-pointer font-semibold">Technical information</summary><p className="mt-2 break-all font-mono text-xs">Submission ID: {displayedSubmission.submissionId}</p></details>
               </div>
 
               {canSubmit && (

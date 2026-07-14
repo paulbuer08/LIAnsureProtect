@@ -28,8 +28,15 @@ public sealed class CreateSubmissionCommandHandler(
 
             if (matchingDraftId.HasValue)
             {
+                var matchingDraft = await submissionRepository.GetDetailAsync(
+                    matchingDraftId.Value,
+                    ownerUserId,
+                    cancellationToken);
+
                 return new CreateSubmissionResult(
                     matchingDraftId.Value,
+                    matchingDraft?.SubmissionReference
+                        ?? throw new InvalidOperationException("The matching draft could not be read."),
                     nameof(SubmissionStatus.Draft),
                     PossibleDuplicate: true,
                     ExistingDraft: true);
@@ -52,6 +59,7 @@ public sealed class CreateSubmissionCommandHandler(
 
         return new CreateSubmissionResult(
             submission.Id,
+            submission.Reference,
             submission.Status.ToString(),
             possibleDuplicate,
             ExistingDraft: false);

@@ -2,6 +2,7 @@ namespace LIAnsureProtect.Application.Submissions.Queries.GetSubmissionDetail;
 
 public sealed record SubmissionDetailResult(
     Guid SubmissionId,
+    string SubmissionReference,
     string ApplicantName,
     string ApplicantEmail,
     string CompanyName,

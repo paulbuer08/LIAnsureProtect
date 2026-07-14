@@ -1,6 +1,5 @@
 import { useAuth0 } from "@auth0/auth0-react";
-import { Link } from "react-router";
-
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { SubmissionIntakeForm } from "../components/SubmissionIntakeForm";
 
 export function NewSubmissionPage() {
@@ -9,12 +8,7 @@ export function NewSubmissionPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
       <section className="mx-auto max-w-3xl">
-        <Link
-          to="/dashboard"
-          className="inline-flex text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-        >
-          Back to dashboard
-        </Link>
+        <Breadcrumbs items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Submissions", to: "/submissions" }, { label: "Create draft" }]} />
 
         <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-emerald-400">
           Submission intake
