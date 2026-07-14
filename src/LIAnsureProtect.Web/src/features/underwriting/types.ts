@@ -1,6 +1,8 @@
 export type QuoteReferral = {
   quoteId: string;
   submissionId: string;
+  submissionReference?: string;
+  companyName?: string;
   ownerUserId: string;
   premium: number;
   requestedLimit: number;
@@ -96,6 +98,9 @@ export type QuoteEvidenceRequest = {
   evidenceRequestId: string;
   quoteId: string;
   submissionId: string;
+  submissionReference?: string;
+  companyName?: string;
+  documentRequirement?: "Required" | "Optional" | "NarrativeOnly";
   category: string;
   title: string;
   description: string;
@@ -152,6 +157,7 @@ export type CreateQuoteEvidenceRequest = {
   title: string;
   description: string;
   dueAtUtc: string;
+  documentRequirement?: "Required" | "Optional" | "NarrativeOnly";
 };
 
 export type ReviewQuoteEvidenceRequest = {

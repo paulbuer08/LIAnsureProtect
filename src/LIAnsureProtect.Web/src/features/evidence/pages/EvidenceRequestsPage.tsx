@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import type { FormEvent } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
+import { ConfirmationDialog } from "../../../components/ConfirmationDialog";
 import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { downloadOwnerEvidenceDocument } from "../api/evidenceRequestsApi";
@@ -45,6 +47,7 @@ function formatEvidenceDueLabel(
 }
 
 export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest }) {
+  const navigate = useNavigate();
   const { getAccessTokenSilently } = useAuth0();
   const respondToEvidenceRequest = useRespondToEvidenceRequest();
   const uploadReplacementEvidenceDocuments = useUploadReplacementEvidenceDocuments();
@@ -55,6 +58,7 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
   const [replacementAttachments, setReplacementAttachments] = useState<File[]>([]);
   const [savedStatus, setSavedStatus] = useState<string>();
   const [savedDocuments, setSavedDocuments] = useState(request.documents ?? []);
+  const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const documents = savedDocuments.length > 0 ? savedDocuments : request.documents ?? [];
   const needsSupplementalEvidence =
     request.reviewDecision === "Insufficient" ||
@@ -65,6 +69,25 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
   );
 
   const [downloadError, setDownloadError] = useState<string>();
+  const documentRequirement = request.documentRequirement ?? "Optional";
+
+  function discardResponseAndLeave() {
+    setRespondentName("");
+    setRespondentTitle("");
+    setResponseText("");
+    setAttachments([]);
+    respondToEvidenceRequest.reset();
+    setShowCancelConfirmation(false);
+    void navigate("/evidence-requests", { replace: true });
+  }
+
+  function cancelResponse() {
+    const hasUnsentWork = [respondentName, respondentTitle, responseText].some(
+      (value) => value.trim().length > 0,
+    ) || attachments.length > 0;
+    if (hasUnsentWork) setShowCancelConfirmation(true);
+    else discardResponseAndLeave();
+  }
 
   async function handleDownloadDocument(documentId: string, fileName: string) {
     try {
@@ -115,7 +138,7 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
         <div>
           <h2 className="text-xl font-semibold text-white">{request.title}</h2>
           <p className="mt-1 text-sm text-slate-400">
-            Quote {request.quoteId} | Submission {request.submissionId}
+            {request.companyName ?? "Company"} · {request.submissionReference ?? request.submissionId}
           </p>
         </div>
         <span className="w-fit rounded-md border border-amber-700 px-3 py-1 text-xs font-semibold text-amber-200">
@@ -148,6 +171,11 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
       </dl>
 
       <p className="mt-4 text-sm text-slate-300">{request.description}</p>
+      <p className="mt-3 rounded-md border border-sky-800 bg-sky-950/30 p-3 text-sm text-sky-100">
+        Document requirement: <strong>{documentRequirement === "NarrativeOnly" ? "Written response only" : documentRequirement}</strong>.
+        {documentRequirement === "Required" && " At least one supporting file must be uploaded before this response can be submitted."}
+        {documentRequirement === "Optional" && " A document may be attached when it helps underwriting validate the response."}
+      </p>
 
       <section className="mt-4 rounded-md border border-slate-800 bg-slate-950 p-4 text-sm">
         <div className="flex flex-wrap items-center gap-2">
@@ -206,7 +234,7 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
         )}
 
       {canSubmitResponse && (
-        <form className="mt-5 space-y-4" onSubmit={handleRespond}>
+        <form className="mt-5 space-y-4" onSubmit={handleRespond} noValidate>
           <label className="block text-sm font-medium text-slate-200">
             Respondent name
             <input
@@ -234,10 +262,11 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
               className="mt-2 min-h-24 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
             />
           </label>
-          <label className="block text-sm font-medium text-slate-200">
+          {documentRequirement !== "NarrativeOnly" && <label className="block text-sm font-medium text-slate-200">
             Evidence files
             <input
               aria-label="Evidence files"
+              required={documentRequirement === "Required"}
               multiple
               type="file"
               accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.docx,.xlsx"
@@ -250,16 +279,29 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
               Upload up to 5 files. Supported formats: PDF, PNG, JPEG, TXT, CSV,
               DOCX, and XLSX.
             </span>
-          </label>
-          <button
-            type="submit"
-            className="rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-300"
-          >
-            {needsSupplementalEvidence
-              ? "Submit supplemental evidence"
-              : "Submit evidence response"}
-          </button>
+          </label>}
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={respondToEvidenceRequest.isPending || (documentRequirement === "Required" && attachments.length === 0)}
+              className="rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+            >
+              {needsSupplementalEvidence ? "Submit supplemental evidence" : "Submit evidence response"}
+            </button>
+            <button type="button" onClick={cancelResponse} className="rounded-lg border border-slate-600 px-5 py-3 text-sm font-semibold text-slate-100 hover:border-slate-400">Cancel</button>
+          </div>
         </form>
+      )}
+
+      {showCancelConfirmation && (
+        <ConfirmationDialog
+          title="Cancel this evidence response?"
+          description="Your unsent text and selected files exist only on this page. Leaving now will discard them; the evidence request itself will remain open."
+          confirmLabel="Discard response"
+          tone="warning"
+          onCancel={() => setShowCancelConfirmation(false)}
+          onConfirm={discardResponseAndLeave}
+        />
       )}
 
       {documents.length > 0 && (
@@ -343,16 +385,30 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
 
 export function EvidenceRequestsPage() {
   const [status, setStatus] = useState("");
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [reviewDecision, setReviewDecision] = useState("");
+  const [documentRequirement, setDocumentRequirement] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [cursor, setCursor] = useState<string>();
   const [cursorHistory, setCursorHistory] = useState<Array<string | undefined>>([]);
   const evidenceRequestsQuery = useEvidenceRequests({
     status: status || undefined,
+    search: appliedSearch || undefined,
+    category: category || undefined,
+    reviewDecision: reviewDecision || undefined,
+    documentRequirement: documentRequirement || undefined,
     overdue: overdueOnly || undefined,
     cursor,
     pageSize: 12,
   });
   const evidenceRequests = evidenceRequestsQuery.data?.evidenceRequests ?? [];
+
+  function resetPage() {
+    setCursor(undefined);
+    setCursorHistory([]);
+  }
 
   function openNextPage() {
     const next = evidenceRequestsQuery.data?.nextCursor;
@@ -372,12 +428,7 @@ export function EvidenceRequestsPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
       <section className="mx-auto max-w-5xl">
-        <Link
-          to="/dashboard"
-          className="inline-flex text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-        >
-          Back to dashboard
-        </Link>
+        <Breadcrumbs items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Evidence requests" }]} />
 
         <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-emerald-400">
           Evidence requests
@@ -390,15 +441,16 @@ export function EvidenceRequestsPage() {
           supporting cyber-control evidence and manage its private documents.
         </p>
 
-        <div className="mt-6 flex flex-wrap items-end gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4">
+        <form className="mt-6 grid gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4 md:grid-cols-2 lg:grid-cols-3" onSubmit={(event) => { event.preventDefault(); setAppliedSearch(search.trim()); resetPage(); }}>
+          <label className="text-sm font-semibold text-slate-200 lg:col-span-2">Search your evidence requests<input className="mt-2 block min-h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-white" placeholder="Request, company, submission reference, or exact ID" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <div className="flex items-end gap-3"><button className="min-h-10 rounded-md bg-emerald-400 px-4 font-semibold text-slate-950" type="submit">Search</button><button className="min-h-10 rounded-md border border-slate-600 px-4 font-semibold" type="button" onClick={() => { setSearch(""); setAppliedSearch(""); setStatus(""); setCategory(""); setReviewDecision(""); setDocumentRequirement(""); setOverdueOnly(false); resetPage(); }}>Clear</button></div>
           <label className="text-sm font-semibold text-slate-200">
             Status
             <select
               value={status}
               onChange={(event) => {
                 setStatus(event.target.value);
-                setCursor(undefined);
-                setCursorHistory([]);
+                resetPage();
               }}
               className="mt-2 block min-h-10 rounded-md border border-slate-700 bg-slate-950 px-3 text-white"
             >
@@ -409,19 +461,21 @@ export function EvidenceRequestsPage() {
               <option value="Cancelled">Cancelled</option>
             </select>
           </label>
+          <label className="text-sm font-semibold text-slate-200">Category<select value={category} onChange={(event) => { setCategory(event.target.value); resetPage(); }} className="mt-2 block min-h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-white"><option value="">All categories</option><option value="MultiFactorAuthentication">Multi-factor authentication</option><option value="EndpointDetectionAndResponse">Endpoint detection and response</option><option value="BackupRecovery">Backup and recovery</option><option value="IncidentResponsePlan">Incident response plan</option><option value="SecurityQuestionnaireClarification">Questionnaire clarification</option></select></label>
+          <label className="text-sm font-semibold text-slate-200">Review decision<select value={reviewDecision} onChange={(event) => { setReviewDecision(event.target.value); resetPage(); }} className="mt-2 block min-h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-white"><option value="">All decisions</option><option value="NotReviewed">Not reviewed</option><option value="Satisfied">Satisfied</option><option value="Insufficient">Insufficient</option><option value="NeedsClarification">Needs clarification</option></select></label>
+          <label className="text-sm font-semibold text-slate-200">Document requirement<select value={documentRequirement} onChange={(event) => { setDocumentRequirement(event.target.value); resetPage(); }} className="mt-2 block min-h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-white"><option value="">All requirements</option><option value="Required">Required</option><option value="Optional">Optional</option><option value="NarrativeOnly">Written response only</option></select></label>
           <label className="flex min-h-10 items-center gap-2 text-sm font-semibold text-slate-200">
             <input
               type="checkbox"
               checked={overdueOnly}
               onChange={(event) => {
                 setOverdueOnly(event.target.checked);
-                setCursor(undefined);
-                setCursorHistory([]);
+                resetPage();
               }}
             />
             Overdue only
           </label>
-        </div>
+        </form>
 
         {evidenceRequestsQuery.isPending && (
           <p className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-300">
@@ -462,8 +516,9 @@ export function EvidenceRequestsPage() {
                     <h2 className="text-lg font-semibold text-white">{request.title}</h2>
                     <p className="mt-2 text-sm text-slate-300">{request.description}</p>
                     <p className="mt-3 text-xs text-slate-400">
-                      {request.category} · Quote {request.quoteId}
+                      {request.companyName ?? "Company"} · {request.submissionReference ?? request.submissionId} · {request.category}
                     </p>
+                    <p className="mt-2 text-xs font-semibold text-sky-200">Documents: {request.documentRequirement === "NarrativeOnly" ? "Written response only" : request.documentRequirement ?? "Required"}</p>
                   </div>
                   <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
                     <span className="rounded-md border border-amber-700 px-3 py-1 text-xs font-semibold text-amber-200">

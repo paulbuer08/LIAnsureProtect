@@ -21,7 +21,10 @@ public sealed record EvidenceRequestOwnerSummaryResult(
     DateTime RequestedAtUtc,
     string ReviewDecision,
     string? RemediationGuidance,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    string SubmissionReference = "",
+    string CompanyName = "",
+    string DocumentRequirement = "Required");
 
 public sealed record QuoteEvidenceRequestResult(
     Guid EvidenceRequestId,
@@ -55,7 +58,10 @@ public sealed record QuoteEvidenceRequestResult(
     string? ReviewedByUserId,
     DateTime? ReviewedAtUtc,
     DateTime UpdatedAtUtc,
-    IReadOnlyCollection<QuoteEvidenceDocumentResult> Documents);
+    IReadOnlyCollection<QuoteEvidenceDocumentResult> Documents,
+    string SubmissionReference = "",
+    string CompanyName = "",
+    string DocumentRequirement = "Required");
 
 public sealed record QuoteEvidenceDocumentResult(
     Guid DocumentId,
@@ -114,7 +120,10 @@ internal static class QuoteEvidenceRequestResultFactory
             item.ReviewedByUserId,
             item.ReviewedAtUtc,
             item.UpdatedAtUtc,
-            (documents ?? []).OrderBy(document => document.UploadedAtUtc).Select(FromDocument).ToList());
+            (documents ?? []).OrderBy(document => document.UploadedAtUtc).Select(FromDocument).ToList(),
+            item.SubmissionReference,
+            item.CompanyName,
+            item.DocumentRequirement);
     }
 
     public static QuoteEvidenceRequestResult FromRequest(
@@ -156,7 +165,10 @@ internal static class QuoteEvidenceRequestResultFactory
             (documents ?? [])
                 .OrderBy(document => document.UploadedAtUtc)
                 .Select(FromDocument)
-                .ToList());
+                .ToList(),
+            request.SubmissionReference,
+            request.CompanyName,
+            request.DocumentRequirement.ToString());
     }
 
     private static QuoteEvidenceDocumentResult FromDocument(QuoteEvidenceDocument document)

@@ -11,6 +11,9 @@ export type EvidenceRequestSummary = {
   evidenceRequestId: string;
   quoteId: string;
   submissionId: string;
+  submissionReference?: string;
+  companyName?: string;
+  documentRequirement?: "Required" | "Optional" | "NarrativeOnly";
   category: string;
   title: string;
   description: string;
@@ -31,6 +34,9 @@ export type EvidenceRequestFilters = {
   overdue?: boolean;
   cursor?: string;
   pageSize?: number;
+  search?: string;
+  reviewDecision?: string;
+  documentRequirement?: string;
 };
 
 export type RespondToEvidenceRequest = {

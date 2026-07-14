@@ -319,6 +319,7 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
   const [category, setCategory] = useState("MultiFactorAuthentication");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [documentRequirement, setDocumentRequirement] = useState<"Required" | "Optional" | "NarrativeOnly">("Required");
   const [dueAtUtc, setDueAtUtc] = useState(
     quote.operations?.dueAtUtc ? formatDateTimeLocal(quote.operations.dueAtUtc) : "",
   );
@@ -365,6 +366,7 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
         title: title.trim(),
         description: description.trim(),
         dueAtUtc: toUtcIsoFromLocal(dueAtUtc),
+        documentRequirement,
       },
     });
     setLastEvidenceResult(result);
@@ -561,6 +563,15 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
           value={description}
           onChange={setDescription}
         />
+        <label className="block text-sm font-medium text-slate-200">
+          Supporting document requirement
+          <select value={documentRequirement} onChange={(event) => setDocumentRequirement(event.target.value as "Required" | "Optional" | "NarrativeOnly")} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-300">
+            <option value="Required">At least one document required</option>
+            <option value="Optional">Document optional</option>
+            <option value="NarrativeOnly">Written response only</option>
+          </select>
+          <span className="mt-2 block text-xs text-slate-400">Choose Required when underwriting must validate the assertion from an uploaded artifact. Choose written response only when files would not add useful assurance.</span>
+        </label>
         <label className="block text-sm font-medium text-slate-200">
           Evidence due date
           <input

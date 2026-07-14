@@ -524,6 +524,7 @@ describe("UnderwritingQuoteReferralsPage", () => {
         category: "MultiFactorAuthentication",
         title: "Confirm MFA rollout",
         description: "Please provide current MFA rollout evidence.",
+        documentRequirement: "Required",
         dueAtUtc: "2026-06-25T09:00:00.000Z",
       },
     );

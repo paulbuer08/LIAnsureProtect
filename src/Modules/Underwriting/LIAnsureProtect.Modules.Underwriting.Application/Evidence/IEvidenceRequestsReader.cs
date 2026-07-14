@@ -20,6 +20,9 @@ public interface IEvidenceRequestsReader
         EvidenceRequestCategory? category,
         Guid? quoteId,
         bool? overdue,
+        string? search,
+        EvidenceReviewDecisionStatus? reviewDecision,
+        EvidenceDocumentRequirement? documentRequirement,
         DateTime? cursorDueAtUtc,
         DateTime? cursorRequestedAtUtc,
         Guid? cursorEvidenceRequestId,
@@ -63,7 +66,10 @@ public sealed record EvidenceRequestSnapshot(
     string? RemediationGuidance,
     string? ReviewedByUserId,
     DateTime? ReviewedAtUtc,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    string SubmissionReference = "",
+    string CompanyName = "",
+    string DocumentRequirement = "Required");
 
 public sealed record EvidenceRequestOwnerSummaryItem(
     Guid EvidenceRequestId,
@@ -79,7 +85,10 @@ public sealed record EvidenceRequestOwnerSummaryItem(
     DateTime RequestedAtUtc,
     EvidenceReviewDecisionStatus ReviewDecision,
     string? RemediationGuidance,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    string SubmissionReference = "",
+    string CompanyName = "",
+    EvidenceDocumentRequirement DocumentRequirement = EvidenceDocumentRequirement.Required);
 
 public sealed record EvidenceRequestSummaryItem(
     Guid QuoteId,

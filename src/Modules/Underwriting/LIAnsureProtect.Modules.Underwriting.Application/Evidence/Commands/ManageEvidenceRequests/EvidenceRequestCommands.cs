@@ -9,7 +9,8 @@ public sealed record CreateQuoteEvidenceRequestCommand(
     EvidenceRequestCategory Category,
     string Title,
     string Description,
-    DateTime DueAtUtc) : IRequest<QuoteEvidenceRequestResult?>;
+    DateTime DueAtUtc,
+    EvidenceDocumentRequirement DocumentRequirement = EvidenceDocumentRequirement.Required) : IRequest<QuoteEvidenceRequestResult?>;
 
 public sealed record CancelQuoteEvidenceRequestCommand(
     Guid QuoteId,
@@ -50,7 +51,10 @@ public sealed class CreateQuoteEvidenceRequestCommandHandler(
             request.Description,
             request.DueAtUtc,
             requestedAtUtc,
-            quote.Version);
+            quote.Version,
+            request.DocumentRequirement,
+            quote.SubmissionReference,
+            quote.CompanyName);
 
         await evidence.AddAsync(evidenceRequest, cancellationToken);
         await evidence.SaveChangesAsync(cancellationToken);

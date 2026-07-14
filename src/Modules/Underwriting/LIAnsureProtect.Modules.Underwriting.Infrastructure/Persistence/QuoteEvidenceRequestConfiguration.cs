@@ -26,6 +26,16 @@ public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration
             .HasColumnName("submission_id")
             .IsRequired();
 
+        builder.Property(request => request.SubmissionReference)
+            .HasColumnName("submission_reference")
+            .HasMaxLength(30)
+            .IsRequired();
+
+        builder.Property(request => request.CompanyName)
+            .HasColumnName("company_name")
+            .HasMaxLength(200)
+            .IsRequired();
+
         builder.Property(request => request.OwnerUserId)
             .HasColumnName("owner_user_id")
             .HasMaxLength(256)
@@ -35,6 +45,13 @@ public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration
             .HasColumnName("category")
             .HasConversion<string>()
             .HasMaxLength(100)
+            .IsRequired();
+
+        builder.Property(request => request.DocumentRequirement)
+            .HasColumnName("document_requirement")
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .HasDefaultValue(EvidenceDocumentRequirement.Required)
             .IsRequired();
 
         builder.Property(request => request.Title)

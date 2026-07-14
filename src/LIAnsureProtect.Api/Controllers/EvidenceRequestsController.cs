@@ -24,6 +24,9 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
         [FromQuery] string? category,
         [FromQuery] Guid? quoteId,
         [FromQuery] bool? overdue,
+        [FromQuery] string? search,
+        [FromQuery] string? reviewDecision,
+        [FromQuery] string? documentRequirement,
         [FromQuery] string? cursor,
         [FromQuery] int pageSize = 12,
         CancellationToken cancellationToken = default)
@@ -37,7 +40,10 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
                     quoteId,
                     overdue,
                     cursor,
-                    pageSize),
+                    pageSize,
+                    search,
+                    reviewDecision,
+                    documentRequirement),
                 cancellationToken);
 
             return Ok(result);

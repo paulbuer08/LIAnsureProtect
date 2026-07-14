@@ -12,7 +12,10 @@ public sealed record ListOwnerEvidenceRequestsQuery(
     Guid? QuoteId = null,
     bool? Overdue = null,
     string? Cursor = null,
-    int PageSize = 12) : IRequest<ListOwnerEvidenceRequestsResult>;
+    int PageSize = 12,
+    string? Search = null,
+    string? ReviewDecision = null,
+    string? DocumentRequirement = null) : IRequest<ListOwnerEvidenceRequestsResult>;
 
 public sealed class ListOwnerEvidenceRequestsQueryHandler(
     IEvidenceRequestsReader reader,
@@ -30,12 +33,19 @@ public sealed class ListOwnerEvidenceRequestsQueryHandler(
         var cursor = DecodeCursor(request.Cursor);
         var status = ParseFilter<EvidenceRequestStatus>(request.Status, nameof(request.Status));
         var category = ParseFilter<EvidenceRequestCategory>(request.Category, nameof(request.Category));
+        var reviewDecision = ParseFilter<EvidenceReviewDecisionStatus>(request.ReviewDecision, nameof(request.ReviewDecision));
+        var documentRequirement = ParseFilter<EvidenceDocumentRequirement>(request.DocumentRequirement, nameof(request.DocumentRequirement));
+        if (!string.IsNullOrWhiteSpace(request.Search) && request.Search.Trim().Length > 200)
+            throw new ArgumentException("Search text must not exceed 200 characters.", nameof(request));
         var evidenceRequests = await reader.GetOwnerRequestsPageAsync(
             ownerUserId,
             status,
             category,
             request.QuoteId,
             request.Overdue,
+            request.Search?.Trim(),
+            reviewDecision,
+            documentRequirement,
             cursor?.DueAtUtc,
             cursor?.RequestedAtUtc,
             cursor?.EvidenceRequestId,
@@ -64,7 +74,10 @@ public sealed class ListOwnerEvidenceRequestsQueryHandler(
                 item.RequestedAtUtc,
                 item.ReviewDecision.ToString(),
                 item.RemediationGuidance,
-                item.UpdatedAtUtc)).ToList(),
+                item.UpdatedAtUtc,
+                item.SubmissionReference,
+                item.CompanyName,
+                item.DocumentRequirement.ToString())).ToList(),
             nextCursor);
     }
 

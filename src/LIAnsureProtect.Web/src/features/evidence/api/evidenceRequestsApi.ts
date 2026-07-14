@@ -45,6 +45,9 @@ export async function listEvidenceRequests(
   if (filters.quoteId) search.set("quoteId", filters.quoteId);
   if (filters.overdue !== undefined) search.set("overdue", String(filters.overdue));
   if (filters.cursor) search.set("cursor", filters.cursor);
+  if (filters.search) search.set("search", filters.search);
+  if (filters.reviewDecision) search.set("reviewDecision", filters.reviewDecision);
+  if (filters.documentRequirement) search.set("documentRequirement", filters.documentRequirement);
   search.set("pageSize", String(filters.pageSize ?? 12));
   const response = await fetch(`${apiBaseUrl}/api/v1/evidence-requests?${search}`, {
     headers: authHeaders(accessToken),

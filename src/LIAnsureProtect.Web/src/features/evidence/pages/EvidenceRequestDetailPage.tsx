@@ -1,5 +1,6 @@
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { useEvidenceRequest } from "../hooks/useEvidenceRequests";
 import { EvidenceRequestCard } from "./EvidenceRequestsPage";
@@ -11,12 +12,7 @@ export function EvidenceRequestDetailPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
       <section className="mx-auto max-w-5xl">
-        <Link
-          to="/evidence-requests"
-          className="inline-flex text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-        >
-          Back to evidence requests
-        </Link>
+        <Breadcrumbs items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Evidence requests", to: "/evidence-requests" }, { label: query.data?.title ?? "Request detail" }]} />
         <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-emerald-400">
           Evidence request
         </p>

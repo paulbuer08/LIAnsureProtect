@@ -304,6 +304,44 @@ public sealed class EvidenceDocumentEndpointTests
     }
 
     [Fact]
+    public async Task Owner_List_Searches_Within_The_Owner_And_Exposes_Document_Requirements()
+    {
+        var (_, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");
+        await SeedOpenEvidenceRequestAsync("customer-2");
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"/api/v1/evidence-requests?search={Uri.EscapeDataString(evidenceRequest.Title)}&documentRequirement=Required",
+            "Customer",
+            "customer-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var item = Assert.Single(payload.GetProperty("evidenceRequests").EnumerateArray());
+        Assert.Equal(evidenceRequest.Id, item.GetProperty("evidenceRequestId").GetGuid());
+        Assert.Equal("Required", item.GetProperty("documentRequirement").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(item.GetProperty("submissionReference").GetString()));
+    }
+
+    [Fact]
+    public async Task Owner_Response_Requires_A_Document_When_The_Request_Requires_One()
+    {
+        var (_, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");
+        using var responseRequest = CreateAuthenticatedMultipartResponse(
+            evidenceRequest.Id,
+            "Customer",
+            "customer-1",
+            []);
+
+        using var response = await httpClient.SendAsync(responseRequest, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("supporting document is required", content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Owner_Response_Records_Rejected_And_Failed_Scan_Metadata()
     {
         var (_, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");

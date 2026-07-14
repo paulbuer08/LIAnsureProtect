@@ -1,6 +1,8 @@
 using LIAnsureProtect.Application.Quotes;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Modules.Underwriting.Application;
+using LIAnsureProtect.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace LIAnsureProtect.Infrastructure.Quotes;
 
@@ -10,7 +12,9 @@ namespace LIAnsureProtect.Infrastructure.Quotes;
 /// the Quoting context) so the Underwriting module can build AI review context without referencing the
 /// Quote aggregate or its tables.
 /// </summary>
-public sealed class QuoteUnderwritingContextReader(IQuoteRepository quoteRepository)
+public sealed class QuoteUnderwritingContextReader(
+    IQuoteRepository quoteRepository,
+    SubmissionDbContext dbContext)
     : IUnderwritingQuoteContextReader
 {
     public async Task<UnderwritingQuoteContext?> GetForAiReviewAsync(
@@ -22,6 +26,7 @@ public sealed class QuoteUnderwritingContextReader(IQuoteRepository quoteReposit
             return null;
 
         var priorReviews = await quoteRepository.ListUnderwritingReviewsAsync(quoteId, cancellationToken);
+        var identity = await GetSubmissionIdentityAsync(quote.SubmissionId, quote.OwnerUserId, cancellationToken);
 
         return new UnderwritingQuoteContext(
             quote.Id,
@@ -39,7 +44,9 @@ public sealed class QuoteUnderwritingContextReader(IQuoteRepository quoteReposit
             (priorReviews ?? [])
                 .OrderBy(review => review.CreatedAtUtc)
                 .Select(review => $"{review.Decision}: {review.Reason}")
-                .ToArray());
+                .ToArray(),
+            identity.Reference,
+            identity.CompanyName);
     }
 
     public async Task<ReferralQuoteContext?> GetForReferralOperationAsync(
@@ -65,6 +72,8 @@ public sealed class QuoteUnderwritingContextReader(IQuoteRepository quoteReposit
         if (quote is null)
             return null;
 
+        var identity = await GetSubmissionIdentityAsync(quote.SubmissionId, quote.OwnerUserId, cancellationToken);
+
         return new QuoteAssuranceRequirementContext(
             quote.Id,
             quote.SubmissionId,
@@ -74,7 +83,25 @@ public sealed class QuoteUnderwritingContextReader(IQuoteRepository quoteReposit
                     ToEvidenceCategory(assertion.ControlType),
                     assertion.EvidenceRequired,
                     assertion.EvidenceReason))
-                .ToArray());
+                .ToArray(),
+            identity.Reference,
+            identity.CompanyName);
+    }
+
+    private async Task<(string Reference, string CompanyName)> GetSubmissionIdentityAsync(
+        Guid submissionId,
+        string ownerUserId,
+        CancellationToken cancellationToken)
+    {
+        var identity = await dbContext.Submissions
+            .AsNoTracking()
+            .Where(submission => submission.Id == submissionId && submission.OwnerUserId == ownerUserId)
+            .Select(submission => new { submission.Reference, submission.CompanyName })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return identity is null
+            ? ($"SUB-LEGACY-{submissionId:N}"[..30], "Company not provided")
+            : (identity.Reference, identity.CompanyName);
     }
 
     private static string ToEvidenceCategory(ControlType controlType) => controlType switch

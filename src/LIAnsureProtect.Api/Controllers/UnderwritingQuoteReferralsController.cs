@@ -13,6 +13,7 @@ using ApplicationValidationException = LIAnsureProtect.Application.Common.Except
 using GetQuoteReferralTimelineQuery = LIAnsureProtect.Application.Quotes.Commands.ManageQuoteReferralOperations.GetQuoteReferralTimelineQuery;
 using QuoteReferralTimelineResult = LIAnsureProtect.Application.Quotes.Commands.ManageQuoteReferralOperations.QuoteReferralTimelineResult;
 using EvidenceRequestCategory = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceRequestCategory;
+using EvidenceDocumentRequirement = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceDocumentRequirement;
 using EvidenceReviewDecisionStatus = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceReviewDecisionStatus;
 using ModuleQuoteEvidenceRequestResult = LIAnsureProtect.Modules.Underwriting.Application.Evidence.QuoteEvidenceRequestResult;
 using ReferralOperationStatus = LIAnsureProtect.Modules.Underwriting.Domain.Referrals.ReferralOperationStatus;
@@ -52,6 +53,17 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
         if (!Enum.TryParse<EvidenceRequestCategory>(request.Category, ignoreCase: true, out var category))
             return BadRequest(CreateProblemDetails(StatusCodes.Status400BadRequest, "Evidence request category is invalid."));
 
+        if (!Enum.TryParse<EvidenceDocumentRequirement>(
+                request.DocumentRequirement,
+                ignoreCase: true,
+                out var documentRequirement)
+            || !Enum.IsDefined(documentRequirement))
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Evidence document requirement is invalid."));
+        }
+
         try
         {
             var result = await sender.Send(
@@ -60,7 +72,8 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
                     category,
                     request.Title,
                     request.Description,
-                    request.DueAtUtc),
+                    request.DueAtUtc,
+                    documentRequirement),
                 cancellationToken);
 
             return result is null
@@ -598,7 +611,8 @@ public sealed record CreateQuoteEvidenceRequestRequest(
     string Category,
     string Title,
     string Description,
-    DateTime DueAtUtc);
+    DateTime DueAtUtc,
+    string DocumentRequirement = "Required");
 
 public sealed record ReviewQuoteEvidenceRequestRequest(string? ReviewNotes);
 

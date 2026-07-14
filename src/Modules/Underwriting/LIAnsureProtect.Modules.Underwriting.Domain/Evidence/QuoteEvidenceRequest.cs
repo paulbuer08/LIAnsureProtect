@@ -18,9 +18,15 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
 
     public Guid SubmissionId { get; private set; }
 
+    public string SubmissionReference { get; private set; } = string.Empty;
+
+    public string CompanyName { get; private set; } = string.Empty;
+
     public string OwnerUserId { get; private set; } = string.Empty;
 
     public EvidenceRequestCategory Category { get; private set; }
+
+    public EvidenceDocumentRequirement DocumentRequirement { get; private set; }
 
     public string Title { get; private set; } = string.Empty;
 
@@ -84,7 +90,10 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         string description,
         DateTime dueAtUtc,
         DateTime requestedAtUtc,
-        int quoteVersion = 1)
+        int quoteVersion = 1,
+        EvidenceDocumentRequirement documentRequirement = EvidenceDocumentRequirement.Required,
+        string? submissionReference = null,
+        string? companyName = null)
     {
         ValidateGuid(quoteId, nameof(quoteId), "Quote id is required.");
         ValidateGuid(submissionId, nameof(submissionId), "Submission id is required.");
@@ -101,9 +110,14 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             Id = Guid.NewGuid(),
             QuoteId = quoteId,
             SubmissionId = submissionId,
+            SubmissionReference = string.IsNullOrWhiteSpace(submissionReference)
+                ? $"SUB-LEGACY-{submissionId:N}"[..30]
+                : submissionReference.Trim(),
+            CompanyName = string.IsNullOrWhiteSpace(companyName) ? "Company not provided" : companyName.Trim(),
             OwnerUserId = trimmedOwnerUserId,
             RequestedByUserId = trimmedRequestedByUserId,
             Category = category,
+            DocumentRequirement = documentRequirement,
             Title = trimmedTitle,
             Description = trimmedDescription,
             DueAtUtc = dueAtUtc,

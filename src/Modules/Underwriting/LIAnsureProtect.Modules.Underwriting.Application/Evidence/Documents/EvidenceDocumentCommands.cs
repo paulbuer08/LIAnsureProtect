@@ -76,6 +76,22 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
         if (evidenceRequest is null)
             return null;
 
+        if (evidenceRequest.DocumentRequirement == EvidenceDocumentRequirement.Required
+            && request.Documents.Count == 0)
+        {
+            throw new ArgumentException(
+                "At least one supporting document is required for this evidence request.",
+                nameof(request));
+        }
+
+        if (evidenceRequest.DocumentRequirement == EvidenceDocumentRequirement.NarrativeOnly
+            && request.Documents.Count > 0)
+        {
+            throw new ArgumentException(
+                "This evidence request accepts a written response only and does not accept documents.",
+                nameof(request));
+        }
+
         var respondedAtUtc = DateTime.UtcNow;
         var evidenceDocuments = await EvidenceDocumentUploadWorkflow.StoreAndScanDocumentsAsync(
             request.Documents,

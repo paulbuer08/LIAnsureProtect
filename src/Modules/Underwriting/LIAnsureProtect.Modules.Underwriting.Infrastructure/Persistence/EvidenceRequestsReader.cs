@@ -42,6 +42,9 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
         EvidenceRequestCategory? category,
         Guid? quoteId,
         bool? overdue,
+        string? search,
+        EvidenceReviewDecisionStatus? reviewDecision,
+        EvidenceDocumentRequirement? documentRequirement,
         DateTime? cursorDueAtUtc,
         DateTime? cursorRequestedAtUtc,
         Guid? cursorEvidenceRequestId,
@@ -61,6 +64,28 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
 
         if (quoteId.HasValue)
             query = query.Where(request => request.QuoteId == quoteId.Value);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = $"%{search.ToUpperInvariant()}%";
+            var exactId = Guid.TryParse(search, out var parsedId) ? parsedId : (Guid?)null;
+#pragma warning disable CA1304, CA1311 // Translated by EF into provider-side UPPER.
+            query = query.Where(request =>
+                EF.Functions.Like(request.Title.ToUpper(), pattern)
+                || EF.Functions.Like(request.Description.ToUpper(), pattern)
+                || EF.Functions.Like(request.SubmissionReference.ToUpper(), pattern)
+                || EF.Functions.Like(request.CompanyName.ToUpper(), pattern)
+                || (exactId.HasValue && (request.Id == exactId.Value
+                    || request.QuoteId == exactId.Value
+                    || request.SubmissionId == exactId.Value)));
+#pragma warning restore CA1304, CA1311
+        }
+
+        if (reviewDecision.HasValue)
+            query = query.Where(request => request.ReviewDecision == reviewDecision.Value);
+
+        if (documentRequirement.HasValue)
+            query = query.Where(request => request.DocumentRequirement == documentRequirement.Value);
 
         if (overdue == true)
             query = query.Where(request => request.Status == EvidenceRequestStatus.Open && request.DueAtUtc < nowUtc);
@@ -99,7 +124,10 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
                 request.RequestedAtUtc,
                 request.ReviewDecision,
                 request.RemediationGuidance,
-                request.UpdatedAtUtc))
+                request.UpdatedAtUtc,
+                request.SubmissionReference,
+                request.CompanyName,
+                request.DocumentRequirement))
             .ToListAsync(cancellationToken);
 
         return requests.Select(request => request with
@@ -162,7 +190,10 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
             request.RemediationGuidance,
             request.ReviewedByUserId,
             request.ReviewedAtUtc,
-            request.UpdatedAtUtc);
+            request.UpdatedAtUtc,
+            request.SubmissionReference,
+            request.CompanyName,
+            request.DocumentRequirement.ToString());
     }
 
     private static EvidenceRequestSummaryItem CreateSummary(
