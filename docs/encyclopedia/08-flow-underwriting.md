@@ -1,5 +1,13 @@
 # Chapter 8 — Flow: Underwriting — Referrals, Evidence & AI
 
+> **Current workbench/search contract (July 2026):** Underwriter/Admin referral search narrows the
+> complete shared queue by quote/submission/owner identity, risk tier, priority, assignment, and
+> evidence state. The one unfiltered 10-second cache entry remains authoritative; filter variants are
+> not separately cached. Owner Evidence search is owner-scoped and supports request/quote/submission
+> identity, human Submission reference, company, category, review decision, document requirement, and
+> overdue state. Evidence requests explicitly declare `Required`, `Optional`, or `NarrativeOnly`, and
+> the command handler—not the browser—enforces the document rule.
+
 This is the richest area of the product and the heart of the **Underwriting module**
 (`src/Modules/Underwriting`). It covers five sub-flows:
 

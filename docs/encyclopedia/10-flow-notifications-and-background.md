@@ -1,5 +1,12 @@
 # Chapter 10 — Flow: Notifications & Background Processing
 
+> **Current inbox/search contract (July 2026):** notification free-text search runs only over the
+> caller's personal recipient scope and role-derived team audiences, then applies the 50-item display
+> cap. Read-state filtering is available to every inbox role. Customer/Broker personal-only pages have
+> no scope tabs; Underwriter, ClaimsAdjuster, and Admin retain All/Personal/Team. Unread count remains
+> the total authorized unread count even when the displayed list is filtered. Exact subject IDs and
+> safe snapshots keep Evidence, Quote, Submission, and Policy actions specific.
+
 This chapter is the **event spine** every other flow plugs into: how a domain event recorded in a
 transaction becomes a notification in someone's inbox (or a projection in another module) —
 reliably, idempotently, and in order.

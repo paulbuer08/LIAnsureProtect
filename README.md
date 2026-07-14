@@ -42,13 +42,18 @@ and see when a quote is provisional. Required evidence is created through the tr
 reviewed by Underwriting, and must be satisfied before acceptance. Pre-acceptance improvements use
 immutable quote reassessment versions; automated document findings remain advisory.
 
-The latest local product-hardening branch makes that journey precise and supportable: customer pages
+The latest product-hardening branch makes that journey precise and supportable: customer pages
 never print raw API JSON or internal exception text; reassessment can be cancelled; evidence requests
 use paged summaries and exact detail routes; quote/evidence notifications identify and open their exact
 historical subject; and Production/Aws hosts emit structured diagnostic signals. CloudWatch log groups,
 alarms, and browser RUM remain Terraform-owned production infrastructure, documented in the
-[operations runbook](docs/dev/production-observability-and-customer-errors-runbook.md). No PR has been
-opened while manual findings continue to be collated.
+[operations runbook](docs/dev/production-observability-and-customer-errors-runbook.md).
+
+The same branch now adds immutable human Submission references, contextual search on every applicable
+owner/operations collection, role-specific filters, semantic breadcrumbs, friendly local-time display,
+safe form cancellation, and explicit Evidence document requirements. Search always narrows an already
+owner/team/role-authorized dataset; it is not an authorization shortcut or a global cross-context index.
+See the [implementation learnings](docs/dev/role-aware-search-navigation-and-form-safety-learnings.md).
 
 - The story of every milestone: [**The Build History**](docs/build-history.md)
 - The precise current state: [Project Status](docs/project-status.md) · [Changelog](CHANGELOG.md)

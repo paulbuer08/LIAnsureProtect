@@ -211,6 +211,32 @@ stores the snapshot. Inbox reads therefore remain self-contained and do not cros
 context to decorate a title. The production collector, CloudWatch resources, alarms, and RUM identity
 remain Terraform-owned infrastructure described in the production observability runbook.
 
+## Role-aware contextual search and human references
+
+The July 2026 navigation/search hardening adds one immutable human-facing alternate key to a
+Submission while retaining its UUID as the technical key:
+
+```text
+Submission.Id        = UUID used by routes, joins, events, and id-only context seams
+Submission.Reference = SUB-2026-8A9B7C6D5E4F3210 used by people, lists, and support
+```
+
+Search remains context-local. Each Application query first obtains the complete owner-scoped or
+role/team-scoped read set and only then narrows it with search and workflow filters. Customer pages
+cannot request adjuster/underwriter filters, and an Admin uses the widest filter set only on an
+operational route the Admin policy already authorizes. There is deliberately no global search service
+or cross-schema search join.
+
+The Underwriting referral queue illustrates the cache rule: the existing unfiltered, shared 10-second
+queue remains the sole cached value; `SearchQuoteReferralsQuery` filters that complete cached result.
+Creating one cache key per filter combination would make invalidation incomplete.
+
+Evidence requests add `EvidenceDocumentRequirement` in the Underwriting Domain. Automatic control
+assurance requests are `Required`; manual Underwriting requests choose Required/Optional/NarrativeOnly.
+The command handler enforces the contract, while React only mirrors it for early guidance. Submission
+reference and company name are copied as read/display snapshots across the existing port; Underwriting
+does not take ownership of the Submission aggregate.
+
 ## Application Use Case Pattern
 
 Milestone 4 - Application Use Case Foundation introduced practical CQRS with MediatR and FluentValidation.

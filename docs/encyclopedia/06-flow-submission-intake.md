@@ -1,5 +1,13 @@
 # Chapter 6 — Flow: Submission Intake
 
+> **Current usability contract (July 2026):** every Submission has both a technical UUID and an
+> immutable human reference such as `SUB-2026-8A9B7C6D5E4F3210`. Owner-scoped list search supports
+> reference, exact UUID, applicant, email, and company plus status/date filters and stable cursor
+> paging. Search is applied inside owner scope. Draft creation reuses an exact owned Draft unless the
+> user explicitly creates another legitimate application; dirty Cancel uses an accessible discard
+> confirmation and clears local form/idempotency state. Semantic breadcrumbs show
+> `Dashboard / Submissions / <reference>`.
+
 **Trigger:** a Customer/Broker fills the intake form (`/submissions/new`) — or later presses
 **Submit** on a draft.
 **Result:** a `submissions` row owned by the caller; on submit, a status change **plus** an
