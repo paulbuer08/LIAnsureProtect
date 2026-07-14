@@ -112,7 +112,13 @@ describe("App routes", () => {
       ),
     ).toBeInTheDocument();
     await waitFor(() =>
-      expect(listQuoteReferrals).toHaveBeenCalledWith("underwriter-token"),
+      expect(listQuoteReferrals).toHaveBeenCalledWith("underwriter-token", {
+        search: undefined,
+        riskTier: undefined,
+        priority: undefined,
+        assignment: undefined,
+        evidenceState: undefined,
+      }),
     );
   });
 

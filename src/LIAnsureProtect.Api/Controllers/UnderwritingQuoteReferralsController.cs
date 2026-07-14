@@ -629,7 +629,7 @@ public sealed record CreateQuoteEvidenceRequestRequest(
     string Title,
     string Description,
     DateTime DueAtUtc,
-    string DocumentRequirement = "Required");
+    string DocumentRequirement = "Optional");
 
 public sealed record ReviewQuoteEvidenceRequestRequest(string? ReviewNotes);
 

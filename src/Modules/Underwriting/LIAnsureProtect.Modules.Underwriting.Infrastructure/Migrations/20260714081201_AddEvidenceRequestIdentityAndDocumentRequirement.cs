@@ -26,7 +26,7 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                 type: "character varying(50)",
                 maxLength: 50,
                 nullable: false,
-                defaultValue: "Required");
+                defaultValue: "Optional");
 
             migrationBuilder.AddColumn<string>(
                 name: "submission_reference",

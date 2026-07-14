@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { getUserErrorMessage } from "../../../lib/apiClient";

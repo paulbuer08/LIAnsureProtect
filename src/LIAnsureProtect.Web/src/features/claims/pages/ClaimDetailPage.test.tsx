@@ -120,7 +120,7 @@ describe("ClaimDetailPage", () => {
     renderPage();
 
     expect(
-      await screen.findByText("CLM-CYB-20260401-AAAAAAAA"),
+      await screen.findByRole("heading", { name: "CLM-CYB-20260401-AAAAAAAA" }),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Claim filed for RansomwareExtortion."),
