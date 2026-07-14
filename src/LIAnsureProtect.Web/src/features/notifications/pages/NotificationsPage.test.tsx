@@ -98,6 +98,11 @@ describe("NotificationsPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Please confirm MFA scope.")).toBeInTheDocument();
     expect(screen.getByText("1 unread")).toBeInTheDocument();
+    const unreadItem = screen.getByText("Action needed on your evidence").closest("li");
+    expect(unreadItem).toHaveTextContent("Unread");
+    expect(unreadItem).toHaveClass(
+      "border-l-amber-300",
+    );
   });
 
   it("does not expose a standalone mark-as-read control", async () => {

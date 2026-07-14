@@ -11,6 +11,7 @@ import {
   uploadReplacementEvidenceDocuments,
 } from "../api/evidenceRequestsApi";
 import { useEvidenceRequest } from "../hooks/useEvidenceRequests";
+import type { QuoteEvidenceRequest } from "../types";
 import { EvidenceRequestCard } from "./EvidenceRequestsPage";
 
 const getAccessTokenSilently = vi.fn();
@@ -665,5 +666,67 @@ describe("EvidenceRequestsPage", () => {
       },
     );
     expect(await screen.findByText("FollowUp response")).toBeInTheDocument();
+  });
+
+  it("lets a Required evidence follow-up use new narrative without another file", async () => {
+    const user = userEvent.setup();
+    const respondedRequest: QuoteEvidenceRequest = {
+      evidenceRequestId: "evidence-required-follow-up",
+      quoteId: "quote-1",
+      submissionId: "submission-1",
+      submissionReference: "SUB-2026-ABCDEF1234567890",
+      companyName: "Example Company",
+      documentRequirement: "Required" as const,
+      category: "MultiFactorAuthentication",
+      title: "Verify multi-factor authentication",
+      description: "Provide current MFA evidence.",
+      dueAtUtc: "2026-07-28T09:00:00Z",
+      status: "Responded",
+      isOverdue: false,
+      daysUntilDue: 14,
+      requestedByUserId: "system-assurance-policy",
+      requestedAtUtc: "2026-07-14T09:00:00Z",
+      respondedByUserId: "customer-1",
+      respondentName: "Jane Applicant",
+      respondentTitle: "CISO",
+      respondentEmail: "jane@example.com",
+      respondentPhone: null,
+      responseText: "The original response included the required document.",
+      otherConcerns: null,
+      attachmentFileName: null,
+      attachmentContentType: null,
+      attachmentSizeBytes: null,
+      respondedAtUtc: "2026-07-14T10:00:00Z",
+      acceptedByUserId: null,
+      acceptedAtUtc: null,
+      cancelledByUserId: null,
+      cancelledAtUtc: null,
+      ...notReviewedEvidence,
+      reviewNotes: null,
+      updatedAtUtc: "2026-07-14T10:00:00Z",
+      documents: [],
+      responses: [],
+    };
+    vi.mocked(getEvidenceRequest).mockResolvedValue(respondedRequest);
+    vi.mocked(respondToEvidenceRequest).mockResolvedValue(respondedRequest);
+
+    renderEvidenceRequestsPage();
+
+    const button = await screen.findByRole("button", { name: "Send follow-up" });
+    await user.type(
+      screen.getByLabelText(/^Evidence response/),
+      "MFA coverage now includes the remaining service accounts.",
+    );
+    expect(button).toBeEnabled();
+    await user.click(button);
+
+    expect(respondToEvidenceRequest).toHaveBeenCalledWith(
+      "owner-token",
+      "evidence-required-follow-up",
+      expect.objectContaining({
+        responseText: "MFA coverage now includes the remaining service accounts.",
+        attachments: [],
+      }),
+    );
   });
 });

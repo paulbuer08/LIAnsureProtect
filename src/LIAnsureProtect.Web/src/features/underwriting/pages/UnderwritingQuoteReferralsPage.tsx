@@ -468,7 +468,11 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
           {(lastEvidenceResult.responses?.length ?? 0) > 0 && (
             <div className="mt-3">
               <p className="font-semibold">Response history</p>
-              <ol className="mt-2 space-y-2">
+              <ol
+                aria-label="Underwriter response history entries"
+                tabIndex={0}
+                className="mt-2 max-h-80 space-y-2 overflow-y-auto pr-2 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              >
                 {lastEvidenceResult.responses?.map((response) => (
                   <li key={response.responseId} className="rounded-md border border-emerald-900 p-2">
                     <p className="font-semibold">{response.kind} · {new Date(response.respondedAtUtc).toLocaleString()}</p>
@@ -511,7 +515,7 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
                             document.originalFileName,
                           )
                         }
-                        className="font-semibold text-emerald-200 hover:text-white"
+                        className="cursor-pointer font-semibold text-emerald-200 hover:text-white"
                       >
                         Download {document.originalFileName}
                       </button>

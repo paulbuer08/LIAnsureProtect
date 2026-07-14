@@ -281,12 +281,21 @@ export function NotificationsPage() {
                         return (
                           <li
                             key={notification.notificationId}
-                            className={`p-5 ${notification.isRead ? "bg-slate-900" : "bg-emerald-950/20"}`}
+                            className={`border-l-4 p-5 ${
+                              notification.isRead
+                                ? "border-l-transparent bg-slate-900"
+                                : "border-l-amber-300 bg-amber-950/20"
+                            }`}
                           >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                               <div>
                                 <div className="flex items-center gap-2">
                                   <h3 className="text-base font-semibold text-white">{notification.title}</h3>
+                                  {!notification.isRead && (
+                                    <span className="inline-flex rounded-full border border-amber-300/70 bg-amber-300 px-2 py-0.5 text-xs font-bold text-slate-950">
+                                      Unread
+                                    </span>
+                                  )}
                                   {notification.scope === "team" && (
                                     <span className="inline-flex rounded-md border border-sky-500/40 bg-sky-950/40 px-2 py-0.5 text-xs font-semibold text-sky-300">Team</span>
                                   )}

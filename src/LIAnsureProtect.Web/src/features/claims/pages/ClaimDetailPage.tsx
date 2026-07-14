@@ -3,6 +3,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { useParams } from "react-router";
 
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
+import { FileDropzone } from "../../../components/FileDropzone";
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { downloadOwnerClaimDocument } from "../api/claimsApi";
@@ -276,7 +277,7 @@ export function ClaimDetailPage() {
                               document.originalFileName,
                             )
                           }
-                          className="font-semibold text-emerald-300 hover:text-emerald-200"
+                          className="cursor-pointer font-semibold text-emerald-300 hover:text-emerald-200"
                         >
                           Download {document.originalFileName}
                         </button>
@@ -296,10 +297,13 @@ export function ClaimDetailPage() {
                   onSubmit={(event) => {
                     event.preventDefault();
                     if (documentFiles.length > 0) {
-                      actions.uploadDocuments.mutate({
-                        kind: documentKind,
-                        files: documentFiles,
-                      });
+                      actions.uploadDocuments.mutate(
+                        {
+                          kind: documentKind,
+                          files: documentFiles,
+                        },
+                        { onSuccess: () => setDocumentFiles([]) },
+                      );
                     }
                   }}
                 >
@@ -322,30 +326,24 @@ export function ClaimDetailPage() {
                     ))}
                   </select>
 
-                  <label
-                    className="mt-4 block font-semibold text-slate-200"
-                    htmlFor="document-files"
-                  >
-                    Supporting documents
-                  </label>
-                  <input
-                    id="document-files"
-                    type="file"
-                    multiple
-                    onChange={(event) =>
-                      setDocumentFiles(Array.from(event.target.files ?? []))
-                    }
-                    className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-3 file:py-2 file:font-semibold file:text-slate-950 focus:border-emerald-400"
-                  />
-                  <p className="mt-2 text-slate-400">
-                    Up to 5 files, 10 MB each. Every upload is security-scanned
-                    before anyone can download it.
-                  </p>
+                  <div className="mt-4">
+                    <FileDropzone
+                      label="Supporting documents"
+                      description="Upload up to 5 files, 10 MB each. Supported formats: PDF, PNG, JPEG, TXT, CSV, DOCX, and XLSX. Every upload is security-scanned before anyone can download it."
+                      accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.docx,.xlsx"
+                      files={documentFiles}
+                      onFilesChange={setDocumentFiles}
+                      disabled={actions.uploadDocuments.isPending}
+                    />
+                  </div>
 
                   <button
                     type="submit"
-                    disabled={actions.uploadDocuments.isPending}
-                    className="mt-4 rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-300 disabled:opacity-60"
+                    disabled={
+                      actions.uploadDocuments.isPending ||
+                      documentFiles.length === 0
+                    }
+                    className="mt-4 rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Upload documents
                   </button>

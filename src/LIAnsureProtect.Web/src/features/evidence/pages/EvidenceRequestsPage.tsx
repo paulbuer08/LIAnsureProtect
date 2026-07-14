@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router";
 
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { ConfirmationDialog } from "../../../components/ConfirmationDialog";
+import { FileDropzone } from "../../../components/FileDropzone";
 import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { downloadOwnerEvidenceDocument } from "../api/evidenceRequestsApi";
@@ -209,12 +210,13 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
       </dl>
 
       <p className="mt-4 text-sm text-slate-300">{request.description}</p>
-      <p className="mt-3 rounded-md border border-sky-800 bg-sky-950/30 p-3 text-sm text-sky-100">
-        Document requirement: <strong>{documentRequirement === "NarrativeOnly" ? "Written response only" : documentRequirement}</strong>.
-        {documentRequirement === "Required" && " The first response and any requested remediation must include at least one supporting file. You may add a later pre-review follow-up without repeating a file."}
-        {documentRequirement === "Optional" && " A document may be attached when it helps underwriting validate the response. Your named contact and written explanation support human follow-up, but neither automatically proves the control."}
-        {documentRequirement === "NarrativeOnly" && " Underwriting will evaluate the named contact and written explanation; the response is still an assertion until a reviewer validates it."}
-      </p>
+      {documentRequirement !== "Optional" && (
+        <p className="mt-3 rounded-md border border-sky-800 bg-sky-950/30 p-3 text-sm text-sky-100">
+          Document requirement: <strong>{documentRequirement === "NarrativeOnly" ? "Written response only" : documentRequirement}</strong>.
+          {documentRequirement === "Required" && " The first response and any requested remediation must include at least one supporting file. You may add a later pre-review follow-up without repeating a file."}
+          {documentRequirement === "NarrativeOnly" && " Underwriting will evaluate the named contact and written explanation; the response is still an assertion until a reviewer validates it."}
+        </p>
+      )}
 
       <section className="mt-4 rounded-md border border-slate-800 bg-slate-950 p-4 text-sm">
         <div className="flex flex-wrap items-center gap-2">
@@ -249,7 +251,11 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
           <p className="mt-1 text-xs text-slate-400">
             Each submitted response is retained as audit history. A follow-up adds a new entry and never replaces an earlier answer.
           </p>
-          <ol className="mt-3 space-y-3">
+          <ol
+            aria-label="Response history entries"
+            tabIndex={0}
+            className="mt-3 max-h-80 space-y-3 overflow-y-auto pr-2 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          >
             {savedResponses.map((response) => (
               <li key={response.responseId} className="rounded-md border border-slate-800 p-3 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -365,24 +371,17 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
             />
             <span className="mt-2 block text-xs text-slate-400">Use this for context, caveats, or questions that do not belong in the main evidence explanation.</span>
           </label>
-          {documentRequirement !== "NarrativeOnly" && <label className="block text-sm font-medium text-slate-200">
-            Evidence files
-            <input
-              aria-label="Evidence files"
-              required={requiresDocumentForThisResponse}
-              multiple
-              type="file"
+          {documentRequirement !== "NarrativeOnly" && (
+            <FileDropzone
+              label="Evidence files"
+              description="Upload up to 5 files. Supported formats: PDF, PNG, JPEG, TXT, CSV, DOCX, and XLSX."
               accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.docx,.xlsx"
-              onChange={(event) =>
-                setAttachments(Array.from(event.target.files ?? []))
-              }
-              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-950 focus:border-emerald-400"
+              files={attachments}
+              onFilesChange={setAttachments}
+              required={requiresDocumentForThisResponse}
+              disabled={respondToEvidenceRequest.isPending}
             />
-            <span className="mt-2 block text-xs text-slate-400">
-              Upload up to 5 files. Supported formats: PDF, PNG, JPEG, TXT, CSV,
-              DOCX, and XLSX.
-            </span>
-          </label>}
+          )}
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
@@ -437,7 +436,7 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
                         document.originalFileName,
                       )
                     }
-                    className="font-semibold text-emerald-300 hover:text-emerald-200"
+                    className="cursor-pointer font-semibold text-emerald-300 hover:text-emerald-200"
                   >
                     Download {document.originalFileName}
                   </button>
@@ -469,22 +468,22 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
           </ul>
           {canUploadReplacement && (
             <form className="mt-4 space-y-3" onSubmit={handleReplacementUpload}>
-              <label className="block text-sm font-medium text-slate-200">
-                Replacement evidence files
-                <input
-                  aria-label="Replacement evidence files"
-                  multiple
-                  type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.docx,.xlsx"
-                  onChange={(event) =>
-                    setReplacementAttachments(Array.from(event.target.files ?? []))
-                  }
-                  className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none file:mr-4 file:rounded-md file:border-0 file:bg-amber-300 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-950 focus:border-amber-300"
-                />
-              </label>
+              <FileDropzone
+                label="Replacement evidence files"
+                description="Upload up to 5 clean replacement files in PDF, PNG, JPEG, TXT, CSV, DOCX, or XLSX format."
+                accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.docx,.xlsx"
+                files={replacementAttachments}
+                onFilesChange={setReplacementAttachments}
+                disabled={uploadReplacementEvidenceDocuments.isPending}
+                tone="amber"
+              />
               <button
                 type="submit"
-                className="rounded-lg bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-200"
+                disabled={
+                  uploadReplacementEvidenceDocuments.isPending ||
+                  replacementAttachments.length === 0
+                }
+                className="rounded-lg bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
               >
                 Upload replacement evidence
               </button>
