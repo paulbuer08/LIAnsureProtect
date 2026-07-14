@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Modules.Notifications.Application.Commands.MarkNotificationRead;
 using LIAnsureProtect.Modules.Notifications.Application.Queries.ListMyNotifications;
+using LIAnsureProtect.Modules.Notifications.Application.Queries.GetUnreadNotificationCount;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +13,16 @@ namespace LIAnsureProtect.Api.Controllers;
 [Authorize(Policy = ApplicationPolicies.ReadNotifications)]
 public sealed class NotificationsController(ISender sender) : ControllerBase
 {
+    [HttpGet("unread-count")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<GetUnreadNotificationCountResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<GetUnreadNotificationCountResult>> GetUnreadCount(
+        CancellationToken cancellationToken)
+    {
+        return Ok(await sender.Send(new GetUnreadNotificationCountQuery(), cancellationToken));
+    }
+
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

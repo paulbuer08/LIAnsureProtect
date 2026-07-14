@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using LIAnsureProtect.Application;
+using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Api.Caching;
 using LIAnsureProtect.Api.Errors;
 using LIAnsureProtect.Api.Observability;
@@ -17,6 +18,7 @@ using LIAnsureProtect.Modules.Claims.Infrastructure;
 using LIAnsureProtect.Modules.Claims.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Notifications.Infrastructure;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
+using LIAnsureProtect.Modules.Notifications.Infrastructure.Realtime;
 using LIAnsureProtect.Modules.Quoting.Infrastructure;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
@@ -57,7 +59,12 @@ if (builder.Environment.IsProduction()
 }
 
 builder.Services.AddPlatform(builder.Configuration);
+builder.Services.AddPostgreSqlDataSource(
+    builder.Configuration,
+    databaseConnectionString,
+    applicationName);
 builder.Services.AddNotificationsModule(databaseConnectionString, platformProfile);
+builder.Services.AddNotificationRealtime(builder.Configuration);
 builder.Services.AddQuotingModule();
 builder.Services.AddUnderwritingModule(databaseConnectionString, platformProfile);
 builder.Services.AddClaimsModule(databaseConnectionString, platformProfile);
@@ -85,6 +92,7 @@ builder.Services.AddCors(options =>
             .WithOrigins(allowedCorsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
+            .AllowCredentials()
             .WithExposedHeaders(LIAnsureProtect.Platform.Abstractions.Observability.ObservabilityNames.CorrelationIdHeaderName);
     });
 });
@@ -127,6 +135,23 @@ builder.Services
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             RoleClaimType = roleClaimType
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                // Browsers cannot set an Authorization header during the WebSocket handshake.
+                // Accept the short-lived bearer token from the query string only for this hub.
+                // Request logging records the route, not its query string.
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrWhiteSpace(accessToken)
+                    && context.HttpContext.Request.Path.StartsWithSegments("/hubs/notifications"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -252,6 +277,8 @@ app.MapHealthChecks("/api/v1/health/ready", new HealthCheckOptions
     Predicate = check => check.Tags.Contains("ready")
 });
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications")
+    .RequireAuthorization(ApplicationPolicies.ReadNotifications);
 
 
 // --------------------------------------------------------------------------------

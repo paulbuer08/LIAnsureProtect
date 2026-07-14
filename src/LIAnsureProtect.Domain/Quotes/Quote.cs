@@ -103,7 +103,9 @@ public sealed class Quote : IHasDomainEvents
         string? attestedByName = null,
         string? attestedByTitle = null,
         string? attestationWordingVersion = null,
-        int evidenceRequiredCount = 0)
+        int evidenceRequiredCount = 0,
+        string? submissionReference = null,
+        string? companyName = null)
     {
         if (submissionId == Guid.Empty)
             throw new ArgumentException("Submission id is required.", nameof(submissionId));
@@ -163,7 +165,9 @@ public sealed class Quote : IHasDomainEvents
             createdAtUtc,
             quote.Version,
             quote.Premium,
-            quote.ExpiresAtUtc));
+            quote.ExpiresAtUtc,
+            submissionReference,
+            companyName));
 
         return quote;
     }

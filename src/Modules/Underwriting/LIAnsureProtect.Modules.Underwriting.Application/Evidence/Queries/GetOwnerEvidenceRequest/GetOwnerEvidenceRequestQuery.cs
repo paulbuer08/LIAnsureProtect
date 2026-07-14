@@ -9,6 +9,7 @@ public sealed record GetOwnerEvidenceRequestQuery(Guid EvidenceRequestId)
 
 public sealed class GetOwnerEvidenceRequestQueryHandler(
     IEvidenceRequestsReader reader,
+    IEvidenceRequestRepository evidenceRequestRepository,
     IEvidenceDocumentRepository evidenceDocumentRepository,
     ICurrentUser currentUser)
     : IRequestHandler<GetOwnerEvidenceRequestQuery, QuoteEvidenceRequestResult?>
@@ -30,7 +31,10 @@ public sealed class GetOwnerEvidenceRequestQueryHandler(
         var documents = await evidenceDocumentRepository.ListForRequestsAsync(
             [item.EvidenceRequestId],
             cancellationToken);
+        var responses = await evidenceRequestRepository.ListResponsesAsync(
+            item.EvidenceRequestId,
+            cancellationToken);
 
-        return QuoteEvidenceRequestResultFactory.FromSnapshot(item, documents);
+        return QuoteEvidenceRequestResultFactory.FromSnapshot(item, documents, responses);
     }
 }

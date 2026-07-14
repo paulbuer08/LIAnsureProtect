@@ -170,8 +170,11 @@ Chapters 2/3/11 updated.
   architecture — then Ansible would own OS-level config while Terraform keeps provisioning.
 
 **Phase 2 — AWS infrastructure (Terraform, guided-manual):**
-- **M45** TF foundation (state, IAM+OIDC, VPC, KMS, Secrets Manager) · **M46** Data+storage (Aurora, ElastiCache, S3) ·
-  **M47** Compute+edge (ECR, EKS+Fargate, ALB/Ingress, CloudFront+WAF; Lambda+EventBridge+Step Functions) ·
+- **M45** TF foundation (state, IAM+OIDC, VPC, KMS, Secrets Manager) · **M46** Data+storage (Aurora,
+  ElastiCache for the SignalR backplane/cache, S3; size explicit Npgsql replica budgets and add RDS
+  Proxy only if measured connection-storm evidence justifies it) · **M47** Compute+edge (ECR,
+  EKS+Fargate, ALB/Ingress, CloudFront+WAF with tested WebSocket upgrade/idle-timeout/token-redaction;
+  Lambda+EventBridge+Step Functions) ·
   **M48** Identity (Cognito option) · **M49** CD pipeline (Actions→ECR→EKS blue/green, gated migrations, smoke tests) ·
   **M50** Security & compliance (GuardDuty/Security Hub/Config/Inspector/Macie/CloudTrail/WAF/rotation).
 

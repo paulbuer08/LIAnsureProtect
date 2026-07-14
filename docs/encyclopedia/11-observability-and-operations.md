@@ -55,6 +55,8 @@ in the AWS phase is configuration, not rework.
 | Poison messages | `outbox_messages.failed_at_utc IS NOT NULL` | Parked with error text after 3 attempts — query this when a notification "never arrived". |
 | Idempotency cleanup | Worker, hourly | Completed records >7 days deleted; log line reports the count. |
 | Startup fail-fast | `Program.cs` guards | Missing/`http://` Auth authority, missing audience, unknown platform profile, or an AWS adapter not yet implemented all refuse to boot with a clear message — misconfiguration is loud, not silent. |
+| Realtime hint failure | `NotificationOutboxMessageConsumer` warning event 4101 | Redis/SignalR is advisory. The committed inbox and outbox progress remain intact; focus/reconnect repairs the UI. Alert only on sustained failures or reconnect storms. |
+| Connection-pool budget | shared `NpgsqlDataSource` per API/Worker process | API max 40 + Worker max 20 by default. Multiply each maximum by replica count and retain migration/operations headroom below the database limit. |
 | ProblemDetails everywhere | `AddProblemDetails` + controller helpers | Errors are RFC-7807 JSON with correlation ID available on the response header. |
 
 ## Resiliency & hardening (M44)
@@ -92,8 +94,22 @@ The complete production collection, alarm, privacy, and support-ID procedure is 
 
 The cache adapter follows the same **Local ⇄ AWS profile switch** as S3 (M42) and SNS (M43): local
 in-memory vs Redis (ElastiCache), chosen by `Platform:Profile`, fail-fast on a missing Redis
-connection. Redis is developed/tested against a local Docker container (`docker compose --profile
-aws-local up -d redis`) — no AWS account.
+connection. Redis now starts in the default Compose dependency set because it also carries SignalR
+invalidation hints between the separate Worker and API processes. It contains no durable notification
+or business payload.
+
+Npgsql's built-in connection pooling is now explicit rather than accidental. One data source per host
+serves all four DbContexts, with validated minimum/maximum, acquisition/command timeouts, idle pruning,
+and maximum connection lifetime. Inspect `db.client.connections.*` Npgsql meters and PostgreSQL
+`pg_stat_activity` (the `Application Name` distinguishes API/Worker). Pool exhaustion, acquisition
+latency, active/idle counts, and database saturation are operational signals; passwords and full
+connection strings must never enter logs. RDS Proxy/PgBouncer is justified only by measured connection
+storms or replica scaling—not by slow queries.
+
+At the AWS edge, CloudFront and ALB must forward WebSocket upgrade headers, allow the configured SPA
+origin/credentials, and set an idle timeout above the expected keepalive/reconnect window. Logs must
+redact `access_token` query values. Monitor hub connections, reconnects, Redis failures, and query
+invalidation rate without adding user IDs or subject IDs as metric dimensions.
 
 ## Verifying it locally
 

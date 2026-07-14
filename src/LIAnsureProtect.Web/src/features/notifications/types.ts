@@ -19,6 +19,10 @@ export interface ListMyNotificationsResponse {
   unreadCount: number;
 }
 
+export interface UnreadNotificationCountResponse {
+  unreadCount: number;
+}
+
 export type NotificationFilters = {
   search?: string;
   type?: string;

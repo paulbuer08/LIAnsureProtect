@@ -26,7 +26,7 @@ public sealed class QuoteGeneratedNotificationMapper : IOutboxMessageMapper<Noti
             "quote",
             domainEvent.QuoteId,
             domainEvent.OccurredAtUtc,
-            new Dictionary<string, string>
+            AddSubmissionContext(new Dictionary<string, string>
             {
                 ["quoteId"] = domainEvent.QuoteId.ToString(),
                 ["submissionId"] = domainEvent.SubmissionId.ToString(),
@@ -34,7 +34,20 @@ public sealed class QuoteGeneratedNotificationMapper : IOutboxMessageMapper<Noti
                 ["version"] = domainEvent.Version.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["premium"] = domainEvent.Premium.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["expiresAtUtc"] = (domainEvent.ExpiresAtUtc ?? domainEvent.OccurredAtUtc).ToString("O")
-            });
+            }, domainEvent.SubmissionReference, domainEvent.CompanyName));
+    }
+
+    private static Dictionary<string, string> AddSubmissionContext(
+        Dictionary<string, string> attributes,
+        string? submissionReference,
+        string? companyName)
+    {
+        if (!string.IsNullOrWhiteSpace(submissionReference))
+            attributes["submissionReference"] = submissionReference;
+        if (!string.IsNullOrWhiteSpace(companyName))
+            attributes["companyName"] = companyName;
+
+        return attributes;
     }
 }
 

@@ -208,6 +208,58 @@ public sealed class NotificationInboxEndpointTests
         Assert.Equal(0, payload.RootElement.GetProperty("unreadCount").GetInt32());
     }
 
+    [Fact]
+    public async Task Notification_Hub_Negotiation_Requires_Authentication()
+    {
+        using var response = await httpClient.PostAsync(
+            "/hubs/notifications/negotiate?negotiateVersion=1",
+            content: null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Notification_Hub_Negotiation_Allows_Authorized_Notification_Reader()
+    {
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            "/hubs/notifications/negotiate?negotiateVersion=1",
+            "Customer",
+            "customer-1");
+        using var response = await httpClient.SendAsync(
+            request,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Unread_Count_Returns_Authorized_Personal_And_Role_Gated_Team_Total()
+    {
+        await SeedEntriesAsync(
+            CreateEntry("uw-1", NotificationMessageTypes.QuoteReady),
+            CreateEntry("another-user", NotificationMessageTypes.QuoteReady));
+        await SeedTeamEntryAsync(
+            NotificationAudiences.UnderwritingOperations,
+            NotificationMessageTypes.QuoteReferredForUnderwriting);
+        await SeedTeamEntryAsync(
+            NotificationAudiences.ClaimsOperations,
+            NotificationMessageTypes.ClaimFiled);
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"{EndpointPath}/unread-count",
+            "Underwriter",
+            "uw-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var payload = JsonDocument.Parse(content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, payload.RootElement.GetProperty("unreadCount").GetInt32());
+    }
+
     private async Task<TeamNotificationEntry> SeedTeamEntryAsync(string audience, string type)
     {
         using var scope = webApplicationFactory.Services.CreateScope();

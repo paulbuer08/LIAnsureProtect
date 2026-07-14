@@ -172,6 +172,10 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("evidence_request_id");
 
+                    b.Property<Guid?>("EvidenceResponseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evidence_response_id");
+
                     b.Property<string>("OriginalFileName")
                         .IsRequired()
                         .HasMaxLength(512)
@@ -250,6 +254,9 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnName("uploaded_by_user_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EvidenceResponseId")
+                        .HasDatabaseName("ix_quote_evidence_documents_response");
 
                     b.HasIndex("StorageKey")
                         .IsUnique()
@@ -350,6 +357,11 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("due_at_utc");
 
+                    b.Property<string>("OtherConcerns")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("other_concerns");
+
                     b.Property<string>("OwnerUserId")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -384,10 +396,20 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("responded_by_user_id");
 
+                    b.Property<string>("RespondentEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("respondent_email");
+
                     b.Property<string>("RespondentName")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("respondent_name");
+
+                    b.Property<string>("RespondentPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("respondent_phone");
 
                     b.Property<string>("RespondentTitle")
                         .HasMaxLength(200)
@@ -537,6 +559,90 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasDatabaseName("ix_quote_evidence_request_reviews_quote_reviewed_at_utc");
 
                     b.ToTable("quote_evidence_request_reviews", "underwriting");
+                });
+
+            modelBuilder.Entity("LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceResponse", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("EvidenceRequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evidence_request_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("OtherConcerns")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("other_concerns");
+
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<Guid>("QuoteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("quote_id");
+
+                    b.Property<DateTime>("RespondedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("responded_at_utc");
+
+                    b.Property<string>("RespondedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("responded_by_user_id");
+
+                    b.Property<string>("RespondentEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("respondent_email");
+
+                    b.Property<string>("RespondentName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("respondent_name");
+
+                    b.Property<string>("RespondentPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("respondent_phone");
+
+                    b.Property<string>("RespondentTitle")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("respondent_title");
+
+                    b.Property<string>("ResponseText")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("response_text");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submission_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId", "EvidenceRequestId")
+                        .HasDatabaseName("ix_quote_evidence_responses_owner_request");
+
+                    b.HasIndex("EvidenceRequestId", "RespondedAtUtc", "Id")
+                        .HasDatabaseName("ix_quote_evidence_responses_request_responded_at");
+
+                    b.ToTable("quote_evidence_responses", "underwriting");
                 });
 
             modelBuilder.Entity("LIAnsureProtect.Modules.Underwriting.Domain.Referrals.QuoteReferralFollowUpTask", b =>
@@ -819,12 +925,29 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                     b.ToTable("outbox_messages", "underwriting");
                 });
 
+            modelBuilder.Entity("LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents.QuoteEvidenceDocument", b =>
+                {
+                    b.HasOne("LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceResponse", null)
+                        .WithMany()
+                        .HasForeignKey("EvidenceResponseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
             modelBuilder.Entity("LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequestReview", b =>
                 {
                     b.HasOne("LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequest", null)
                         .WithMany()
                         .HasForeignKey("EvidenceRequestId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceResponse", b =>
+                {
+                    b.HasOne("LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceRequest", null)
+                        .WithMany()
+                        .HasForeignKey("EvidenceRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

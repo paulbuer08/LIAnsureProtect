@@ -13,6 +13,7 @@ import {
   createQuoteEvidenceRequest,
   declineQuoteReferral,
   followUpQuoteEvidenceRequest,
+  getQuoteEvidenceRequest,
   generateAiUnderwritingReview,
   listQuoteReferralTimeline,
   recordQuoteEvidenceReviewDecision,
@@ -265,6 +266,24 @@ export function useCreateQuoteEvidenceRequest() {
     },
     onSuccess: (_result, variables) =>
       invalidateOperationsQueries(queryClient, variables.quoteId),
+  });
+}
+
+export function useGetQuoteEvidenceRequest() {
+  const { getAccessTokenSilently } = useAuth0();
+
+  return useMutation({
+    mutationFn: async ({
+      quoteId,
+      evidenceRequestId,
+    }: {
+      quoteId: string;
+      evidenceRequestId: string;
+    }) => {
+      const accessToken = await getAccessTokenSilently();
+
+      return getQuoteEvidenceRequest(accessToken, quoteId, evidenceRequestId);
+    },
   });
 }
 

@@ -6,6 +6,7 @@ using LIAnsureProtect.Platform.Abstractions;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 namespace LIAnsureProtect.Modules.Claims.Infrastructure;
 
@@ -25,10 +26,19 @@ public static class DependencyInjection
         if (string.IsNullOrWhiteSpace(databaseConnectionString))
             throw new InvalidOperationException("Connection string 'LIAnsureProtect' is required.");
 
-        services.AddDbContext<ClaimsDbContext>(options =>
+        services.AddDbContext<ClaimsDbContext>((serviceProvider, options) =>
         {
-            options.UseNpgsql(databaseConnectionString, npgsql =>
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", ClaimsDbContext.SchemaName));
+            var dataSource = serviceProvider.GetService<NpgsqlDataSource>();
+            if (dataSource is null)
+            {
+                options.UseNpgsql(databaseConnectionString, npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", ClaimsDbContext.SchemaName));
+            }
+            else
+            {
+                options.UseNpgsql(dataSource, npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", ClaimsDbContext.SchemaName));
+            }
         });
 
         services.AddScoped<IClaimRepository, EfClaimRepository>();

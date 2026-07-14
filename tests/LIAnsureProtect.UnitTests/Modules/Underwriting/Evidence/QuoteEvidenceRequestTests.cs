@@ -64,7 +64,10 @@ public sealed class QuoteEvidenceRequestTests
             respondedByUserId: "customer-1",
             respondentName: "Jane Applicant",
             respondentTitle: "CISO",
+            respondentEmail: "jane@example.com",
+            respondentPhone: null,
             responseText: "MFA is enforced for all email and privileged accounts.",
+            otherConcerns: null,
             attachmentFileName: "mfa-attestation.pdf",
             attachmentContentType: "application/pdf",
             attachmentSizeBytes: 124_000,
@@ -98,7 +101,10 @@ public sealed class QuoteEvidenceRequestTests
             "customer-1",
             "Jane Applicant",
             "CISO",
+            "jane@example.com",
+            null,
             "MFA rollout evidence attached.",
+            null,
             "mfa-attestation.pdf",
             "application/pdf",
             124_000,
@@ -140,7 +146,10 @@ public sealed class QuoteEvidenceRequestTests
                 "customer-1",
                 "Jane Applicant",
                 "CISO",
+                "jane@example.com",
+                null,
                 "Late response.",
+                null,
                 null,
                 null,
                 null,
@@ -262,7 +271,10 @@ public sealed class QuoteEvidenceRequestTests
             "customer-1",
             "Jane Applicant",
             "CISO",
+            "jane@example.com",
+            null,
             "Supplemental response: MFA is enforced for email and all privileged accounts.",
+            null,
             null,
             null,
             null,
@@ -275,6 +287,53 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Null(request.ReviewedByUserId);
         Assert.Null(request.ReviewedAtUtc);
         Assert.Equal("Supplemental response: MFA is enforced for email and all privileged accounts.", request.ResponseText);
+    }
+
+    [Fact]
+    public void Pre_review_follow_up_adds_concerns_without_overwriting_the_original_response()
+    {
+        var request = CreateRespondedRequest();
+        var originalResponse = request.ResponseText;
+
+        request.RecordSupplementalResponse(
+            "customer-1",
+            "Jane Applicant",
+            "CISO",
+            "jane@example.com",
+            "+63 917 555 0101",
+            null,
+            "The privileged-account export will be available tomorrow.",
+            null,
+            null,
+            null,
+            new DateTime(2026, 6, 22, 13, 0, 0, DateTimeKind.Utc));
+
+        Assert.Equal(EvidenceRequestStatus.Responded, request.Status);
+        Assert.Equal(EvidenceReviewDecisionStatus.NotReviewed, request.ReviewDecision);
+        Assert.Equal(originalResponse, request.ResponseText);
+        Assert.Equal("The privileged-account export will be available tomorrow.", request.OtherConcerns);
+        Assert.Equal("+63 917 555 0101", request.RespondentPhone);
+        Assert.IsType<QuoteEvidenceRequestRespondedDomainEvent>(request.DomainEvents.Last());
+    }
+
+    [Fact]
+    public void Pre_review_follow_up_requires_meaningful_content_and_valid_contact_email()
+    {
+        var request = CreateRespondedRequest();
+
+        var emptyException = Assert.Throws<ArgumentException>(() =>
+            request.RecordSupplementalResponse(
+                "customer-1", "Jane Applicant", "CISO", "jane@example.com", null,
+                null, null, null, null, null,
+                new DateTime(2026, 6, 22, 13, 0, 0, DateTimeKind.Utc)));
+        var emailException = Assert.Throws<ArgumentException>(() =>
+            request.RecordSupplementalResponse(
+                "customer-1", "Jane Applicant", "CISO", "not-an-email", null,
+                "Additional context.", null, null, null, null,
+                new DateTime(2026, 6, 22, 13, 0, 0, DateTimeKind.Utc)));
+
+        Assert.Equal("A supplemental response requires a message, concern, or supporting document.", emptyException.Message);
+        Assert.Equal("Respondent email must be a valid email address. (Parameter 'value')", emailException.Message);
     }
 
     [Fact]
@@ -317,7 +376,10 @@ public sealed class QuoteEvidenceRequestTests
             "customer-1",
             "Jane Applicant",
             "CISO",
+            "jane@example.com",
+            null,
             "MFA rollout evidence attached.",
+            null,
             "mfa-attestation.pdf",
             "application/pdf",
             124_000,

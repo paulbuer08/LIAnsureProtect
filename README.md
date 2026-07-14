@@ -55,6 +55,18 @@ safe form cancellation, and explicit Evidence document requirements. Search alwa
 owner/team/role-authorized dataset; it is not an authorization shortcut or a global cross-context index.
 See the [implementation learnings](docs/dev/role-aware-search-navigation-and-form-safety-learnings.md).
 
+The current evidence follow-up slice treats an Evidence request as an auditable conversation rather
+than one editable response. Until Underwriting starts its review, the owner may append another
+response, concern, or document; every response and attachment stays linked in history. Automatic
+material-control requests require documentary proof, while manual requests keep an explicit
+Required/Optional/Narrative-only contract. Notifications group by company and Submission reference,
+open the exact subject, mark actionable messages read on open, and refresh the unread badge without
+loading the whole inbox or continuously polling. A payload-free SignalR hint crosses Redis only after
+the Worker commits the inbox projection; PostgreSQL remains authoritative. API and Worker also expose
+explicit shared Npgsql pool limits instead of hidden per-context defaults. See the
+[design](docs/dev/evidence-response-follow-up-and-notification-context-design.md) and
+[implementation learnings](docs/dev/evidence-response-follow-up-and-notification-context-learnings.md).
+
 - The story of every milestone: [**The Build History**](docs/build-history.md)
 - The precise current state: [Project Status](docs/project-status.md) · [Changelog](CHANGELOG.md)
 ## Local Run

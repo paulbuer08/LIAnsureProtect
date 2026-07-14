@@ -12,6 +12,8 @@ public sealed class QuoteEvidenceDocument
 
     public Guid EvidenceRequestId { get; private set; }
 
+    public Guid? EvidenceResponseId { get; private set; }
+
     public Guid QuoteId { get; private set; }
 
     public Guid SubmissionId { get; private set; }
@@ -62,7 +64,8 @@ public sealed class QuoteEvidenceDocument
         long sizeBytes,
         string storageKey,
         string uploadedByUserId,
-        DateTime uploadedAtUtc)
+        DateTime uploadedAtUtc,
+        Guid? evidenceResponseId = null)
     {
         ValidateGuid(evidenceRequestId, nameof(evidenceRequestId), "Evidence request id is required.");
         ValidateGuid(quoteId, nameof(quoteId), "Quote id is required.");
@@ -75,6 +78,7 @@ public sealed class QuoteEvidenceDocument
         {
             Id = Guid.NewGuid(),
             EvidenceRequestId = evidenceRequestId,
+            EvidenceResponseId = evidenceResponseId,
             QuoteId = quoteId,
             SubmissionId = submissionId,
             OwnerUserId = ValidateRequired(ownerUserId, nameof(ownerUserId), "Owner user id is required."),

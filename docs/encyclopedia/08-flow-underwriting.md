@@ -94,6 +94,12 @@ stateDiagram-v2
 - The owner sees due/overdue indicators and remediation guidance on their evidence page; every
   unfavorable review (`Insufficient`/`NeedsClarification`) raises
   `QuoteEvidenceRequestRemediationRequiredDomainEvent` → an action-required notification.
+- A response is an append-only fact, not an editable field. The first response creates an `Initial`
+  `QuoteEvidenceResponse`; later meaningful submissions before review create `FollowUp` rows; a
+  response after an unfavorable decision creates a `Remediation` row and resets the current review
+  to `NotReviewed` while preserving the old review row. Name, title, and valid email identify the
+  respondent; phone and `Other concerns` are optional supporting channels. Underwriters see the exact
+  response/document history through a by-id module query rather than reconstructing it from a queue.
 
 ## D. Evidence documents — upload, scan, gated download
 
@@ -125,6 +131,14 @@ ownership/role checks — file bytes are private; storage keys never leak to the
 `S3DocumentStorageService`) — **this flow diagram stays valid** because only the adapter changes,
 not the handlers. Browser-direct presigned "Valet Key" downloads are prepared for M47 (they need
 CloudFront); until then, API streaming is the default for both adapters.
+
+Automatically projected positive control assertions are material rating claims, so their Evidence
+requests are `Required` and cannot be completed without at least one file. Manual Underwriting
+requests still choose `Required`, `Optional`, or `NarrativeOnly`: an explanation may genuinely be the
+right evidence for one question, while a policy, screenshot, report, or configuration export is the
+right evidence for another. Contact data supports human verification but does not itself prove a
+control. Automated scanning checks file safety and plausibility only; the human underwriter records
+the insurance decision.
 
 ## E. The advisory AI review
 

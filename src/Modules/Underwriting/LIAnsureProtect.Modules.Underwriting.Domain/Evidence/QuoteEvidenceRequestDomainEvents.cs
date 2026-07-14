@@ -12,7 +12,9 @@ public sealed record QuoteEvidenceRequestCreatedDomainEvent(
     DateTime DueAtUtc,
     DateTime OccurredAtUtc,
     string? Title = null,
-    int QuoteVersion = 1) : IDomainEvent;
+    int QuoteVersion = 1,
+    string? SubmissionReference = null,
+    string? CompanyName = null) : IDomainEvent;
 
 public sealed record QuoteEvidenceRequestRespondedDomainEvent(
     Guid EvidenceRequestId,
@@ -23,7 +25,9 @@ public sealed record QuoteEvidenceRequestRespondedDomainEvent(
     string RespondedByUserId,
     EvidenceRequestCategory Category,
     DateTime DueAtUtc,
-    DateTime OccurredAtUtc) : IDomainEvent;
+    DateTime OccurredAtUtc,
+    string? SubmissionReference = null,
+    string? CompanyName = null) : IDomainEvent;
 
 public sealed record QuoteEvidenceRequestAcceptedDomainEvent(
     Guid EvidenceRequestId,
@@ -34,7 +38,9 @@ public sealed record QuoteEvidenceRequestAcceptedDomainEvent(
     string AcceptedByUserId,
     EvidenceRequestCategory Category,
     DateTime DueAtUtc,
-    DateTime OccurredAtUtc) : IDomainEvent;
+    DateTime OccurredAtUtc,
+    string? SubmissionReference = null,
+    string? CompanyName = null) : IDomainEvent;
 
 public sealed record QuoteEvidenceRequestCancelledDomainEvent(
     Guid EvidenceRequestId,
@@ -45,7 +51,9 @@ public sealed record QuoteEvidenceRequestCancelledDomainEvent(
     string CancelledByUserId,
     EvidenceRequestCategory Category,
     DateTime DueAtUtc,
-    DateTime OccurredAtUtc) : IDomainEvent;
+    DateTime OccurredAtUtc,
+    string? SubmissionReference = null,
+    string? CompanyName = null) : IDomainEvent;
 
 public sealed record QuoteEvidenceRequestFollowUpSentDomainEvent(
     Guid EvidenceRequestId,
@@ -56,7 +64,9 @@ public sealed record QuoteEvidenceRequestFollowUpSentDomainEvent(
     string FollowedUpByUserId,
     EvidenceRequestCategory Category,
     DateTime DueAtUtc,
-    DateTime OccurredAtUtc) : IDomainEvent;
+    DateTime OccurredAtUtc,
+    string? SubmissionReference = null,
+    string? CompanyName = null) : IDomainEvent;
 
 public sealed record QuoteEvidenceRequestRemediationRequiredDomainEvent(
     Guid EvidenceRequestId,
@@ -70,4 +80,6 @@ public sealed record QuoteEvidenceRequestRemediationRequiredDomainEvent(
     string ReviewReason,
     string RemediationGuidance,
     DateTime DueAtUtc,
-    DateTime OccurredAtUtc) : IDomainEvent;
+    DateTime OccurredAtUtc,
+    string? SubmissionReference = null,
+    string? CompanyName = null) : IDomainEvent;

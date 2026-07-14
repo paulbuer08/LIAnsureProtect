@@ -197,7 +197,9 @@ public sealed class OutboxDispatcherTests : IDisposable
             new DateTime(2026, 6, 21, 5, 0, 0, DateTimeKind.Utc),
             Version: 3,
             Premium: 12_345m,
-            ExpiresAtUtc: new DateTime(2026, 7, 21, 5, 0, 0, DateTimeKind.Utc));
+            ExpiresAtUtc: new DateTime(2026, 7, 21, 5, 0, 0, DateTimeKind.Utc),
+            SubmissionReference: "SUB-2026-A6F943AD9C874932",
+            CompanyName: "Example Company");
         var outboxMessage = OutboxMessage.FromDomainEvent(
             domainEvent,
             new DateTime(2026, 6, 21, 5, 0, 5, DateTimeKind.Utc));
@@ -222,6 +224,8 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Equal("customer-1", publishedMessage.OwnerUserId);
         Assert.Equal(outboxMessage.Id, publishedMessage.OutboxMessageId);
         Assert.Equal("3", publishedMessage.Attributes["version"]);
+        Assert.Equal("SUB-2026-A6F943AD9C874932", publishedMessage.Attributes["submissionReference"]);
+        Assert.Equal("Example Company", publishedMessage.Attributes["companyName"]);
         Assert.Equal("12345", publishedMessage.Attributes["premium"]);
         Assert.Equal("2026-07-21T05:00:00.0000000Z", publishedMessage.Attributes["expiresAtUtc"]);
         Assert.NotNull(savedMessage.ProcessedAtUtc);
@@ -320,7 +324,9 @@ public sealed class OutboxDispatcherTests : IDisposable
             new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc),
             Title: "Verify privileged-account MFA",
-            QuoteVersion: 2);
+            QuoteVersion: 2,
+            SubmissionReference: "SUB-2026-6D3F563F595C4AD6",
+            CompanyName: "Example Company");
         var outboxMessage = OutboxMessage.FromDomainEvent(
             domainEvent,
             new DateTime(2026, 6, 22, 9, 0, 5, DateTimeKind.Utc));
@@ -342,6 +348,8 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Equal("MultiFactorAuthentication", publishedMessage.Attributes["category"]);
         Assert.Equal("Verify privileged-account MFA", publishedMessage.Attributes["requestTitle"]);
         Assert.Equal("2", publishedMessage.Attributes["quoteVersion"]);
+        Assert.Equal("SUB-2026-6D3F563F595C4AD6", publishedMessage.Attributes["submissionReference"]);
+        Assert.Equal("Example Company", publishedMessage.Attributes["companyName"]);
     }
 
     [Fact]
@@ -758,7 +766,12 @@ public sealed class OutboxDispatcherTests : IDisposable
             [new SubmissionOutboxSource(dbContext)],
             [
                 new ThrowingOutboxConsumer(),
-                new NotificationOutboxMessageConsumer(CreateNotificationRegistry(), projector, publisher)
+                new NotificationOutboxMessageConsumer(
+                    CreateNotificationRegistry(),
+                    projector,
+                    publisher,
+                    new NoOpRealtimePublisher(),
+                    NullLogger<NotificationOutboxMessageConsumer>.Instance)
             ],
             NullLogger<OutboxDispatcher>.Instance);
 
@@ -785,6 +798,40 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Single(publisher.PublishedMessages);
     }
 
+    [Fact]
+    public async Task DispatchPendingMessagesAsync_Does_Not_Poison_Durable_Notification_When_Realtime_Fails()
+    {
+        var quoteEvent = new QuoteGeneratedDomainEvent(
+            Guid.Parse("7caee217-7f75-42b8-87aa-8710552e4b11"),
+            Guid.Parse("a7ac5d83-e48b-4e32-975d-96fc3f35fe7b"),
+            "customer-1",
+            QuoteStatus.Quoted,
+            new DateTime(2026, 7, 14, 10, 0, 0, DateTimeKind.Utc));
+        var outboxMessage = OutboxMessage.FromDomainEvent(
+            quoteEvent,
+            new DateTime(2026, 7, 14, 10, 0, 1, DateTimeKind.Utc));
+        await dbContext.OutboxMessages.AddAsync(
+            outboxMessage,
+            TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var publisher = new RecordingNotificationPublisher();
+        var dispatcher = CreateDispatcher(
+            publisher,
+            new ThrowingRealtimePublisher(),
+            new SubmissionOutboxSource(dbContext));
+
+        var processedCount = await dispatcher.DispatchPendingMessagesAsync(
+            TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var saved = await dbContext.OutboxMessages.SingleAsync(
+            message => message.Id == outboxMessage.Id,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(1, processedCount);
+        Assert.NotNull(saved.ProcessedAtUtc);
+        Assert.Single(publisher.PublishedMessages);
+    }
+
     public void Dispose()
     {
         dbContext.Dispose();
@@ -797,11 +844,22 @@ public sealed class OutboxDispatcherTests : IDisposable
 
     private OutboxDispatcher CreateDispatcher(INotificationPublisher publisher)
     {
-        return CreateDispatcher(publisher, new SubmissionOutboxSource(dbContext));
+        return CreateDispatcher(
+            publisher,
+            new NoOpRealtimePublisher(),
+            new SubmissionOutboxSource(dbContext));
     }
 
     private OutboxDispatcher CreateDispatcher(
         INotificationPublisher publisher,
+        params IOutboxSource[] sources)
+    {
+        return CreateDispatcher(publisher, new NoOpRealtimePublisher(), sources);
+    }
+
+    private OutboxDispatcher CreateDispatcher(
+        INotificationPublisher publisher,
+        INotificationRealtimePublisher realtimePublisher,
         params IOutboxSource[] sources)
     {
         return new OutboxDispatcher(
@@ -818,7 +876,12 @@ public sealed class OutboxDispatcherTests : IDisposable
                         new EvidenceRemediationAssuranceDecisionMapper()
                     ]),
                     quoteAssuranceDecisionProjector),
-                new NotificationOutboxMessageConsumer(CreateNotificationRegistry(), projector, publisher)
+                new NotificationOutboxMessageConsumer(
+                    CreateNotificationRegistry(),
+                    projector,
+                    publisher,
+                    realtimePublisher,
+                    NullLogger<NotificationOutboxMessageConsumer>.Instance)
             ],
             NullLogger<OutboxDispatcher>.Instance);
     }
@@ -901,5 +964,20 @@ public sealed class OutboxDispatcherTests : IDisposable
             return Task.FromResult(result
                 ?? NotificationPublishResult.Success("local-provider-message-1"));
         }
+    }
+
+    private sealed class NoOpRealtimePublisher : INotificationRealtimePublisher
+    {
+        public Task PublishChangedAsync(
+            NotificationMessage message,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class ThrowingRealtimePublisher : INotificationRealtimePublisher
+    {
+        public Task PublishChangedAsync(
+            NotificationMessage message,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Redis is temporarily unavailable.");
     }
 }

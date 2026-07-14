@@ -1,7 +1,7 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router";
 
-import { useNotifications } from "../features/notifications/hooks/useNotifications";
+import { useUnreadNotificationCount } from "../features/notifications/hooks/useNotifications";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { getUserErrorMessage } from "../lib/apiClient";
 import { auth0Config } from "../lib/auth0Config";
@@ -157,7 +157,7 @@ export function DashboardPage() {
 
   const roles = currentUserQuery.data?.roles ?? [];
   const canReadNotifications = hasAnyRole(roles, roleGroups.notifications);
-  const notificationsQuery = useNotifications({
+  const notificationsQuery = useUnreadNotificationCount({
     enabled: currentUserQuery.isSuccess && canReadNotifications,
   });
   const visibleSections = dashboardSections.filter((section) =>

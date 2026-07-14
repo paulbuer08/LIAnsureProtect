@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
+import { useSearchParams } from "react-router";
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
 
 import { getUserErrorMessage } from "../../../lib/apiClient";
@@ -17,6 +18,7 @@ function getErrorMessage(error: unknown) {
 }
 
 export function ClaimsAdjudicationPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -30,8 +32,15 @@ export function ClaimsAdjudicationPage() {
       questions === "open" ? true : questions === "none" ? false : undefined,
   });
   const { getAccessTokenSilently } = useAuth0();
-  const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
+  const selectedClaimId = searchParams.get("claimId");
   const [downloadError, setDownloadError] = useState<string>();
+
+  function selectClaim(claimId: string | null) {
+    const next = new URLSearchParams(searchParams);
+    if (claimId) next.set("claimId", claimId);
+    else next.delete("claimId");
+    setSearchParams(next, { replace: true });
+  }
 
   async function handleDownloadDocument(
     documentClaimId: string,
@@ -168,7 +177,7 @@ export function ClaimsAdjudicationPage() {
                         type="button"
                         aria-label={`Open claim ${item.claimNumber}`}
                         onClick={() =>
-                          setSelectedClaimId(
+                          selectClaim(
                             selectedClaimId === item.claimId
                               ? null
                               : item.claimId,

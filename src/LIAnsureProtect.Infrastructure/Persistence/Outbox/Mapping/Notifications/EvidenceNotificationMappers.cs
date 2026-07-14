@@ -33,7 +33,9 @@ public sealed class EvidenceRequestCreatedNotificationMapper : IOutboxMessageMap
             {
                 ["requestTitle"] = domainEvent.Title ?? domainEvent.Category.ToString(),
                 ["quoteVersion"] = domainEvent.QuoteVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
-            });
+            },
+            domainEvent.SubmissionReference,
+            domainEvent.CompanyName);
     }
 }
 
@@ -60,7 +62,9 @@ public sealed class EvidenceRequestRespondedNotificationMapper : IOutboxMessageM
             new Dictionary<string, string>
             {
                 ["respondedByUserId"] = domainEvent.RespondedByUserId
-            });
+            },
+            domainEvent.SubmissionReference,
+            domainEvent.CompanyName);
     }
 }
 
@@ -87,7 +91,9 @@ public sealed class EvidenceRequestAcceptedNotificationMapper : IOutboxMessageMa
             new Dictionary<string, string>
             {
                 ["acceptedByUserId"] = domainEvent.AcceptedByUserId
-            });
+            },
+            domainEvent.SubmissionReference,
+            domainEvent.CompanyName);
     }
 }
 
@@ -114,7 +120,9 @@ public sealed class EvidenceRequestCancelledNotificationMapper : IOutboxMessageM
             new Dictionary<string, string>
             {
                 ["cancelledByUserId"] = domainEvent.CancelledByUserId
-            });
+            },
+            domainEvent.SubmissionReference,
+            domainEvent.CompanyName);
     }
 }
 
@@ -141,7 +149,9 @@ public sealed class EvidenceRequestFollowUpSentNotificationMapper : IOutboxMessa
             new Dictionary<string, string>
             {
                 ["followedUpByUserId"] = domainEvent.FollowedUpByUserId
-            });
+            },
+            domainEvent.SubmissionReference,
+            domainEvent.CompanyName);
     }
 }
 
@@ -174,6 +184,8 @@ public sealed class EvidenceRequestRemediationRequiredNotificationMapper
                 ["reviewReason"] = domainEvent.ReviewReason,
                 ["remediationGuidance"] = domainEvent.RemediationGuidance,
                 ["actionRequired"] = "true"
-            });
+            },
+            domainEvent.SubmissionReference,
+            domainEvent.CompanyName);
     }
 }

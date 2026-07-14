@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 import { listQuoteReferrals } from "./features/underwriting/api/underwritingApi";
-import { useNotifications } from "./features/notifications/hooks/useNotifications";
+import { useUnreadNotificationCount } from "./features/notifications/hooks/useNotifications";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 
 const getAccessTokenSilently = vi.fn();
@@ -32,6 +32,7 @@ vi.mock("./features/underwriting/api/underwritingApi", () => ({
   declineQuoteReferral: vi.fn(),
   followUpQuoteEvidenceRequest: vi.fn(),
   generateAiUnderwritingReview: vi.fn(),
+  getQuoteEvidenceRequest: vi.fn(),
   getUnderwritingEvidenceDocumentDownloadUrl: (
     quoteId: string,
     evidenceRequestId: string,
@@ -49,7 +50,7 @@ vi.mock("./hooks/useCurrentUser", () => ({
 }));
 
 vi.mock("./features/notifications/hooks/useNotifications", () => ({
-  useNotifications: vi.fn(),
+  useUnreadNotificationCount: vi.fn(),
 }));
 
 function mockCurrentUser(roles: string[]) {
@@ -87,14 +88,13 @@ describe("App routes", () => {
     getAccessTokenSilently.mockResolvedValue("underwriter-token");
     vi.mocked(listQuoteReferrals).mockReset();
     mockCurrentUser(["Underwriter"]);
-    vi.mocked(useNotifications).mockReturnValue({
+    vi.mocked(useUnreadNotificationCount).mockReturnValue({
       data: {
-        notifications: [],
         unreadCount: 0,
       },
       isPending: false,
       isError: false,
-    } as unknown as ReturnType<typeof useNotifications>);
+    } as unknown as ReturnType<typeof useUnreadNotificationCount>);
   });
 
   it("registers the protected underwriting quote referrals route", async () => {

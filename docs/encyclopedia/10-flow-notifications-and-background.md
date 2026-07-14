@@ -50,6 +50,9 @@ flowchart TB
     NC --> NREG["OutboxMessageMapperRegistry&lt;NotificationMessage&gt;\n(one mapper class per event type)"]
     NREG --> PROJ["NotificationInboxProjector\n(idempotent, BEFORE publish)"]
     PROJ --> INBOX[("notifications.notification_inbox_entries\n+ team_notification_entries")]
+    INBOX --> HINT["INotificationRealtimePublisher\npayload-free hint after commit"]
+    HINT --> REDIS[("Redis SignalR backplane")]
+    REDIS --> HUB["Authenticated NotificationHub\nAPI process"]
     NREG --> PUB["INotificationPublisher\n(Local no-op, or SnsNotificationPublisher →\nSNS → SQS + DLQ under Platform:Profile=Aws)"]
 
     RC --> RREG["OutboxMessageMapperRegistry&lt;ReferralOperationEvent&gt;"]
@@ -58,6 +61,7 @@ flowchart TB
 
     INBOX --> API2["GET /api/v1/notifications\n(NotificationsController)"]
     API2 --> UI["NotificationsPage.tsx\nAll / Personal / Team tabs"]
+    HUB --> UI
 ```
 
 ## The guarantees, one by one
@@ -71,6 +75,7 @@ flowchart TB
 | **Poison messages don't jam the queue** | After 3 attempts (or a permanent failure) the row parks with `FailedAtUtc` + the error text, and dispatch moves on. |
 | **A crashing consumer can't kill the batch** | The dispatcher converts consumer exceptions into transient failures on that message only; each source's `SaveChangesAsync` is isolated; the Worker loop catches and retries transient iteration failures instead of stopping the host. |
 | **Project before publish** | The inbox entry is written *before* the publisher runs, so "the API shows it" never depends on the SNS publish succeeding. |
+| **Realtime never replaces durability** | After projection commits, the Worker sends only `NotificationsChanged` through the Redis SignalR backplane. Failure is logged and ignored for outbox success; the browser always re-reads PostgreSQL-backed HTTP queries. |
 | **Publish goes to a real bus (M43)** | Under `Platform:Profile=Aws`, `SnsNotificationPublisher` publishes a versioned JSON envelope to an SNS topic (with `type`/`audience` message attributes for subscription filters); the topic fans out to an SQS queue with a DLQ. The SNS message id is recorded on the outbox row's `ProviderMessageId`, and a transient SNS error reuses the existing retry/poison path. In-process projection is unchanged — only the outbound publish is networked. Locally, `LocalNotificationPublisher` is a no-op. |
 | **Open for extension** | New side effects = a new mapper class + registration (`OutboxMessageMapperRegistry<TOutput>`), or a whole new `IOutboxMessageConsumer` — the dispatcher is never edited (M40). |
 
@@ -93,16 +98,37 @@ Reading (`ListMyNotificationsQueryHandler`) merges personal + team entries for t
 audiences with a combined unread count; `MarkNotificationReadCommandHandler` tries personal, then
 team (gated by the caller's audiences — a customer can never mark a team entry).
 
-Frontend: `features/notifications` — `useNotifications` polls the list; mark-read invalidates the
-query. The page reads the existing server-authoritative `/api/v1/me` role result. Customer/Broker
+Frontend: `features/notifications` — `useNotifications` loads the inbox on demand, while a separate
+small query refreshes unread count; mark-read updates both caches. The page reads the existing
+server-authoritative `/api/v1/me` role result. Customer/Broker
 personal-only users see one inbox with **no tabs at all**. Underwriter, ClaimsAdjuster, and Admin keep
 **All / Personal / Team** tabs and the Team badge. If role capability changes during a session, an
 invalid/stale filter resets safely.
 
 Notification actions are subject-aware: Policy → **View policy** at `/policies/{policyId}`;
-Quote/Submission → **Open submission**; Evidence request → **Open evidence request**. Subject type is
+Quote → exact immutable Quote; Submission → **Open submission**; Evidence request → **Open evidence
+request**; personal Claim → owner Claim detail; team Claim → the exact selected Claim in the
+adjudication workbench. Subject type is
 the primary decision, with safe attributes supplying related ids. API audience filtering remains the
 security boundary; hiding tabs is role-correct UX, not authorization.
+
+The header does not poll. `GET /api/v1/notifications/unread-count` applies the same personal/team
+authorization rules and returns one number. React Query loads it with the signed-in shell. The Worker
+then sends a payload-free SignalR invalidation only after its durable projection commits; the browser
+invalidates the inbox/count queries on hint and reconnect. Focus/navigation refresh remains a safety
+net. The hub is protected by `Notifications.Read`, groups are derived from the authenticated owner and
+roles, and query-string bearer-token handling is accepted only on `/hubs/notifications`. No title,
+identifier, owner, or insurance data travels in the hub event.
+
+Safe `companyName` and `submissionReference` snapshots are captured by the originating event and
+stored with the inbox entry. The UI groups a busy owner's notifications by that stable human context,
+so four Evidence requests and one Quote-ready message from Submission A are visually separate from
+the same five messages for Submission B. No notification read performs a cross-module join.
+
+Opening an actionable notification is itself evidence of reading: the UI marks the entry read, updates
+the list/count caches optimistically, removes it immediately from an Unread-only result, and then
+follows the exact subject link. Standalone **Mark as read** controls are removed across the inbox. The
+server command remains owner/team-scoped and idempotent, so retrying that interaction is harmless.
 
 ## The Worker's second job: idempotency cleanup
 

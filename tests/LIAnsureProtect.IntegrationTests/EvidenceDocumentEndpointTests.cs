@@ -659,6 +659,7 @@ public sealed class EvidenceDocumentEndpointTests
         {
             { new StringContent("Jane Applicant"), "respondentName" },
             { new StringContent("CISO"), "respondentTitle" },
+            { new StringContent("jane.applicant@example.com"), "respondentEmail" },
             { new StringContent("MFA is enforced for all email and privileged accounts."), "responseText" }
         };
 

@@ -10,7 +10,10 @@ public sealed record RespondToQuoteEvidenceRequestCommand(
     Guid EvidenceRequestId,
     string RespondentName,
     string RespondentTitle,
-    string ResponseText,
+    string RespondentEmail,
+    string? RespondentPhone,
+    string? ResponseText,
+    string? OtherConcerns,
     string? AttachmentFileName,
     string? AttachmentContentType,
     long? AttachmentSizeBytes,
@@ -76,7 +79,26 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
         if (evidenceRequest is null)
             return null;
 
+        var isPreReviewFollowUp = evidenceRequest.Status == EvidenceRequestStatus.Responded
+            && evidenceRequest.ReviewDecision == EvidenceReviewDecisionStatus.NotReviewed;
+        var responseKind = isPreReviewFollowUp
+            ? EvidenceResponseKind.FollowUp
+            : evidenceRequest.Status == EvidenceRequestStatus.Responded
+                ? EvidenceResponseKind.Remediation
+                : EvidenceResponseKind.Initial;
+
+        if (isPreReviewFollowUp
+            && string.IsNullOrWhiteSpace(request.ResponseText)
+            && string.IsNullOrWhiteSpace(request.OtherConcerns)
+            && request.Documents.Count == 0)
+        {
+            throw new ArgumentException(
+                "A follow-up must include an additional response, other concerns, or at least one document.",
+                nameof(request));
+        }
+
         if (evidenceRequest.DocumentRequirement == EvidenceDocumentRequirement.Required
+            && !isPreReviewFollowUp
             && request.Documents.Count == 0)
         {
             throw new ArgumentException(
@@ -93,9 +115,20 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
         }
 
         var respondedAtUtc = DateTime.UtcNow;
+        var response = QuoteEvidenceResponse.Create(
+            evidenceRequest,
+            ownerUserId,
+            request.RespondentName,
+            request.RespondentTitle,
+            request.RespondentEmail,
+            request.RespondentPhone,
+            request.ResponseText,
+            request.OtherConcerns,
+            responseKind,
+            respondedAtUtc);
         var evidenceDocuments = await EvidenceDocumentUploadWorkflow.StoreAndScanDocumentsAsync(
             request.Documents,
-            EvidenceDocumentRequestFacts.FromRequest(evidenceRequest),
+            EvidenceDocumentRequestFacts.FromRequest(evidenceRequest, response.Id),
             ownerUserId,
             respondedAtUtc,
             documentStorageService,
@@ -107,19 +140,52 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
             await evidenceDocumentRepository.AddDocumentsAsync(evidenceDocuments, cancellationToken);
         }
 
-        evidenceRequest.Respond(
-            ownerUserId,
-            request.RespondentName,
-            request.RespondentTitle,
-            request.ResponseText,
-            evidenceDocuments.FirstOrDefault()?.OriginalFileName ?? request.AttachmentFileName,
-            evidenceDocuments.FirstOrDefault()?.ContentType ?? request.AttachmentContentType,
-            evidenceDocuments.FirstOrDefault()?.SizeBytes ?? request.AttachmentSizeBytes,
-            respondedAtUtc);
+        if (isPreReviewFollowUp)
+        {
+            evidenceRequest.RecordSupplementalResponse(
+                ownerUserId,
+                request.RespondentName,
+                request.RespondentTitle,
+                request.RespondentEmail,
+                request.RespondentPhone,
+                request.ResponseText,
+                request.OtherConcerns,
+                evidenceDocuments.FirstOrDefault()?.OriginalFileName ?? request.AttachmentFileName,
+                evidenceDocuments.FirstOrDefault()?.ContentType ?? request.AttachmentContentType,
+                evidenceDocuments.FirstOrDefault()?.SizeBytes ?? request.AttachmentSizeBytes,
+                respondedAtUtc);
+        }
+        else
+        {
+            evidenceRequest.Respond(
+                ownerUserId,
+                request.RespondentName,
+                request.RespondentTitle,
+                request.RespondentEmail,
+                request.RespondentPhone,
+                request.ResponseText ?? string.Empty,
+                request.OtherConcerns,
+                evidenceDocuments.FirstOrDefault()?.OriginalFileName ?? request.AttachmentFileName,
+                evidenceDocuments.FirstOrDefault()?.ContentType ?? request.AttachmentContentType,
+                evidenceDocuments.FirstOrDefault()?.SizeBytes ?? request.AttachmentSizeBytes,
+                respondedAtUtc);
+        }
+
+        await evidenceRequestRepository.AddResponseAsync(response, cancellationToken);
 
         await evidenceRequestRepository.SaveChangesAsync(cancellationToken);
 
-        return QuoteEvidenceRequestResultFactory.FromRequest(evidenceRequest, evidenceDocuments);
+        var responseHistory = await evidenceRequestRepository.ListResponsesAsync(
+            evidenceRequest.Id,
+            cancellationToken);
+        var documentHistory = await evidenceDocumentRepository.ListForRequestsAsync(
+            [evidenceRequest.Id],
+            cancellationToken);
+
+        return QuoteEvidenceRequestResultFactory.FromRequest(
+            evidenceRequest,
+            documentHistory,
+            responseHistory);
     }
 }
 
@@ -174,11 +240,8 @@ public sealed class UploadReplacementEvidenceDocumentsCommandHandler(
             await evidenceDocumentRepository.AddDocumentsAsync(replacementDocuments, cancellationToken);
         }
 
-        evidenceRequest.RecordSupplementalResponse(
+        evidenceRequest.RecordReplacementDocumentsUploaded(
             ownerUserId,
-            evidenceRequest.RespondentName ?? string.Empty,
-            evidenceRequest.RespondentTitle ?? string.Empty,
-            evidenceRequest.ResponseText ?? string.Empty,
             replacementDocuments.FirstOrDefault()?.OriginalFileName ?? evidenceRequest.AttachmentFileName,
             replacementDocuments.FirstOrDefault()?.ContentType ?? evidenceRequest.AttachmentContentType,
             replacementDocuments.FirstOrDefault()?.SizeBytes ?? evidenceRequest.AttachmentSizeBytes,
@@ -364,15 +427,19 @@ public sealed class DownloadUnderwritingEvidenceDocumentQueryHandler(
 
 internal sealed record EvidenceDocumentRequestFacts(
     Guid EvidenceRequestId,
+    Guid? EvidenceResponseId,
     Guid QuoteId,
     Guid SubmissionId,
     string OwnerUserId,
     string Category)
 {
-    public static EvidenceDocumentRequestFacts FromRequest(QuoteEvidenceRequest request)
+    public static EvidenceDocumentRequestFacts FromRequest(
+        QuoteEvidenceRequest request,
+        Guid? evidenceResponseId = null)
     {
         return new EvidenceDocumentRequestFacts(
             request.Id,
+            evidenceResponseId,
             request.QuoteId,
             request.SubmissionId,
             request.OwnerUserId,
@@ -445,7 +512,8 @@ internal static class EvidenceDocumentUploadWorkflow
                 upload.SizeBytes,
                 storedDocument.StorageKey,
                 uploadedByUserId,
-                uploadedAtUtc);
+                uploadedAtUtc,
+                evidenceRequest.EvidenceResponseId);
 
             var storedDownload = await documentStorageService.OpenReadAsync(storedDocument.StorageKey, cancellationToken)
                 ?? throw new InvalidOperationException("Stored evidence document could not be opened for security screening.");

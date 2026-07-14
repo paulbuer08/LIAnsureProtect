@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -100,8 +100,7 @@ describe("NotificationsPage", () => {
     expect(screen.getByText("1 unread")).toBeInTheDocument();
   });
 
-  it("marks a notification as read through the protected API", async () => {
-    const user = userEvent.setup();
+  it("does not expose a standalone mark-as-read control", async () => {
     vi.mocked(listMyNotifications).mockResolvedValue({
       notifications: [
         {
@@ -120,19 +119,15 @@ describe("NotificationsPage", () => {
       ],
       unreadCount: 1,
     });
-    vi.mocked(markNotificationRead).mockResolvedValue(undefined);
-
     renderNotificationsPage();
 
-    const markReadButton = await screen.findByRole("button", {
-      name: "Mark as read",
-    });
-    await user.click(markReadButton);
-
-    expect(markNotificationRead).toHaveBeenCalledWith("api-access-token", "n-1");
+    expect(await screen.findByText("Your quote is ready")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mark as read" })).not.toBeInTheDocument();
+    expect(markNotificationRead).not.toHaveBeenCalled();
   });
 
   it("links quote notifications to the exact immutable quote", async () => {
+    const user = userEvent.setup();
     vi.mocked(listMyNotifications).mockResolvedValue({
       notifications: [
         {
@@ -158,9 +153,13 @@ describe("NotificationsPage", () => {
 
     renderNotificationsPage();
 
-    expect(
-      await screen.findByRole("link", { name: "View quote" }),
-    ).toHaveAttribute("href", "/submissions/submission-456/quotes/q-1");
+    const quoteLink = await screen.findByRole("link", { name: "View quote" });
+    expect(quoteLink).toHaveAttribute("href", "/submissions/submission-456/quotes/q-1");
+    await user.click(quoteLink);
+    await waitFor(() => {
+      expect(markNotificationRead).toHaveBeenCalledWith("api-access-token", "n-1");
+    });
+    expect(screen.queryByRole("button", { name: "Mark as read" })).not.toBeInTheDocument();
   });
 
   it("shows no filter tabs for a personal-only customer", async () => {
@@ -174,7 +173,11 @@ describe("NotificationsPage", () => {
           title: "Your quote is ready",
           subjectReferenceType: "quote",
           subjectReferenceId: "q-1",
-          attributes: { submissionId: "submission-1" },
+          attributes: {
+            submissionId: "submission-1",
+            submissionReference: "SUB-2026-AAAA1111BBBB2222",
+            companyName: "Example Company",
+          },
           occurredAtUtc: "2026-06-22T10:00:00Z",
           isRead: false,
           readAtUtc: null,
@@ -200,7 +203,11 @@ describe("NotificationsPage", () => {
           title: "Your policy is bound",
           subjectReferenceType: "policy",
           subjectReferenceId: "policy-123",
-          attributes: { submissionId: "submission-1" },
+          attributes: {
+            submissionId: "submission-1",
+            submissionReference: "SUB-2026-AAAA1111BBBB2222",
+            companyName: "Example Company",
+          },
           occurredAtUtc: "2026-06-22T10:00:00Z",
           isRead: false,
           readAtUtc: null,
@@ -224,6 +231,7 @@ describe("NotificationsPage", () => {
 
     renderNotificationsPage();
 
+    expect(await screen.findByText("Example Company · SUB-2026-AAAA1111BBBB2222")).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "View policy" })).toHaveAttribute(
       "href",
       "/policies/policy-123",
@@ -231,6 +239,55 @@ describe("NotificationsPage", () => {
     expect(screen.getByRole("link", { name: "Open evidence request" })).toHaveAttribute(
       "href",
       "/evidence-requests/evidence-123",
+    );
+  });
+
+  it("deep-links personal and team claim notifications to the correct claim workspace", async () => {
+    vi.mocked(useCurrentUser).mockReturnValue({
+      data: { userId: "adjuster-1", email: null, roles: ["ClaimsAdjuster"] },
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+    } as unknown as ReturnType<typeof useCurrentUser>);
+    vi.mocked(listMyNotifications).mockResolvedValue({
+      notifications: [
+        {
+          notificationId: "claim-personal",
+          scope: "personal",
+          audience: "customer-or-broker",
+          type: "claim.information_requested",
+          title: "More claim information is needed",
+          subjectReferenceType: "claim",
+          subjectReferenceId: "claim-123",
+          attributes: { claimId: "claim-123" },
+          occurredAtUtc: "2026-07-14T09:00:00Z",
+          isRead: false,
+          readAtUtc: null,
+        },
+        {
+          notificationId: "claim-team",
+          scope: "team",
+          audience: "claims-operations",
+          type: "claim.filed",
+          title: "A claim was filed",
+          subjectReferenceType: "claim",
+          subjectReferenceId: "claim-456",
+          attributes: { claimId: "claim-456" },
+          occurredAtUtc: "2026-07-14T08:00:00Z",
+          isRead: false,
+          readAtUtc: null,
+        },
+      ],
+      unreadCount: 2,
+    });
+
+    renderNotificationsPage();
+
+    const links = await screen.findAllByRole("link", { name: "Open claim" });
+    expect(links[0]).toHaveAttribute("href", "/claims/claim-123");
+    expect(links[1]).toHaveAttribute(
+      "href",
+      "/claims/adjudication?claimId=claim-456",
     );
   });
 

@@ -7,11 +7,12 @@
 
 ## What you are about to run
 
-LIAnsureProtect has **four moving parts** locally:
+LIAnsureProtect has **five moving parts** locally:
 
 | Part | What it is | Where it runs |
 |---|---|---|
 | **PostgreSQL** (with pgvector) | The system of record — all business data | Docker container (`liansureprotect-postgres`) |
+| **Redis** | Payload-free SignalR backplane between Worker and API; optional cache adapter | Docker container (`liansureprotect-redis`) |
 | **API** (`LIAnsureProtect.Api`) | The HTTP backend the browser talks to | Your machine, `dotnet run` — <http://localhost:5223> |
 | **Worker** (`LIAnsureProtect.Worker`) | Background loop: drains the outbox (notifications, projections), cleans idempotency records | Your machine, `dotnet run` (optional but recommended) |
 | **Web** (`LIAnsureProtect.Web`) | The React UI | Your machine, `npm run dev` — <http://localhost:5173> |
@@ -21,8 +22,9 @@ LIAnsureProtect has **four moving parts** locally:
 > the **customer lobby**. You can open the front desk without the mailroom clerk — but then
 > notifications/queue projections sit in the outbox until the clerk shows up.
 
-Optional (only for AWS-adapter development): **LocalStack** (S3 + SNS + SQS emulator) and
-**Redis** — one command starts both, and nothing needs them in the default Local profile.
+Optional (only for AWS-adapter development): **LocalStack** (S3 + SNS + SQS emulator). Redis is part
+of the normal dependency set because the API and Worker are different processes and realtime badge
+hints must cross that boundary. PostgreSQL remains the notification system of record.
 
 ## Prerequisites (one-time)
 
@@ -125,7 +127,7 @@ VITE_API_BASE_URL=http://localhost:5223
 .\scripts\dev-up.ps1
 ```
 
-This resets the local Docker Postgres (fresh database each time by default), applies the EF Core
+This resets local Docker Postgres and Redis (fresh database each time by default), applies the EF Core
 migrations for **all four DbContexts** (`SubmissionDbContext`, `NotificationsDbContext`,
 `UnderwritingDbContext`, `ClaimsDbContext`), builds, and runs the API at <http://localhost:5223>.
 Keep it running.
@@ -162,7 +164,7 @@ Open <http://localhost:5173>, click **Log in**, sign in with one of your Auth0 t
 ```powershell
 Invoke-RestMethod http://localhost:5223/                     # → application/status JSON
 Invoke-RestMethod http://localhost:5223/api/v1/health/live   # → Healthy (process up)
-Invoke-RestMethod http://localhost:5223/api/v1/health/ready  # → Healthy (all 3 DB contexts reachable)
+Invoke-RestMethod http://localhost:5223/api/v1/health/ready  # → Healthy (all 4 DB contexts reachable)
 ```
 
 Every response also carries `X-Correlation-ID` plus the security headers
@@ -177,13 +179,13 @@ Every response also carries `X-Correlation-ID` plus the security headers
 Backend setup + migrations + all tests + compose validation + API smoke tests + frontend
 `npm ci`/build/lint/test. Writes a timestamped artifact under `TestResults/`.
 
-## Optional: the AWS-adapter services (LocalStack + Redis)
+## Optional: the AWS-adapter services (LocalStack)
 
-Only needed when developing/testing the `Platform:Profile=Aws` adapters (S3 documents, SNS
-notifications, Redis cache). They are **profile-scoped** so the default flow never starts them:
+LocalStack is only needed when developing/testing the `Platform:Profile=Aws` S3/SNS/SQS adapters.
+Redis already runs in the default flow for realtime hints:
 
 ```powershell
-docker compose --profile aws-local up -d      # starts localstack (S3,SNS,SQS) + redis
+docker compose --profile aws-local up -d      # starts localstack plus normal postgres/redis
 ```
 
 Then run the opt-in round-trip tests (each skipped by default):

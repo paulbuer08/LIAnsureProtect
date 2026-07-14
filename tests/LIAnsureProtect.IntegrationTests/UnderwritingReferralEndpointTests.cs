@@ -384,12 +384,55 @@ public sealed class UnderwritingReferralEndpointTests
             {
                 respondentName = "Jane Applicant",
                 respondentTitle = "CISO",
+                respondentEmail = "jane.applicant@example.com",
                 responseText = "MFA is enforced for all email and privileged accounts.",
                 attachmentFileName = "mfa-attestation.pdf",
                 attachmentContentType = "application/pdf",
                 attachmentSizeBytes = 124_000
             });
         using var respondResponse = await httpClient.SendAsync(respondRequest, TestContext.Current.CancellationToken);
+
+        using var followUpRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"/api/v1/evidence-requests/{evidenceRequestId}/respond",
+            "Customer",
+            "customer-1",
+            new
+            {
+                respondentName = "Jane Applicant",
+                respondentTitle = "CISO",
+                respondentEmail = "jane.applicant@example.com",
+                respondentPhone = "+63 917 555 0101",
+                responseText = (string?)null,
+                otherConcerns = "The privileged-account export will be available tomorrow."
+            });
+        using var followUpResponse = await httpClient.SendAsync(
+            followUpRequest,
+            TestContext.Current.CancellationToken);
+
+        using var ownerDetailRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"/api/v1/evidence-requests/{evidenceRequestId}",
+            "Customer",
+            "customer-1");
+        using var ownerDetailResponse = await httpClient.SendAsync(
+            ownerDetailRequest,
+            TestContext.Current.CancellationToken);
+        var ownerDetailContent = await ownerDetailResponse.Content.ReadAsStringAsync(
+            TestContext.Current.CancellationToken);
+        using var ownerDetailPayload = JsonDocument.Parse(ownerDetailContent);
+
+        using var underwriterDetailRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"{QueueEndpointPath}/{quote.Id}/evidence-requests/{evidenceRequestId}",
+            "Underwriter",
+            "underwriter-1");
+        using var underwriterDetailResponse = await httpClient.SendAsync(
+            underwriterDetailRequest,
+            TestContext.Current.CancellationToken);
+        var underwriterDetailContent = await underwriterDetailResponse.Content.ReadAsStringAsync(
+            TestContext.Current.CancellationToken);
+        using var underwriterDetailPayload = JsonDocument.Parse(underwriterDetailContent);
 
         using var acceptRequest = CreateAuthenticatedRequest(
             HttpMethod.Post,
@@ -418,6 +461,17 @@ public sealed class UnderwritingReferralEndpointTests
         Assert.Equal(HttpStatusCode.OK, ownerListResponse.StatusCode);
         Assert.Contains("Confirm MFA rollout", ownerListContent);
         Assert.Equal(HttpStatusCode.OK, respondResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, followUpResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, ownerDetailResponse.StatusCode);
+        Assert.Equal(2, ownerDetailPayload.RootElement.GetProperty("responses").GetArrayLength());
+        Assert.Equal(
+            "The privileged-account export will be available tomorrow.",
+            ownerDetailPayload.RootElement.GetProperty("otherConcerns").GetString());
+        Assert.Equal(HttpStatusCode.OK, underwriterDetailResponse.StatusCode);
+        Assert.Equal(2, underwriterDetailPayload.RootElement.GetProperty("responses").GetArrayLength());
+        Assert.Equal(
+            "jane.applicant@example.com",
+            underwriterDetailPayload.RootElement.GetProperty("respondentEmail").GetString());
         Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, timelineResponse.StatusCode);
         Assert.Contains("EvidenceRequestCreated", timelineContent);
@@ -440,6 +494,12 @@ public sealed class UnderwritingReferralEndpointTests
         Assert.Equal(ModuleEvidenceRequestStatus.Accepted, savedRequest.Status);
         Assert.Equal("customer-1", savedRequest.OwnerUserId);
         Assert.Equal("mfa-attestation.pdf", savedRequest.AttachmentFileName);
+        Assert.Equal(
+            2,
+            await underwritingDbContext.Set<LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceResponse>()
+                .CountAsync(
+                    response => response.EvidenceRequestId == evidenceRequestId,
+                    TestContext.Current.CancellationToken));
         Assert.Equal(LIAnsureProtect.Modules.Underwriting.Domain.Referrals.ReferralOperationStatus.WaitingForInformation, savedOperation.Status);
     }
 
@@ -461,7 +521,10 @@ public sealed class UnderwritingReferralEndpointTests
             "customer-1",
             "Jane Applicant",
             "CISO",
+            "jane@example.com",
+            null,
             "MFA is enforced for email, but privileged access scope is unclear.",
+            null,
             null,
             null,
             null,
@@ -554,7 +617,10 @@ public sealed class UnderwritingReferralEndpointTests
             "customer-1",
             "Jane Applicant",
             "CISO",
+            "jane@example.com",
+            null,
             "MFA is enforced for all email and privileged accounts.",
+            null,
             null,
             null,
             null,
@@ -681,6 +747,7 @@ public sealed class UnderwritingReferralEndpointTests
             {
                 respondentName = "Other User",
                 respondentTitle = "CISO",
+                respondentEmail = "other.user@example.com",
                 responseText = "Trying to respond to another owner's request."
             });
         using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
@@ -720,7 +787,10 @@ public sealed class UnderwritingReferralEndpointTests
             "customer-1",
             "Jane Applicant",
             "CISO",
+            "jane@example.com",
+            null,
             "The latest tabletop exercise was completed in May.",
+            null,
             null,
             null,
             null,
@@ -778,7 +848,10 @@ public sealed class UnderwritingReferralEndpointTests
             "customer-1",
             "Jane Applicant",
             "CISO",
+            "jane@example.com",
+            null,
             "The latest tabletop exercise was completed in May.",
+            null,
             null,
             null,
             null,

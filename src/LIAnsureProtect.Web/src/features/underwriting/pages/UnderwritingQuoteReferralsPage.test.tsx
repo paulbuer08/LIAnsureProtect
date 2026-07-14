@@ -42,6 +42,7 @@ vi.mock("../api/underwritingApi", () => ({
   declineQuoteReferral: vi.fn(),
   createQuoteEvidenceRequest: vi.fn(),
   generateAiUnderwritingReview: vi.fn(),
+  getQuoteEvidenceRequest: vi.fn(),
   downloadUnderwritingEvidenceDocument: vi.fn(),
   addQuoteReferralNote: vi.fn(),
   addQuoteReferralTask: vi.fn(),

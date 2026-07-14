@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useNotifications } from "../features/notifications/hooks/useNotifications";
+import { useUnreadNotificationCount } from "../features/notifications/hooks/useNotifications";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { DashboardPage } from "./DashboardPage";
 
@@ -25,7 +25,7 @@ vi.mock("../hooks/useCurrentUser", () => ({
 }));
 
 vi.mock("../features/notifications/hooks/useNotifications", () => ({
-  useNotifications: vi.fn(),
+  useUnreadNotificationCount: vi.fn(),
 }));
 
 function mockCurrentUser(roles: string[]) {
@@ -37,14 +37,13 @@ function mockCurrentUser(roles: string[]) {
 }
 
 function mockNotifications(unreadCount = 0) {
-  vi.mocked(useNotifications).mockReturnValue({
+  vi.mocked(useUnreadNotificationCount).mockReturnValue({
     data: {
-      notifications: [],
       unreadCount,
     },
     isPending: false,
     isError: false,
-  } as unknown as ReturnType<typeof useNotifications>);
+  } as unknown as ReturnType<typeof useUnreadNotificationCount>);
 }
 
 function mockCurrentUserLookupFailure() {

@@ -187,6 +187,7 @@ describe("EvidenceRequestsPage", () => {
 
     await user.type(screen.getByLabelText("Respondent name"), "Jane Applicant");
     await user.type(screen.getByLabelText("Respondent title"), "CISO");
+    await user.type(screen.getByLabelText(/Respondent email/), "jane@example.com");
     await user.type(
       screen.getByLabelText("Evidence response"),
       "MFA is enforced for all email and privileged accounts.",
@@ -200,7 +201,10 @@ describe("EvidenceRequestsPage", () => {
       {
         respondentName: "Jane Applicant",
         respondentTitle: "CISO",
+        respondentEmail: "jane@example.com",
+        respondentPhone: null,
         responseText: "MFA is enforced for all email and privileged accounts.",
+        otherConcerns: null,
         attachments: [mfaFile, edrFile],
       },
     );
@@ -539,11 +543,12 @@ describe("EvidenceRequestsPage", () => {
 
     await user.type(screen.getByLabelText("Respondent name"), "Jane Applicant");
     await user.type(screen.getByLabelText("Respondent title"), "CISO");
+    await user.type(screen.getByLabelText(/Respondent email/), "jane@example.com");
     await user.type(
       screen.getByLabelText("Evidence response"),
       "Supplemental response: MFA applies to email and privileged accounts.",
     );
-    await user.click(screen.getByRole("button", { name: "Submit supplemental evidence" }));
+    await user.click(screen.getByRole("button", { name: "Submit remediation evidence" }));
 
     expect(respondToEvidenceRequest).toHaveBeenCalledWith(
       "owner-token",
@@ -551,10 +556,114 @@ describe("EvidenceRequestsPage", () => {
       {
         respondentName: "Jane Applicant",
         respondentTitle: "CISO",
+        respondentEmail: "jane@example.com",
+        respondentPhone: null,
         responseText: "Supplemental response: MFA applies to email and privileged accounts.",
+        otherConcerns: null,
         attachments: [],
       },
     );
     expect(await screen.findByText("Evidence response saved: Responded")).toBeInTheDocument();
+  });
+
+  it("allows an auditable concern-only follow-up before underwriting review", async () => {
+    const user = userEvent.setup();
+    const respondedRequest = {
+      evidenceRequestId: "evidence-follow-up",
+      quoteId: "quote-1",
+      submissionId: "submission-1",
+      submissionReference: "SUB-2026-ABCDEF1234567890",
+      companyName: "Example Company",
+      documentRequirement: "Required" as const,
+      category: "BackupRecovery",
+      title: "Verify backup and recovery controls",
+      description: "Provide current backup evidence.",
+      dueAtUtc: "2026-07-28T09:00:00Z",
+      status: "Responded",
+      isOverdue: false,
+      daysUntilDue: 14,
+      requestedByUserId: "system-assurance-policy",
+      requestedAtUtc: "2026-07-14T09:00:00Z",
+      respondedByUserId: "customer-1",
+      respondentName: "Jane Applicant",
+      respondentTitle: "CISO",
+      respondentEmail: "jane@example.com",
+      respondentPhone: null,
+      responseText: "Backups are tested quarterly.",
+      otherConcerns: null,
+      attachmentFileName: "backup-report.pdf",
+      attachmentContentType: "application/pdf",
+      attachmentSizeBytes: 1024,
+      respondedAtUtc: "2026-07-14T10:00:00Z",
+      acceptedByUserId: null,
+      acceptedAtUtc: null,
+      cancelledByUserId: null,
+      cancelledAtUtc: null,
+      ...notReviewedEvidence,
+      reviewNotes: null,
+      updatedAtUtc: "2026-07-14T10:00:00Z",
+      documents: [],
+      responses: [
+        {
+          responseId: "response-1",
+          respondedByUserId: "customer-1",
+          respondentName: "Jane Applicant",
+          respondentTitle: "CISO",
+          respondentEmail: "jane@example.com",
+          respondentPhone: null,
+          responseText: "Backups are tested quarterly.",
+          otherConcerns: null,
+          kind: "Initial" as const,
+          respondedAtUtc: "2026-07-14T10:00:00Z",
+        },
+      ],
+    };
+    vi.mocked(getEvidenceRequest).mockResolvedValue(respondedRequest);
+    vi.mocked(respondToEvidenceRequest).mockResolvedValue({
+      ...respondedRequest,
+      respondentPhone: "+63 917 555 0101",
+      otherConcerns: "The restore-test export will be available tomorrow.",
+      responses: [
+        ...respondedRequest.responses,
+        {
+          responseId: "response-2",
+          respondedByUserId: "customer-1",
+          respondentName: "Jane Applicant",
+          respondentTitle: "CISO",
+          respondentEmail: "jane@example.com",
+          respondentPhone: "+63 917 555 0101",
+          responseText: null,
+          otherConcerns: "The restore-test export will be available tomorrow.",
+          kind: "FollowUp",
+          respondedAtUtc: "2026-07-14T11:00:00Z",
+        },
+      ],
+    });
+
+    renderEvidenceRequestsPage();
+
+    expect(await screen.findByRole("button", { name: "Send follow-up" })).toBeDisabled();
+    expect(screen.getByText(/original response remains unchanged/i)).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Respondent phone (optional)"), "+63 917 555 0101");
+    await user.type(
+      screen.getByLabelText(/Other concerns/),
+      "The restore-test export will be available tomorrow.",
+    );
+    await user.click(screen.getByRole("button", { name: "Send follow-up" }));
+
+    expect(respondToEvidenceRequest).toHaveBeenCalledWith(
+      "owner-token",
+      "evidence-follow-up",
+      {
+        respondentName: "Jane Applicant",
+        respondentTitle: "CISO",
+        respondentEmail: "jane@example.com",
+        respondentPhone: "+63 917 555 0101",
+        responseText: null,
+        otherConcerns: "The restore-test export will be available tomorrow.",
+        attachments: [],
+      },
+    );
+    expect(await screen.findByText("FollowUp response")).toBeInTheDocument();
   });
 });

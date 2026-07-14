@@ -12,6 +12,21 @@ public sealed class EfEvidenceRequestRepository(UnderwritingDbContext dbContext)
     public async Task AddReviewAsync(QuoteEvidenceRequestReview review, CancellationToken cancellationToken)
         => await dbContext.Set<QuoteEvidenceRequestReview>().AddAsync(review, cancellationToken);
 
+    public async Task AddResponseAsync(QuoteEvidenceResponse response, CancellationToken cancellationToken)
+        => await dbContext.Set<QuoteEvidenceResponse>().AddAsync(response, cancellationToken);
+
+    public async Task<IReadOnlyCollection<QuoteEvidenceResponse>> ListResponsesAsync(
+        Guid evidenceRequestId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.Set<QuoteEvidenceResponse>()
+            .AsNoTracking()
+            .Where(response => response.EvidenceRequestId == evidenceRequestId)
+            .OrderBy(response => response.RespondedAtUtc)
+            .ThenBy(response => response.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<QuoteEvidenceRequest?> GetForUnderwritingAsync(
         Guid quoteId,
         Guid evidenceRequestId,

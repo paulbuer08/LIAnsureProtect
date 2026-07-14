@@ -51,30 +51,54 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
   const { getAccessTokenSilently } = useAuth0();
   const respondToEvidenceRequest = useRespondToEvidenceRequest();
   const uploadReplacementEvidenceDocuments = useUploadReplacementEvidenceDocuments();
-  const [respondentName, setRespondentName] = useState("");
-  const [respondentTitle, setRespondentTitle] = useState("");
+  const isPreReviewResponse =
+    request.status === "Responded" && request.reviewDecision === "NotReviewed";
+  const [respondentName, setRespondentName] = useState(isPreReviewResponse ? request.respondentName ?? "" : "");
+  const [respondentTitle, setRespondentTitle] = useState(isPreReviewResponse ? request.respondentTitle ?? "" : "");
+  const [respondentEmail, setRespondentEmail] = useState(isPreReviewResponse ? request.respondentEmail ?? "" : "");
+  const [respondentPhone, setRespondentPhone] = useState(isPreReviewResponse ? request.respondentPhone ?? "" : "");
   const [responseText, setResponseText] = useState("");
+  const [otherConcerns, setOtherConcerns] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [replacementAttachments, setReplacementAttachments] = useState<File[]>([]);
   const [savedStatus, setSavedStatus] = useState<string>();
   const [savedDocuments, setSavedDocuments] = useState(request.documents ?? []);
+  const [savedResponses, setSavedResponses] = useState(request.responses ?? []);
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const documents = savedDocuments.length > 0 ? savedDocuments : request.documents ?? [];
   const needsSupplementalEvidence =
     request.reviewDecision === "Insufficient" ||
     request.reviewDecision === "NeedsClarification";
-  const canSubmitResponse = request.status === "Open" || needsSupplementalEvidence;
+  const isPreReviewFollowUp =
+    request.status === "Responded" && request.reviewDecision === "NotReviewed";
+  const canSubmitResponse =
+    request.status === "Open" || isPreReviewFollowUp || needsSupplementalEvidence;
   const canUploadReplacement = documents.some(
     (document) => document.scanStatus === "Rejected" || document.scanStatus === "Failed",
   );
 
   const [downloadError, setDownloadError] = useState<string>();
   const documentRequirement = request.documentRequirement ?? "Optional";
+  const requiresDocumentForThisResponse =
+    documentRequirement === "Required" && !isPreReviewFollowUp;
+  const hasFollowUpContent =
+    responseText.trim().length > 0 ||
+    otherConcerns.trim().length > 0 ||
+    attachments.length > 0;
+  const hasRequiredRespondentDetails =
+    respondentName.trim().length > 0 &&
+    respondentTitle.trim().length > 0 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(respondentEmail.trim());
+  const hasRequiredNarrative =
+    isPreReviewFollowUp || responseText.trim().length > 0;
 
   function discardResponseAndLeave() {
     setRespondentName("");
     setRespondentTitle("");
+    setRespondentEmail("");
+    setRespondentPhone("");
     setResponseText("");
+    setOtherConcerns("");
     setAttachments([]);
     respondToEvidenceRequest.reset();
     setShowCancelConfirmation(false);
@@ -82,7 +106,14 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
   }
 
   function cancelResponse() {
-    const hasUnsentWork = [respondentName, respondentTitle, responseText].some(
+    const hasUnsentWork = [
+      respondentName,
+      respondentTitle,
+      respondentEmail,
+      respondentPhone,
+      responseText,
+      otherConcerns,
+    ].some(
       (value) => value.trim().length > 0,
     ) || attachments.length > 0;
     if (hasUnsentWork) setShowCancelConfirmation(true);
@@ -111,13 +142,20 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
       request: {
         respondentName: respondentName.trim(),
         respondentTitle: respondentTitle.trim(),
-        responseText: responseText.trim(),
+        respondentEmail: respondentEmail.trim(),
+        respondentPhone: respondentPhone.trim() || null,
+        responseText: responseText.trim() || null,
+        otherConcerns: otherConcerns.trim() || null,
         attachments,
       },
     });
 
     setSavedStatus(result.status);
     setSavedDocuments(result.documents ?? []);
+    setSavedResponses(result.responses ?? []);
+    setResponseText("");
+    setOtherConcerns("");
+    setAttachments([]);
   }
 
   async function handleReplacementUpload(event: FormEvent<HTMLFormElement>) {
@@ -173,8 +211,9 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
       <p className="mt-4 text-sm text-slate-300">{request.description}</p>
       <p className="mt-3 rounded-md border border-sky-800 bg-sky-950/30 p-3 text-sm text-sky-100">
         Document requirement: <strong>{documentRequirement === "NarrativeOnly" ? "Written response only" : documentRequirement}</strong>.
-        {documentRequirement === "Required" && " At least one supporting file must be uploaded before this response can be submitted."}
-        {documentRequirement === "Optional" && " A document may be attached when it helps underwriting validate the response."}
+        {documentRequirement === "Required" && " The first response and any requested remediation must include at least one supporting file. You may add a later pre-review follow-up without repeating a file."}
+        {documentRequirement === "Optional" && " A document may be attached when it helps underwriting validate the response. Your named contact and written explanation support human follow-up, but neither automatically proves the control."}
+        {documentRequirement === "NarrativeOnly" && " Underwriting will evaluate the named contact and written explanation; the response is still an assertion until a reviewer validates it."}
       </p>
 
       <section className="mt-4 rounded-md border border-slate-800 bg-slate-950 p-4 text-sm">
@@ -203,6 +242,35 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
           </p>
         )}
       </section>
+
+      {savedResponses.length > 0 && (
+        <section className="mt-4 rounded-md border border-slate-800 bg-slate-950 p-4">
+          <h3 className="text-sm font-semibold text-white">Response history</h3>
+          <p className="mt-1 text-xs text-slate-400">
+            Each submitted response is retained as audit history. A follow-up adds a new entry and never replaces an earlier answer.
+          </p>
+          <ol className="mt-3 space-y-3">
+            {savedResponses.map((response) => (
+              <li key={response.responseId} className="rounded-md border border-slate-800 p-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-white">{response.kind} response</span>
+                  <time className="text-xs text-slate-400">{new Date(response.respondedAtUtc).toLocaleString()}</time>
+                </div>
+                <p className="mt-2 text-slate-300">
+                  {response.respondentName} · {response.respondentTitle} · {response.respondentEmail}
+                  {response.respondentPhone ? ` · ${response.respondentPhone}` : ""}
+                </p>
+                {response.responseText && <p className="mt-2 whitespace-pre-wrap text-slate-200">{response.responseText}</p>}
+                {response.otherConcerns && (
+                  <p className="mt-2 whitespace-pre-wrap rounded-md border border-amber-900 bg-amber-950/20 p-2 text-amber-100">
+                    <span className="font-semibold">Other concerns:</span> {response.otherConcerns}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       {savedStatus && (
         <TransientStatusMessage
@@ -235,6 +303,11 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
 
       {canSubmitResponse && (
         <form className="mt-5 space-y-4" onSubmit={handleRespond} noValidate>
+          {isPreReviewFollowUp && (
+            <p className="rounded-md border border-emerald-800 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+              Underwriting has not reviewed this request yet. You may add a message, concern, or supporting file; the original response remains unchanged.
+            </p>
+          )}
           <label className="block text-sm font-medium text-slate-200">
             Respondent name
             <input
@@ -254,19 +327,49 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
             />
           </label>
           <label className="block text-sm font-medium text-slate-200">
+            Respondent email
+            <input
+              required
+              type="email"
+              value={respondentEmail}
+              onChange={(event) => setRespondentEmail(event.target.value)}
+              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+            />
+            <span className="mt-2 block text-xs text-slate-400">Underwriting may use this address to verify the response. It is not treated as proof by itself.</span>
+          </label>
+          <label className="block text-sm font-medium text-slate-200">
+            Respondent phone (optional)
+            <input
+              type="tel"
+              value={respondentPhone}
+              onChange={(event) => setRespondentPhone(event.target.value)}
+              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+            />
+          </label>
+          <label className="block text-sm font-medium text-slate-200">
             Evidence response
             <textarea
-              required
+              required={!isPreReviewFollowUp}
               value={responseText}
               onChange={(event) => setResponseText(event.target.value)}
               className="mt-2 min-h-24 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
             />
+            {isPreReviewFollowUp && <span className="mt-2 block text-xs text-slate-400">Optional for a follow-up when you add a concern or file instead.</span>}
+          </label>
+          <label className="block text-sm font-medium text-slate-200">
+            Other concerns (optional)
+            <textarea
+              value={otherConcerns}
+              onChange={(event) => setOtherConcerns(event.target.value)}
+              className="mt-2 min-h-20 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+            />
+            <span className="mt-2 block text-xs text-slate-400">Use this for context, caveats, or questions that do not belong in the main evidence explanation.</span>
           </label>
           {documentRequirement !== "NarrativeOnly" && <label className="block text-sm font-medium text-slate-200">
             Evidence files
             <input
               aria-label="Evidence files"
-              required={documentRequirement === "Required"}
+              required={requiresDocumentForThisResponse}
               multiple
               type="file"
               accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.docx,.xlsx"
@@ -283,10 +386,20 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
-              disabled={respondToEvidenceRequest.isPending || (documentRequirement === "Required" && attachments.length === 0)}
+              disabled={
+                respondToEvidenceRequest.isPending ||
+                !hasRequiredRespondentDetails ||
+                !hasRequiredNarrative ||
+                (requiresDocumentForThisResponse && attachments.length === 0) ||
+                (isPreReviewFollowUp && !hasFollowUpContent)
+              }
               className="rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
             >
-              {needsSupplementalEvidence ? "Submit supplemental evidence" : "Submit evidence response"}
+              {isPreReviewFollowUp
+                ? "Send follow-up"
+                : needsSupplementalEvidence
+                  ? "Submit remediation evidence"
+                  : "Submit evidence response"}
             </button>
             <button type="button" onClick={cancelResponse} className="rounded-lg border border-slate-600 px-5 py-3 text-sm font-semibold text-slate-100 hover:border-slate-400">Cancel</button>
           </div>

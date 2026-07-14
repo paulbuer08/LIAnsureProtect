@@ -4,6 +4,7 @@ using LIAnsureProtect.Modules.Quoting.Application.ReferralDecisions;
 using LIAnsureProtect.Modules.Underwriting.Application.Commands.GenerateAiUnderwritingReview;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Commands.ManageEvidenceRequests;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Queries.GetUnderwritingEvidenceRequest;
 using LIAnsureProtect.Modules.Underwriting.Application.Referrals.Commands.ManageReferralOperations;
 using LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 using MediatR;
@@ -105,6 +106,23 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
         {
             return Conflict(CreateProblemDetails(StatusCodes.Status409Conflict, "Evidence request cannot be created.", exception.Message));
         }
+    }
+
+    [HttpGet("{quoteId:guid}/evidence-requests/{evidenceRequestId:guid}")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ModuleQuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleQuoteEvidenceRequestResult>> GetEvidenceRequest(
+        Guid quoteId,
+        Guid evidenceRequestId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new GetUnderwritingEvidenceRequestQuery(quoteId, evidenceRequestId),
+            cancellationToken);
+
+        return result is null ? NotFound() : Ok(result);
     }
 
     [HttpPost("{quoteId:guid}/evidence-requests/{evidenceRequestId:guid}/accept")]

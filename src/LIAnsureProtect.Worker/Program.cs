@@ -9,9 +9,11 @@ using LIAnsureProtect.Modules.Underwriting.Infrastructure;
 using LIAnsureProtect.Platform;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Worker;
+using LIAnsureProtect.Infrastructure.Persistence;
 
 
 var builder = Host.CreateApplicationBuilder(args);
+var applicationName = typeof(Program).Assembly.GetName().Name ?? "LIAnsureProtect.Worker";
 var databaseConnectionString = builder.Configuration.GetConnectionString("LIAnsureProtect");
 
 // Platform:Profile selects the Local <-> AWS adapter set (see the API host for the same pattern).
@@ -25,7 +27,12 @@ if (builder.Environment.IsProduction()
 }
 
 builder.Services.AddPlatform(builder.Configuration);
+builder.Services.AddPostgreSqlDataSource(
+    builder.Configuration,
+    databaseConnectionString,
+    applicationName);
 builder.Services.AddNotificationsModule(databaseConnectionString, platformProfile);
+builder.Services.AddNotificationRealtime(builder.Configuration);
 builder.Services.AddQuotingModule();
 builder.Services.AddUnderwritingModule(databaseConnectionString, platformProfile);
 builder.Services.AddClaimsModule(databaseConnectionString, platformProfile);
