@@ -1,4 +1,5 @@
 import { Link, useParams } from "react-router";
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { useClaimablePolicies } from "../../claims/hooks/useClaims";
@@ -12,7 +13,7 @@ export function PolicyDetailPage() {
   const canFileClaim = Boolean(policy && claimableQuery.data?.policies.some((item) => item.policyId === policy.policyId));
 
   return <main className="min-h-screen bg-slate-950 px-6 py-12 text-white"><section className="mx-auto max-w-5xl">
-    <Link to="/policies" className="text-sm font-semibold text-emerald-300">Back to policies</Link>
+    <Breadcrumbs items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Policies", to: "/policies" }, { label: policy?.policyNumber ?? "Policy detail" }]} />
     {query.isPending && <p className="mt-8">Loading policy...</p>}
     {query.isError && <p className="mt-8 rounded-lg border border-red-900 bg-red-950 p-5 text-red-200">{getUserErrorMessage(query.error, "Unable to load policy.")}</p>}
     {policy && <>

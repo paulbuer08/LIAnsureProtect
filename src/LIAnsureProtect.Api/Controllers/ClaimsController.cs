@@ -105,11 +105,26 @@ public sealed class ClaimsController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ListMyClaimsResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ListMyClaimsResult>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<ListMyClaimsResult>> List(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] string? incidentType,
+        CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new ListMyClaimsQuery(), cancellationToken);
-
-        return Ok(result);
+        try
+        {
+            var result = await sender.Send(
+                new ListMyClaimsQuery(search, status, incidentType),
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Claim filters are invalid.",
+                exception.Message));
+        }
     }
 
     [HttpGet("policy-options")]

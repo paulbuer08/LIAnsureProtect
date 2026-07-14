@@ -11,13 +11,23 @@ public sealed class EfNotificationInboxRepository(NotificationsDbContext dbConte
 
     public async Task<IReadOnlyList<NotificationInboxItemResult>> ListForRecipientAsync(
         string recipientUserId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        NotificationListFilter? filter = null)
     {
-        var entries = await dbContext.NotificationInboxEntries
+        filter ??= new NotificationListFilter(null, null, null);
+        var query = dbContext.NotificationInboxEntries
             .AsNoTracking()
-            .Where(entry => entry.RecipientUserId == recipientUserId)
+            .Where(entry => entry.RecipientUserId == recipientUserId);
+
+        if (!string.IsNullOrWhiteSpace(filter.Type))
+            query = query.Where(entry => entry.Type == filter.Type);
+        if (filter.IsUnread is not null)
+            query = filter.IsUnread.Value
+                ? query.Where(entry => entry.ReadAtUtc == null)
+                : query.Where(entry => entry.ReadAtUtc != null);
+
+        var projectedQuery = query
             .OrderByDescending(entry => entry.CreatedAtUtc)
-            .Take(MaxListSize)
             .Select(entry => new
             {
                 entry.Id,
@@ -28,8 +38,19 @@ public sealed class EfNotificationInboxRepository(NotificationsDbContext dbConte
                 entry.AttributesJson,
                 entry.OccurredAtUtc,
                 entry.ReadAtUtc
-            })
-            .ToListAsync(cancellationToken);
+            });
+
+        var entries = string.IsNullOrWhiteSpace(filter.Search)
+            ? await projectedQuery.Take(MaxListSize).ToListAsync(cancellationToken)
+            : (await projectedQuery.ToListAsync(cancellationToken))
+                .Where(entry => MatchesSearch(
+                    filter.Search,
+                    entry.Type,
+                    entry.SubjectReferenceType,
+                    entry.SubjectReferenceId,
+                    entry.AttributesJson))
+                .Take(MaxListSize)
+                .ToList();
 
         return entries
             .Select(entry =>
@@ -91,5 +112,11 @@ public sealed class EfNotificationInboxRepository(NotificationsDbContext dbConte
 
         return JsonSerializer.Deserialize<Dictionary<string, string>>(attributesJson)
             ?? new Dictionary<string, string>();
+    }
+
+    private static bool MatchesSearch(string search, params string[] values)
+    {
+        var trimmed = search.Trim();
+        return values.Any(value => value.Contains(trimmed, StringComparison.OrdinalIgnoreCase));
     }
 }

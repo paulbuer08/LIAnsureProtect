@@ -61,7 +61,7 @@ describe("ClaimsPage", () => {
     expect(
       await screen.findByText("CLM-CYB-20260401-AAAAAAAA"),
     ).toBeInTheDocument();
-    expect(screen.getByText("UnderReview")).toBeInTheDocument();
+    expect(screen.getByText("UnderReview", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText(/LIP-CYB-20260101-BBBBBBBB/)).toBeInTheDocument();
   });
 

@@ -7,6 +7,7 @@ import type {
   ListQuoteReferralsResponse,
   QuoteEvidenceRequest,
   QuoteReferralNoteRequest,
+  QuoteReferralFilters,
   QuoteReferralNoteResult,
   QuoteReferralOperationResult,
   QuoteReferralReviewRequest,
@@ -55,9 +56,16 @@ export async function downloadUnderwritingEvidenceDocument(
   );
 }
 
-export async function listQuoteReferrals(accessToken: string) {
+export async function listQuoteReferrals(
+  accessToken: string,
+  filters: QuoteReferralFilters = {},
+) {
+  const url = new URL(`${apiBaseUrl}/api/v1/underwriting/quote-referrals`);
+  for (const [name, value] of Object.entries(filters)) {
+    if (value) url.searchParams.set(name, value);
+  }
   const response = await fetch(
-    `${apiBaseUrl}/api/v1/underwriting/quote-referrals`,
+    url,
     {
       headers: authHeaders(accessToken),
     },

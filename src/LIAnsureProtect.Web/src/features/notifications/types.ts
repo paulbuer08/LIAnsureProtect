@@ -18,3 +18,10 @@ export interface ListMyNotificationsResponse {
   notifications: NotificationInboxItem[];
   unreadCount: number;
 }
+
+export type NotificationFilters = {
+  search?: string;
+  type?: string;
+  isUnread?: boolean;
+  scope?: NotificationScope;
+};

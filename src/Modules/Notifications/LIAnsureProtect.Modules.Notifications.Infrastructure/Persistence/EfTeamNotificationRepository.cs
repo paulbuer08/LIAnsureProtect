@@ -12,16 +12,29 @@ public sealed class EfTeamNotificationRepository(NotificationsDbContext dbContex
     public async Task<IReadOnlyList<NotificationInboxItemResult>> ListForAudiencesAsync(
         string recipientUserId,
         IReadOnlyCollection<string> audiences,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        NotificationListFilter? filter = null)
     {
         if (audiences.Count == 0)
             return [];
 
-        var entries = await dbContext.TeamNotificationEntries
+        filter ??= new NotificationListFilter(null, null, null);
+
+        var query = dbContext.TeamNotificationEntries
             .AsNoTracking()
-            .Where(entry => audiences.Contains(entry.Audience))
+            .Where(entry => audiences.Contains(entry.Audience));
+
+        if (!string.IsNullOrWhiteSpace(filter.Type))
+            query = query.Where(entry => entry.Type == filter.Type);
+        if (filter.IsUnread is not null)
+        {
+            query = filter.IsUnread.Value
+                ? query.Where(entry => !entry.ReadReceipts.Any(receipt => receipt.RecipientUserId == recipientUserId))
+                : query.Where(entry => entry.ReadReceipts.Any(receipt => receipt.RecipientUserId == recipientUserId));
+        }
+
+        var projectedQuery = query
             .OrderByDescending(entry => entry.CreatedAtUtc)
-            .Take(MaxListSize)
             .Select(entry => new
             {
                 entry.Id,
@@ -36,8 +49,19 @@ public sealed class EfTeamNotificationRepository(NotificationsDbContext dbContex
                     .Where(receipt => receipt.RecipientUserId == recipientUserId)
                     .Select(receipt => (DateTime?)receipt.ReadAtUtc)
                     .FirstOrDefault()
-            })
-            .ToListAsync(cancellationToken);
+            });
+
+        var entries = string.IsNullOrWhiteSpace(filter.Search)
+            ? await projectedQuery.Take(MaxListSize).ToListAsync(cancellationToken)
+            : (await projectedQuery.ToListAsync(cancellationToken))
+                .Where(entry => MatchesSearch(
+                    filter.Search,
+                    entry.Type,
+                    entry.SubjectReferenceType,
+                    entry.SubjectReferenceId,
+                    entry.AttributesJson))
+                .Take(MaxListSize)
+                .ToList();
 
         return entries
             .Select(entry =>
@@ -101,5 +125,11 @@ public sealed class EfTeamNotificationRepository(NotificationsDbContext dbContex
 
         return JsonSerializer.Deserialize<Dictionary<string, string>>(attributesJson)
             ?? new Dictionary<string, string>();
+    }
+
+    private static bool MatchesSearch(string search, params string[] values)
+    {
+        var trimmed = search.Trim();
+        return values.Any(value => value.Contains(trimmed, StringComparison.OrdinalIgnoreCase));
     }
 }

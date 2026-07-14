@@ -38,7 +38,7 @@ describe("PoliciesPage", () => {
     render(<MemoryRouter><PoliciesPage /></MemoryRouter>);
 
     expect(screen.getByText("LAP-2026-001")).toBeInTheDocument();
-    expect(screen.getByText("Active")).toBeInTheDocument();
+    expect(screen.getByText("Active", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View policy" })).toHaveAttribute("href", "/policies/policy-1");
   });
 });

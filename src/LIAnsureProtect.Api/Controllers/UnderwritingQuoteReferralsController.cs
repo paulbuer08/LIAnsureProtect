@@ -31,11 +31,28 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ListQuoteReferralsResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ListQuoteReferralsResult>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<ListQuoteReferralsResult>> List(
+        [FromQuery] string? search,
+        [FromQuery] string? riskTier,
+        [FromQuery] string? priority,
+        [FromQuery] string? assignment,
+        [FromQuery] string? evidenceState,
+        CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new ListQuoteReferralsQuery(), cancellationToken);
-
-        return Ok(result);
+        try
+        {
+            var result = await sender.Send(
+                new SearchQuoteReferralsQuery(search, riskTier, priority, assignment, evidenceState),
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Underwriting filters are invalid.",
+                exception.Message));
+        }
     }
 
     [HttpPost("{quoteId:guid}/evidence-requests")]

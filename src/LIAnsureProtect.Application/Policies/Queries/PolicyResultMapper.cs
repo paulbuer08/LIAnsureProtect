@@ -25,6 +25,7 @@ internal static class PolicyResultMapper
             policy.QuoteSubjectivitiesAtBind
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
             policy.ApplicantName,
-            policy.CompanyName);
+            policy.CompanyName,
+            policy.SubmissionReference);
     }
 }

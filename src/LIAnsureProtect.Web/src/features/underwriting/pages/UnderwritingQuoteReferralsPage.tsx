@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import type { FormEvent } from "react";
-import { Link } from "react-router";
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
 
 import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
 import { getUserErrorMessage } from "../../../lib/apiClient";
@@ -1362,7 +1362,19 @@ function ReferralCard({
 }
 
 export function UnderwritingQuoteReferralsPage() {
-  const referralsQuery = useQuoteReferrals();
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [riskTier, setRiskTier] = useState("");
+  const [priority, setPriority] = useState("");
+  const [assignment, setAssignment] = useState("");
+  const [evidenceState, setEvidenceState] = useState("");
+  const referralsQuery = useQuoteReferrals({
+    search: appliedSearch || undefined,
+    riskTier: riskTier || undefined,
+    priority: priority || undefined,
+    assignment: assignment || undefined,
+    evidenceState: evidenceState || undefined,
+  });
   const referrals = useMemo(
     () => referralsQuery.data?.quoteReferrals ?? [],
     [referralsQuery.data?.quoteReferrals],
@@ -1432,12 +1444,7 @@ export function UnderwritingQuoteReferralsPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
       <section className="mx-auto max-w-7xl">
-        <Link
-          to="/dashboard"
-          className="inline-flex text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-        >
-          Back to dashboard
-        </Link>
+        <Breadcrumbs items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Underwriting" }]} />
 
         <div className="mt-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -1466,6 +1473,15 @@ export function UnderwritingQuoteReferralsPage() {
             </select>
           </label>
         </div>
+
+        <form className="mt-6 grid gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4 md:grid-cols-5" onSubmit={(event: FormEvent) => { event.preventDefault(); setAppliedSearch(search.trim()); }}>
+          <label className="text-sm font-semibold text-slate-200">Search referrals<input className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" placeholder="Quote, submission, or owner" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <label className="text-sm font-semibold text-slate-200">Risk tier<select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={riskTier} onChange={(event) => setRiskTier(event.target.value)}><option value="">All risk tiers</option>{['Low', 'Moderate', 'High', 'Severe'].map((value) => <option key={value}>{value}</option>)}</select></label>
+          <label className="text-sm font-semibold text-slate-200">Priority<select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={priority} onChange={(event) => setPriority(event.target.value)}><option value="">All priorities</option>{['Low', 'Normal', 'High', 'Urgent'].map((value) => <option key={value}>{value}</option>)}</select></label>
+          <label className="text-sm font-semibold text-slate-200">Assignment<select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={assignment} onChange={(event) => setAssignment(event.target.value)}><option value="">Any assignment</option><option value="assigned">Assigned</option><option value="unassigned">Unassigned</option></select></label>
+          <label className="text-sm font-semibold text-slate-200">Evidence<select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={evidenceState} onChange={(event) => setEvidenceState(event.target.value)}><option value="">Any evidence state</option><option value="waiting">Waiting for information</option><option value="attention">Needs attention</option><option value="overdue">Overdue</option><option value="satisfied">Satisfied</option></select></label>
+          <div className="flex gap-3 md:col-span-5"><button type="submit" className="rounded-md bg-emerald-400 px-4 py-2 font-semibold text-slate-950">Search</button><button type="button" className="rounded-md border border-slate-600 px-4 py-2 font-semibold" onClick={() => { setSearch(""); setAppliedSearch(""); setRiskTier(""); setPriority(""); setAssignment(""); setEvidenceState(""); }}>Clear</button></div>
+        </form>
 
         {referralsQuery.isPending && (
           <p className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-300">

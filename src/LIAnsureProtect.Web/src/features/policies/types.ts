@@ -10,6 +10,7 @@ export type Policy = {
   retention: number;
   quoteId: string;
   submissionId: string;
+  submissionReference?: string;
   quoteStatusAtBind: string;
   quoteRiskTierAtBind: string;
   quoteSubjectivitiesAtBind: string[];
@@ -18,3 +19,5 @@ export type Policy = {
 };
 
 export type ListPoliciesResponse = { policies: Policy[] };
+
+export type PolicyFilters = { search?: string; contractualStatus?: string; coverageState?: string };

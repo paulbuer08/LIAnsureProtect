@@ -16,6 +16,8 @@ import type {
   ListAdjudicationQueueResponse,
   ListClaimablePoliciesResponse,
   ListMyClaimsResponse,
+  MyClaimsFilters,
+  AdjudicationQueueFilters,
   RequestInformationRequest,
   RespondToInformationRequestRequest,
   SetClaimedAmountRequest,
@@ -53,8 +55,24 @@ function idempotentJsonHeaders(accessToken: string) {
 
 // --- Claimant ---
 
-export async function listMyClaims(accessToken: string) {
-  const response = await fetch(claimsPath, {
+function appendFilters(
+  path: string,
+  filters: Record<string, string | boolean | undefined>,
+) {
+  const url = new URL(path);
+  for (const [name, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== "") {
+      url.searchParams.set(name, String(value));
+    }
+  }
+  return url.toString();
+}
+
+export async function listMyClaims(
+  accessToken: string,
+  filters: MyClaimsFilters = {},
+) {
+  const response = await fetch(appendFilters(claimsPath, filters), {
     headers: authHeaders(accessToken),
   });
 
@@ -167,8 +185,11 @@ export async function downloadOwnerClaimDocument(
 
 // --- Adjudication ---
 
-export async function listAdjudicationQueue(accessToken: string) {
-  const response = await fetch(adjudicationPath, {
+export async function listAdjudicationQueue(
+  accessToken: string,
+  filters: AdjudicationQueueFilters = {},
+) {
+  const response = await fetch(appendFilters(adjudicationPath, filters), {
     headers: authHeaders(accessToken),
   });
 

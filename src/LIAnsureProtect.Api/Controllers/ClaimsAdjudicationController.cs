@@ -37,11 +37,35 @@ public sealed class ClaimsAdjudicationController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ListClaimsForAdjudicationResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ListClaimsForAdjudicationResult>> Queue(CancellationToken cancellationToken)
+    public async Task<ActionResult<ListClaimsForAdjudicationResult>> Queue(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] string? incidentType,
+        [FromQuery] string? assignment,
+        [FromQuery] bool? hasOpenInformationRequests,
+        CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new ListClaimsForAdjudicationQuery(), cancellationToken);
-
-        return Ok(result);
+        try
+        {
+            var result = await sender.Send(
+                new ListClaimsForAdjudicationQuery(
+                    search,
+                    status,
+                    incidentType,
+                    assignment,
+                    hasOpenInformationRequests),
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Adjudication filters are invalid.",
+                Detail = exception.Message
+            });
+        }
     }
 
     [HttpGet("{claimId:guid}")]

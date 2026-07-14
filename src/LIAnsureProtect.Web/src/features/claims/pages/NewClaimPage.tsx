@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { useClaimablePolicies, useFileClaim } from "../hooks/useClaims";
@@ -79,12 +80,7 @@ export function NewClaimPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
       <section className="mx-auto max-w-3xl">
-        <Link
-          to="/claims"
-          className="inline-flex text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-        >
-          Back to my claims
-        </Link>
+        <Breadcrumbs items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Claims", to: "/claims" }, { label: "File a claim" }]} />
 
         <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-emerald-400">
           File a claim

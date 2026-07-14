@@ -56,7 +56,8 @@ public sealed class EfCorePolicyRepository(SubmissionDbContext dbContext) : IPol
                 policy.QuoteRiskTierAtBind,
                 policy.QuoteSubjectivitiesAtBind,
                 submission.ApplicantName,
-                submission.CompanyName
+                submission.CompanyName,
+                submission.Reference
             })
             .ToListAsync(cancellationToken);
 
@@ -75,7 +76,8 @@ public sealed class EfCorePolicyRepository(SubmissionDbContext dbContext) : IPol
             policy.QuoteRiskTierAtBind,
             policy.QuoteSubjectivitiesAtBind,
             policy.ApplicantName,
-            policy.CompanyName)).ToList();
+            policy.CompanyName,
+            policy.Reference)).ToList();
     }
 
     public async Task<PolicyReadModel?> GetOwnedAsync(
@@ -106,7 +108,8 @@ public sealed class EfCorePolicyRepository(SubmissionDbContext dbContext) : IPol
                 policy.QuoteRiskTierAtBind,
                 policy.QuoteSubjectivitiesAtBind,
                 submission.ApplicantName,
-                submission.CompanyName
+                submission.CompanyName,
+                submission.Reference
             }).SingleOrDefaultAsync(cancellationToken);
 
         return policyRow is null ? null : new PolicyReadModel(
@@ -124,6 +127,7 @@ public sealed class EfCorePolicyRepository(SubmissionDbContext dbContext) : IPol
             policyRow.QuoteRiskTierAtBind,
             policyRow.QuoteSubjectivitiesAtBind,
             policyRow.ApplicantName,
-            policyRow.CompanyName);
+            policyRow.CompanyName,
+            policyRow.Reference);
     }
 }

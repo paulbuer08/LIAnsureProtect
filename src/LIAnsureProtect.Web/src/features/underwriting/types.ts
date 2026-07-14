@@ -21,6 +21,14 @@ export type ListQuoteReferralsResponse = {
   quoteReferrals: QuoteReferral[];
 };
 
+export type QuoteReferralFilters = {
+  search?: string;
+  riskTier?: string;
+  priority?: string;
+  assignment?: string;
+  evidenceState?: string;
+};
+
 export type QuoteReferralOperationsSummary = {
   assignedUnderwriterUserId: string | null;
   priority: string;

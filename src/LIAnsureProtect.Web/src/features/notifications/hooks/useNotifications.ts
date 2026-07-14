@@ -5,19 +5,23 @@ import {
   listMyNotifications,
   markNotificationRead,
 } from "../api/notificationsApi";
+import type { NotificationFilters } from "../types";
 
 export const notificationsQueryKey = ["notifications"];
 
-export function useNotifications(options?: { enabled?: boolean }) {
+export function useNotifications(options?: {
+  enabled?: boolean;
+  filters?: NotificationFilters;
+}) {
   const { getAccessTokenSilently } = useAuth0();
 
   return useQuery({
-    queryKey: notificationsQueryKey,
+    queryKey: [...notificationsQueryKey, options?.filters ?? {}],
     enabled: options?.enabled ?? true,
     queryFn: async () => {
       const accessToken = await getAccessTokenSilently();
 
-      return listMyNotifications(accessToken);
+      return listMyNotifications(accessToken, options?.filters);
     },
   });
 }
