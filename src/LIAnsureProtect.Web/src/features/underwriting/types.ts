@@ -121,7 +121,10 @@ export type QuoteEvidenceRequest = {
   respondedByUserId: string | null;
   respondentName: string | null;
   respondentTitle: string | null;
+  respondentEmail?: string | null;
+  respondentPhone?: string | null;
   responseText: string | null;
+  otherConcerns?: string | null;
   attachmentFileName: string | null;
   attachmentContentType: string | null;
   attachmentSizeBytes: number | null;
@@ -138,10 +141,25 @@ export type QuoteEvidenceRequest = {
   reviewNotes: string | null;
   updatedAtUtc: string;
   documents?: QuoteEvidenceDocument[];
+  responses?: QuoteEvidenceResponse[];
+};
+
+export type QuoteEvidenceResponse = {
+  responseId: string;
+  respondedByUserId: string;
+  respondentName: string;
+  respondentTitle: string;
+  respondentEmail: string;
+  respondentPhone: string | null;
+  responseText: string | null;
+  otherConcerns: string | null;
+  kind: "Initial" | "FollowUp" | "Remediation";
+  respondedAtUtc: string;
 };
 
 export type QuoteEvidenceDocument = {
   documentId: string;
+  evidenceResponseId?: string | null;
   originalFileName: string;
   contentType: string;
   sizeBytes: number;

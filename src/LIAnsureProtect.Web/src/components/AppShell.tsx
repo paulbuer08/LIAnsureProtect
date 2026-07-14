@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link, NavLink } from "react-router";
 
-import { useNotifications } from "../features/notifications/hooks/useNotifications";
+import { useUnreadNotificationCount } from "../features/notifications/hooks/useNotifications";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import {
   getNotificationScopeLabel,
@@ -118,7 +118,7 @@ export function AppShell({ children }: AppShellProps) {
 
   const roles = currentUserQuery.data?.roles ?? [];
   const canReadNotifications = hasAnyRole(roles, roleGroups.notifications);
-  const notificationsQuery = useNotifications({
+  const notificationsQuery = useUnreadNotificationCount({
     enabled: currentUserQuery.isSuccess && canReadNotifications,
   });
   const visibleNavItems = navItems.filter(

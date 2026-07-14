@@ -1,29 +1,24 @@
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
-using LIAnsureProtect.Platform.Abstractions.Security;
 using MediatR;
 
-namespace LIAnsureProtect.Modules.Underwriting.Application.Evidence.Queries.GetOwnerEvidenceRequest;
+namespace LIAnsureProtect.Modules.Underwriting.Application.Evidence.Queries.GetUnderwritingEvidenceRequest;
 
-public sealed record GetOwnerEvidenceRequestQuery(Guid EvidenceRequestId)
+public sealed record GetUnderwritingEvidenceRequestQuery(Guid QuoteId, Guid EvidenceRequestId)
     : IRequest<QuoteEvidenceRequestResult?>;
 
-public sealed class GetOwnerEvidenceRequestQueryHandler(
+public sealed class GetUnderwritingEvidenceRequestQueryHandler(
     IEvidenceRequestsReader reader,
     IEvidenceRequestRepository evidenceRequestRepository,
-    IEvidenceDocumentRepository evidenceDocumentRepository,
-    ICurrentUser currentUser)
-    : IRequestHandler<GetOwnerEvidenceRequestQuery, QuoteEvidenceRequestResult?>
+    IEvidenceDocumentRepository evidenceDocumentRepository)
+    : IRequestHandler<GetUnderwritingEvidenceRequestQuery, QuoteEvidenceRequestResult?>
 {
     public async Task<QuoteEvidenceRequestResult?> Handle(
-        GetOwnerEvidenceRequestQuery request,
+        GetUnderwritingEvidenceRequestQuery request,
         CancellationToken cancellationToken)
     {
-        var ownerUserId = CurrentEvidenceUser.GetRequiredUserId(
-            currentUser,
-            "An authenticated owner user id is required to view an evidence request.");
-        var item = await reader.GetOwnerRequestAsync(
+        var item = await reader.GetUnderwritingRequestAsync(
+            request.QuoteId,
             request.EvidenceRequestId,
-            ownerUserId,
             cancellationToken);
         if (item is null)
             return null;

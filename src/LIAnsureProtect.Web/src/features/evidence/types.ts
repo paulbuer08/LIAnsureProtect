@@ -42,7 +42,10 @@ export type EvidenceRequestFilters = {
 export type RespondToEvidenceRequest = {
   respondentName: string;
   respondentTitle: string;
-  responseText: string;
+  respondentEmail: string;
+  respondentPhone?: string | null;
+  responseText?: string | null;
+  otherConcerns?: string | null;
   attachments?: File[];
   attachmentFileName?: string | null;
   attachmentContentType?: string | null;

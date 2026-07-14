@@ -73,15 +73,20 @@ pages and Submission detail show Submission, Quote, and Policy state side by sid
    implemented MFA or mature backups) normally produce **Provisional — evidence required**. This is
    intentional: an answer can influence rating before it has been independently verified.
 8. Run the Worker and open `/evidence-requests` → ✅ category-specific requests arrive through the
-   outbox. Upload a relevant clean text/PDF/image file. Malware status and advisory plausibility are
-   separate; only an underwriter can mark the evidence Satisfied.
+   outbox. Automatically generated material-control requests say **Required**. Enter respondent
+   name, title, valid email, optional phone, an Evidence response and/or Other concerns, then upload
+   a relevant clean text/PDF/image file. Malware status and advisory plausibility are separate; only
+   an underwriter can mark the evidence Satisfied.
 9. As Uma Underwriter, review every automatically requested category. ✅ Satisfied decisions advance
    the quote's assurance count; Insufficient/Needs clarification keeps acceptance blocked.
 10. Return as Casey and refresh. ✅ Once all requirements are satisfied, assurance is **Verified** and
     **Accept quote** becomes available. Enter acceptor name/title and acknowledge subjectivities.
 11. **Bind policy** → ✅ a policy appears with a policy number and bound timestamps.
-12. Open `/notifications` → ✅ quote-ready / evidence / accepted / policy-bound notifications with unread
-   badges; mark one read and see the count drop. (Worker must be running — see the run guide.)
+12. Open `/notifications` → ✅ quote-ready / evidence / accepted / policy-bound notifications are
+   grouped by company + Submission reference. Open an actionable item and return: it is now Read and
+   the badge drops without a separate click. There are no standalone `Mark as read` buttons. New
+   projected items become visible when Notifications is opened, the window regains focus, or another
+   meaningful query invalidation occurs; there is no continuous badge timer. (Worker must be running.)
 
 ### Reassessment check
 
@@ -114,24 +119,31 @@ This is the richest flow; it exercises the whole Underwriting module.
 
 **Part C — Persona: Casey Customer**
 8. `/evidence-requests` → ✅ the request is listed with its due date.
-9. **Respond**: respondent `Jane Applicant`, title `CISO`, response text, and attach 1–5 small
-   files (PDF/PNG/TXT…, ≤10 MB each). → ✅ documents show **scan status**; clean files become
-   downloadable. Try a 6th file or an unsupported type — expect a clear validation error.
-10. The local scanner deterministically flags files whose name contains an "infected" marker
+9. **Respond**: respondent `Jane Applicant`, title `CISO`, email `jane.applicant@example.com`,
+   optional phone, response text, optional **Other concerns**, and attach 1–5 small files
+   (PDF/PNG/TXT…, ≤10 MB each). → ✅ documents show **scan status**; clean files become downloadable.
+   A Required request cannot be submitted without a file. Try a 6th file or unsupported type — expect
+   a clear validation error.
+10. Before Uma reviews it, reopen the same `Responded` / `NotReviewed` request and add a concern,
+    explanation, or another file. → ✅ a new dated history entry appears and the original response is
+    unchanged. A blank follow-up is rejected. This is an append-only conversation, not an edit.
+11. The local scanner deterministically flags files whose name contains an "infected" marker
     (e.g. `eicar` in the filename) — upload one to see **Rejected**, then use
     **upload replacement** to supersede it. Rejected files stay visible for audit but can never
     be downloaded.
 
 **Part D — Persona: Uma Underwriter**
-11. Back in the workbench: ✅ evidence shows as responded; download a clean document; **accept**
+12. Back in the workbench, use **Load evidence request**: ✅ exact respondent contact, response
+    history, and linked documents appear. Download a clean document; **accept**
     the evidence or record a review decision (`Satisfied` / `Insufficient` / `NeedsClarification`
     with reason). `Insufficient` sends the owner a remediation notification.
-12. **Approve / Decline / Adjust** the referral (Adjust changes premium/retention with a reason).
+13. **Approve / Decline / Adjust** the referral (Adjust changes premium/retention with a reason).
     → ✅ the queue row leaves the pending list; the decision + audit trail are recorded.
 
 **Part E — Persona: Casey Customer**
-13. If approved/adjusted: accept the quote and bind, as in Scenario 1.
-14. `/notifications` → ✅ the evidence and decision notifications arrived.
+14. If approved/adjusted: accept the quote and bind, as in Scenario 1.
+15. `/notifications` → ✅ the evidence and decision notifications arrived under the correct company
+    and Submission-reference group, even when the owner has several concurrent submissions.
 
 ## Scenario 3 — Authorization boundaries (prove the fences hold)
 

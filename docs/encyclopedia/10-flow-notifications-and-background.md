@@ -93,8 +93,9 @@ Reading (`ListMyNotificationsQueryHandler`) merges personal + team entries for t
 audiences with a combined unread count; `MarkNotificationReadCommandHandler` tries personal, then
 team (gated by the caller's audiences — a customer can never mark a team entry).
 
-Frontend: `features/notifications` — `useNotifications` polls the list; mark-read invalidates the
-query. The page reads the existing server-authoritative `/api/v1/me` role result. Customer/Broker
+Frontend: `features/notifications` — `useNotifications` loads the inbox on demand, while a separate
+small query refreshes unread count; mark-read updates both caches. The page reads the existing
+server-authoritative `/api/v1/me` role result. Customer/Broker
 personal-only users see one inbox with **no tabs at all**. Underwriter, ClaimsAdjuster, and Admin keep
 **All / Personal / Team** tabs and the Team badge. If role capability changes during a session, an
 invalid/stale filter resets safely.
@@ -103,6 +104,22 @@ Notification actions are subject-aware: Policy → **View policy** at `/policies
 Quote/Submission → **Open submission**; Evidence request → **Open evidence request**. Subject type is
 the primary decision, with safe attributes supplying related ids. API audience filtering remains the
 security boundary; hiding tabs is role-correct UX, not authorization.
+
+The header does not poll the full inbox. `GET /api/v1/notifications/unread-count` applies the same
+personal/team authorization rules and returns one number. React Query loads it with the signed-in
+shell and refreshes it after meaningful cache invalidation, Notifications navigation, and window
+focus. There is no continuous timer. The Worker still has to move a durable outbox event into the
+Notifications module before any read can see it; that is expected eventual consistency, not lost state.
+
+Safe `companyName` and `submissionReference` snapshots are captured by the originating event and
+stored with the inbox entry. The UI groups a busy owner's notifications by that stable human context,
+so four Evidence requests and one Quote-ready message from Submission A are visually separate from
+the same five messages for Submission B. No notification read performs a cross-module join.
+
+Opening an actionable notification is itself evidence of reading: the UI marks the entry read, updates
+the list/count caches optimistically, removes it immediately from an Unread-only result, and then
+follows the exact subject link. Standalone **Mark as read** controls are removed across the inbox. The
+server command remains owner/team-scoped and idempotent, so retrying that interaction is harmless.
 
 ## The Worker's second job: idempotency cleanup
 

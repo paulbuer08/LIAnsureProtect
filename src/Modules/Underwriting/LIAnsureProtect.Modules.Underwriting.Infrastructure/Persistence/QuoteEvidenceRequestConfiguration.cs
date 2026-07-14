@@ -95,8 +95,20 @@ public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration
             .HasColumnName("respondent_title")
             .HasMaxLength(200);
 
+        builder.Property(request => request.RespondentEmail)
+            .HasColumnName("respondent_email")
+            .HasMaxLength(320);
+
+        builder.Property(request => request.RespondentPhone)
+            .HasColumnName("respondent_phone")
+            .HasMaxLength(50);
+
         builder.Property(request => request.ResponseText)
             .HasColumnName("response_text")
+            .HasMaxLength(4000);
+
+        builder.Property(request => request.OtherConcerns)
+            .HasColumnName("other_concerns")
             .HasMaxLength(4000);
 
         builder.Property(request => request.AttachmentFileName)

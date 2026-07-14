@@ -1,4 +1,5 @@
 using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
+using LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -19,6 +20,9 @@ public sealed class QuoteEvidenceDocumentConfiguration : IEntityTypeConfiguratio
         builder.Property(document => document.EvidenceRequestId)
             .HasColumnName("evidence_request_id")
             .IsRequired();
+
+        builder.Property(document => document.EvidenceResponseId)
+            .HasColumnName("evidence_response_id");
 
         builder.Property(document => document.QuoteId)
             .HasColumnName("quote_id")
@@ -124,6 +128,14 @@ public sealed class QuoteEvidenceDocumentConfiguration : IEntityTypeConfiguratio
                 document.EvidenceRequestId
             })
             .HasDatabaseName("ix_quote_evidence_documents_owner_request");
+
+        builder.HasIndex(document => document.EvidenceResponseId)
+            .HasDatabaseName("ix_quote_evidence_documents_response");
+
+        builder.HasOne<QuoteEvidenceResponse>()
+            .WithMany()
+            .HasForeignKey(document => document.EvidenceResponseId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasIndex(document => document.StorageKey)
             .IsUnique()

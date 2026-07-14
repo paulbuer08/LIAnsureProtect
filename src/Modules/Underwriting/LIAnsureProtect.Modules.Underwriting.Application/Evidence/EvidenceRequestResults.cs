@@ -42,7 +42,10 @@ public sealed record QuoteEvidenceRequestResult(
     string? RespondedByUserId,
     string? RespondentName,
     string? RespondentTitle,
+    string? RespondentEmail,
+    string? RespondentPhone,
     string? ResponseText,
+    string? OtherConcerns,
     string? AttachmentFileName,
     string? AttachmentContentType,
     long? AttachmentSizeBytes,
@@ -61,10 +64,24 @@ public sealed record QuoteEvidenceRequestResult(
     IReadOnlyCollection<QuoteEvidenceDocumentResult> Documents,
     string SubmissionReference = "",
     string CompanyName = "",
-    string DocumentRequirement = "Required");
+    string DocumentRequirement = "Required",
+    IReadOnlyCollection<QuoteEvidenceResponseResult>? Responses = null);
+
+public sealed record QuoteEvidenceResponseResult(
+    Guid ResponseId,
+    string RespondedByUserId,
+    string RespondentName,
+    string RespondentTitle,
+    string RespondentEmail,
+    string? RespondentPhone,
+    string? ResponseText,
+    string? OtherConcerns,
+    string Kind,
+    DateTime RespondedAtUtc);
 
 public sealed record QuoteEvidenceDocumentResult(
     Guid DocumentId,
+    Guid? EvidenceResponseId,
     string OriginalFileName,
     string ContentType,
     long SizeBytes,
@@ -86,7 +103,8 @@ internal static class QuoteEvidenceRequestResultFactory
 {
     public static QuoteEvidenceRequestResult FromSnapshot(
         EvidenceRequestSnapshot item,
-        IReadOnlyCollection<QuoteEvidenceDocument>? documents = null)
+        IReadOnlyCollection<QuoteEvidenceDocument>? documents = null,
+        IReadOnlyCollection<QuoteEvidenceResponse>? responses = null)
     {
         return new QuoteEvidenceRequestResult(
             item.EvidenceRequestId,
@@ -104,7 +122,10 @@ internal static class QuoteEvidenceRequestResultFactory
             item.RespondedByUserId,
             item.RespondentName,
             item.RespondentTitle,
+            item.RespondentEmail,
+            item.RespondentPhone,
             item.ResponseText,
+            item.OtherConcerns,
             item.AttachmentFileName,
             item.AttachmentContentType,
             item.AttachmentSizeBytes,
@@ -123,12 +144,14 @@ internal static class QuoteEvidenceRequestResultFactory
             (documents ?? []).OrderBy(document => document.UploadedAtUtc).Select(FromDocument).ToList(),
             item.SubmissionReference,
             item.CompanyName,
-            item.DocumentRequirement);
+            item.DocumentRequirement,
+            (responses ?? []).OrderBy(response => response.RespondedAtUtc).ThenBy(response => response.Id).Select(FromResponse).ToList());
     }
 
     public static QuoteEvidenceRequestResult FromRequest(
         QuoteEvidenceRequest request,
-        IReadOnlyCollection<QuoteEvidenceDocument>? documents = null)
+        IReadOnlyCollection<QuoteEvidenceDocument>? documents = null,
+        IReadOnlyCollection<QuoteEvidenceResponse>? responses = null)
     {
         return new QuoteEvidenceRequestResult(
             request.Id,
@@ -146,7 +169,10 @@ internal static class QuoteEvidenceRequestResultFactory
             request.RespondedByUserId,
             request.RespondentName,
             request.RespondentTitle,
+            request.RespondentEmail,
+            request.RespondentPhone,
             request.ResponseText,
+            request.OtherConcerns,
             request.AttachmentFileName,
             request.AttachmentContentType,
             request.AttachmentSizeBytes,
@@ -168,13 +194,15 @@ internal static class QuoteEvidenceRequestResultFactory
                 .ToList(),
             request.SubmissionReference,
             request.CompanyName,
-            request.DocumentRequirement.ToString());
+            request.DocumentRequirement.ToString(),
+            (responses ?? []).OrderBy(response => response.RespondedAtUtc).ThenBy(response => response.Id).Select(FromResponse).ToList());
     }
 
     private static QuoteEvidenceDocumentResult FromDocument(QuoteEvidenceDocument document)
     {
         return new QuoteEvidenceDocumentResult(
             document.Id,
+            document.EvidenceResponseId,
             document.OriginalFileName,
             document.ContentType,
             document.SizeBytes,
@@ -191,6 +219,21 @@ internal static class QuoteEvidenceRequestResultFactory
             document.PlausibilityStatus,
             document.ClaimConsistencyStatus,
             DeserializeFindings(document.AdvisoryFindingsJson));
+    }
+
+    private static QuoteEvidenceResponseResult FromResponse(QuoteEvidenceResponse response)
+    {
+        return new QuoteEvidenceResponseResult(
+            response.Id,
+            response.RespondedByUserId,
+            response.RespondentName,
+            response.RespondentTitle,
+            response.RespondentEmail,
+            response.RespondentPhone,
+            response.ResponseText,
+            response.OtherConcerns,
+            response.Kind.ToString(),
+            response.RespondedAtUtc);
     }
 
     private static string[] DeserializeFindings(string value)

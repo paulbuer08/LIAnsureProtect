@@ -237,6 +237,24 @@ The command handler enforces the contract, while React only mirrors it for early
 reference and company name are copied as read/display snapshots across the existing port; Underwriting
 does not take ownership of the Submission aggregate.
 
+Evidence responses are also append-only. `QuoteEvidenceRequest` keeps the current workflow decision,
+while each owner submission creates a `QuoteEvidenceResponse` audit row containing response kind,
+respondent name/title/email, optional phone, narrative, optional `Other concerns`, and timestamp.
+Documents point to the response that introduced them. A `Responded` request remains supplementable
+only while the current review is `NotReviewed`; once Underwriting records a decision, the existing
+remediation state machine determines whether another owner response is allowed. This avoids silently
+editing what an underwriter may already have relied upon.
+
+Notification list and badge reads deliberately have different costs. The inbox query returns the
+authorized, filterable messages; `GET /api/v1/notifications/unread-count` returns only the authorized
+count. The SPA loads that small endpoint with the signed-in shell and refreshes it after meaningful
+cache invalidation, Notifications navigation, and window focus; it does not run a continuous timer.
+Because outbox projection is asynchronous, the badge is eventually consistent: after a business
+action the Worker must first project its notification. Safe company and Submission-reference
+snapshots travel through events/outbox into Notifications, so grouping never performs a read-time
+cross-context join. Opening an actionable notification marks it read before navigating to its exact
+Evidence/Quote/Submission/Policy subject. Standalone manual read controls are deliberately absent.
+
 ## Application Use Case Pattern
 
 Milestone 4 - Application Use Case Foundation introduced practical CQRS with MediatR and FluentValidation.

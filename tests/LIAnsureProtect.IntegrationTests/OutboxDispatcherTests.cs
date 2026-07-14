@@ -197,7 +197,9 @@ public sealed class OutboxDispatcherTests : IDisposable
             new DateTime(2026, 6, 21, 5, 0, 0, DateTimeKind.Utc),
             Version: 3,
             Premium: 12_345m,
-            ExpiresAtUtc: new DateTime(2026, 7, 21, 5, 0, 0, DateTimeKind.Utc));
+            ExpiresAtUtc: new DateTime(2026, 7, 21, 5, 0, 0, DateTimeKind.Utc),
+            SubmissionReference: "SUB-2026-A6F943AD9C874932",
+            CompanyName: "Example Company");
         var outboxMessage = OutboxMessage.FromDomainEvent(
             domainEvent,
             new DateTime(2026, 6, 21, 5, 0, 5, DateTimeKind.Utc));
@@ -222,6 +224,8 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Equal("customer-1", publishedMessage.OwnerUserId);
         Assert.Equal(outboxMessage.Id, publishedMessage.OutboxMessageId);
         Assert.Equal("3", publishedMessage.Attributes["version"]);
+        Assert.Equal("SUB-2026-A6F943AD9C874932", publishedMessage.Attributes["submissionReference"]);
+        Assert.Equal("Example Company", publishedMessage.Attributes["companyName"]);
         Assert.Equal("12345", publishedMessage.Attributes["premium"]);
         Assert.Equal("2026-07-21T05:00:00.0000000Z", publishedMessage.Attributes["expiresAtUtc"]);
         Assert.NotNull(savedMessage.ProcessedAtUtc);
@@ -320,7 +324,9 @@ public sealed class OutboxDispatcherTests : IDisposable
             new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc),
             Title: "Verify privileged-account MFA",
-            QuoteVersion: 2);
+            QuoteVersion: 2,
+            SubmissionReference: "SUB-2026-6D3F563F595C4AD6",
+            CompanyName: "Example Company");
         var outboxMessage = OutboxMessage.FromDomainEvent(
             domainEvent,
             new DateTime(2026, 6, 22, 9, 0, 5, DateTimeKind.Utc));
@@ -342,6 +348,8 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Equal("MultiFactorAuthentication", publishedMessage.Attributes["category"]);
         Assert.Equal("Verify privileged-account MFA", publishedMessage.Attributes["requestTitle"]);
         Assert.Equal("2", publishedMessage.Attributes["quoteVersion"]);
+        Assert.Equal("SUB-2026-6D3F563F595C4AD6", publishedMessage.Attributes["submissionReference"]);
+        Assert.Equal("Example Company", publishedMessage.Attributes["companyName"]);
     }
 
     [Fact]

@@ -259,6 +259,22 @@ export async function createQuoteEvidenceRequest(
   );
 }
 
+export async function getQuoteEvidenceRequest(
+  accessToken: string,
+  quoteId: string,
+  evidenceRequestId: string,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/evidence-requests/${evidenceRequestId}`,
+    { headers: authHeaders(accessToken) },
+  );
+
+  return parseJsonResponse<QuoteEvidenceRequest>(
+    response,
+    "Evidence request was not found.",
+  );
+}
+
 export async function acceptQuoteEvidenceRequest(
   accessToken: string,
   quoteId: string,

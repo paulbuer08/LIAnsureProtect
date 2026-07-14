@@ -100,7 +100,9 @@ public sealed class CreateQuoteCommandHandler(
             attestedByName: request.AttestedByName,
             attestedByTitle: request.AttestedByTitle,
             attestationWordingVersion: ControlAssurancePolicy.AttestationWordingVersion,
-            evidenceRequiredCount: evidenceRequiredCount);
+            evidenceRequiredCount: evidenceRequiredCount,
+            submissionReference: submission.Reference,
+            companyName: submission.CompanyName);
 
         foreach (var decision in assertionDecisions)
         {

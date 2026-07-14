@@ -10,4 +10,6 @@ public sealed record QuoteGeneratedDomainEvent(
     DateTime OccurredAtUtc,
     int Version = 1,
     decimal Premium = 0,
-    DateTime? ExpiresAtUtc = null) : IDomainEvent;
+    DateTime? ExpiresAtUtc = null,
+    string? SubmissionReference = null,
+    string? CompanyName = null) : IDomainEvent;

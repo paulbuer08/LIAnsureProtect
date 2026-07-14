@@ -8,6 +8,12 @@ public interface IEvidenceRequestRepository
 
     Task AddReviewAsync(QuoteEvidenceRequestReview review, CancellationToken cancellationToken);
 
+    Task AddResponseAsync(QuoteEvidenceResponse response, CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<QuoteEvidenceResponse>> ListResponsesAsync(
+        Guid evidenceRequestId,
+        CancellationToken cancellationToken);
+
     Task<QuoteEvidenceRequest?> GetForUnderwritingAsync(
         Guid quoteId,
         Guid evidenceRequestId,

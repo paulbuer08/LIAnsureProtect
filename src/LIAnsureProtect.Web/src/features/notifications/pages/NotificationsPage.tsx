@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
@@ -10,7 +10,7 @@ import {
   useMarkNotificationRead,
   useNotifications,
 } from "../hooks/useNotifications";
-import type { NotificationScope } from "../types";
+import type { NotificationInboxItem, NotificationScope } from "../types";
 
 type NotificationFilter = "all" | NotificationScope;
 
@@ -89,7 +89,34 @@ function NotificationDetails({ attributes }: { attributes: Record<string, string
   ) : null;
 }
 
+function groupNotifications(notifications: NotificationInboxItem[]) {
+  const groups = new Map<
+    string,
+    { key: string; companyName: string; submissionReference: string; notifications: NotificationInboxItem[] }
+  >();
+
+  for (const notification of notifications) {
+    const submissionReference =
+      notification.attributes.submissionReference ??
+      notification.attributes.submissionId ??
+      "Other updates";
+    const companyName = notification.attributes.companyName ?? "";
+    const key = `${companyName}|${submissionReference}`;
+    const group = groups.get(key) ?? {
+      key,
+      companyName,
+      submissionReference,
+      notifications: [],
+    };
+    group.notifications.push(notification);
+    groups.set(key, group);
+  }
+
+  return Array.from(groups.values());
+}
+
 export function NotificationsPage() {
+  const navigate = useNavigate();
   const currentUserQuery = useCurrentUser();
   const [filter, setFilter] = useState<NotificationFilter>("all");
   const [search, setSearch] = useState("");
@@ -122,6 +149,17 @@ export function NotificationsPage() {
   const visibleNotifications = notifications.filter(
     (notification) => filter === "all" || notification.scope === filter,
   );
+  const notificationGroups = groupNotifications(visibleNotifications);
+
+  async function openNotification(
+    notification: NotificationInboxItem,
+    destination: string,
+  ) {
+    if (!notification.isRead) {
+      await markReadMutation.mutateAsync(notification.notificationId);
+    }
+    void navigate(destination);
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
@@ -206,79 +244,72 @@ export function NotificationsPage() {
                 No notifications in this view.
               </p>
             ) : (
-              <ul className="mt-6 space-y-3">
-                {visibleNotifications.map((notification) => (
-                  <li
-                    key={notification.notificationId}
-                    className={`rounded-lg border p-5 ${
-                      notification.isRead
-                        ? "border-slate-800 bg-slate-900"
-                        : "border-emerald-500/40 bg-emerald-950/20"
-                    }`}
-                  >
-                    {(() => {
-                      const action = getNotificationAction(
-                        notification.subjectReferenceType,
-                        notification.subjectReferenceId,
-                        notification.attributes,
-                      );
+              <div className="mt-6 space-y-6">
+                {notificationGroups.map((group) => (
+                  <section key={group.key} className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900/50">
+                    <header className="border-b border-slate-700 bg-slate-900 px-5 py-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">Submission</p>
+                      <h2 className="mt-1 text-lg font-semibold text-white">
+                        {group.companyName ? `${group.companyName} · ` : ""}{group.submissionReference}
+                      </h2>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {group.notifications.length} {group.notifications.length === 1 ? "update" : "updates"}
+                      </p>
+                    </header>
+                    <ul className="divide-y divide-slate-800">
+                      {group.notifications.map((notification) => {
+                        const action = getNotificationAction(
+                          notification.subjectReferenceType,
+                          notification.subjectReferenceId,
+                          notification.attributes,
+                        );
 
-                      return (
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-base font-semibold text-white">
-                            {notification.title}
-                          </h2>
-                          {notification.scope === "team" && (
-                            <span className="inline-flex rounded-md border border-sky-500/40 bg-sky-950/40 px-2 py-0.5 text-xs font-semibold text-sky-300">
-                              Team
-                            </span>
-                          )}
-                        </div>
-                        {notification.attributes.remediationGuidance && (
-                          <p className="mt-1 text-sm text-slate-300">
-                            {notification.attributes.remediationGuidance}
-                          </p>
-                        )}
-                        <NotificationDetails attributes={notification.attributes} />
-                        <p className="mt-2 text-xs text-slate-400">
-                          {new Date(notification.occurredAtUtc).toLocaleString()}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 sm:justify-end">
-                        {action && (
-                          <Link
-                            to={action.to}
-                            className="inline-flex h-fit rounded-lg border border-emerald-400/60 px-4 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-400 hover:text-slate-950"
+                        return (
+                          <li
+                            key={notification.notificationId}
+                            className={`p-5 ${notification.isRead ? "bg-slate-900" : "bg-emerald-950/20"}`}
                           >
-                            {action.label}
-                          </Link>
-                        )}
-                        {notification.isRead ? (
-                          <span className="inline-flex h-fit rounded-md border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">
-                            Read
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              markReadMutation.mutate(notification.notificationId)
-                            }
-                            disabled={markReadMutation.isPending}
-                            className="inline-flex h-fit rounded-lg bg-emerald-400 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-                          >
-                            Mark as read
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                      );
-                    })()}
-                  </li>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="text-base font-semibold text-white">{notification.title}</h3>
+                                  {notification.scope === "team" && (
+                                    <span className="inline-flex rounded-md border border-sky-500/40 bg-sky-950/40 px-2 py-0.5 text-xs font-semibold text-sky-300">Team</span>
+                                  )}
+                                </div>
+                                {notification.attributes.remediationGuidance && (
+                                  <p className="mt-1 text-sm text-slate-300">{notification.attributes.remediationGuidance}</p>
+                                )}
+                                <NotificationDetails attributes={notification.attributes} />
+                                <p className="mt-2 text-xs text-slate-400">{new Date(notification.occurredAtUtc).toLocaleString()}</p>
+                              </div>
+                              <div className="flex flex-wrap gap-2 sm:justify-end">
+                                {action && (
+                                  <Link
+                                    to={action.to}
+                                    onClick={(event) => {
+                                      if (notification.isRead) return;
+                                      event.preventDefault();
+                                      void openNotification(notification, action.to);
+                                    }}
+                                    aria-disabled={markReadMutation.isPending}
+                                    className="inline-flex h-fit rounded-lg border border-emerald-400/60 px-4 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-400 hover:text-slate-950 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+                                  >
+                                    {action.label}
+                                  </Link>
+                                )}
+                                {!action && notification.isRead && (
+                                  <span className="inline-flex h-fit rounded-md border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">Read</span>
+                                )}
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
                 ))}
-              </ul>
+              </div>
             )}
           </>
         )}

@@ -208,6 +208,32 @@ public sealed class NotificationInboxEndpointTests
         Assert.Equal(0, payload.RootElement.GetProperty("unreadCount").GetInt32());
     }
 
+    [Fact]
+    public async Task Unread_Count_Returns_Authorized_Personal_And_Role_Gated_Team_Total()
+    {
+        await SeedEntriesAsync(
+            CreateEntry("uw-1", NotificationMessageTypes.QuoteReady),
+            CreateEntry("another-user", NotificationMessageTypes.QuoteReady));
+        await SeedTeamEntryAsync(
+            NotificationAudiences.UnderwritingOperations,
+            NotificationMessageTypes.QuoteReferredForUnderwriting);
+        await SeedTeamEntryAsync(
+            NotificationAudiences.ClaimsOperations,
+            NotificationMessageTypes.ClaimFiled);
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"{EndpointPath}/unread-count",
+            "Underwriter",
+            "uw-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var payload = JsonDocument.Parse(content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, payload.RootElement.GetProperty("unreadCount").GetInt32());
+    }
+
     private async Task<TeamNotificationEntry> SeedTeamEntryAsync(string audience, string type)
     {
         using var scope = webApplicationFactory.Services.CreateScope();

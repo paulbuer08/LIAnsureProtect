@@ -82,7 +82,10 @@ export async function respondToEvidenceRequest(
   const formData = new FormData();
   formData.append("respondentName", request.respondentName);
   formData.append("respondentTitle", request.respondentTitle);
-  formData.append("responseText", request.responseText);
+  formData.append("respondentEmail", request.respondentEmail);
+  if (request.respondentPhone) formData.append("respondentPhone", request.respondentPhone);
+  if (request.responseText) formData.append("responseText", request.responseText);
+  if (request.otherConcerns) formData.append("otherConcerns", request.otherConcerns);
 
   for (const attachment of request.attachments ?? []) {
     formData.append("attachments", attachment);

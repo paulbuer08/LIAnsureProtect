@@ -19,6 +19,7 @@ import {
   useCreateQuoteEvidenceRequest,
   useDeclineQuoteReferral,
   useFollowUpQuoteEvidenceRequest,
+  useGetQuoteEvidenceRequest,
   useGenerateAiUnderwritingReview,
   useQuoteReferralTimeline,
   useRecordQuoteEvidenceReviewDecision,
@@ -315,6 +316,7 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
   const acceptEvidenceRequest = useAcceptQuoteEvidenceRequest();
   const cancelEvidenceRequest = useCancelQuoteEvidenceRequest();
   const followUpEvidenceRequest = useFollowUpQuoteEvidenceRequest();
+  const getEvidenceRequest = useGetQuoteEvidenceRequest();
   const recordEvidenceReviewDecision = useRecordQuoteEvidenceReviewDecision();
   const [category, setCategory] = useState("MultiFactorAuthentication");
   const [title, setTitle] = useState("");
@@ -355,6 +357,7 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
     acceptEvidenceRequest.error ??
     cancelEvidenceRequest.error ??
     followUpEvidenceRequest.error ??
+    getEvidenceRequest.error ??
     recordEvidenceReviewDecision.error;
 
   async function handleCreateEvidenceRequest(event: FormEvent<HTMLFormElement>) {
@@ -417,6 +420,14 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
     setLastEvidenceResult(result);
   }
 
+  async function handleLoadEvidenceRequest() {
+    const result = await getEvidenceRequest.mutateAsync({
+      quoteId: quote.quoteId,
+      evidenceRequestId: evidenceRequestId.trim(),
+    });
+    setLastEvidenceResult(result);
+  }
+
   return (
     <section className="rounded-lg border border-amber-900 bg-amber-950/25 p-5">
       <p className="text-sm font-semibold uppercase tracking-wide text-amber-300">
@@ -441,6 +452,34 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
             </p>
           )}
           <p className="mt-1">{formatEvidenceDueLabel(lastEvidenceResult.daysUntilDue)}</p>
+          <p className="mt-1 text-emerald-100/80">
+            {lastEvidenceResult.companyName ?? quote.companyName} · {lastEvidenceResult.submissionReference ?? lastEvidenceResult.submissionId}
+          </p>
+          {lastEvidenceResult.respondentEmail && (
+            <div className="mt-3 rounded-md border border-emerald-900 p-2">
+              <p className="font-semibold">Latest respondent</p>
+              <p className="mt-1">
+                {lastEvidenceResult.respondentName} · {lastEvidenceResult.respondentTitle} · {lastEvidenceResult.respondentEmail}
+                {lastEvidenceResult.respondentPhone ? ` · ${lastEvidenceResult.respondentPhone}` : ""}
+              </p>
+              {lastEvidenceResult.otherConcerns && <p className="mt-1">Other concerns: {lastEvidenceResult.otherConcerns}</p>}
+            </div>
+          )}
+          {(lastEvidenceResult.responses?.length ?? 0) > 0 && (
+            <div className="mt-3">
+              <p className="font-semibold">Response history</p>
+              <ol className="mt-2 space-y-2">
+                {lastEvidenceResult.responses?.map((response) => (
+                  <li key={response.responseId} className="rounded-md border border-emerald-900 p-2">
+                    <p className="font-semibold">{response.kind} · {new Date(response.respondedAtUtc).toLocaleString()}</p>
+                    <p className="mt-1">{response.respondentName} · {response.respondentTitle} · {response.respondentEmail}{response.respondentPhone ? ` · ${response.respondentPhone}` : ""}</p>
+                    {response.responseText && <p className="mt-1 whitespace-pre-wrap">{response.responseText}</p>}
+                    {response.otherConcerns && <p className="mt-1 whitespace-pre-wrap">Other concerns: {response.otherConcerns}</p>}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
           {lastEvidenceResult.reviewDecision !== "NotReviewed" && (
             <>
               <p className="mt-2 font-semibold">
@@ -600,6 +639,14 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
             className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
           />
         </label>
+        <button
+          type="button"
+          onClick={() => void handleLoadEvidenceRequest()}
+          disabled={getEvidenceRequest.isPending || evidenceRequestId.trim().length === 0}
+          className="rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-300 hover:text-slate-950 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+        >
+          Load evidence request
+        </button>
         <ReviewTextField
           label="Evidence review notes"
           value={reviewNotes}

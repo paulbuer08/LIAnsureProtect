@@ -92,7 +92,10 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
                     evidenceRequestId,
                     request.RespondentName,
                     request.RespondentTitle,
+                    request.RespondentEmail,
+                    request.RespondentPhone,
                     request.ResponseText,
+                    request.OtherConcerns,
                     request.AttachmentFileName,
                     request.AttachmentContentType,
                     request.AttachmentSizeBytes,
@@ -137,7 +140,10 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
                     evidenceRequestId,
                     request.RespondentName,
                     request.RespondentTitle,
+                    request.RespondentEmail,
+                    request.RespondentPhone,
                     request.ResponseText,
+                    request.OtherConcerns,
                     null,
                     null,
                     null,
@@ -260,7 +266,10 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
 public sealed record RespondToEvidenceRequestRequest(
     string RespondentName,
     string RespondentTitle,
-    string ResponseText,
+    string RespondentEmail,
+    string? RespondentPhone,
+    string? ResponseText,
+    string? OtherConcerns,
     string? AttachmentFileName,
     string? AttachmentContentType,
     long? AttachmentSizeBytes);
@@ -271,7 +280,13 @@ public sealed class RespondToEvidenceRequestFormRequest
 
     public string RespondentTitle { get; init; } = string.Empty;
 
-    public string ResponseText { get; init; } = string.Empty;
+    public string RespondentEmail { get; init; } = string.Empty;
+
+    public string? RespondentPhone { get; init; }
+
+    public string? ResponseText { get; init; }
+
+    public string? OtherConcerns { get; init; }
 
     public IReadOnlyCollection<IFormFile> Attachments { get; init; } = [];
 }

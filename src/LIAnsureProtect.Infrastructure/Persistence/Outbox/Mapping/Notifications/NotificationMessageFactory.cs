@@ -19,7 +19,9 @@ internal static class NotificationMessageFactory
         ModuleEvidenceRequestCategory category,
         DateTime dueAtUtc,
         DateTime occurredAtUtc,
-        Dictionary<string, string> extraAttributes)
+        Dictionary<string, string> extraAttributes,
+        string? submissionReference = null,
+        string? companyName = null)
     {
         var attributes = new Dictionary<string, string>
         {
@@ -38,6 +40,11 @@ internal static class NotificationMessageFactory
             },
             ["dueAtUtc"] = dueAtUtc.ToString("O")
         };
+
+        if (!string.IsNullOrWhiteSpace(submissionReference))
+            attributes["submissionReference"] = submissionReference;
+        if (!string.IsNullOrWhiteSpace(companyName))
+            attributes["companyName"] = companyName;
 
         foreach (var attribute in extraAttributes)
         {

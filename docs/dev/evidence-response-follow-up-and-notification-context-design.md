@@ -71,16 +71,17 @@ their existing Submission UUID, so the change does not require rewriting the Not
 ### 5. Opening is the normal read action
 
 Opening a notification's policy, submission, quote, or evidence destination marks that notification
-read first, then navigates. An explicit `Mark as read` control remains only for notifications without
-a destination. The command remains idempotent and owner/team scoped.
+read first, then navigates. Standalone `Mark as read` controls are removed; reading is attached to the
+meaningful action that opens the exact subject. The command remains idempotent and owner/team scoped.
 
 ### 6. Badge freshness uses a lightweight count query
 
-The app shell calls a dedicated unread-count endpoint every five seconds while the signed-in tab is
-in the foreground. This accommodates the existing transactional outbox and Worker projector without
-cross-context synchronous writes or repeatedly loading up to 50 notification cards. Opening or
-explicitly marking an item read updates the TanStack Query cache optimistically and then reconciles
-with the server.
+The app shell calls a dedicated unread-count endpoint when the signed-in shell first loads. React Query
+refreshes it after a notification action invalidates the cache, when the Notifications workspace is
+opened, and when the window regains focus. There is no continuous timer. This avoids persistent request
+traffic, with the deliberate trade-off that a newly projected notification may not update the badge
+until one of those meaningful refresh events occurs. Opening an item updates the TanStack Query cache
+optimistically and then reconciles with the server.
 
 ## Authorization and boundaries
 
@@ -102,12 +103,13 @@ with the server.
 7. Underwriting can load response history and contact details before deciding.
 8. Quote/evidence notifications show company and Submission reference and group by Submission.
 9. Opening an unread actionable notification marks it read and decreases the badge.
-10. A newly projected notification appears in the badge without manually visiting the inbox.
+10. A newly projected notification appears after Notifications navigation, window focus, or another
+    meaningful unread-count cache refresh; no continuous badge poll runs.
 
 ## Deliberate deferrals
 
 - email/phone ownership verification, OTP challenges, and outbound contact workflows;
 - customer-underwriter live chat;
 - automatic approval from contact data or document screening;
-- push/WebSocket notification delivery. Five-second foreground polling is sufficient for the current
-  modular-monolith stage and can later be replaced without changing the API contract.
+- push/WebSocket notification delivery. If near-real-time badge updates become a production
+  requirement, use a deliberate push channel instead of shortening a polling interval.

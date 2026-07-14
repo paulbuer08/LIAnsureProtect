@@ -12,8 +12,9 @@
 
 1. Enrich quote/evidence event snapshots with company and Submission reference.
 2. Group the inbox by Submission context and label every relevant card.
-3. Mark actionable notifications read before navigation; retain manual read only when no action exists.
-4. Add a role-aware unread-count API and five-second foreground TanStack Query refresh.
+3. Mark actionable notifications read before navigation and remove standalone manual-read controls.
+4. Add a role-aware unread-count API refreshed by meaningful navigation, focus, and cache events;
+   do not continuously poll.
 
 ## Phase C — verification and closeout
 
