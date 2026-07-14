@@ -4,13 +4,17 @@ namespace LIAnsureProtect.Modules.Notifications.Application;
 // self-describing and the frontend does not need to know every type string.
 public static class NotificationInboxTitles
 {
-    public static string For(string type) => type switch
+    public static string For(string type, IReadOnlyDictionary<string, string>? attributes = null) => type switch
     {
-        NotificationMessageTypes.QuoteReady => "Your quote is ready",
+        NotificationMessageTypes.QuoteReady => attributes?.TryGetValue("version", out var version) == true
+            ? $"Quote version {version} is ready"
+            : "Your quote is ready",
         NotificationMessageTypes.QuoteUnderwritingDecisionRecorded => "Underwriting decision recorded",
         NotificationMessageTypes.QuoteAccepted => "Quote accepted",
         NotificationMessageTypes.PolicyBound => "Your policy is bound",
-        NotificationMessageTypes.EvidenceRequestCreated => "Evidence requested",
+        NotificationMessageTypes.EvidenceRequestCreated => attributes?.TryGetValue("requestTitle", out var requestTitle) == true
+            ? $"Evidence requested: {requestTitle}"
+            : "Evidence requested",
         NotificationMessageTypes.EvidenceRequestAccepted => "Evidence accepted",
         NotificationMessageTypes.EvidenceRequestCancelled => "Evidence request cancelled",
         NotificationMessageTypes.EvidenceRequestFollowUpSent => "Evidence reminder",

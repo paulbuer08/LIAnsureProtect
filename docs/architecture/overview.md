@@ -183,11 +183,59 @@ GET /api/v1/health/live
 GET /api/v1/health/ready
 ```
 
-Readiness checks all three current EF Core contexts: `SubmissionDbContext`, `NotificationsDbContext`,
-and `UnderwritingDbContext`. The dispatcher now emits native .NET activities, structured logs, counters
+Readiness checks all four current EF Core contexts: `SubmissionDbContext`, `NotificationsDbContext`,
+`UnderwritingDbContext`, and `ClaimsDbContext`. The dispatcher now emits native .NET activities, structured logs, counters
 for batches/pending/processed/failed messages, and a duration histogram. Exporters and dashboards
 remain later infrastructure work; M41 exposes the signals that OpenTelemetry, CloudWatch, X-Ray, or
 Datadog can subscribe to later.
+
+The July 2026 customer-error and notification hardening slice builds on that baseline at both host
+edges. The API has a central exception handler and Problem Details filter: reviewed 4xx contracts keep
+stable public codes and actionable text, while unknown 5xx internals are logged with correlation and
+replaced by safe customer output. `RequestOutcomeMiddleware` emits route-template/status-class/duration
+signals and Production/Aws composition roots use JSON console logs. React feature clients share one
+Zod-validated error boundary and an application error boundary; optional browser telemetry is
+disabled by default and accepts only sanitized categories through a deployment-provided RUM adapter.
+
+Evidence and quote navigation now distinguish collection from identity:
+
+```text
+GET /api/v1/evidence-requests                     -> owner cursor-paged summaries, no documents
+GET /api/v1/evidence-requests/{evidenceRequestId} -> one owner detail with documents
+GET /api/v1/submissions/{submissionId}/quotes/{quoteId} -> exact owner quote version
+```
+
+Notification actions carry those exact IDs. The creating Quoting/Underwriting transaction adds safe
+display snapshots to the existing domain event and transactional outbox; the Notifications projector
+stores the snapshot. Inbox reads therefore remain self-contained and do not cross into another
+context to decorate a title. The production collector, CloudWatch resources, alarms, and RUM identity
+remain Terraform-owned infrastructure described in the production observability runbook.
+
+## Role-aware contextual search and human references
+
+The July 2026 navigation/search hardening adds one immutable human-facing alternate key to a
+Submission while retaining its UUID as the technical key:
+
+```text
+Submission.Id        = UUID used by routes, joins, events, and id-only context seams
+Submission.Reference = SUB-2026-8A9B7C6D5E4F3210 used by people, lists, and support
+```
+
+Search remains context-local. Each Application query first obtains the complete owner-scoped or
+role/team-scoped read set and only then narrows it with search and workflow filters. Customer pages
+cannot request adjuster/underwriter filters, and an Admin uses the widest filter set only on an
+operational route the Admin policy already authorizes. There is deliberately no global search service
+or cross-schema search join.
+
+The Underwriting referral queue illustrates the cache rule: the existing unfiltered, shared 10-second
+queue remains the sole cached value; `SearchQuoteReferralsQuery` filters that complete cached result.
+Creating one cache key per filter combination would make invalidation incomplete.
+
+Evidence requests add `EvidenceDocumentRequirement` in the Underwriting Domain. Automatic control
+assurance requests are `Required`; manual Underwriting requests choose Required/Optional/NarrativeOnly.
+The command handler enforces the contract, while React only mirrors it for early guidance. Submission
+reference and company name are copied as read/display snapshots across the existing port; Underwriting
+does not take ownership of the Submission aggregate.
 
 ## Application Use Case Pattern
 

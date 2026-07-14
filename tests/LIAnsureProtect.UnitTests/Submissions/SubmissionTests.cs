@@ -17,6 +17,7 @@ public sealed class SubmissionTests
             createdAtUtc);
 
         Assert.NotEqual(Guid.Empty, submission.Id);
+        Assert.Matches("^SUB-2026-[0-9A-F]{16}$", submission.Reference);
         Assert.Equal("auth0|owner-user-1", submission.OwnerUserId);
         Assert.Equal("Jane Applicant", submission.ApplicantName);
         Assert.Equal("jane@example.com", submission.ApplicantEmail);

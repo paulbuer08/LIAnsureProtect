@@ -12,7 +12,8 @@ public interface ITeamNotificationRepository
     Task<IReadOnlyList<NotificationInboxItemResult>> ListForAudiencesAsync(
         string recipientUserId,
         IReadOnlyCollection<string> audiences,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        NotificationListFilter? filter = null);
 
     Task<int> CountUnreadForAudiencesAsync(
         string recipientUserId,

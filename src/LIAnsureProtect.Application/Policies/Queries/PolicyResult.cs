@@ -16,6 +16,7 @@ public sealed record PolicyResult(
     string QuoteRiskTierAtBind,
     IReadOnlyList<string> QuoteSubjectivitiesAtBind,
     string ApplicantName,
-    string CompanyName);
+    string CompanyName,
+    string SubmissionReference = "");
 
 public sealed record ListPoliciesResult(IReadOnlyList<PolicyResult> Policies);

@@ -24,4 +24,5 @@ public sealed record ControlAssertionResult(
     string ClaimedState,
     string AssuranceState,
     bool EvidenceRequired,
-    string EvidenceReason);
+    string EvidenceReason,
+    string DetailsJson);

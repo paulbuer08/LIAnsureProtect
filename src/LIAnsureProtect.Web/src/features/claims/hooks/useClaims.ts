@@ -12,6 +12,7 @@ import {
 } from "../api/claimsApi";
 import type {
   FileClaimRequest,
+  MyClaimsFilters,
   RespondToInformationRequestRequest,
   SetClaimedAmountRequest,
 } from "../types";
@@ -22,12 +23,12 @@ export function claimDetailQueryKey(claimId: string) {
   return ["claims", "detail", claimId];
 }
 
-export function useMyClaims() {
+export function useMyClaims(filters: MyClaimsFilters = {}) {
   const { getAccessTokenSilently } = useAuth0();
 
   return useQuery({
-    queryKey: myClaimsQueryKey,
-    queryFn: async () => listMyClaims(await getAccessTokenSilently()),
+    queryKey: [...myClaimsQueryKey, filters],
+    queryFn: async () => listMyClaims(await getAccessTokenSilently(), filters),
   });
 }
 

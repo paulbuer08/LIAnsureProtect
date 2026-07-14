@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 
+import { ConfirmationDialog } from "../../../components/ConfirmationDialog";
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { useCreateSubmission } from "../hooks/useCreateSubmission";
 import {
   submissionIntakeSchema,
@@ -15,6 +17,7 @@ const fieldClassName =
 export function SubmissionIntakeForm() {
   const navigate = useNavigate();
   const [matchingDraftId, setMatchingDraftId] = useState<string>();
+  const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [lastAttempt, setLastAttempt] = useState<
     { fingerprint: string; idempotencyKey: string } | undefined
   >(undefined);
@@ -23,6 +26,7 @@ export function SubmissionIntakeForm() {
     getValues,
     handleSubmit,
     register,
+    reset,
   } = useForm<SubmissionIntakeFormValues>({
     resolver: zodResolver(submissionIntakeSchema),
     defaultValues: {
@@ -70,6 +74,26 @@ export function SubmissionIntakeForm() {
 
   function onSubmit(values: SubmissionIntakeFormValues) {
     submitDraft(values, false);
+  }
+
+  function discardAndLeave() {
+    reset();
+    createSubmission.reset();
+    setMatchingDraftId(undefined);
+    setLastAttempt(undefined);
+    setShowCancelConfirmation(false);
+    void navigate("/dashboard", { replace: true });
+  }
+
+  function cancelDraftCreation() {
+    const hasMeaningfulInput = Object.values(getValues()).some(
+      (value) => value.trim().length > 0,
+    );
+    if (hasMeaningfulInput) {
+      setShowCancelConfirmation(true);
+      return;
+    }
+    discardAndLeave();
   }
 
   return (
@@ -145,15 +169,23 @@ export function SubmissionIntakeForm() {
           )}
         </div>
 
-        <button
-          className="mt-6 rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-          disabled={createSubmission.isPending || Boolean(matchingDraftId)}
-          type="submit"
-        >
-          {createSubmission.isPending
-            ? "Creating draft..."
-            : "Create draft submission"}
-        </button>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            className="rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+            disabled={createSubmission.isPending || Boolean(matchingDraftId)}
+            type="submit"
+          >
+            {createSubmission.isPending ? "Creating draft..." : "Create draft submission"}
+          </button>
+          <button
+            className="rounded-lg border border-slate-600 px-5 py-3 text-sm font-semibold text-slate-100 hover:border-slate-400"
+            disabled={createSubmission.isPending}
+            onClick={cancelDraftCreation}
+            type="button"
+          >
+            Cancel
+          </button>
+        </div>
       </form>
 
       {matchingDraftId && (
@@ -190,10 +222,21 @@ export function SubmissionIntakeForm() {
 
       {createSubmission.isError && (
         <p className="mt-6 whitespace-pre-wrap rounded-lg border border-red-900 bg-red-950 p-4 text-sm text-red-200">
-          {createSubmission.error instanceof Error
-            ? createSubmission.error.message
-            : "Unable to create submission."}
+          {getUserErrorMessage(
+            createSubmission.error,
+            "Unable to create the draft submission.",
+          )}
         </p>
+      )}
+      {showCancelConfirmation && (
+        <ConfirmationDialog
+          title="Cancel draft creation?"
+          description="The details entered on this page have not been saved. Leaving now will discard them."
+          confirmLabel="Discard and leave"
+          tone="warning"
+          onCancel={() => setShowCancelConfirmation(false)}
+          onConfirm={discardAndLeave}
+        />
       )}
     </>
   );

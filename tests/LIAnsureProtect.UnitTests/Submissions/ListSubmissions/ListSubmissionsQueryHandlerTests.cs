@@ -15,6 +15,7 @@ public sealed class ListSubmissionsQueryHandlerTests
         {
             new(
                 Guid.Parse("af1453a4-0b68-4432-99d9-becb456a1001"),
+                "SUB-2026-AF1453A40B684432",
                 "Jane Applicant",
                 "jane@example.com",
                 "Example Company",
@@ -26,8 +27,9 @@ public sealed class ListSubmissionsQueryHandlerTests
         repository
             .Setup(repo => repo.ListAsync(
                 "auth0|owner-user-1",
+                It.IsAny<SubmissionListFilter>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedSubmissions);
+            .ReturnsAsync(new ListSubmissionsResult(expectedSubmissions, null));
 
         var currentUser = new TestCurrentUser("auth0|owner-user-1");
         var handler = new ListSubmissionsQueryHandler(repository.Object, currentUser);
@@ -44,6 +46,7 @@ public sealed class ListSubmissionsQueryHandlerTests
         repository.Verify(
             repo => repo.ListAsync(
                 "auth0|owner-user-1",
+                It.Is<SubmissionListFilter>(filter => filter.PageSize == 20),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }

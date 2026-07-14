@@ -7,6 +7,7 @@ export type CreateSubmissionRequest = {
 
 export type CreateSubmissionResponse = {
   submissionId: string;
+  submissionReference?: string;
   status: string;
   possibleDuplicate: boolean;
   existingDraft: boolean;
@@ -126,6 +127,7 @@ export type CreateQuoteResponse = {
     assuranceState: string;
     evidenceRequired: boolean;
     evidenceReason: string;
+    detailsJson: string;
   }>;
 };
 
@@ -133,6 +135,12 @@ export type SubmissionQuoteSummary = Omit<
   CreateQuoteResponse,
   "submissionId" | "providerIndication"
 >;
+
+export type OwnedQuoteDetail = SubmissionQuoteSummary & {
+  quoteId: string;
+  submissionId: string;
+  createdAtUtc: string;
+};
 
 export type AcceptQuoteRequest = {
   acceptedByName: string;
@@ -179,6 +187,7 @@ export type BindPolicyResponse = {
 
 export type SubmissionListItem = {
   submissionId: string;
+  submissionReference?: string;
   applicantName: string;
   applicantEmail: string;
   companyName: string;
@@ -202,4 +211,14 @@ export type WithdrawSubmissionResponse = SubmitSubmissionResponse;
 
 export type ListSubmissionsResponse = {
   submissions: SubmissionListItem[];
+  nextCursor?: string | null;
+};
+
+export type SubmissionListFilters = {
+  search?: string;
+  status?: string;
+  createdFromUtc?: string;
+  createdToUtc?: string;
+  cursor?: string;
+  pageSize?: number;
 };

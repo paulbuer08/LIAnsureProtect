@@ -15,4 +15,5 @@ public sealed record PolicyReadModel(
     string QuoteRiskTierAtBind,
     string QuoteSubjectivitiesAtBind,
     string ApplicantName,
-    string CompanyName);
+    string CompanyName,
+    string SubmissionReference = "");

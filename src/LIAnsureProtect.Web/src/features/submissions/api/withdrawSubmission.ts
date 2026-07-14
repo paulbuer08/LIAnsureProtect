@@ -1,4 +1,5 @@
 import type { WithdrawSubmissionResponse } from "../types";
+import { parseJsonResponse } from "../../../lib/apiClient";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5223";
 
@@ -8,9 +9,7 @@ export async function withdrawSubmission(accessToken: string, submissionId: stri
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
-  if (!response.ok) {
-    throw new Error((await response.text()) || "Unable to withdraw the submission.");
-  }
-
-  return (await response.json()) as WithdrawSubmissionResponse;
+  return parseJsonResponse<WithdrawSubmissionResponse>(response, {
+    notFoundMessage: "Submission was not found.",
+  });
 }

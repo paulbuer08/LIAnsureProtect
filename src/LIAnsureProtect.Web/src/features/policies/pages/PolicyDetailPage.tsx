@@ -1,4 +1,6 @@
 import { Link, useParams } from "react-router";
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { useClaimablePolicies } from "../../claims/hooks/useClaims";
 import { usePolicy } from "../hooks/usePolicies";
@@ -11,9 +13,9 @@ export function PolicyDetailPage() {
   const canFileClaim = Boolean(policy && claimableQuery.data?.policies.some((item) => item.policyId === policy.policyId));
 
   return <main className="min-h-screen bg-slate-950 px-6 py-12 text-white"><section className="mx-auto max-w-5xl">
-    <Link to="/policies" className="text-sm font-semibold text-emerald-300">Back to policies</Link>
+    <Breadcrumbs items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Policies", to: "/policies" }, { label: policy?.policyNumber ?? "Policy detail" }]} />
     {query.isPending && <p className="mt-8">Loading policy...</p>}
-    {query.isError && <p className="mt-8 rounded-lg border border-red-900 bg-red-950 p-5 text-red-200">{query.error instanceof Error ? query.error.message : "Unable to load policy."}</p>}
+    {query.isError && <p className="mt-8 rounded-lg border border-red-900 bg-red-950 p-5 text-red-200">{getUserErrorMessage(query.error, "Unable to load policy.")}</p>}
     {policy && <>
       <section className="mt-8 rounded-lg border border-emerald-500/40 bg-slate-900 p-7">
         <p className="text-sm font-semibold uppercase text-emerald-400">Policy contract</p><div className="mt-3 flex flex-col gap-3 sm:flex-row sm:justify-between"><div><h1 className="text-3xl font-bold">{policy.policyNumber}</h1><p className="mt-2 text-slate-300">{policy.companyName} · {policy.applicantName}</p></div><div><p className="font-semibold text-emerald-300">Coverage {policy.coverageState}</p><p className="text-sm text-slate-400">Contractual status: {policy.contractualStatus}</p></div></div>

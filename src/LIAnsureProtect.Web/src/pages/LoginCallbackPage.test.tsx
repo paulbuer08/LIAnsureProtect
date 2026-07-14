@@ -77,8 +77,8 @@ describe("LoginCallbackPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Auth0 callback error")).toBeInTheDocument();
-    expect(screen.getByText("Access denied")).toBeInTheDocument();
+    expect(screen.getByText("Sign-in could not be completed")).toBeInTheDocument();
+    expect(screen.queryByText("Access denied")).not.toBeInTheDocument();
     expect(navigate).not.toHaveBeenCalled();
   });
 });

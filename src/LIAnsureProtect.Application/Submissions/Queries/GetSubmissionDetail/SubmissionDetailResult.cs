@@ -2,6 +2,7 @@ namespace LIAnsureProtect.Application.Submissions.Queries.GetSubmissionDetail;
 
 public sealed record SubmissionDetailResult(
     Guid SubmissionId,
+    string SubmissionReference,
     string ApplicantName,
     string ApplicantEmail,
     string CompanyName,
@@ -32,7 +33,8 @@ public sealed record SubmissionControlAssertionResult(
     string ClaimedState,
     string AssuranceState,
     bool EvidenceRequired,
-    string EvidenceReason);
+    string EvidenceReason,
+    string DetailsJson);
 
 public sealed record SubmissionPolicySummaryResult(
     Guid PolicyId,

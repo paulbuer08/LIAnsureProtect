@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using LIAnsureProtect.Domain.Quotes;
@@ -138,20 +139,46 @@ public sealed class EvidenceDocumentEndpointTests
         using var ownerListResponse = await httpClient.SendAsync(ownerListRequest, TestContext.Current.CancellationToken);
         var ownerListContent = await ownerListResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         using var ownerListPayload = JsonDocument.Parse(ownerListContent);
-        var ownerListDocuments = ownerListPayload.RootElement
-            .GetProperty("evidenceRequests")[0]
+        Assert.Equal(HttpStatusCode.OK, ownerListResponse.StatusCode);
+        var ownerSummary = ownerListPayload.RootElement.GetProperty("evidenceRequests")[0];
+        Assert.Equal(evidenceRequest.Id, ownerSummary.GetProperty("evidenceRequestId").GetGuid());
+        Assert.False(ownerSummary.TryGetProperty("documents", out _));
+        Assert.False(ownerSummary.TryGetProperty("responseText", out _));
+
+        using var ownerDetailRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"/api/v1/evidence-requests/{evidenceRequest.Id}",
+            "Customer",
+            "customer-1");
+        using var ownerDetailResponse = await httpClient.SendAsync(
+            ownerDetailRequest,
+            TestContext.Current.CancellationToken);
+        var ownerDetailContent = await ownerDetailResponse.Content.ReadAsStringAsync(
+            TestContext.Current.CancellationToken);
+        using var ownerDetailPayload = JsonDocument.Parse(ownerDetailContent);
+        var ownerDetailDocuments = ownerDetailPayload.RootElement
             .GetProperty("documents")
             .EnumerateArray()
             .ToArray();
 
-        Assert.Equal(HttpStatusCode.OK, ownerListResponse.StatusCode);
-        Assert.Equal(5, ownerListDocuments.Length);
-        Assert.All(ownerListDocuments, document => Assert.False(document.TryGetProperty("storageKey", out _)));
-        Assert.All(ownerListDocuments, document =>
+        Assert.Equal(HttpStatusCode.OK, ownerDetailResponse.StatusCode);
+        Assert.Equal(5, ownerDetailDocuments.Length);
+        Assert.All(ownerDetailDocuments, document => Assert.False(document.TryGetProperty("storageKey", out _)));
+        Assert.All(ownerDetailDocuments, document =>
         {
             Assert.Equal("Clean", document.GetProperty("scanStatus").GetString());
             Assert.True(document.GetProperty("isDownloadAvailable").GetBoolean());
         });
+
+        using var otherOwnerDetailRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"/api/v1/evidence-requests/{evidenceRequest.Id}",
+            "Customer",
+            "customer-2");
+        using var otherOwnerDetailResponse = await httpClient.SendAsync(
+            otherOwnerDetailRequest,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, otherOwnerDetailResponse.StatusCode);
 
         using var scope = webApplicationFactory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
@@ -184,6 +211,134 @@ public sealed class EvidenceDocumentEndpointTests
 
         var firstStoredFile = Path.Combine(storageRootPath, savedDocuments[0].StorageKey);
         Assert.Equal("Evidence document 1", await File.ReadAllTextAsync(firstStoredFile, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Owner_List_Cursor_Does_Not_Skip_Requests_With_Identical_Timestamps()
+    {
+        var (quote, firstRequest) = await SeedOpenEvidenceRequestAsync("customer-1");
+        var dueAtUtc = new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc);
+        var requestedAtUtc = new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc);
+        var secondRequest = ModuleQuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            "customer-1",
+            "underwriter-1",
+            ModuleEvidenceRequestCategory.BackupRecovery,
+            "Confirm backup recovery",
+            "Provide backup recovery evidence.",
+            dueAtUtc,
+            requestedAtUtc);
+        var thirdRequest = ModuleQuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            "customer-1",
+            "underwriter-1",
+            ModuleEvidenceRequestCategory.IncidentResponsePlan,
+            "Confirm incident response",
+            "Provide incident response evidence.",
+            dueAtUtc,
+            requestedAtUtc);
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var underwritingDbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+            await underwritingDbContext.Set<ModuleQuoteEvidenceRequest>().AddRangeAsync(
+                [secondRequest, thirdRequest],
+                TestContext.Current.CancellationToken);
+            await underwritingDbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var seenIds = new HashSet<Guid>();
+        string? cursor = null;
+        for (var pageNumber = 0; pageNumber < 3; pageNumber++)
+        {
+            var path = "/api/v1/evidence-requests?pageSize=1";
+            if (!string.IsNullOrWhiteSpace(cursor))
+                path += $"&cursor={Uri.EscapeDataString(cursor)}";
+
+            using var request = CreateAuthenticatedRequest(
+                HttpMethod.Get,
+                path,
+                "Customer",
+                "customer-1");
+            using var response = await httpClient.SendAsync(
+                request,
+                TestContext.Current.CancellationToken);
+            var payload = await response.Content.ReadFromJsonAsync<JsonElement>(
+                TestContext.Current.CancellationToken);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var item = Assert.Single(payload.GetProperty("evidenceRequests").EnumerateArray());
+            Assert.True(seenIds.Add(item.GetProperty("evidenceRequestId").GetGuid()));
+            cursor = payload.TryGetProperty("nextCursor", out var nextCursor)
+                && nextCursor.ValueKind == JsonValueKind.String
+                    ? nextCursor.GetString()
+                    : null;
+        }
+
+        Assert.Equal(
+            new HashSet<Guid> { firstRequest.Id, secondRequest.Id, thirdRequest.Id },
+            seenIds);
+        Assert.Null(cursor);
+    }
+
+    [Fact]
+    public async Task Owner_List_Returns_Bad_Request_For_Unknown_Filter_Value()
+    {
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            "/api/v1/evidence-requests?status=DefinitelyNotAStatus",
+            "Customer",
+            "customer-1");
+
+        using var response = await httpClient.SendAsync(
+            request,
+            TestContext.Current.CancellationToken);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("Evidence request filters are invalid.", problem.GetProperty("title").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("correlationId").GetString()));
+    }
+
+    [Fact]
+    public async Task Owner_List_Searches_Within_The_Owner_And_Exposes_Document_Requirements()
+    {
+        var (_, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");
+        await SeedOpenEvidenceRequestAsync("customer-2");
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"/api/v1/evidence-requests?search={Uri.EscapeDataString(evidenceRequest.Title)}&documentRequirement=Required",
+            "Customer",
+            "customer-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var item = Assert.Single(payload.GetProperty("evidenceRequests").EnumerateArray());
+        Assert.Equal(evidenceRequest.Id, item.GetProperty("evidenceRequestId").GetGuid());
+        Assert.Equal("Required", item.GetProperty("documentRequirement").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(item.GetProperty("submissionReference").GetString()));
+    }
+
+    [Fact]
+    public async Task Owner_Response_Requires_A_Document_When_The_Request_Requires_One()
+    {
+        var (_, evidenceRequest) = await SeedOpenEvidenceRequestAsync("customer-1");
+        using var responseRequest = CreateAuthenticatedMultipartResponse(
+            evidenceRequest.Id,
+            "Customer",
+            "customer-1",
+            []);
+
+        using var response = await httpClient.SendAsync(responseRequest, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("supporting document is required", content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

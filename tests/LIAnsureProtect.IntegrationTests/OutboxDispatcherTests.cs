@@ -194,7 +194,10 @@ public sealed class OutboxDispatcherTests : IDisposable
             Guid.Parse("a6f943ad-9c87-4932-9e65-8fdd97da4079"),
             "customer-1",
             QuoteStatus.Quoted,
-            new DateTime(2026, 6, 21, 5, 0, 0, DateTimeKind.Utc));
+            new DateTime(2026, 6, 21, 5, 0, 0, DateTimeKind.Utc),
+            Version: 3,
+            Premium: 12_345m,
+            ExpiresAtUtc: new DateTime(2026, 7, 21, 5, 0, 0, DateTimeKind.Utc));
         var outboxMessage = OutboxMessage.FromDomainEvent(
             domainEvent,
             new DateTime(2026, 6, 21, 5, 0, 5, DateTimeKind.Utc));
@@ -218,6 +221,9 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Equal(NotificationAudiences.CustomerOrBroker, publishedMessage.Audience);
         Assert.Equal("customer-1", publishedMessage.OwnerUserId);
         Assert.Equal(outboxMessage.Id, publishedMessage.OutboxMessageId);
+        Assert.Equal("3", publishedMessage.Attributes["version"]);
+        Assert.Equal("12345", publishedMessage.Attributes["premium"]);
+        Assert.Equal("2026-07-21T05:00:00.0000000Z", publishedMessage.Attributes["expiresAtUtc"]);
         Assert.NotNull(savedMessage.ProcessedAtUtc);
         Assert.Equal(1, savedMessage.PublishAttemptCount);
         Assert.Equal("local-provider-message-1", savedMessage.ProviderMessageId);
@@ -312,7 +318,9 @@ public sealed class OutboxDispatcherTests : IDisposable
             "underwriter-1",
             ModuleEvidenceRequestCategory.MultiFactorAuthentication,
             new DateTime(2026, 6, 25, 9, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc));
+            new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc),
+            Title: "Verify privileged-account MFA",
+            QuoteVersion: 2);
         var outboxMessage = OutboxMessage.FromDomainEvent(
             domainEvent,
             new DateTime(2026, 6, 22, 9, 0, 5, DateTimeKind.Utc));
@@ -332,6 +340,8 @@ public sealed class OutboxDispatcherTests : IDisposable
         Assert.Equal(domainEvent.EvidenceRequestId.ToString(), publishedMessage.SubjectReferenceId);
         Assert.Equal("underwriter-1", publishedMessage.Attributes["requestedByUserId"]);
         Assert.Equal("MultiFactorAuthentication", publishedMessage.Attributes["category"]);
+        Assert.Equal("Verify privileged-account MFA", publishedMessage.Attributes["requestTitle"]);
+        Assert.Equal("2", publishedMessage.Attributes["quoteVersion"]);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 import { downloadDocumentWithToken } from "../../../lib/documentDownload";
+import { parseJsonResponse as parseApiJsonResponse } from "../../../lib/apiClient";
 import type {
   AcceptClaimRequest,
   AddWorkNoteRequest,
@@ -15,6 +16,8 @@ import type {
   ListAdjudicationQueueResponse,
   ListClaimablePoliciesResponse,
   ListMyClaimsResponse,
+  MyClaimsFilters,
+  AdjudicationQueueFilters,
   RequestInformationRequest,
   RespondToInformationRequestRequest,
   SetClaimedAmountRequest,
@@ -26,26 +29,8 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5223";
 const claimsPath = `${apiBaseUrl}/api/v1/claims`;
 const adjudicationPath = `${apiBaseUrl}/api/v1/claims/adjudication`;
 
-async function parseJsonResponse<T>(response: Response, notFoundMessage: string) {
-  if (response.status === 404) {
-    throw new Error(notFoundMessage);
-  }
-
-  if (!response.ok) {
-    const problem = await response.text();
-    let detail = problem;
-
-    try {
-      const parsed = JSON.parse(problem) as { detail?: string; title?: string };
-      detail = parsed.detail ?? parsed.title ?? problem;
-    } catch {
-      // Keep the raw body when it is not JSON.
-    }
-
-    throw new Error(detail || `API request failed with ${response.status}.`);
-  }
-
-  return (await response.json()) as T;
+function parseJsonResponse<T>(response: Response, notFoundMessage: string) {
+  return parseApiJsonResponse<T>(response, { notFoundMessage });
 }
 
 function authHeaders(accessToken: string) {
@@ -70,8 +55,24 @@ function idempotentJsonHeaders(accessToken: string) {
 
 // --- Claimant ---
 
-export async function listMyClaims(accessToken: string) {
-  const response = await fetch(claimsPath, {
+function appendFilters(
+  path: string,
+  filters: Record<string, string | boolean | undefined>,
+) {
+  const url = new URL(path);
+  for (const [name, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== "") {
+      url.searchParams.set(name, String(value));
+    }
+  }
+  return url.toString();
+}
+
+export async function listMyClaims(
+  accessToken: string,
+  filters: MyClaimsFilters = {},
+) {
+  const response = await fetch(appendFilters(claimsPath, filters), {
     headers: authHeaders(accessToken),
   });
 
@@ -184,8 +185,11 @@ export async function downloadOwnerClaimDocument(
 
 // --- Adjudication ---
 
-export async function listAdjudicationQueue(accessToken: string) {
-  const response = await fetch(adjudicationPath, {
+export async function listAdjudicationQueue(
+  accessToken: string,
+  filters: AdjudicationQueueFilters = {},
+) {
+  const response = await fetch(appendFilters(adjudicationPath, filters), {
     headers: authHeaders(accessToken),
   });
 

@@ -6,7 +6,8 @@ public interface INotificationInboxRepository
 {
     Task<IReadOnlyList<NotificationInboxItemResult>> ListForRecipientAsync(
         string recipientUserId,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        NotificationListFilter? filter = null);
 
     Task<int> CountUnreadForRecipientAsync(
         string recipientUserId,

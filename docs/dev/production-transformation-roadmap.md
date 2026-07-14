@@ -199,6 +199,33 @@ Acceptance evidence for M47 must include: HTTP-to-HTTPS behavior at the public e
 that reaches the API without a redirect loop, rejected/bypassed untrusted forwarded headers, correct
 Production environment startup, and confirmation that `Platform__Profile=Aws` is independently set.
 
+### Production observability contract (required across M45, M47, M49, and M50)
+
+The application already emits correlation-aware JSON logs in Production/Aws, stable request/error event
+IDs, request count/duration metrics, health signals, outbox diagnostics, and a disabled-by-default
+privacy-safe browser telemetry bridge. Phase 2 must provision the receiving system through Terraform;
+do not create an untracked CloudWatch/RUM setup manually.
+
+Acceptance is distributed by ownership:
+
+- **M45:** environment KMS key, least-privilege observability IAM roles/policies, SNS operations topic,
+  tagging, budgets, and state-managed log-group foundations;
+- **M47:** API/Worker stdout collector into encrypted environment-specific CloudWatch log groups,
+  readiness integration, official CloudWatch RUM bootstrap with allowlisted origins and least privilege,
+  and proof that enabling/disabling RUM does not affect customer workflows;
+- **M49:** release/environment fields, private source-map handling, dashboards, metric filters, alarm
+  actions, deployment annotations, and an end-to-end support-ID search exercise;
+- **M50:** retention/access/privacy review, CloudTrail and security-service integration, alarm escalation
+  ownership, incident evidence controls, and proof that `terraform destroy` removes disposable resources.
+
+Required signals include unhandled API errors, 5xx outcomes, latency, readiness, outbox poison/backlog,
+and sanitized browser error rates. Isolated expected 4xx responses do not page; only sustained abnormal
+authentication/authorization/conflict/rate-limit volume produces a warning. Session recording, form
+values, tokens, customer/document data, and public source maps are prohibited unless a later explicit
+security/privacy decision changes that boundary. See
+`docs/dev/production-observability-and-customer-errors-runbook.md` for names, thresholds, sampling, and
+the investigation procedure.
+
 **Phase 3 — Later (after a working production deployment):** other specialty products, AI/RAG (Bedrock + pgvector),
 analytics (S3 data-lake + Glue + Athena/QuickSight), partner API, payments/e-sign.
 

@@ -14,6 +14,13 @@ its own `claims` PostgreSQL schema, its own transactional outbox source, and the
 **ClaimsAdjuster** role. It reuses every pattern the rest of the app already proved — nothing new
 was invented, which is why it slotted in cleanly.
 
+The July 2026 search hardening keeps the two role views deliberately different. Claimants search
+only their owner-scoped claim/policy identity and filter status/incident type. ClaimsAdjuster/Admin
+search the operational queue by claim/policy/assigned adjuster and may filter assignment and open
+claimant questions. The API policy and owner/operations reader establish scope before any filter is
+applied. Claim list/detail and filing pages use semantic breadcrumbs; persisted timestamps remain UTC
+while the browser presents friendly local dates.
+
 ## The cast
 
 | Who | Role | What they do here |

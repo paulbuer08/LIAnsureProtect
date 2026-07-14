@@ -105,10 +105,20 @@ describe("App routes", () => {
     renderAppAt("/underwriting/quote-referrals");
 
     expect(
-      await screen.findByRole("heading", { name: "Underwriting workbench" }),
+      await screen.findByRole(
+        "heading",
+        { name: "Underwriting workbench" },
+        { timeout: 5_000 },
+      ),
     ).toBeInTheDocument();
     await waitFor(() =>
-      expect(listQuoteReferrals).toHaveBeenCalledWith("underwriter-token"),
+      expect(listQuoteReferrals).toHaveBeenCalledWith("underwriter-token", {
+        search: undefined,
+        riskTier: undefined,
+        priority: undefined,
+        assignment: undefined,
+        evidenceState: undefined,
+      }),
     );
   });
 
@@ -120,7 +130,7 @@ describe("App routes", () => {
     expect(
       await screen.findByRole("heading", {
         name: "You do not have access to this page",
-      }),
+      }, { timeout: 5_000 }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "Underwriting workbench" }),

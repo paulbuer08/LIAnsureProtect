@@ -27,10 +27,13 @@ public sealed record UnderwritingQuoteContext(
     decimal Retention,
     string RiskTier,
     string Status,
+    int Version,
     string StrategyName,
     IReadOnlyCollection<string> Subjectivities,
     IReadOnlyCollection<string> ReferralReasons,
-    IReadOnlyCollection<string> PriorUnderwritingDecisions);
+    IReadOnlyCollection<string> PriorUnderwritingDecisions,
+    string SubmissionReference = "",
+    string CompanyName = "");
 
 /// <summary>Read-only quote facts for creating a referral operation. RiskTier is a string (cross-context).</summary>
 public sealed record ReferralQuoteContext(
@@ -43,7 +46,9 @@ public sealed record QuoteAssuranceRequirementContext(
     Guid QuoteId,
     Guid SubmissionId,
     string OwnerUserId,
-    IReadOnlyCollection<QuoteAssuranceRequirement> Requirements);
+    IReadOnlyCollection<QuoteAssuranceRequirement> Requirements,
+    string SubmissionReference = "",
+    string CompanyName = "");
 
 public sealed record QuoteAssuranceRequirement(
     string Category,

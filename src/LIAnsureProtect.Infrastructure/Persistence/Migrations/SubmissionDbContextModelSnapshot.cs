@@ -608,6 +608,12 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("owner_user_id");
 
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("reference");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -615,6 +621,10 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                         .HasColumnName("status");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Reference")
+                        .IsUnique()
+                        .HasDatabaseName("ux_submissions_reference");
 
                     b.HasIndex("OwnerUserId", "CreatedAtUtc")
                         .HasDatabaseName("ix_submissions_owner_user_id_created_at_utc");

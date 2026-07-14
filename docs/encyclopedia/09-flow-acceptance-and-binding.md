@@ -1,5 +1,11 @@
 # Chapter 9 — Flow: Quote Acceptance & Policy Binding
 
+> **Current owner-read contract (July 2026):** Policy list search accepts policy number/UUID,
+> source Submission reference/UUID, applicant, and company, plus contractual-status and computed
+> coverage-state filters. The repository first scopes by owner. Contractual `Bound`/future cancelled
+> state remains separate from computed `Scheduled`/`Active`/`Expired` coverage. Policy detail uses
+> breadcrumbs and retains exact source Submission and Quote links.
+
 **Trigger:** the owner accepts a quote, then binds it —
 `POST /api/v1/quotes/{quoteId}/accept` and `POST /api/v1/quotes/{quoteId}/bind`
 (`QuotePolicyBindingController`, both idempotent via `Idempotency-Key`).

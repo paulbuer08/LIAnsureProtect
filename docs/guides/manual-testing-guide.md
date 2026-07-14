@@ -29,14 +29,14 @@ Use one shared throwaway password pattern for your tenant (e.g. a password manag
 |---|---|---|
 | `/dashboard` | any signed-in user | Role-aware landing page; only shows the feature cards and menu links the signed-in role can use |
 | `/submissions/new` | Customer, Broker, Admin | Create a draft submission |
-| `/submissions` | Customer, Broker, Admin | List **your own** submissions (ownership-scoped) |
+| `/submissions` | Customer, Broker, Admin | List/search **your own** submissions by human reference, UUID, applicant, email, company, status, and date |
 | `/submissions/:id` | owner | Detail: submit the draft, generate a quote, accept, bind |
-| `/underwriting/quote-referrals` | Underwriter, Admin | The underwriting workbench: referral queue, SLA/triage, notes/tasks/timeline, evidence requests, AI review, approve/decline/adjust |
-| `/evidence-requests` | Customer, Broker, Admin | Owner-side evidence: see requests, respond with text + up to 5 documents, upload replacements |
-| `/notifications` | Customer, Broker, Underwriter, **ClaimsAdjuster**, Admin | Role-scoped inbox with unread counts and mark-read; the header shows a compact unread badge. Current walkthrough build still renders All/Personal/Team filters for every notification role; the next policy-journey slice removes all filters for personal-only Customer/Broker users. |
+| `/underwriting/quote-referrals` | Underwriter, Admin | Search/filter the referral queue by quote/submission/owner, risk, priority, assignment, and evidence state; work SLA/triage, notes/tasks/timeline, evidence, AI review, and decisions |
+| `/evidence-requests` | Customer, Broker, Admin | Search/filter owner-side evidence; each request states whether a document is Required, Optional, or Narrative-only |
+| `/notifications` | Customer, Broker, Underwriter, **ClaimsAdjuster**, Admin | Search the authorized inbox and filter read state; only team-capable roles see All/Personal/Team tabs |
 | `/claims/new` | Customer, Broker, Admin | File a claim (two-step wizard: pick a **bound policy** → incident form) |
-| `/claims` · `/claims/:id` | owner | Your claims list + detail (verdict, claimed-amount, adjuster questions, scan-gated documents, timeline) |
-| `/claims/adjudication` | **ClaimsAdjuster**, Admin | The adjuster workbench: queue, assign/release, reserves, information requests, accept/deny/close, documents, audit |
+| `/claims` · `/claims/:id` | owner | Search/filter your claims by claim/policy identity, status, and incident type; detail shows verdict, questions, documents, and timeline |
+| `/claims/adjudication` | **ClaimsAdjuster**, Admin | Search/filter by claim/policy/adjuster, status, assignment, and open questions; then assign/release, reserve, request information, decide, and close |
 
 There is deliberately **no** admin console yet — `Admin` today means "allowed into every existing
 business screen". The **Claims** context is live (Phase 3); `ClaimsAdjuster` now has a full workbench.
@@ -48,9 +48,8 @@ the API-reported roles before mounting the page component, and the API authoriza
 the real enforcement point.
 
 Three related statuses are deliberately separate. A Submission can remain `Submitted` after its
-Quote becomes `Bound` and a Policy is created; that does not mean binding failed. The current detail
-page does not present that separation clearly enough after refresh. The approved next slice adds
-dedicated policy pages and shows Submission, Quote, and Policy state side by side.
+Quote becomes `Bound` and a Policy is created; that does not mean binding failed. Dedicated Policy
+pages and Submission detail show Submission, Quote, and Policy state side by side.
 
 ## Scenario 1 — The happy path (clean quote, no referral)
 
@@ -61,9 +60,11 @@ dedicated policy pages and shows Submission, Quote, and Policy state side by sid
    - Applicant name: `Jane Applicant`
    - Applicant email: `jane.applicant@example.com`
    - Company name: `Example Widgets Ltd`
-3. ✅ Expect: success panel with a **Submission ID** and status **Draft**. Inline validation
+3. ✅ Expect: the Draft detail with a readable **Submission reference**, technical Submission ID,
+   and status **Draft**. Inline validation
    (clear the email field and try) proves Zod + React Hook Form gate bad input **before** any API call.
 4. Open `/submissions` → ✅ your submission is listed (and *only* yours — ownership scoping).
+   Search the reference, filter Draft, clear the filters, and use Previous/Next if enough records exist.
 5. Open the detail page → **Submit** the submission → ✅ status becomes **Submitted**.
 6. **Generate quote**: complete the detailed control implementation fields, enter the attesting
    person's name/title, and confirm the control attestation. Try without the confirmation first → ✅

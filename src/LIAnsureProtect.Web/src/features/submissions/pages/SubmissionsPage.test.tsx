@@ -76,8 +76,11 @@ describe("SubmissionsPage", () => {
     renderSubmissionsPage();
 
     expect(
-      await screen.findByText("API request failed with 500 Internal Server Error"),
+      await screen.findByText("Unable to load submissions."),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText("API request failed with 500 Internal Server Error"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders submission rows from the protected API", async () => {
@@ -100,11 +103,18 @@ describe("SubmissionsPage", () => {
     expect(await screen.findByText("Jane Applicant")).toBeInTheDocument();
     expect(screen.getByText("jane@example.com")).toBeInTheDocument();
     expect(screen.getByText("Example Company")).toBeInTheDocument();
-    expect(screen.getByText("Draft")).toBeInTheDocument();
+    expect(screen.getByText("Draft", { selector: "span" })).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "View details for Jane Applicant" }),
     ).toHaveAttribute("href", "/submissions/submission-456");
     expect(getAccessTokenSilently).toHaveBeenCalledTimes(1);
-    expect(listSubmissions).toHaveBeenCalledWith("api-access-token");
+    expect(listSubmissions).toHaveBeenCalledWith("api-access-token", {
+      search: undefined,
+      status: undefined,
+      createdFromUtc: undefined,
+      createdToUtc: undefined,
+      cursor: undefined,
+      pageSize: 20,
+    });
   });
 });

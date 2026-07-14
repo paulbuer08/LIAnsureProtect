@@ -452,6 +452,40 @@ public sealed class QuotePolicyBindingEndpointTests
     }
 
     [Fact]
+    public async Task Policy_List_Searches_Only_The_Owners_Policies()
+    {
+        var ownedPolicyId = await BindPolicyAsync("customer-1");
+        var otherPolicyId = await BindPolicyAsync("customer-2");
+
+        using var ownedRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"/api/v1/policies?search={ownedPolicyId}",
+            "Customer",
+            "customer-1");
+        using var ownedResponse = await httpClient.SendAsync(
+            ownedRequest,
+            TestContext.Current.CancellationToken);
+        var ownedPayload = await ownedResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        using var otherRequest = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"/api/v1/policies?search={otherPolicyId}",
+            "Customer",
+            "customer-1");
+        using var otherResponse = await httpClient.SendAsync(
+            otherRequest,
+            TestContext.Current.CancellationToken);
+        var otherPayload = await otherResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, ownedResponse.StatusCode);
+        Assert.Equal(ownedPolicyId, Assert.Single(ownedPayload.GetProperty("policies").EnumerateArray()).GetProperty("policyId").GetGuid());
+        Assert.Equal(HttpStatusCode.OK, otherResponse.StatusCode);
+        Assert.Empty(otherPayload.GetProperty("policies").EnumerateArray());
+    }
+
+    [Fact]
     public async Task Policy_List_Returns_Forbidden_For_Operational_Role()
     {
         using var request = CreateAuthenticatedRequest(

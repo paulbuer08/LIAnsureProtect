@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
-import { Link } from "react-router";
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
 
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { downloadAdjudicationClaimDocument } from "../api/claimsApi";
 import {
@@ -12,11 +13,22 @@ import {
 import { claimDenialReasons } from "../types";
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Something went wrong.";
+  return getUserErrorMessage(error, "Something went wrong.");
 }
 
 export function ClaimsAdjudicationPage() {
-  const queueQuery = useAdjudicationQueue();
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [assignment, setAssignment] = useState("");
+  const [questions, setQuestions] = useState("");
+  const queueQuery = useAdjudicationQueue({
+    search: appliedSearch || undefined,
+    status: status || undefined,
+    assignment: assignment || undefined,
+    hasOpenInformationRequests:
+      questions === "open" ? true : questions === "none" ? false : undefined,
+  });
   const { getAccessTokenSilently } = useAuth0();
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string>();
@@ -78,12 +90,7 @@ export function ClaimsAdjudicationPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
       <section className="mx-auto max-w-6xl">
-        <Link
-          to="/dashboard"
-          className="inline-flex text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-        >
-          Back to dashboard
-        </Link>
+        <Breadcrumbs items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Claims adjudication" }]} />
 
         <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-emerald-400">
           Claims adjudication
@@ -95,6 +102,14 @@ export function ClaimsAdjudicationPage() {
           Open claims land here. Claim a file, ask the claimant for what you
           need, set the reserve, and record the decision.
         </p>
+
+        <form className="mt-6 grid gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4 md:grid-cols-4" onSubmit={(event) => { event.preventDefault(); setAppliedSearch(search.trim()); }}>
+          <label className="text-sm font-semibold text-slate-200">Search queue<input className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" placeholder="Claim, policy, or adjuster" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <label className="text-sm font-semibold text-slate-200">Status<select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All statuses</option>{['Filed', 'UnderReview', 'InformationRequested', 'Accepted', 'Denied'].map((value) => <option key={value}>{value}</option>)}</select></label>
+          <label className="text-sm font-semibold text-slate-200">Assignment<select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={assignment} onChange={(event) => setAssignment(event.target.value)}><option value="">Any assignment</option><option value="assigned">Assigned</option><option value="unassigned">Unassigned</option></select></label>
+          <label className="text-sm font-semibold text-slate-200">Claimant questions<select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={questions} onChange={(event) => setQuestions(event.target.value)}><option value="">Any</option><option value="open">Has open questions</option><option value="none">No open questions</option></select></label>
+          <div className="flex gap-3 md:col-span-4"><button type="submit" className="rounded-md bg-emerald-400 px-4 py-2 font-semibold text-slate-950">Search</button><button type="button" className="rounded-md border border-slate-600 px-4 py-2 font-semibold" onClick={() => { setSearch(""); setAppliedSearch(""); setStatus(""); setAssignment(""); setQuestions(""); }}>Clear</button></div>
+        </form>
 
         {queueQuery.isPending && (
           <p className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-300">

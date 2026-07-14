@@ -5,6 +5,8 @@ using LIAnsureProtect.Application.Policies.Queries;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
+using System.Text.Json;
 
 namespace LIAnsureProtect.Infrastructure.Submissions;
 
@@ -15,17 +17,58 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
         await dbContext.Submissions.AddAsync(submission, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<SubmissionListItemResult>> ListAsync(
+    public async Task<ListSubmissionsResult> ListAsync(
         string ownerUserId,
+        SubmissionListFilter filter,
         CancellationToken cancellationToken)
     {
-        var submissions = await dbContext.Submissions
+        var query = dbContext.Submissions
             .AsNoTracking()
-            .Where(submission => submission.OwnerUserId == ownerUserId)
+            .Where(submission => submission.OwnerUserId == ownerUserId);
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var searchPattern = $"%{filter.Search.ToUpperInvariant()}%";
+            var exactId = Guid.TryParse(filter.Search, out var parsedId) ? parsedId : (Guid?)null;
+#pragma warning disable CA1304, CA1311 // Translated by EF into provider-side UPPER; no process culture is used.
+            query = query.Where(submission =>
+                EF.Functions.Like(submission.Reference.ToUpper(), searchPattern)
+                || EF.Functions.Like(submission.ApplicantName.ToUpper(), searchPattern)
+                || EF.Functions.Like(submission.ApplicantEmail.ToUpper(), searchPattern)
+                || EF.Functions.Like(submission.CompanyName.ToUpper(), searchPattern)
+                || (exactId.HasValue && submission.Id == exactId.Value));
+#pragma warning restore CA1304, CA1311
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Status))
+        {
+            if (!Enum.TryParse<SubmissionStatus>(filter.Status, true, out var status))
+                throw new ArgumentException("Submission status is not recognized.", nameof(filter));
+            query = query.Where(submission => submission.Status == status);
+        }
+
+        if (filter.CreatedFromUtc.HasValue)
+            query = query.Where(submission => submission.CreatedAtUtc >= filter.CreatedFromUtc.Value);
+
+        if (filter.CreatedToUtc.HasValue)
+            query = query.Where(submission => submission.CreatedAtUtc <= filter.CreatedToUtc.Value);
+
+        if (!string.IsNullOrWhiteSpace(filter.Cursor))
+        {
+            var cursor = DecodeCursor(filter.Cursor);
+            query = query.Where(submission =>
+                submission.CreatedAtUtc < cursor.CreatedAtUtc
+                || (submission.CreatedAtUtc == cursor.CreatedAtUtc && submission.Id.CompareTo(cursor.SubmissionId) < 0));
+        }
+
+        var submissions = await query
             .OrderByDescending(submission => submission.CreatedAtUtc)
+            .ThenByDescending(submission => submission.Id)
+            .Take(filter.PageSize + 1)
             .Select(submission => new
             {
                 submission.Id,
+                submission.Reference,
                 submission.ApplicantName,
                 submission.ApplicantEmail,
                 submission.CompanyName,
@@ -34,15 +77,24 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
             })
             .ToListAsync(cancellationToken);
 
-        return submissions
+        var hasMore = submissions.Count > filter.PageSize;
+        var page = submissions.Take(filter.PageSize).ToList();
+        var items = page
             .Select(submission => new SubmissionListItemResult(
                 submission.Id,
+                submission.Reference,
                 submission.ApplicantName,
                 submission.ApplicantEmail,
                 submission.CompanyName,
                 submission.Status.ToString(),
                 submission.CreatedAtUtc))
             .ToList();
+
+        var nextCursor = hasMore && page.Count > 0
+            ? EncodeCursor(page[^1].CreatedAtUtc, page[^1].Id)
+            : null;
+
+        return new ListSubmissionsResult(items, nextCursor);
     }
 
     public async Task<SubmissionDetailResult?> GetDetailAsync(
@@ -57,6 +109,7 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
             .Select(submission => new
             {
                 submission.Id,
+                submission.Reference,
                 submission.ApplicantName,
                 submission.ApplicantEmail,
                 submission.CompanyName,
@@ -116,11 +169,13 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
                     assertion.ClaimedState,
                     assertion.AssuranceState.ToString(),
                     assertion.EvidenceRequired,
-                    assertion.EvidenceReason))
+                    assertion.EvidenceReason,
+                    assertion.DetailsJson))
                 .ToListAsync(cancellationToken);
 
         return new SubmissionDetailResult(
                 submission.Id,
+                submission.Reference,
                 submission.ApplicantName,
                 submission.ApplicantEmail,
                 submission.CompanyName,
@@ -232,4 +287,26 @@ public sealed class EfCoreSubmissionRepository(SubmissionDbContext dbContext) : 
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
     }
+
+    private static string EncodeCursor(DateTime createdAtUtc, Guid submissionId)
+    {
+        var json = JsonSerializer.Serialize(new SubmissionCursor(createdAtUtc, submissionId));
+        return Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+    }
+
+    private static SubmissionCursor DecodeCursor(string cursor)
+    {
+        try
+        {
+            var json = Encoding.UTF8.GetString(Convert.FromBase64String(cursor));
+            return JsonSerializer.Deserialize<SubmissionCursor>(json)
+                ?? throw new FormatException();
+        }
+        catch (Exception exception) when (exception is FormatException or JsonException)
+        {
+            throw new ArgumentException("Submission cursor is invalid.", nameof(cursor), exception);
+        }
+    }
+
+    private sealed record SubmissionCursor(DateTime CreatedAtUtc, Guid SubmissionId);
 }

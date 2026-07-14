@@ -14,6 +14,7 @@ public sealed class GetSubmissionDetailQueryHandlerTests
         var createdAtUtc = new DateTime(2026, 6, 19, 8, 30, 0, DateTimeKind.Utc);
         var expectedDetail = new SubmissionDetailResult(
             submissionId,
+            "SUB-2026-AF1453A40B684432",
             "Jane Applicant",
             "jane@example.com",
             "Example Company",

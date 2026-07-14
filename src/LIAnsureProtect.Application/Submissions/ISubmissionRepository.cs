@@ -8,8 +8,9 @@ public interface ISubmissionRepository
 {
     Task AddAsync(Submission submission, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<SubmissionListItemResult>> ListAsync(
+    Task<ListSubmissionsResult> ListAsync(
         string ownerUserId,
+        SubmissionListFilter filter,
         CancellationToken cancellationToken);
 
     Task<SubmissionDetailResult?> GetDetailAsync(

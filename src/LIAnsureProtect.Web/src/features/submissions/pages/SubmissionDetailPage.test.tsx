@@ -139,10 +139,11 @@ describe("SubmissionDetailPage", () => {
     renderSubmissionDetailPage("missing-submission");
 
     expect(
-      await screen.findByText("Submission was not found."),
+      await screen.findByText("Unable to load submission."),
     ).toBeInTheDocument();
+    expect(screen.queryByText("Submission was not found.")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Back to submissions" }),
+      screen.getByRole("link", { name: "Submissions" }),
     ).toHaveAttribute("href", "/submissions");
   });
 
@@ -155,8 +156,11 @@ describe("SubmissionDetailPage", () => {
     renderSubmissionDetailPage();
 
     expect(
-      await screen.findByText("API request failed with 500 Internal Server Error"),
+      await screen.findByText("Unable to load submission."),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText("API request failed with 500 Internal Server Error"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders submission detail from the protected API", async () => {
@@ -248,7 +252,8 @@ describe("SubmissionDetailPage", () => {
     await user.click(within(dialog).getByRole("button", { name: "Delete draft" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(await screen.findByText("Draft could not be deleted.")).toBeInTheDocument();
+    expect(await screen.findByText("Unable to load submission.")).toBeInTheDocument();
+    expect(screen.queryByText("Draft could not be deleted.")).not.toBeInTheDocument();
   });
 
   it("offers withdrawal for an eligible submitted application", async () => {
@@ -577,6 +582,66 @@ describe("SubmissionDetailPage", () => {
     expect(
       screen.getByRole("button", { name: "Create reassessment" }),
     ).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Cancel reassessment" }));
+
+    expect(
+      screen.queryByRole("heading", { name: "Reassess quote" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("quote-existing")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("confirms before discarding changed reassessment answers", async () => {
+    const user = userEvent.setup();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(getSubmissionDetail).mockResolvedValue({
+      submissionId: "submission-456",
+      applicantName: "Jane Applicant",
+      applicantEmail: "jane@example.com",
+      companyName: "Example Company",
+      status: "Submitted",
+      createdAtUtc: "2026-06-19T08:30:00Z",
+      latestQuote: {
+        quoteId: "quote-existing",
+        premium: 6500,
+        requestedLimit: 1000000,
+        retention: 10000,
+        riskTier: "Low",
+        status: "Quoted",
+        subjectivities: [],
+        referralReasons: [],
+        expiresAtUtc: "2026-07-19T08:30:00Z",
+        version: 1,
+        assuranceStatus: "EvidenceRequired",
+        evidenceRequiredCount: 1,
+        evidenceSatisfiedCount: 0,
+      },
+    });
+
+    renderSubmissionDetailPage();
+    await user.click(
+      await screen.findByRole("button", { name: "Reassess controls" }),
+    );
+    await user.selectOptions(screen.getByLabelText("MFA status"), "Partial");
+    await completeQuoteAttestation(user);
+
+    expect(screen.getByRole("button", { name: "Create reassessment" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Cancel reassessment" }));
+    const dialog = screen.getByRole("dialog", {
+      name: "Discard reassessment changes?",
+    });
+    expect(dialog).toHaveTextContent("It does not change or delete the current quote.");
+    expect(dialog).toHaveTextContent("Your current quote stays unchanged");
+
+    await user.click(within(dialog).getByRole("button", { name: "Discard changes" }));
+
+    expect(
+      screen.queryByRole("heading", { name: "Reassess quote" }),
+    ).not.toBeInTheDocument();
+    expect(createQuote).not.toHaveBeenCalled();
+    expect(screen.getByText("quote-existing")).toBeInTheDocument();
   });
 
   it("accepts a generated quote and then shows the bind action", async () => {

@@ -47,7 +47,10 @@ public sealed class QuoteAssuranceProjector(
                 $"{requirement.Reason} Upload current supporting evidence for underwriting review. " +
                 "Automated screening is advisory; an underwriter records the final evidence decision.",
                 assuranceEvent.OccurredAtUtc.AddDays(14),
-                assuranceEvent.OccurredAtUtc);
+                assuranceEvent.OccurredAtUtc,
+                documentRequirement: EvidenceDocumentRequirement.Required,
+                submissionReference: quote.SubmissionReference,
+                companyName: quote.CompanyName);
 
             await evidenceRequests.AddAsync(evidenceRequest, cancellationToken);
         }

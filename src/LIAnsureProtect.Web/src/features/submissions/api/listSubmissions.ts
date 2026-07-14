@@ -1,21 +1,19 @@
-import type { ListSubmissionsResponse } from "../types";
+import type { ListSubmissionsResponse, SubmissionListFilters } from "../types";
+import { parseJsonResponse } from "../../../lib/apiClient";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5223";
 
-export async function listSubmissions(accessToken: string) {
-  const response = await fetch(`${apiBaseUrl}/api/v1/submissions`, {
+export async function listSubmissions(accessToken: string, filters: SubmissionListFilters = {}) {
+  const parameters = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") parameters.set(key, String(value));
+  });
+  const query = parameters.size > 0 ? `?${parameters.toString()}` : "";
+  const response = await fetch(`${apiBaseUrl}/api/v1/submissions${query}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   });
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-
-    throw new Error(
-      `API request failed with ${response.status} ${response.statusText}: ${errorBody}`,
-    );
-  }
-
-  return (await response.json()) as ListSubmissionsResponse;
+  return parseJsonResponse<ListSubmissionsResponse>(response);
 }

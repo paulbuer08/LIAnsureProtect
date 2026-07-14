@@ -326,11 +326,25 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("category");
 
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("company_name");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("description");
+
+                    b.Property<string>("DocumentRequirement")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Required")
+                        .HasColumnName("document_requirement");
 
                     b.Property<DateTime>("DueAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -421,6 +435,12 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                     b.Property<Guid>("SubmissionId")
                         .HasColumnType("uuid")
                         .HasColumnName("submission_id");
+
+                    b.Property<string>("SubmissionReference")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("submission_reference");
 
                     b.Property<string>("Title")
                         .IsRequired()

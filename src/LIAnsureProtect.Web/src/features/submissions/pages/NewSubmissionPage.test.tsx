@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -43,6 +43,7 @@ function renderNewSubmissionPage() {
             path="/submissions/:submissionId"
             element={<p>Draft detail destination</p>}
           />
+          <Route path="/dashboard" element={<p>Dashboard destination</p>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -85,6 +86,33 @@ describe("NewSubmissionPage", () => {
     expect(screen.getByText("Enter a valid email address.")).toBeInTheDocument();
     expect(screen.getByText("Company name is required.")).toBeInTheDocument();
     expect(createSubmission).not.toHaveBeenCalled();
+  });
+
+  it("leaves immediately when cancel is selected on an empty form", async () => {
+    const user = userEvent.setup();
+    renderNewSubmissionPage();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(await screen.findByText("Dashboard destination")).toBeInTheDocument();
+    expect(createSubmission).not.toHaveBeenCalled();
+  });
+
+  it("asks before discarding meaningful unsaved input", async () => {
+    const user = userEvent.setup();
+    renderNewSubmissionPage();
+    await user.type(screen.getByLabelText("Applicant name"), "J");
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    const dialog = screen.getByRole("dialog", { name: "Cancel draft creation?" });
+    expect(dialog).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByLabelText("Applicant name")).toHaveValue("J");
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Discard and leave" }));
+    expect(await screen.findByText("Dashboard destination")).toBeInTheDocument();
   });
 
   it("creates a draft with an idempotency key and navigates to its detail", async () => {
@@ -187,7 +215,10 @@ describe("NewSubmissionPage", () => {
     await user.type(screen.getByLabelText("Applicant email"), "jane@example.com");
     await user.type(screen.getByLabelText("Company name"), "Example Company");
     await user.click(screen.getByRole("button", { name: "Create draft submission" }));
-    expect(await screen.findByText("Temporary network failure")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Unable to create the draft submission."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Temporary network failure")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Create draft submission" }));
 

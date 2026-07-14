@@ -8,6 +8,8 @@ public static class ObservabilityNames
     public const string ActivitySourceName = "LIAnsureProtect";
     public const string MeterName = "LIAnsureProtect";
     public const string CorrelationIdHeaderName = "X-Correlation-ID";
+    public const string ApiRequestsMetric = "liansureprotect.api.requests";
+    public const string ApiRequestDurationMetric = "liansureprotect.api.request.duration_ms";
 
     public const string OutboxDispatchBatchesMetric = "liansureprotect.outbox.dispatch.batches";
     public const string OutboxDispatchPendingMessagesMetric = "liansureprotect.outbox.dispatch.pending_messages";

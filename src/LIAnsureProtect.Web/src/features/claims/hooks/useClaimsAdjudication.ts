@@ -15,6 +15,7 @@ import {
 } from "../api/claimsApi";
 import type {
   AcceptClaimRequest,
+  AdjudicationQueueFilters,
   AddWorkNoteRequest,
   DenyClaimRequest,
   RequestInformationRequest,
@@ -27,12 +28,13 @@ export function adjudicationDetailQueryKey(claimId: string) {
   return ["claims", "adjudication", "detail", claimId];
 }
 
-export function useAdjudicationQueue() {
+export function useAdjudicationQueue(filters: AdjudicationQueueFilters = {}) {
   const { getAccessTokenSilently } = useAuth0();
 
   return useQuery({
-    queryKey: adjudicationQueueQueryKey,
-    queryFn: async () => listAdjudicationQueue(await getAccessTokenSilently()),
+    queryKey: [...adjudicationQueueQueryKey, filters],
+    queryFn: async () =>
+      listAdjudicationQueue(await getAccessTokenSilently(), filters),
   });
 }
 

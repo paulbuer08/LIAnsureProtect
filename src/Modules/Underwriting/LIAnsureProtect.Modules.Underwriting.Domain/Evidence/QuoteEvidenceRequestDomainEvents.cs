@@ -10,7 +10,9 @@ public sealed record QuoteEvidenceRequestCreatedDomainEvent(
     string RequestedByUserId,
     EvidenceRequestCategory Category,
     DateTime DueAtUtc,
-    DateTime OccurredAtUtc) : IDomainEvent;
+    DateTime OccurredAtUtc,
+    string? Title = null,
+    int QuoteVersion = 1) : IDomainEvent;
 
 public sealed record QuoteEvidenceRequestRespondedDomainEvent(
     Guid EvidenceRequestId,

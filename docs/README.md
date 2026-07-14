@@ -26,6 +26,7 @@
 | Business domain: user roles & ownership rules | [business/user-roles.md](business/user-roles.md) |
 | Core concepts explained (modular monolith, outbox, …) | [concepts/README.md](concepts/README.md) |
 | Phase 2 infra/edge/identity decisions + domain/Auth0 setup log | [dev/phase2-infrastructure-and-identity-decisions.md](dev/phase2-infrastructure-and-identity-decisions.md) |
+| Customer errors, support IDs, CloudWatch alarms, and browser telemetry | [dev/production-observability-and-customer-errors-runbook.md](dev/production-observability-and-customer-errors-runbook.md) |
 | Claims context (Phase 3) — how it works | [encyclopedia/12-flow-claims.md](encyclopedia/12-flow-claims.md); per-milestone archive under `claims/` |
 | Architecture overview + decision records (ADRs) | [architecture/overview.md](architecture/overview.md) · [architecture/decision-records/](architecture/decision-records) |
 
@@ -45,6 +46,8 @@ Build History.
   and implemented specs.
 - **`dev/customer-broker-walkthrough-hardening-and-policy-journey-plan.md`** — July 2026 manual
   walkthrough decisions, completed hardening work, and the approved owner policy-journey plan.
+- **`dev/customer-error-and-notification-hardening-design.md`** and its matching learnings record —
+  July 2026 customer-error, reassessment, evidence-detail, precise-notification, and observability decisions.
 - **`superpowers/plans/`** — execution plans for the plan-driven milestones.
 - **`dev/run-the-app.md`** — the Milestone-9-era run guide (banner-marked historical; still holds
   the troubleshooting catalog and the manual Auth0-token appendix).

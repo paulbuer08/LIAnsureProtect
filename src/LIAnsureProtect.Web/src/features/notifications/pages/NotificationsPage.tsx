@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
 import { hasTeamNotificationAccess } from "../../../lib/roleAccess";
+import { formatCurrency } from "../../../lib/currency";
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import {
   useMarkNotificationRead,
   useNotifications,
@@ -18,9 +21,7 @@ const filterTabs: { value: NotificationFilter; label: string }[] = [
 ];
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "Unable to load notifications.";
+  return getUserErrorMessage(error, "Unable to load notifications.");
 }
 
 function getNotificationAction(
@@ -36,13 +37,30 @@ function getNotificationAction(
   }
 
   if (subjectReferenceType === "evidence-request") {
-    return { label: "Open evidence request", to: "/evidence-requests" };
+    const evidenceRequestId = attributes.evidenceRequestId ?? subjectReferenceId;
+    return evidenceRequestId
+      ? {
+          label: "Open evidence request",
+          to: `/evidence-requests/${evidenceRequestId}`,
+        }
+      : null;
   }
 
-  if (subjectReferenceType === "quote" || subjectReferenceType === "submission") {
+  if (subjectReferenceType === "quote") {
+    const submissionId = attributes.submissionId;
+    const quoteId = attributes.quoteId ?? subjectReferenceId;
+    return submissionId && quoteId
+      ? {
+          label: "View quote",
+          to: `/submissions/${submissionId}/quotes/${quoteId}`,
+        }
+      : null;
+  }
+
+  if (subjectReferenceType === "submission") {
     const submissionId =
       attributes.submissionId ??
-      (subjectReferenceType === "submission" ? subjectReferenceId : null);
+      subjectReferenceId;
     return submissionId
       ? { label: "Open submission", to: `/submissions/${submissionId}` }
       : null;
@@ -51,11 +69,32 @@ function getNotificationAction(
   return null;
 }
 
+function NotificationDetails({ attributes }: { attributes: Record<string, string> }) {
+  const details: string[] = [];
+  if (attributes.category) details.push(`Control: ${attributes.category}`);
+  if (attributes.quoteVersion) details.push(`Quote version ${attributes.quoteVersion}`);
+  if (attributes.version) details.push(`Quote version ${attributes.version}`);
+  if (attributes.premium && Number.isFinite(Number(attributes.premium))) {
+    details.push(`Premium ${formatCurrency(Number(attributes.premium))}`);
+  }
+  if (attributes.dueAtUtc) {
+    details.push(`Due ${new Date(attributes.dueAtUtc).toLocaleDateString()}`);
+  }
+  if (attributes.expiresAtUtc) {
+    details.push(`Expires ${new Date(attributes.expiresAtUtc).toLocaleDateString()}`);
+  }
+
+  return details.length > 0 ? (
+    <p className="mt-2 text-sm text-slate-300">{details.join(" · ")}</p>
+  ) : null;
+}
+
 export function NotificationsPage() {
   const currentUserQuery = useCurrentUser();
-  const notificationsQuery = useNotifications();
-  const markReadMutation = useMarkNotificationRead();
   const [filter, setFilter] = useState<NotificationFilter>("all");
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [readState, setReadState] = useState("");
   const canFilterByTeam = hasTeamNotificationAccess(
     currentUserQuery.data?.roles,
   );
@@ -67,6 +106,17 @@ export function NotificationsPage() {
     setFilter(canFilterByTeam ? "all" : "personal");
   }
 
+  const notificationsQuery = useNotifications({
+    filters: {
+      search: appliedSearch || undefined,
+      isUnread:
+        readState === "unread" ? true : readState === "read" ? false : undefined,
+      scope:
+        filter === "all" ? undefined : filter,
+    },
+  });
+  const markReadMutation = useMarkNotificationRead();
+
   const notifications = notificationsQuery.data?.notifications ?? [];
   const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
   const visibleNotifications = notifications.filter(
@@ -76,12 +126,7 @@ export function NotificationsPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
       <section className="mx-auto max-w-3xl">
-        <Link
-          to="/dashboard"
-          className="inline-flex text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-        >
-          Back to dashboard
-        </Link>
+        <Breadcrumbs items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Notifications" }]} />
 
         <div className="mt-8">
           <p className="text-sm font-semibold uppercase tracking-wide text-emerald-400">
@@ -92,6 +137,18 @@ export function NotificationsPage() {
           </h1>
           <p className="mt-4 text-slate-300">{unreadCount} unread</p>
         </div>
+
+        <form className="mt-6 grid gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4 sm:grid-cols-3" onSubmit={(event: FormEvent) => { event.preventDefault(); setAppliedSearch(search.trim()); }}>
+          <label className="text-sm font-semibold text-slate-200 sm:col-span-2">
+            Search notifications
+            <input className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" placeholder="Reference, update type, or subject" value={search} onChange={(event) => setSearch(event.target.value)} />
+          </label>
+          <label className="text-sm font-semibold text-slate-200">
+            Read state
+            <select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={readState} onChange={(event) => setReadState(event.target.value)}><option value="">All</option><option value="unread">Unread</option><option value="read">Read</option></select>
+          </label>
+          <div className="flex gap-3 sm:col-span-3"><button type="submit" className="rounded-md bg-emerald-400 px-4 py-2 font-semibold text-slate-950">Search</button><button type="button" className="rounded-md border border-slate-600 px-4 py-2 font-semibold" onClick={() => { setSearch(""); setAppliedSearch(""); setReadState(""); }}>Clear</button></div>
+        </form>
 
         {notificationsQuery.isPending && (
           <p className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-300">
@@ -184,6 +241,7 @@ export function NotificationsPage() {
                             {notification.attributes.remediationGuidance}
                           </p>
                         )}
+                        <NotificationDetails attributes={notification.attributes} />
                         <p className="mt-2 text-xs text-slate-400">
                           {new Date(notification.occurredAtUtc).toLocaleString()}
                         </p>

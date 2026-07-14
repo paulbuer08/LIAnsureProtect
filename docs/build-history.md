@@ -24,6 +24,36 @@ timeline
 
 ---
 
+## July 2026 — End-to-end customer and operations hardening
+
+After the seven foundational eras, repeated role-by-role manual walkthroughs exposed the difference
+between a technically complete workflow and a comfortable daily product. The follow-up work kept the
+domain model intact while making its identities, decisions, and navigation understandable:
+
+- Submission, Quote, and Policy statuses remain separate audit facts; owner Policy pages and exact
+  notification deep links make the journey visible without rewriting history.
+- Customer-facing failures became safe guidance plus support IDs while structured diagnostics remain
+  available to operators.
+- Security-control answers became attestations whose material positive claims create Underwriting
+  evidence; human verification remains authoritative.
+- Immutable Submission references provide a spoken/written identifier without replacing UUIDs.
+- Search became contextual and role-aware across owner collections and operational queues.
+- Breadcrumbs, local-time presentation, transient confirmations, styled confirmation dialogs, and
+  dirty-aware cancellation make long workflows safer to navigate.
+
+The architectural lesson was that convenience features still need boundaries. Search first selects an
+authorized haystack (owner, team, or operations policy), then narrows it. Evidence display snapshots
+cross contexts through existing ports/events; aggregates and schemas do not merge. Two additive
+migrations (`AddSubmissionReference`, `AddEvidenceRequestIdentityAndDocumentRequirement`) preserve
+legacy data and audit history.
+
+Detailed records: `docs/dev/customer-broker-policy-journey-learnings.md`,
+`docs/dev/cyber-control-assurance-and-reassessment-learnings.md`,
+`docs/dev/customer-error-and-notification-hardening-learnings.md`, and
+`docs/dev/role-aware-search-navigation-and-form-safety-learnings.md`.
+
+---
+
 # Era 1 — Foundations (M1–M8): a skeleton that can log in
 
 **Before this era:** nothing — an empty repository and a plan to build a production-style cyber
@@ -768,6 +798,44 @@ The source plan and acceptance decisions remain in
 [Customer/Broker Walkthrough Hardening and Policy Journey Plan](dev/customer-broker-walkthrough-hardening-and-policy-journey-plan.md),
 with implementation lessons in
 [Customer/Broker Policy Journey Learnings](dev/customer-broker-policy-journey-learnings.md).
+
+### Control assurance and precise customer follow-up
+
+The next manual walkthrough asked a harder insurance question: “how can a quote trust a checked
+security-control box?” The answer was to stop treating self-report as verified fact. Quote generation
+now records a named, versioned attestation and detailed MFA, endpoint detection, backup/recovery,
+incident-response, and sensitive-data assertions. Deterministic rules can create risk-based evidence
+requests through the transactional outbox; only human Underwriting review can satisfy them. Quote
+commercial status remains separate from assurance state, and material pre-acceptance improvements
+create an immutable reassessment version rather than rewriting history.
+
+The customer-error/notification hardening follow-up then made that model navigable and operable. One
+shared Zod-validated frontend boundary converts reviewed Problem Details codes into friendly guidance
+and hides unknown internals; support IDs preserve developer traceability. Reassessment is cancellable
+local UI state and cannot be created until a canonical control assertion changes. Evidence uses
+cursor-paged summaries plus an exact owner-scoped request page; quote-ready and evidence-requested
+notifications carry event-time snapshots and open exact immutable subjects. Equal-timestamp evidence
+records use ID as the final cursor tie-breaker, preventing silent gaps.
+
+Production/Aws hosts now emit structured request outcomes and privacy-safe metrics, but this slice
+deliberately does not create AWS resources. The CloudWatch log groups, metric filters, alarms, SNS
+targets, and browser RUM identity/origin/sampling controls remain Terraform-owned Phase 2 work. This
+keeps observability reproducible and destroyable rather than hidden in manual console state.
+
+The next usability slice added immutable human Submission references without replacing UUID primary
+keys, then made search contextual and role-aware across owner collections and operational queues.
+Authorization scope is always applied before filters, so search narrows a caller's visible set and can
+never discover another owner's work. Evidence requests now state a document contract (`Required`,
+`Optional`, or `NarrativeOnly`), deeper pages use semantic breadcrumbs and local times, and unfinished
+Draft/Evidence forms can be safely discarded without mutating durable audit history. Verification used
+all four EF pending-model checks and fresh Docker PostgreSQL; the final local-CI artifact is
+`TestResults/local-ci-20260714-171307.zip`.
+
+Design and operational records:
+[Cyber Control Assurance and Reassessment](dev/cyber-control-assurance-and-reassessment-design.md),
+[Customer Error and Notification Hardening](dev/customer-error-and-notification-hardening-design.md),
+[Hardening Learnings](dev/customer-error-and-notification-hardening-learnings.md), and
+[Production Observability and Customer Error Runbook](dev/production-observability-and-customer-errors-runbook.md).
 
 ---
 

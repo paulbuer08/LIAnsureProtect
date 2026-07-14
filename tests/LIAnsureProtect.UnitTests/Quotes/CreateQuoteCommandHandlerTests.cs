@@ -248,11 +248,12 @@ public sealed class CreateQuoteCommandHandlerTests
         var providerClient = new Mock<IRatingProviderClient>();
         var handler = CreateHandler(submission, quoteRepository.Object, providerClient.Object);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(
+        var exception = await Assert.ThrowsAsync<LIAnsureProtect.Application.Common.Exceptions.BusinessConflictException>(() => handler.Handle(
             CreateCommand(submission.Id) with { IsReassessment = true },
             TestContext.Current.CancellationToken));
 
-        Assert.Contains("changed control assertion", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("quote.reassessment.no_changes", exception.Code);
+        Assert.Contains("at least one control answer", exception.PublicMessage, StringComparison.OrdinalIgnoreCase);
         Assert.NotEqual(QuoteStatus.Superseded, existingQuote.Status);
         providerClient.Verify(
             client => client.GetMarketIndicationAsync(

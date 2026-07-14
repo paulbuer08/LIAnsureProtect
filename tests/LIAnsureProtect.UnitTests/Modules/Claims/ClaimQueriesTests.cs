@@ -1,6 +1,7 @@
 using LIAnsureProtect.Modules.Claims.Application;
 using LIAnsureProtect.Modules.Claims.Application.Queries.GetMyClaimDetail;
 using LIAnsureProtect.Modules.Claims.Application.Queries.ListMyClaims;
+using LIAnsureProtect.Modules.Claims.Application.Queries.ListClaimsForAdjudication;
 using Moq;
 
 namespace LIAnsureProtect.UnitTests.Modules.Claims;
@@ -44,6 +45,53 @@ public sealed class ClaimQueriesTests
     }
 
     [Fact]
+    public async Task ListMyClaims_Filters_Only_The_Owner_Scoped_Result()
+    {
+        var matching = CreateClaimSummary("CLM-MATCH", "Filed");
+        var other = CreateClaimSummary("CLM-OTHER", "Closed");
+        claimsReader
+            .Setup(reader => reader.ListOwnerClaimsAsync("customer-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([matching, other]);
+        var handler = new ListMyClaimsQueryHandler(claimsReader.Object, new TestClaimsCurrentUser("customer-1"));
+
+        var result = await handler.Handle(
+            new ListMyClaimsQuery(Search: "CLM-MATCH", Status: "Filed"),
+            CancellationToken.None);
+
+        Assert.Equal(matching, Assert.Single(result.Claims));
+        claimsReader.Verify(
+            reader => reader.ListOwnerClaimsAsync("customer-1", It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task AdjudicationQueue_Applies_Operational_Filters()
+    {
+        var reader = new Mock<IClaimsAdjudicationReader>();
+        var matching = new ClaimAdjudicationResult(
+            Guid.NewGuid(), "CLM-ASSIGNED", Guid.NewGuid(), "POL-1", "Other",
+            DateTime.UtcNow, "UnderReview", "adjuster-1", 2, DateTime.UtcNow, DateTime.UtcNow);
+        var other = matching with
+        {
+            ClaimId = Guid.NewGuid(),
+            ClaimNumber = "CLM-UNASSIGNED",
+            AssignedAdjusterUserId = null,
+            OpenInformationRequestCount = 0
+        };
+        reader.Setup(candidate => candidate.ListQueueAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([matching, other]);
+        var handler = new ListClaimsForAdjudicationQueryHandler(reader.Object);
+
+        var result = await handler.Handle(
+            new ListClaimsForAdjudicationQuery(
+                Assignment: "assigned",
+                HasOpenInformationRequests: true),
+            CancellationToken.None);
+
+        Assert.Equal(matching, Assert.Single(result.Claims));
+    }
+
+    [Fact]
     public async Task GetMyClaimDetail_Scopes_The_Read_To_The_Caller()
     {
         var claimId = Guid.NewGuid();
@@ -58,5 +106,13 @@ public sealed class ClaimQueriesTests
         claimsReader.Verify(
             reader => reader.GetOwnerClaimDetailAsync("customer-1", claimId, It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    private static ClaimResult CreateClaimSummary(string claimNumber, string status)
+    {
+        var occurredAtUtc = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
+        return new ClaimResult(
+            Guid.NewGuid(), claimNumber, Guid.NewGuid(), "POL-1", "Other",
+            occurredAtUtc, occurredAtUtc, status, occurredAtUtc, occurredAtUtc);
     }
 }

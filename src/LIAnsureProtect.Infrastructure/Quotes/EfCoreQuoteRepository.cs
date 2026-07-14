@@ -31,6 +31,22 @@ public sealed class EfCoreQuoteRepository(SubmissionDbContext dbContext) : IQuot
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public Task<Quote?> GetOwnedForReadAsync(
+        Guid submissionId,
+        Guid quoteId,
+        string ownerUserId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.Quotes
+            .AsNoTracking()
+            .Include(quote => quote.ControlAssertions)
+            .SingleOrDefaultAsync(
+                quote => quote.Id == quoteId
+                    && quote.SubmissionId == submissionId
+                    && quote.OwnerUserId == ownerUserId,
+                cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken)
     {
         return await dbContext.Quotes

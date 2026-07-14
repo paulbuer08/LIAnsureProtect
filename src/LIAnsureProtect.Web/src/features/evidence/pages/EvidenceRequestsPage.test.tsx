@@ -1,16 +1,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   downloadOwnerEvidenceDocument,
-  listEvidenceRequests,
+  getEvidenceRequest,
   respondToEvidenceRequest,
   uploadReplacementEvidenceDocuments,
 } from "../api/evidenceRequestsApi";
-import { EvidenceRequestsPage } from "./EvidenceRequestsPage";
+import { useEvidenceRequest } from "../hooks/useEvidenceRequests";
+import { EvidenceRequestCard } from "./EvidenceRequestsPage";
 
 const getAccessTokenSilently = vi.fn();
 
@@ -22,7 +23,7 @@ vi.mock("@auth0/auth0-react", () => ({
 
 vi.mock("../api/evidenceRequestsApi", () => ({
   downloadOwnerEvidenceDocument: vi.fn(),
-  listEvidenceRequests: vi.fn(),
+  getEvidenceRequest: vi.fn(),
   respondToEvidenceRequest: vi.fn(),
   uploadReplacementEvidenceDocuments: vi.fn(),
 }));
@@ -50,22 +51,28 @@ function renderEvidenceRequestsPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <EvidenceRequestsPage />
+        <EvidenceRequestCardHarness />
       </MemoryRouter>
     </QueryClientProvider>,
   );
+}
+
+function EvidenceRequestCardHarness() {
+  const query = useEvidenceRequest("evidence-request-under-test");
+  const request = query.data;
+  return request ? <EvidenceRequestCard request={request} /> : <p>Loading evidence request...</p>;
 }
 
 describe("EvidenceRequestsPage", () => {
   beforeEach(() => {
     getAccessTokenSilently.mockReset();
     getAccessTokenSilently.mockResolvedValue("owner-token");
-    vi.mocked(listEvidenceRequests).mockReset();
+    vi.mocked(getEvidenceRequest).mockReset();
     vi.mocked(respondToEvidenceRequest).mockReset();
     vi.mocked(uploadReplacementEvidenceDocuments).mockReset();
   });
 
-  it("lists owner evidence requests and submits a text response with evidence documents", async () => {
+  it("submits a text response with evidence documents from request detail", async () => {
     const user = userEvent.setup();
     const mfaFile = new File(["mfa rollout evidence"], "mfa-attestation.pdf", {
       type: "application/pdf",
@@ -73,12 +80,14 @@ describe("EvidenceRequestsPage", () => {
     const edrFile = new File(["edr deployment evidence"], "edr-rollout.txt", {
       type: "text/plain",
     });
-    vi.mocked(listEvidenceRequests).mockResolvedValue({
-      evidenceRequests: [
+    vi.mocked(getEvidenceRequest).mockResolvedValue(
         {
           evidenceRequestId: "evidence-1",
           quoteId: "quote-severe",
           submissionId: "submission-severe",
+          submissionReference: "SUB-2026-1234567890ABCDEF",
+          companyName: "Example Company",
+          documentRequirement: "Required",
           category: "MultiFactorAuthentication",
           title: "Confirm MFA rollout",
           description: "Please provide current MFA rollout evidence.",
@@ -105,8 +114,7 @@ describe("EvidenceRequestsPage", () => {
           updatedAtUtc: "2026-06-22T09:00:00Z",
           documents: [],
         },
-      ],
-    });
+    );
     vi.mocked(respondToEvidenceRequest).mockResolvedValue({
       evidenceRequestId: "evidence-1",
       quoteId: "quote-severe",
@@ -174,6 +182,8 @@ describe("EvidenceRequestsPage", () => {
     expect(await screen.findByText("Confirm MFA rollout")).toBeInTheDocument();
     expect(screen.getByText("MultiFactorAuthentication")).toBeInTheDocument();
     expect(screen.getByText("Due in 3 days")).toBeInTheDocument();
+    expect(screen.getByText(/SUB-2026-1234567890ABCDEF/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit evidence response" })).toBeDisabled();
 
     await user.type(screen.getByLabelText("Respondent name"), "Jane Applicant");
     await user.type(screen.getByLabelText("Respondent title"), "CISO");
@@ -211,13 +221,57 @@ describe("EvidenceRequestsPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("asks before discarding an unsent evidence response", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getEvidenceRequest).mockResolvedValue({
+      evidenceRequestId: "evidence-cancel",
+      quoteId: "quote-1",
+      submissionId: "submission-1",
+      submissionReference: "SUB-2026-1111111111111111",
+      companyName: "Example Company",
+      documentRequirement: "Optional",
+      category: "Other",
+      title: "Clarify the control",
+      description: "Provide a short explanation.",
+      dueAtUtc: "2026-07-28T09:00:00Z",
+      status: "Open",
+      isOverdue: false,
+      daysUntilDue: 14,
+      requestedByUserId: "underwriter-1",
+      requestedAtUtc: "2026-07-14T09:00:00Z",
+      respondedByUserId: null,
+      respondentName: null,
+      respondentTitle: null,
+      responseText: null,
+      attachmentFileName: null,
+      attachmentContentType: null,
+      attachmentSizeBytes: null,
+      respondedAtUtc: null,
+      acceptedByUserId: null,
+      acceptedAtUtc: null,
+      cancelledByUserId: null,
+      cancelledAtUtc: null,
+      ...notReviewedEvidence,
+      reviewNotes: null,
+      updatedAtUtc: "2026-07-14T09:00:00Z",
+      documents: [],
+    });
+    renderEvidenceRequestsPage();
+    await user.type(await screen.findByLabelText("Respondent name"), "Jane");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Cancel this evidence response?" });
+    expect(dialog).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByLabelText("Respondent name")).toHaveValue("Jane");
+  });
+
   it("shows rejected document status and lets the owner upload replacement evidence", async () => {
     const user = userEvent.setup();
     const replacementFile = new File(["replacement clean evidence"], "replacement-evidence.txt", {
       type: "text/plain",
     });
-    vi.mocked(listEvidenceRequests).mockResolvedValue({
-      evidenceRequests: [
+    vi.mocked(getEvidenceRequest).mockResolvedValue(
         {
           evidenceRequestId: "evidence-1",
           quoteId: "quote-severe",
@@ -264,8 +318,7 @@ describe("EvidenceRequestsPage", () => {
             },
           ],
         },
-      ],
-    });
+    );
     vi.mocked(uploadReplacementEvidenceDocuments).mockResolvedValue({
       evidenceRequestId: "evidence-1",
       quoteId: "quote-severe",
@@ -363,8 +416,7 @@ describe("EvidenceRequestsPage", () => {
   });
 
   it("shows overdue evidence requests clearly for the owner", async () => {
-    vi.mocked(listEvidenceRequests).mockResolvedValue({
-      evidenceRequests: [
+    vi.mocked(getEvidenceRequest).mockResolvedValue(
         {
           evidenceRequestId: "evidence-overdue",
           quoteId: "quote-severe",
@@ -394,8 +446,7 @@ describe("EvidenceRequestsPage", () => {
           reviewNotes: null,
           updatedAtUtc: "2020-06-18T09:00:00Z",
         },
-      ],
-    });
+    );
 
     renderEvidenceRequestsPage();
 
@@ -405,8 +456,7 @@ describe("EvidenceRequestsPage", () => {
 
   it("shows underwriter remediation guidance and allows supplemental response", async () => {
     const user = userEvent.setup();
-    vi.mocked(listEvidenceRequests).mockResolvedValue({
-      evidenceRequests: [
+    vi.mocked(getEvidenceRequest).mockResolvedValue(
         {
           evidenceRequestId: "evidence-clarification",
           quoteId: "quote-severe",
@@ -442,8 +492,7 @@ describe("EvidenceRequestsPage", () => {
           updatedAtUtc: "2026-06-22T13:00:00Z",
           documents: [],
         },
-      ],
-    });
+    );
     vi.mocked(respondToEvidenceRequest).mockResolvedValue({
       evidenceRequestId: "evidence-clarification",
       quoteId: "quote-severe",

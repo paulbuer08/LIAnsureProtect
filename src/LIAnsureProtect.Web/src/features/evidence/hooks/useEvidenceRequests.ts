@@ -3,22 +3,36 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   listEvidenceRequests,
+  getEvidenceRequest,
   respondToEvidenceRequest,
   uploadReplacementEvidenceDocuments,
 } from "../api/evidenceRequestsApi";
-import type { RespondToEvidenceRequest } from "../types";
+import type { EvidenceRequestFilters, RespondToEvidenceRequest } from "../types";
 
 export const evidenceRequestsQueryKey = ["evidence-requests"];
 
-export function useEvidenceRequests() {
+export function useEvidenceRequests(filters: EvidenceRequestFilters = {}) {
   const { getAccessTokenSilently } = useAuth0();
 
   return useQuery({
-    queryKey: evidenceRequestsQueryKey,
+    queryKey: [...evidenceRequestsQueryKey, filters],
     queryFn: async () => {
       const accessToken = await getAccessTokenSilently();
 
-      return listEvidenceRequests(accessToken);
+      return listEvidenceRequests(accessToken, filters);
+    },
+  });
+}
+
+export function useEvidenceRequest(evidenceRequestId?: string) {
+  const { getAccessTokenSilently } = useAuth0();
+
+  return useQuery({
+    queryKey: [...evidenceRequestsQueryKey, "detail", evidenceRequestId],
+    enabled: Boolean(evidenceRequestId),
+    queryFn: async () => {
+      const accessToken = await getAccessTokenSilently();
+      return getEvidenceRequest(accessToken, evidenceRequestId!);
     },
   });
 }

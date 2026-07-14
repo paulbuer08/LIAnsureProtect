@@ -119,6 +119,31 @@ public sealed class NotificationInboxEndpointTests
     }
 
     [Fact]
+    public async Task List_Filters_Within_The_Authorized_Personal_Inbox()
+    {
+        await SeedEntriesAsync(
+            CreateEntry("customer-1", NotificationMessageTypes.QuoteReady),
+            CreateEntry("customer-1", NotificationMessageTypes.EvidenceRequestRemediationRequired),
+            CreateEntry("customer-2", NotificationMessageTypes.EvidenceRequestRemediationRequired));
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"{EndpointPath}?search=Evidence&isUnread=true&scope=personal",
+            "Customer",
+            "customer-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var payload = JsonDocument.Parse(content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var item = Assert.Single(payload.RootElement.GetProperty("notifications").EnumerateArray());
+        Assert.Equal("personal", item.GetProperty("scope").GetString());
+        Assert.Equal(2, payload.RootElement.GetProperty("unreadCount").GetInt32());
+        Assert.Contains("evidence", content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Your quote is ready", content);
+    }
+
+    [Fact]
     public async Task Mark_Read_Returns_NotFound_For_Another_Owners_Notification()
     {
         var entry = CreateEntry("customer-1", NotificationMessageTypes.QuoteReady);

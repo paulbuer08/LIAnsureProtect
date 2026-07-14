@@ -15,6 +15,12 @@ export type ListMyClaimsResponse = {
   claims: ClaimSummary[];
 };
 
+export type MyClaimsFilters = {
+  search?: string;
+  status?: string;
+  incidentType?: string;
+};
+
 export type ClaimTimelineEntry = {
   entryId: string;
   entryType: string;
@@ -127,6 +133,11 @@ export type ClaimAdjudicationSummary = {
 
 export type ListAdjudicationQueueResponse = {
   claims: ClaimAdjudicationSummary[];
+};
+
+export type AdjudicationQueueFilters = MyClaimsFilters & {
+  assignment?: string;
+  hasOpenInformationRequests?: boolean;
 };
 
 export type ClaimWorkNote = {

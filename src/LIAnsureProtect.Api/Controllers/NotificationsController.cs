@@ -16,11 +16,29 @@ public sealed class NotificationsController(ISender sender) : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ListMyNotificationsResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ListMyNotificationsResult>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<ListMyNotificationsResult>> List(
+        [FromQuery] string? search,
+        [FromQuery] string? type,
+        [FromQuery] bool? isUnread,
+        [FromQuery] string? scope,
+        CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new ListMyNotificationsQuery(), cancellationToken);
-
-        return Ok(result);
+        try
+        {
+            var result = await sender.Send(
+                new ListMyNotificationsQuery(search, type, isUnread, scope),
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Notification filters are invalid.",
+                Detail = exception.Message
+            });
+        }
     }
 
     [HttpPost("{notificationId:guid}/read")]

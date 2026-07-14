@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using LIAnsureProtect.Application;
 using LIAnsureProtect.Api.Caching;
+using LIAnsureProtect.Api.Errors;
 using LIAnsureProtect.Api.Observability;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Api.Security;
@@ -48,6 +49,13 @@ var databaseConnectionString = builder.Configuration.GetConnectionString("LIAnsu
 // layer/module registrations so they wire the matching adapters (e.g. document storage).
 var platformProfile = PlatformProfileResolver.Resolve(builder.Configuration);
 
+if (builder.Environment.IsProduction()
+    || platformProfile == LIAnsureProtect.Platform.Abstractions.PlatformProfile.Aws)
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
+}
+
 builder.Services.AddPlatform(builder.Configuration);
 builder.Services.AddNotificationsModule(databaseConnectionString, platformProfile);
 builder.Services.AddQuotingModule();
@@ -59,7 +67,7 @@ builder.Services.Configure<NotificationPublisherOptions>(builder.Configuration.G
 builder.Services.Configure<CacheOptions>(builder.Configuration.GetSection("Cache"));
 builder.Services.AddInfrastructure(databaseConnectionString, platformProfile);
 builder.Services
-    .AddControllers()
+    .AddControllers(options => options.Filters.Add<SafeProblemDetailsFilter>())
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -76,7 +84,8 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(allowedCorsOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .WithExposedHeaders(LIAnsureProtect.Platform.Abstractions.Observability.ObservabilityNames.CorrelationIdHeaderName);
     });
 });
 
@@ -187,7 +196,14 @@ builder.Services.AddRateLimiter(rateLimiterOptions =>
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        context.ProblemDetails.Extensions["correlationId"] = context.HttpContext.TraceIdentifier;
+    };
+});
 builder.Services
     .AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
@@ -203,18 +219,14 @@ LIAnsureProtect.Api.ApiStartupLog.Starting(app.Logger, applicationName, app.Envi
 // --------------------------------------------------------------------------------
 // 2) Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
-{
     app.MapOpenApi();
-}
-else
-{
-    app.UseExceptionHandler();
-}
 
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors(LocalFrontendCorsPolicy);
 app.UseMiddleware<RequestCorrelationMiddleware>();
+app.UseMiddleware<RequestOutcomeMiddleware>();
+app.UseExceptionHandler();
 app.UseAuthentication();
 // After authentication so the limiter can partition by the authenticated user; before
 // authorization so a flood is shed with 429 rather than doing per-request authorization work.

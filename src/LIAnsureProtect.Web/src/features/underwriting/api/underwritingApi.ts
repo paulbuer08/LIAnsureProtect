@@ -1,4 +1,5 @@
 import { downloadDocumentWithToken } from "../../../lib/documentDownload";
+import { parseJsonResponse as parseApiJsonResponse } from "../../../lib/apiClient";
 import type {
   AdjustQuoteReferralRequest,
   AiUnderwritingReviewResponse,
@@ -6,6 +7,7 @@ import type {
   ListQuoteReferralsResponse,
   QuoteEvidenceRequest,
   QuoteReferralNoteRequest,
+  QuoteReferralFilters,
   QuoteReferralNoteResult,
   QuoteReferralOperationResult,
   QuoteReferralReviewRequest,
@@ -24,19 +26,7 @@ async function parseJsonResponse<T>(
   response: Response,
   notFoundMessage: string,
 ) {
-  if (response.status === 404) {
-    throw new Error(notFoundMessage);
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-
-    throw new Error(
-      `API request failed with ${response.status} ${response.statusText}: ${errorBody}`,
-    );
-  }
-
-  return (await response.json()) as T;
+  return parseApiJsonResponse<T>(response, { notFoundMessage });
 }
 
 function authHeaders(accessToken: string) {
@@ -66,9 +56,16 @@ export async function downloadUnderwritingEvidenceDocument(
   );
 }
 
-export async function listQuoteReferrals(accessToken: string) {
+export async function listQuoteReferrals(
+  accessToken: string,
+  filters: QuoteReferralFilters = {},
+) {
+  const url = new URL(`${apiBaseUrl}/api/v1/underwriting/quote-referrals`);
+  for (const [name, value] of Object.entries(filters)) {
+    if (value) url.searchParams.set(name, value);
+  }
   const response = await fetch(
-    `${apiBaseUrl}/api/v1/underwriting/quote-referrals`,
+    url,
     {
       headers: authHeaders(accessToken),
     },

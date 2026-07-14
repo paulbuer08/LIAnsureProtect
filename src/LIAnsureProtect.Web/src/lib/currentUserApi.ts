@@ -1,3 +1,5 @@
+import { parseJsonResponse } from "./apiClient";
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5223";
 
 /**
@@ -18,9 +20,5 @@ export async function fetchCurrentUser(accessToken: string): Promise<CurrentUser
     },
   });
 
-  if (!response.ok) {
-    throw new Error(`Current-user lookup failed with ${response.status}.`);
-  }
-
-  return (await response.json()) as CurrentUser;
+  return parseJsonResponse<CurrentUser>(response);
 }

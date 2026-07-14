@@ -4,7 +4,27 @@ using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 namespace LIAnsureProtect.Modules.Underwriting.Application.Evidence;
 
 public sealed record ListOwnerEvidenceRequestsResult(
-    IReadOnlyCollection<QuoteEvidenceRequestResult> EvidenceRequests);
+    IReadOnlyCollection<EvidenceRequestOwnerSummaryResult> EvidenceRequests,
+    string? NextCursor);
+
+public sealed record EvidenceRequestOwnerSummaryResult(
+    Guid EvidenceRequestId,
+    Guid QuoteId,
+    Guid SubmissionId,
+    string Category,
+    string Title,
+    string Description,
+    DateTime DueAtUtc,
+    string Status,
+    bool IsOverdue,
+    int DaysUntilDue,
+    DateTime RequestedAtUtc,
+    string ReviewDecision,
+    string? RemediationGuidance,
+    DateTime UpdatedAtUtc,
+    string SubmissionReference = "",
+    string CompanyName = "",
+    string DocumentRequirement = "Required");
 
 public sealed record QuoteEvidenceRequestResult(
     Guid EvidenceRequestId,
@@ -38,7 +58,10 @@ public sealed record QuoteEvidenceRequestResult(
     string? ReviewedByUserId,
     DateTime? ReviewedAtUtc,
     DateTime UpdatedAtUtc,
-    IReadOnlyCollection<QuoteEvidenceDocumentResult> Documents);
+    IReadOnlyCollection<QuoteEvidenceDocumentResult> Documents,
+    string SubmissionReference = "",
+    string CompanyName = "",
+    string DocumentRequirement = "Required");
 
 public sealed record QuoteEvidenceDocumentResult(
     Guid DocumentId,
@@ -61,6 +84,48 @@ public sealed record QuoteEvidenceDocumentResult(
 
 internal static class QuoteEvidenceRequestResultFactory
 {
+    public static QuoteEvidenceRequestResult FromSnapshot(
+        EvidenceRequestSnapshot item,
+        IReadOnlyCollection<QuoteEvidenceDocument>? documents = null)
+    {
+        return new QuoteEvidenceRequestResult(
+            item.EvidenceRequestId,
+            item.QuoteId,
+            item.SubmissionId,
+            item.Category,
+            item.Title,
+            item.Description,
+            item.DueAtUtc,
+            item.Status,
+            item.IsOverdue,
+            item.DaysUntilDue,
+            item.RequestedByUserId,
+            item.RequestedAtUtc,
+            item.RespondedByUserId,
+            item.RespondentName,
+            item.RespondentTitle,
+            item.ResponseText,
+            item.AttachmentFileName,
+            item.AttachmentContentType,
+            item.AttachmentSizeBytes,
+            item.RespondedAtUtc,
+            item.AcceptedByUserId,
+            item.AcceptedAtUtc,
+            item.CancelledByUserId,
+            item.CancelledAtUtc,
+            item.ReviewNotes,
+            item.ReviewDecision,
+            item.ReviewReason,
+            item.RemediationGuidance,
+            item.ReviewedByUserId,
+            item.ReviewedAtUtc,
+            item.UpdatedAtUtc,
+            (documents ?? []).OrderBy(document => document.UploadedAtUtc).Select(FromDocument).ToList(),
+            item.SubmissionReference,
+            item.CompanyName,
+            item.DocumentRequirement);
+    }
+
     public static QuoteEvidenceRequestResult FromRequest(
         QuoteEvidenceRequest request,
         IReadOnlyCollection<QuoteEvidenceDocument>? documents = null)
@@ -100,49 +165,10 @@ internal static class QuoteEvidenceRequestResultFactory
             (documents ?? [])
                 .OrderBy(document => document.UploadedAtUtc)
                 .Select(FromDocument)
-                .ToList());
-    }
-
-    public static QuoteEvidenceRequestResult FromOwnerItem(
-        EvidenceRequestOwnerItem item,
-        IReadOnlyCollection<QuoteEvidenceDocument>? documents = null)
-    {
-        return new QuoteEvidenceRequestResult(
-            item.EvidenceRequestId,
-            item.QuoteId,
-            item.SubmissionId,
-            item.Category,
-            item.Title,
-            item.Description,
-            item.DueAtUtc,
-            item.Status,
-            item.IsOverdue,
-            item.DaysUntilDue,
-            item.RequestedByUserId,
-            item.RequestedAtUtc,
-            item.RespondedByUserId,
-            item.RespondentName,
-            item.RespondentTitle,
-            item.ResponseText,
-            item.AttachmentFileName,
-            item.AttachmentContentType,
-            item.AttachmentSizeBytes,
-            item.RespondedAtUtc,
-            item.AcceptedByUserId,
-            item.AcceptedAtUtc,
-            item.CancelledByUserId,
-            item.CancelledAtUtc,
-            item.ReviewNotes,
-            item.ReviewDecision,
-            item.ReviewReason,
-            item.RemediationGuidance,
-            item.ReviewedByUserId,
-            item.ReviewedAtUtc,
-            item.UpdatedAtUtc,
-            (documents ?? [])
-                .OrderBy(document => document.UploadedAtUtc)
-                .Select(FromDocument)
-                .ToList());
+                .ToList(),
+            request.SubmissionReference,
+            request.CompanyName,
+            request.DocumentRequirement.ToString());
     }
 
     private static QuoteEvidenceDocumentResult FromDocument(QuoteEvidenceDocument document)

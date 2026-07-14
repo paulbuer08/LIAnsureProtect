@@ -61,7 +61,7 @@ describe("ClaimsPage", () => {
     expect(
       await screen.findByText("CLM-CYB-20260401-AAAAAAAA"),
     ).toBeInTheDocument();
-    expect(screen.getByText("UnderReview")).toBeInTheDocument();
+    expect(screen.getByText("UnderReview", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText(/LIP-CYB-20260101-BBBBBBBB/)).toBeInTheDocument();
   });
 
@@ -73,11 +73,12 @@ describe("ClaimsPage", () => {
     expect(await screen.findByText(/no claims yet/i)).toBeInTheDocument();
   });
 
-  it("shows an error message when loading fails", async () => {
+  it("shows a safe error message when loading fails", async () => {
     vi.mocked(listMyClaims).mockRejectedValue(new Error("Claims exploded."));
 
     renderPage();
 
-    expect(await screen.findByText(/Claims exploded./)).toBeInTheDocument();
+    expect(await screen.findByText("Unable to load claims.")).toBeInTheDocument();
+    expect(screen.queryByText("Claims exploded.")).not.toBeInTheDocument();
   });
 });

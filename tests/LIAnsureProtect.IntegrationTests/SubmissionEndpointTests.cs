@@ -472,11 +472,60 @@ public sealed class SubmissionEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(2, submissions.Length);
         Assert.Equal(newerSubmission.Id, submissions[0].GetProperty("submissionId").GetGuid());
+        Assert.Equal(newerSubmission.Reference, submissions[0].GetProperty("submissionReference").GetString());
         Assert.Equal("Newer Applicant", submissions[0].GetProperty("applicantName").GetString());
         Assert.Equal("newer@example.com", submissions[0].GetProperty("applicantEmail").GetString());
         Assert.Equal("Newer Company", submissions[0].GetProperty("companyName").GetString());
         Assert.Equal("Draft", submissions[0].GetProperty("status").GetString());
         Assert.Equal(olderSubmission.Id, submissions[1].GetProperty("submissionId").GetGuid());
+    }
+
+
+
+    [Fact]
+    public async Task List_Submissions_Searches_Only_Owned_Records_And_Returns_A_Stable_Cursor()
+    {
+        var first = Submission.CreateDraft(
+            "Jane One", "one@example.com", "Northwind Security", "test-user-1",
+            new DateTime(2026, 6, 19, 8, 0, 0, DateTimeKind.Utc));
+        var second = Submission.CreateDraft(
+            "Jane Two", "two@example.com", "Northwind Security", "test-user-1",
+            new DateTime(2026, 6, 19, 9, 0, 0, DateTimeKind.Utc));
+        var otherOwner = Submission.CreateDraft(
+            "Other Owner", "other@example.com", "Northwind Security", "test-user-2",
+            new DateTime(2026, 6, 19, 10, 0, 0, DateTimeKind.Utc));
+
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            await dbContext.Submissions.AddRangeAsync(
+                [first, second, otherOwner], TestContext.Current.CancellationToken);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var firstRequest = CreateAuthenticatedGetRequest(
+            "Customer", $"{SubmissionsEndpointPath}?search=Northwind&pageSize=1", "test-user-1");
+        using var firstResponse = await httpClient.SendAsync(firstRequest, TestContext.Current.CancellationToken);
+        var firstContent = await firstResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.True(firstResponse.IsSuccessStatusCode, firstContent);
+        using var firstPayload = JsonDocument.Parse(firstContent);
+        var firstPage = firstPayload.RootElement.GetProperty("submissions").EnumerateArray().ToArray();
+        var cursor = firstPayload.RootElement.GetProperty("nextCursor").GetString();
+
+        Assert.Equal(second.Id, Assert.Single(firstPage).GetProperty("submissionId").GetGuid());
+        Assert.False(string.IsNullOrWhiteSpace(cursor));
+
+        using var nextRequest = CreateAuthenticatedGetRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}?search=Northwind&pageSize=1&cursor={Uri.EscapeDataString(cursor!)}",
+            "test-user-1");
+        using var nextResponse = await httpClient.SendAsync(nextRequest, TestContext.Current.CancellationToken);
+        using var nextPayload = JsonDocument.Parse(
+            await nextResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var nextPage = nextPayload.RootElement.GetProperty("submissions").EnumerateArray().ToArray();
+
+        Assert.Equal(HttpStatusCode.OK, nextResponse.StatusCode);
+        Assert.Equal(first.Id, Assert.Single(nextPage).GetProperty("submissionId").GetGuid());
     }
 
 
@@ -1401,6 +1450,30 @@ public sealed class SubmissionEndpointTests
         Assert.Equal("Quoted", providerIndication.GetProperty("marketDisposition").GetString());
         Assert.Equal("CNT-Q-TEST-1", providerIndication.GetProperty("providerQuoteNumber").GetString());
         Assert.Equal($"/api/v1/quotes/{quoteId}", response.Headers.Location?.OriginalString);
+
+        using var ownerDetailRequest = CreateAuthenticatedGetRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes/{quoteId}",
+            "test-user-1");
+        using var ownerDetailResponse = await httpClient.SendAsync(
+            ownerDetailRequest,
+            TestContext.Current.CancellationToken);
+        var ownerDetail = await ownerDetailResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, ownerDetailResponse.StatusCode);
+        Assert.Equal(quoteId, ownerDetail.GetProperty("quoteId").GetGuid());
+        Assert.Equal(1, ownerDetail.GetProperty("version").GetInt32());
+        Assert.Equal("Quoted", ownerDetail.GetProperty("status").GetString());
+
+        using var otherOwnerDetailRequest = CreateAuthenticatedGetRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes/{quoteId}",
+            "customer-2");
+        using var otherOwnerDetailResponse = await httpClient.SendAsync(
+            otherOwnerDetailRequest,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, otherOwnerDetailResponse.StatusCode);
 
         using var verifyScope = webApplicationFactory.Services.CreateScope();
         var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();

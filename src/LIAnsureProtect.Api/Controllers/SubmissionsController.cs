@@ -35,11 +35,29 @@ public sealed class SubmissionsController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ListSubmissionsResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ListSubmissionsResult>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<ListSubmissionsResult>> List(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] DateTime? createdFromUtc,
+        [FromQuery] DateTime? createdToUtc,
+        [FromQuery] string? cursor,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var result = await sender.Send(new ListSubmissionsQuery(), cancellationToken);
-
-        return Ok(result);
+        try
+        {
+            var result = await sender.Send(
+                new ListSubmissionsQuery(search, status, createdFromUtc, createdToUtc, cursor, pageSize),
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Submission filters are invalid.",
+                exception.Message));
+        }
     }
 
     [HttpGet("{submissionId:guid}")]

@@ -1,3 +1,4 @@
+using LIAnsureProtect.Application.Common.Exceptions;
 using LIAnsureProtect.Domain.Quotes;
 using System.Text.Json;
 
@@ -97,7 +98,9 @@ public static class ControlAssurancePolicy
             .ToArray();
 
         if (changed.Length == 0)
-            throw new InvalidOperationException("Reassessment requires at least one changed control assertion.");
+            throw new BusinessConflictException(
+                "quote.reassessment.no_changes",
+                "Change at least one control answer before creating a reassessment.");
 
         return current
             .Select(decision =>

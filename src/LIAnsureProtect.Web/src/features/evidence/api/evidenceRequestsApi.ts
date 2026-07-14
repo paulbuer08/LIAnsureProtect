@@ -1,5 +1,7 @@
 import { downloadDocumentWithToken } from "../../../lib/documentDownload";
+import { parseJsonResponse as parseApiJsonResponse } from "../../../lib/apiClient";
 import type {
+  EvidenceRequestFilters,
   ListEvidenceRequestsResponse,
   QuoteEvidenceRequest,
   RespondToEvidenceRequest,
@@ -11,19 +13,7 @@ async function parseJsonResponse<T>(
   response: Response,
   notFoundMessage: string,
 ) {
-  if (response.status === 404) {
-    throw new Error(notFoundMessage);
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-
-    throw new Error(
-      `API request failed with ${response.status} ${response.statusText}: ${errorBody}`,
-    );
-  }
-
-  return (await response.json()) as T;
+  return parseApiJsonResponse<T>(response, { notFoundMessage });
 }
 
 function authHeaders(accessToken: string) {
@@ -45,14 +35,42 @@ export async function downloadOwnerEvidenceDocument(
   );
 }
 
-export async function listEvidenceRequests(accessToken: string) {
-  const response = await fetch(`${apiBaseUrl}/api/v1/evidence-requests`, {
+export async function listEvidenceRequests(
+  accessToken: string,
+  filters: EvidenceRequestFilters = {},
+) {
+  const search = new URLSearchParams();
+  if (filters.status) search.set("status", filters.status);
+  if (filters.category) search.set("category", filters.category);
+  if (filters.quoteId) search.set("quoteId", filters.quoteId);
+  if (filters.overdue !== undefined) search.set("overdue", String(filters.overdue));
+  if (filters.cursor) search.set("cursor", filters.cursor);
+  if (filters.search) search.set("search", filters.search);
+  if (filters.reviewDecision) search.set("reviewDecision", filters.reviewDecision);
+  if (filters.documentRequirement) search.set("documentRequirement", filters.documentRequirement);
+  search.set("pageSize", String(filters.pageSize ?? 12));
+  const response = await fetch(`${apiBaseUrl}/api/v1/evidence-requests?${search}`, {
     headers: authHeaders(accessToken),
   });
 
   return parseJsonResponse<ListEvidenceRequestsResponse>(
     response,
     "Evidence requests were not found.",
+  );
+}
+
+export async function getEvidenceRequest(
+  accessToken: string,
+  evidenceRequestId: string,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/evidence-requests/${evidenceRequestId}`,
+    { headers: authHeaders(accessToken) },
+  );
+
+  return parseJsonResponse<QuoteEvidenceRequest>(
+    response,
+    "Evidence request was not found.",
   );
 }
 

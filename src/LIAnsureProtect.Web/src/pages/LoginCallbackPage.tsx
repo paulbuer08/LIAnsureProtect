@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth0 } from "@auth0/auth0-react";
 
+import { captureSafeEvent } from "../lib/telemetry";
+
 export function LoginCallbackPage() {
   const { error, isAuthenticated, isLoading, user } = useAuth0();
   const navigate = useNavigate();
@@ -11,6 +13,14 @@ export function LoginCallbackPage() {
       navigate("/dashboard", { replace: true });
     }
   }, [error, isAuthenticated, isLoading, navigate]);
+
+  useEffect(() => {
+    if (error) {
+      captureSafeEvent("authentication_callback_failed", {
+        errorType: error.name,
+      });
+    }
+  }, [error]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
@@ -48,8 +58,11 @@ export function LoginCallbackPage() {
 
         {error ? (
           <div className="mt-6 rounded-lg border border-red-500/40 bg-red-950/40 p-4 text-left text-sm text-red-100">
-            <p className="font-semibold">Auth0 callback error</p>
-            <p className="mt-2">{error.message}</p>
+            <p className="font-semibold">Sign-in could not be completed</p>
+            <p className="mt-2">
+              Please try signing in again. If the problem continues, contact
+              support and tell them when the error occurred.
+            </p>
           </div>
         ) : null}
 

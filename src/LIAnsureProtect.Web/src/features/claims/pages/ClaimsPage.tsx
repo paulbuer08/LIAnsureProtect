@@ -1,24 +1,32 @@
+import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { useMyClaims } from "../hooks/useClaims";
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to load claims.";
+  return getUserErrorMessage(error, "Unable to load claims.");
 }
 
 export function ClaimsPage() {
-  const claimsQuery = useMyClaims();
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [incidentType, setIncidentType] = useState("");
+  const claimsQuery = useMyClaims({
+    search: appliedSearch || undefined,
+    status: status || undefined,
+    incidentType: incidentType || undefined,
+  });
   const claims = claimsQuery.data?.claims ?? [];
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
       <section className="mx-auto max-w-5xl">
-        <Link
-          to="/dashboard"
-          className="inline-flex text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-        >
-          Back to dashboard
-        </Link>
+        <Breadcrumbs
+          items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Claims" }]}
+        />
 
         <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -41,6 +49,42 @@ export function ClaimsPage() {
             File a claim
           </Link>
         </div>
+
+        <form
+          className="mt-6 grid gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4 md:grid-cols-3"
+          onSubmit={(event: FormEvent) => {
+            event.preventDefault();
+            setAppliedSearch(search.trim());
+          }}
+        >
+          <label className="text-sm font-semibold text-slate-200">
+            Search your claims
+            <input
+              className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2"
+              placeholder="Claim or policy number"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+          <label className="text-sm font-semibold text-slate-200">
+            Status
+            <select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={status} onChange={(event) => setStatus(event.target.value)}>
+              <option value="">All statuses</option>
+              {['Filed', 'UnderReview', 'InformationRequested', 'Accepted', 'Denied', 'Closed'].map((value) => <option key={value}>{value}</option>)}
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-slate-200">
+            Incident type
+            <select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={incidentType} onChange={(event) => setIncidentType(event.target.value)}>
+              <option value="">All incident types</option>
+              {['RansomwareExtortion', 'BusinessEmailCompromise', 'DataBreachPrivacy', 'NetworkInterruption', 'FundsTransferFraud', 'Other'].map((value) => <option key={value}>{value}</option>)}
+            </select>
+          </label>
+          <div className="flex gap-3 md:col-span-3">
+            <button type="submit" className="rounded-md bg-emerald-400 px-4 py-2 font-semibold text-slate-950">Search</button>
+            <button type="button" className="rounded-md border border-slate-600 px-4 py-2 font-semibold" onClick={() => { setSearch(""); setAppliedSearch(""); setStatus(""); setIncidentType(""); }}>Clear</button>
+          </div>
+        </form>
 
         {claimsQuery.isPending && (
           <p className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-300">

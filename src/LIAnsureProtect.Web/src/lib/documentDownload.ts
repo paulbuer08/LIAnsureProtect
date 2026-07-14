@@ -14,9 +14,7 @@ export async function downloadDocumentWithToken(
     },
   });
 
-  if (!response.ok) {
-    throw new Error(`Document download failed with ${response.status}.`);
-  }
+  await ensureSuccess(response, { notFoundMessage: "Document was not found." });
 
   saveBlobAs(await response.blob(), fileName);
 }
@@ -35,3 +33,4 @@ function saveBlobAs(blob: Blob, fileName: string) {
     URL.revokeObjectURL(objectUrl);
   }
 }
+import { ensureSuccess } from "./apiClient";

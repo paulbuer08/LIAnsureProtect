@@ -6,7 +6,6 @@ export async function deleteDraftSubmission(accessToken: string, submissionId: s
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
-  if (!response.ok) {
-    throw new Error((await response.text()) || "Unable to delete the draft submission.");
-  }
+  await ensureSuccess(response, { notFoundMessage: "Draft submission was not found." });
 }
+import { ensureSuccess } from "../../../lib/apiClient";

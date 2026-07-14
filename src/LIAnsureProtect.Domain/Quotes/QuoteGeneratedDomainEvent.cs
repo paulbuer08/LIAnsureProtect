@@ -7,4 +7,7 @@ public sealed record QuoteGeneratedDomainEvent(
     Guid SubmissionId,
     string OwnerUserId,
     QuoteStatus Status,
-    DateTime OccurredAtUtc) : IDomainEvent;
+    DateTime OccurredAtUtc,
+    int Version = 1,
+    decimal Premium = 0,
+    DateTime? ExpiresAtUtc = null) : IDomainEvent;

@@ -13,6 +13,7 @@ using ApplicationValidationException = LIAnsureProtect.Application.Common.Except
 using GetQuoteReferralTimelineQuery = LIAnsureProtect.Application.Quotes.Commands.ManageQuoteReferralOperations.GetQuoteReferralTimelineQuery;
 using QuoteReferralTimelineResult = LIAnsureProtect.Application.Quotes.Commands.ManageQuoteReferralOperations.QuoteReferralTimelineResult;
 using EvidenceRequestCategory = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceRequestCategory;
+using EvidenceDocumentRequirement = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceDocumentRequirement;
 using EvidenceReviewDecisionStatus = LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceReviewDecisionStatus;
 using ModuleQuoteEvidenceRequestResult = LIAnsureProtect.Modules.Underwriting.Application.Evidence.QuoteEvidenceRequestResult;
 using ReferralOperationStatus = LIAnsureProtect.Modules.Underwriting.Domain.Referrals.ReferralOperationStatus;
@@ -30,11 +31,28 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ListQuoteReferralsResult>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ListQuoteReferralsResult>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<ListQuoteReferralsResult>> List(
+        [FromQuery] string? search,
+        [FromQuery] string? riskTier,
+        [FromQuery] string? priority,
+        [FromQuery] string? assignment,
+        [FromQuery] string? evidenceState,
+        CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new ListQuoteReferralsQuery(), cancellationToken);
-
-        return Ok(result);
+        try
+        {
+            var result = await sender.Send(
+                new SearchQuoteReferralsQuery(search, riskTier, priority, assignment, evidenceState),
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Underwriting filters are invalid.",
+                exception.Message));
+        }
     }
 
     [HttpPost("{quoteId:guid}/evidence-requests")]
@@ -52,6 +70,17 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
         if (!Enum.TryParse<EvidenceRequestCategory>(request.Category, ignoreCase: true, out var category))
             return BadRequest(CreateProblemDetails(StatusCodes.Status400BadRequest, "Evidence request category is invalid."));
 
+        if (!Enum.TryParse<EvidenceDocumentRequirement>(
+                request.DocumentRequirement,
+                ignoreCase: true,
+                out var documentRequirement)
+            || !Enum.IsDefined(documentRequirement))
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Evidence document requirement is invalid."));
+        }
+
         try
         {
             var result = await sender.Send(
@@ -60,7 +89,8 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
                     category,
                     request.Title,
                     request.Description,
-                    request.DueAtUtc),
+                    request.DueAtUtc,
+                    documentRequirement),
                 cancellationToken);
 
             return result is null
@@ -598,7 +628,8 @@ public sealed record CreateQuoteEvidenceRequestRequest(
     string Category,
     string Title,
     string Description,
-    DateTime DueAtUtc);
+    DateTime DueAtUtc,
+    string DocumentRequirement = "Optional");
 
 public sealed record ReviewQuoteEvidenceRequestRequest(string? ReviewNotes);
 

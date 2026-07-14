@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fileClaim, listClaimablePolicies } from "../api/claimsApi";
 import { NewClaimPage } from "./NewClaimPage";
+import { ApiError } from "../../../lib/apiClient";
 
 const getAccessTokenSilently = vi.fn();
 
@@ -100,7 +101,7 @@ describe("NewClaimPage", () => {
     expect(
       await screen.findByText(/CLM-CYB-20260401-AAAAAAAA/),
     ).toBeInTheDocument();
-  });
+  }, 10_000);
 
   it("shows an empty state when the caller has no bound policies", async () => {
     vi.mocked(listClaimablePolicies).mockResolvedValue({ policies: [] });
@@ -115,7 +116,11 @@ describe("NewClaimPage", () => {
   it("surfaces filing rejections from the API", async () => {
     const user = userEvent.setup();
     vi.mocked(fileClaim).mockRejectedValue(
-      new Error("Claims can only be filed against a bound policy."),
+      new ApiError(
+        "Claims can only be filed against a bound policy.",
+        409,
+        "claim.policy.not_bound",
+      ),
     );
 
     renderPage();

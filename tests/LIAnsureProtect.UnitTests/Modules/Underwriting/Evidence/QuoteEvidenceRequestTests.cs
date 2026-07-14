@@ -19,7 +19,11 @@ public sealed class QuoteEvidenceRequestTests
             title: "Confirm MFA rollout",
             description: "Please provide current MFA rollout evidence for privileged and email access.",
             dueAtUtc: dueAtUtc,
-            requestedAtUtc: requestedAtUtc);
+            requestedAtUtc: requestedAtUtc,
+            quoteVersion: 2,
+            documentRequirement: EvidenceDocumentRequirement.Required,
+            submissionReference: "SUB-2026-6D3F563F595C4AD6",
+            companyName: "Example Company");
 
         Assert.Equal(EvidenceRequestStatus.Open, request.Status);
         Assert.Equal(EvidenceReviewDecisionStatus.NotReviewed, request.ReviewDecision);
@@ -28,6 +32,9 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Null(request.ReviewedByUserId);
         Assert.Null(request.ReviewedAtUtc);
         Assert.Equal(EvidenceRequestCategory.MultiFactorAuthentication, request.Category);
+        Assert.Equal(EvidenceDocumentRequirement.Required, request.DocumentRequirement);
+        Assert.Equal("SUB-2026-6D3F563F595C4AD6", request.SubmissionReference);
+        Assert.Equal("Example Company", request.CompanyName);
         Assert.Equal("Confirm MFA rollout", request.Title);
         Assert.Equal("customer-1", request.OwnerUserId);
         Assert.Equal("underwriter-1", request.RequestedByUserId);
@@ -43,6 +50,8 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Equal("underwriter-1", domainEvent.RequestedByUserId);
         Assert.Equal(EvidenceRequestCategory.MultiFactorAuthentication, domainEvent.Category);
         Assert.Equal(dueAtUtc, domainEvent.DueAtUtc);
+        Assert.Equal("Confirm MFA rollout", domainEvent.Title);
+        Assert.Equal(2, domainEvent.QuoteVersion);
     }
 
     [Fact]

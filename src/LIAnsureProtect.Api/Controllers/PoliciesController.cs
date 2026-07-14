@@ -15,9 +15,21 @@ public sealed class PoliciesController(ISender sender) : ControllerBase
     [ProducesResponseType<ListPoliciesResult>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<ListPoliciesResult>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<ListPoliciesResult>> List(
+        [FromQuery] string? search,
+        [FromQuery] string? contractualStatus,
+        [FromQuery] string? coverageState,
+        CancellationToken cancellationToken)
     {
-        return Ok(await sender.Send(new ListPoliciesQuery(), cancellationToken));
+        try
+        {
+            return Ok(await sender.Send(
+                new ListPoliciesQuery(search, contractualStatus, coverageState), cancellationToken));
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new ProblemDetails { Status = 400, Title = "Policy filters are invalid.", Detail = exception.Message });
+        }
     }
 
     [HttpGet("{policyId:guid}")]

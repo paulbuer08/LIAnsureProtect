@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import type { FormEvent } from "react";
-import { Link } from "react-router";
+import { Breadcrumbs } from "../../../components/Breadcrumbs";
 
 import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
+import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { downloadUnderwritingEvidenceDocument } from "../api/underwritingApi";
 import {
@@ -49,7 +50,7 @@ const riskRank: Record<string, number> = {
 };
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
+  return getUserErrorMessage(error, fallback);
 }
 
 function formatDate(value: string) {
@@ -318,6 +319,7 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
   const [category, setCategory] = useState("MultiFactorAuthentication");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [documentRequirement, setDocumentRequirement] = useState<"Required" | "Optional" | "NarrativeOnly">("Required");
   const [dueAtUtc, setDueAtUtc] = useState(
     quote.operations?.dueAtUtc ? formatDateTimeLocal(quote.operations.dueAtUtc) : "",
   );
@@ -364,6 +366,7 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
         title: title.trim(),
         description: description.trim(),
         dueAtUtc: toUtcIsoFromLocal(dueAtUtc),
+        documentRequirement,
       },
     });
     setLastEvidenceResult(result);
@@ -560,6 +563,15 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
           value={description}
           onChange={setDescription}
         />
+        <label className="block text-sm font-medium text-slate-200">
+          Supporting document requirement
+          <select value={documentRequirement} onChange={(event) => setDocumentRequirement(event.target.value as "Required" | "Optional" | "NarrativeOnly")} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-300">
+            <option value="Required">At least one document required</option>
+            <option value="Optional">Document optional</option>
+            <option value="NarrativeOnly">Written response only</option>
+          </select>
+          <span className="mt-2 block text-xs text-slate-400">Choose Required when underwriting must validate the assertion from an uploaded artifact. Choose written response only when files would not add useful assurance.</span>
+        </label>
         <label className="block text-sm font-medium text-slate-200">
           Evidence due date
           <input
@@ -1350,7 +1362,19 @@ function ReferralCard({
 }
 
 export function UnderwritingQuoteReferralsPage() {
-  const referralsQuery = useQuoteReferrals();
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [riskTier, setRiskTier] = useState("");
+  const [priority, setPriority] = useState("");
+  const [assignment, setAssignment] = useState("");
+  const [evidenceState, setEvidenceState] = useState("");
+  const referralsQuery = useQuoteReferrals({
+    search: appliedSearch || undefined,
+    riskTier: riskTier || undefined,
+    priority: priority || undefined,
+    assignment: assignment || undefined,
+    evidenceState: evidenceState || undefined,
+  });
   const referrals = useMemo(
     () => referralsQuery.data?.quoteReferrals ?? [],
     [referralsQuery.data?.quoteReferrals],
@@ -1420,12 +1444,7 @@ export function UnderwritingQuoteReferralsPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
       <section className="mx-auto max-w-7xl">
-        <Link
-          to="/dashboard"
-          className="inline-flex text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-        >
-          Back to dashboard
-        </Link>
+        <Breadcrumbs items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Underwriting" }]} />
 
         <div className="mt-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -1454,6 +1473,15 @@ export function UnderwritingQuoteReferralsPage() {
             </select>
           </label>
         </div>
+
+        <form className="mt-6 grid gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4 md:grid-cols-5" onSubmit={(event: FormEvent) => { event.preventDefault(); setAppliedSearch(search.trim()); }}>
+          <label className="text-sm font-semibold text-slate-200">Search referrals<input className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" placeholder="Quote, submission, or owner" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <label className="text-sm font-semibold text-slate-200">Risk tier<select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={riskTier} onChange={(event) => setRiskTier(event.target.value)}><option value="">All risk tiers</option>{['Low', 'Moderate', 'High', 'Severe'].map((value) => <option key={value}>{value}</option>)}</select></label>
+          <label className="text-sm font-semibold text-slate-200">Priority<select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={priority} onChange={(event) => setPriority(event.target.value)}><option value="">All priorities</option>{['Low', 'Normal', 'High', 'Urgent'].map((value) => <option key={value}>{value}</option>)}</select></label>
+          <label className="text-sm font-semibold text-slate-200">Assignment<select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={assignment} onChange={(event) => setAssignment(event.target.value)}><option value="">Any assignment</option><option value="assigned">Assigned</option><option value="unassigned">Unassigned</option></select></label>
+          <label className="text-sm font-semibold text-slate-200">Evidence<select className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" value={evidenceState} onChange={(event) => setEvidenceState(event.target.value)}><option value="">Any evidence state</option><option value="waiting">Waiting for information</option><option value="attention">Needs attention</option><option value="overdue">Overdue</option><option value="satisfied">Satisfied</option></select></label>
+          <div className="flex gap-3 md:col-span-5"><button type="submit" className="rounded-md bg-emerald-400 px-4 py-2 font-semibold text-slate-950">Search</button><button type="button" className="rounded-md border border-slate-600 px-4 py-2 font-semibold" onClick={() => { setSearch(""); setAppliedSearch(""); setRiskTier(""); setPriority(""); setAssignment(""); setEvidenceState(""); }}>Clear</button></div>
+        </form>
 
         {referralsQuery.isPending && (
           <p className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-300">

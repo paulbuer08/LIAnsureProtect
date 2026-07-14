@@ -18,6 +18,11 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
             .HasColumnName("id")
             .ValueGeneratedNever();
 
+        builder.Property(submission => submission.Reference)
+            .HasColumnName("reference")
+            .HasMaxLength(30)
+            .IsRequired();
+
         builder.Property(submission => submission.OwnerUserId)
             .HasColumnName("owner_user_id")
             .HasMaxLength(256)
@@ -54,5 +59,9 @@ public sealed class SubmissionConfiguration : IEntityTypeConfiguration<Submissio
                 submission.CreatedAtUtc
             })
             .HasDatabaseName("ix_submissions_owner_user_id_created_at_utc");
+
+        builder.HasIndex(submission => submission.Reference)
+            .IsUnique()
+            .HasDatabaseName("ux_submissions_reference");
     }
 }

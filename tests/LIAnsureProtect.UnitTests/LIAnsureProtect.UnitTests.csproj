@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\LIAnsureProtect.Application\LIAnsureProtect.Application.csproj" />
     <ProjectReference Include="..\..\src\LIAnsureProtect.Domain\LIAnsureProtect.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Claims\LIAnsureProtect.Modules.Claims.Application\LIAnsureProtect.Modules.Claims.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\LIAnsureProtect.Modules.Notifications.Application\LIAnsureProtect.Modules.Notifications.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Underwriting\LIAnsureProtect.Modules.Underwriting.Application\LIAnsureProtect.Modules.Underwriting.Application.csproj" />
   </ItemGroup>
 
