@@ -1,7 +1,7 @@
 # Role-aware search, navigation, and form safety — implementation learnings
 
-**Status:** implemented and fully verified on `feat/role-aware-search-and-navigation`; protected-main
-PR evidence is recorded in `docs/project-status.md` when the branch closes.
+**Status:** implemented, fully verified, and squash-merged through protected-main PR #64 as commit
+`67334c9`; verification evidence is recorded in `docs/project-status.md`.
 
 This record explains the product decisions behind the implementation, the boundaries that kept the
 change safe, and the practical checks future work should repeat. The source design remains
