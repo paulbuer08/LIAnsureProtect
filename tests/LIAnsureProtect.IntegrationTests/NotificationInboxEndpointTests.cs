@@ -209,6 +209,32 @@ public sealed class NotificationInboxEndpointTests
     }
 
     [Fact]
+    public async Task Notification_Hub_Negotiation_Requires_Authentication()
+    {
+        using var response = await httpClient.PostAsync(
+            "/hubs/notifications/negotiate?negotiateVersion=1",
+            content: null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Notification_Hub_Negotiation_Allows_Authorized_Notification_Reader()
+    {
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            "/hubs/notifications/negotiate?negotiateVersion=1",
+            "Customer",
+            "customer-1");
+        using var response = await httpClient.SendAsync(
+            request,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Unread_Count_Returns_Authorized_Personal_And_Role_Gated_Team_Total()
     {
         await SeedEntriesAsync(

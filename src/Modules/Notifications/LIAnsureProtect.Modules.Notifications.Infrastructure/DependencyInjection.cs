@@ -2,15 +2,60 @@ using Amazon;
 using Amazon.SimpleNotificationService;
 using LIAnsureProtect.Modules.Notifications.Application;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
+using LIAnsureProtect.Modules.Notifications.Infrastructure.Realtime;
 using LIAnsureProtect.Platform.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Configuration;
+using StackExchange.Redis;
+using Npgsql;
 
 namespace LIAnsureProtect.Modules.Notifications.Infrastructure;
 
 public static class DependencyInjection
 {
+    public static IServiceCollection AddNotificationRealtime(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var section = configuration.GetSection(NotificationRealtimeOptions.SectionName);
+        var realtimeOptions = section.Get<NotificationRealtimeOptions>() ?? new NotificationRealtimeOptions();
+
+        services.AddOptions<NotificationRealtimeOptions>()
+            .Bind(section)
+            .Validate(
+                options => !options.Enabled || !string.IsNullOrWhiteSpace(options.RedisConnectionString),
+                "Notifications:Realtime:RedisConnectionString is required when realtime notifications are enabled.")
+            .Validate(
+                options => !options.Enabled || !string.IsNullOrWhiteSpace(options.ChannelPrefix),
+                "Notifications:Realtime:ChannelPrefix is required when realtime notifications are enabled.")
+            .ValidateOnStart();
+
+        var signalR = services.AddSignalR(options =>
+        {
+            options.EnableDetailedErrors = false;
+            options.MaximumReceiveMessageSize = 16 * 1024;
+        });
+
+        if (realtimeOptions.Enabled)
+        {
+            signalR.AddStackExchangeRedis(realtimeOptions.RedisConnectionString, options =>
+            {
+                options.Configuration.ChannelPrefix = RedisChannel.Literal(realtimeOptions.ChannelPrefix);
+            });
+            services.AddSingleton<INotificationRealtimePublisher, SignalRNotificationRealtimePublisher>();
+        }
+        else
+        {
+            services.AddSingleton<INotificationRealtimePublisher, NoOpNotificationRealtimePublisher>();
+        }
+
+        services.AddSingleton<IUserIdProvider, NotificationUserIdProvider>();
+        return services;
+    }
+
     /// <summary>
     /// Registers the Notifications module: its own <see cref="NotificationsDbContext"/> (owning the
     /// <c>notifications</c> schema), the inbox repository, the inbound projector port, the outbound
@@ -24,10 +69,19 @@ public static class DependencyInjection
         if (string.IsNullOrWhiteSpace(databaseConnectionString))
             throw new InvalidOperationException("Connection string 'LIAnsureProtect' is required.");
 
-        services.AddDbContext<NotificationsDbContext>(options =>
+        services.AddDbContext<NotificationsDbContext>((serviceProvider, options) =>
         {
-            options.UseNpgsql(databaseConnectionString, npgsql =>
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", NotificationsDbContext.SchemaName));
+            var dataSource = serviceProvider.GetService<NpgsqlDataSource>();
+            if (dataSource is null)
+            {
+                options.UseNpgsql(databaseConnectionString, npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", NotificationsDbContext.SchemaName));
+            }
+            else
+            {
+                options.UseNpgsql(dataSource, npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", NotificationsDbContext.SchemaName));
+            }
         });
 
         services.AddScoped<INotificationInboxRepository, EfNotificationInboxRepository>();

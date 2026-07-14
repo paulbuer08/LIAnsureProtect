@@ -35,8 +35,10 @@ using Amazon.S3;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace LIAnsureProtect.Infrastructure;
 
@@ -50,12 +52,19 @@ public static class DependencyInjection
         if (string.IsNullOrWhiteSpace(databaseConnectionString))
             throw new InvalidOperationException("Connection string 'LIAnsureProtect' is required.");
 
-        services.AddDbContext<SubmissionDbContext>(options =>
+        services.AddDbContext<SubmissionDbContext>((serviceProvider, options) =>
         {
-            options.UseNpgsql(databaseConnectionString);
+            var dataSource = serviceProvider.GetService<NpgsqlDataSource>();
+            if (dataSource is null)
+                options.UseNpgsql(databaseConnectionString);
+            else
+                options.UseNpgsql(dataSource);
         });
 
         services.AddScoped<ISubmissionRepository, EfCoreSubmissionRepository>();
+        // Keeps the legacy Infrastructure registration independently resolvable in tests/tools.
+        // A host's AddNotificationRealtime registration runs first and wins this TryAdd fallback.
+        services.TryAddSingleton<INotificationRealtimePublisher, NoOpNotificationRealtimePublisher>();
         services.AddScoped<IQuoteRepository, EfCoreQuoteRepository>();
         services.AddScoped<IQuoteReferralDecisionService, QuoteReferralDecisionService>();
         services.AddScoped<IPolicyRepository, EfCorePolicyRepository>();

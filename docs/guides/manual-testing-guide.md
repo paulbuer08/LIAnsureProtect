@@ -169,6 +169,7 @@ This is the richest flow; it exercises the whole Underwriting module.
 | **Security headers (M44)** | Browser dev tools → Network → any API response → `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, CSP, etc. |
 | **Correlation** | Any API response carries `X-Correlation-ID`; the API logs the same id on every line for that request |
 | **Outbox at work** | Stop the Worker, accept a quote → no notification appears; start the Worker → it arrives within ~5s. Nothing was lost — that's the transactional outbox |
+| **Realtime badge without polling** | Keep the browser on any signed-in page, then complete a notification-producing action in another session. After the Worker commits, the badge changes without opening Notifications or waiting for a five-second browser timer. Browser Network shows one `/hubs/notifications` connection, not repeated unread-count polling. Stop Redis: the inbox remains durable; focus/navigation repairs the badge after Redis returns. |
 | **Health probes** | `/api/v1/health/live` stays Healthy even if you stop Postgres; `/ready` flips to unhealthy |
 
 ## Scenario 4A — Policy journey and retained history
@@ -204,6 +205,10 @@ This is the richest flow; it exercises the whole Underwriting module.
    response, and manual Underwriting approve/decline/adjust action → ✅ each success confirmation stays
    for about five seconds, fades, and leaves the DOM. Durable Quote/Policy/document result cards,
    timelines, decisions, warnings, errors, and empty states remain visible.
+10. File a Claim and inspect the customer and ClaimsAdjuster inboxes. Open the customer notification
+    → ✅ exact `/claims/{claimId}`. Open the team notification → ✅
+    `/claims/adjudication?claimId={claimId}` with that working file already selected. Both entries mark
+    themselves read through the open action; there is no standalone **Mark as read** button.
 
 ## Scenario 5 — The claims lifecycle (Phase 3, end to end)
 

@@ -5,7 +5,9 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "environmentVariables": {
-        "DOTNET_ENVIRONMENT": "Development"
+        "DOTNET_ENVIRONMENT": "Development",
+        "Notifications__Realtime__Enabled": "true",
+        "Notifications__Realtime__RedisConnectionString": "localhost:6379"
       }
     }
   }

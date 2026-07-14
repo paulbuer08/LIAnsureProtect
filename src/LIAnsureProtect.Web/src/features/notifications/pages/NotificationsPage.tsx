@@ -28,6 +28,7 @@ function getNotificationAction(
   subjectReferenceType: string,
   subjectReferenceId: string,
   attributes: Record<string, string>,
+  scope: NotificationScope,
 ) {
   if (subjectReferenceType === "policy") {
     const policyId = attributes.policyId ?? subjectReferenceId;
@@ -64,6 +65,18 @@ function getNotificationAction(
     return submissionId
       ? { label: "Open submission", to: `/submissions/${submissionId}` }
       : null;
+  }
+
+  if (subjectReferenceType === "claim") {
+    const claimId = attributes.claimId ?? subjectReferenceId;
+    if (!claimId) return null;
+
+    return scope === "team"
+      ? {
+          label: "Open claim",
+          to: `/claims/adjudication?claimId=${encodeURIComponent(claimId)}`,
+        }
+      : { label: "Open claim", to: `/claims/${claimId}` };
   }
 
   return null;
@@ -262,6 +275,7 @@ export function NotificationsPage() {
                           notification.subjectReferenceType,
                           notification.subjectReferenceId,
                           notification.attributes,
+                          notification.scope,
                         );
 
                         return (

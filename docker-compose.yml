@@ -20,7 +20,7 @@ services:
 
   # LocalStack emulates S3 on localhost so the M42 S3 document adapter can be developed and
   # round-trip tested with no AWS account or bill. It is opt-in: it only starts under the
-  # "aws-local" compose profile, so the default dev/CI flow (Postgres only) is unaffected.
+  # "aws-local" compose profile, so the default dev/CI core (Postgres + Redis) is unaffected.
   #   docker compose --profile aws-local up -d
   localstack:
     image: localstack/localstack:3
@@ -36,13 +36,12 @@ services:
       timeout: 5s
       retries: 20
 
-  # Redis for the M44 distributed cache adapter (ElastiCache stand-in). Opt-in like LocalStack:
-  # starts only under the "aws-local" profile, so the default dev/CI flow is unaffected.
-  #   docker compose --profile aws-local up -d
+  # Redis carries advisory SignalR invalidation hints between the Worker and API processes.
+  # It also remains the ElastiCache stand-in for the optional AWS distributed-cache adapter.
+  # Durable notifications stay in PostgreSQL, so Redis is never the system of record.
   redis:
     image: redis:7-alpine
     container_name: liansureprotect-redis
-    profiles: ["aws-local"]
     ports:
       - "6379:6379"
     healthcheck:

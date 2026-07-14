@@ -247,13 +247,22 @@ editing what an underwriter may already have relied upon.
 
 Notification list and badge reads deliberately have different costs. The inbox query returns the
 authorized, filterable messages; `GET /api/v1/notifications/unread-count` returns only the authorized
-count. The SPA loads that small endpoint with the signed-in shell and refreshes it after meaningful
-cache invalidation, Notifications navigation, and window focus; it does not run a continuous timer.
-Because outbox projection is asynchronous, the badge is eventually consistent: after a business
-action the Worker must first project its notification. Safe company and Submission-reference
-snapshots travel through events/outbox into Notifications, so grouping never performs a read-time
-cross-context join. Opening an actionable notification marks it read before navigating to its exact
-Evidence/Quote/Submission/Policy subject. Standalone manual read controls are deliberately absent.
+count. The SPA loads that small endpoint with the signed-in shell and does not run a continuous timer.
+After the Worker commits an inbox projection, a payload-free SignalR hint crosses the Redis backplane
+between the Worker and API. The browser invalidates its TanStack Query inbox/count keys and re-reads
+authorized HTTP state. Reconnect, navigation, and focus remain repair paths. Redis is a doorbell, not
+the mailbox: PostgreSQL remains authoritative and a hint failure cannot poison the durable outbox.
+Safe company and Submission-reference snapshots travel through events/outbox into Notifications, so
+grouping never performs a read-time cross-context join. Opening an actionable notification marks it
+read before navigating to its exact Evidence/Quote/Submission/Policy/Claim subject. Claim team links
+also select the exact claim in the adjudication URL. Standalone manual read controls are deliberately
+absent.
+
+The API and Worker each create one shared `NpgsqlDataSource` for Submission, Notifications,
+Underwriting, and Claims contexts. Explicit API (40) and Worker (20) maximums replace hidden per-context
+pool defaults. The deployment capacity check is `(replicas × process pool limit) + operational
+headroom < PostgreSQL connection limit`; RDS Proxy/PgBouncer, EF context pooling, sharding, and
+denormalization remain measured decisions rather than speculative complexity.
 
 ## Application Use Case Pattern
 

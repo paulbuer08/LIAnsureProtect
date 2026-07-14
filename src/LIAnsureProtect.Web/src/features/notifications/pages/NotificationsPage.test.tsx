@@ -242,6 +242,55 @@ describe("NotificationsPage", () => {
     );
   });
 
+  it("deep-links personal and team claim notifications to the correct claim workspace", async () => {
+    vi.mocked(useCurrentUser).mockReturnValue({
+      data: { userId: "adjuster-1", email: null, roles: ["ClaimsAdjuster"] },
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+    } as unknown as ReturnType<typeof useCurrentUser>);
+    vi.mocked(listMyNotifications).mockResolvedValue({
+      notifications: [
+        {
+          notificationId: "claim-personal",
+          scope: "personal",
+          audience: "customer-or-broker",
+          type: "claim.information_requested",
+          title: "More claim information is needed",
+          subjectReferenceType: "claim",
+          subjectReferenceId: "claim-123",
+          attributes: { claimId: "claim-123" },
+          occurredAtUtc: "2026-07-14T09:00:00Z",
+          isRead: false,
+          readAtUtc: null,
+        },
+        {
+          notificationId: "claim-team",
+          scope: "team",
+          audience: "claims-operations",
+          type: "claim.filed",
+          title: "A claim was filed",
+          subjectReferenceType: "claim",
+          subjectReferenceId: "claim-456",
+          attributes: { claimId: "claim-456" },
+          occurredAtUtc: "2026-07-14T08:00:00Z",
+          isRead: false,
+          readAtUtc: null,
+        },
+      ],
+      unreadCount: 2,
+    });
+
+    renderNotificationsPage();
+
+    const links = await screen.findAllByRole("link", { name: "Open claim" });
+    expect(links[0]).toHaveAttribute("href", "/claims/claim-123");
+    expect(links[1]).toHaveAttribute(
+      "href",
+      "/claims/adjudication?claimId=claim-456",
+    );
+  });
+
   it("badges team notifications and filters them with the Team tab", async () => {
     const user = userEvent.setup();
     vi.mocked(useCurrentUser).mockReturnValue({

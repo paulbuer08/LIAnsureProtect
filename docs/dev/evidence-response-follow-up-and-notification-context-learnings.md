@@ -12,7 +12,9 @@ This slice closes four usability and trust gaps found during the Customer walkth
 1. a customer can add evidence while a response is still waiting for its first Underwriting review;
 2. every response has a named, contactable person and an optional place for concerns or caveats;
 3. notifications from multiple Submissions are grouped by Company and immutable Submission reference;
-4. the unread badge refreshes while the user remains in the app, and opening an actionable notification marks it read.
+4. the unread badge refreshes through a payload-free realtime hint while the user remains in the app,
+   and opening an actionable notification marks it read; and
+5. all four DbContexts in a host share one explicit, capacity-budgeted Npgsql pool.
 
 The implementation does **not** claim that an email address, phone number, written answer, or uploaded
 file proves a cyber control. Those are inputs to an Underwriter's decision. Automated file screening
@@ -116,23 +118,31 @@ sequenceDiagram
     participant O as Transactional outbox
     participant W as Worker
     participant N as Notifications module
+    participant R as Redis / SignalR backplane
     participant UI as React app
 
     Q->>O: event + submission reference/company snapshot
     Q-->>UI: business action completes
     W->>O: poll pending event
     W->>N: idempotent inbox projection
-    UI->>N: GET unread-count on load, focus, or meaningful invalidation
+    N->>R: payload-free NotificationsChanged hint after commit
+    R->>UI: SignalR invalidation hint
+    UI->>N: GET unread-count after hint, reconnect, load, or focus
     N-->>UI: authorized personal + role-gated team count
 ```
 
 The first implementation used a small five-second foreground count poll. Manual review rejected the
-continuous request pattern even though the payload was tiny. The final behavior has no timer: it loads
-the count with the shell and refreshes after meaningful cache invalidation, Notifications navigation,
-or window focus. The trade-off is explicit—without push delivery, a newly projected notification may
-not change the badge while the user remains idle in the same foreground tab.
+continuous request pattern even though the payload was tiny. The intermediate behavior used only
+navigation/focus refresh, which was quiet but could stay stale while the user worked in one tab. The
+final behavior has no timer: an authenticated SignalR connection receives only a
+`NotificationsChanged` doorbell, then React Query reloads authorized HTTP state.
 
-For actionable notifications, `View quote`, `Open evidence request`, `View policy`, and similar links mark
+The separate Worker commits the projection and publishes the hint through Redis; the API's SignalR
+connection receives the backplane message. A hint failure is caught and logged, then ordinary external
+notification publishing and outbox completion continue. PostgreSQL retains the notification, so focus,
+navigation, reconnect, or a later hint repairs the browser view.
+
+For actionable notifications, `View quote`, `Open evidence request`, `View policy`, `Open claim`, and similar links mark
 the entry read before navigation. React Query applies an optimistic count/list update, removes the entry
 from an Unread-only result, and then refetches authoritative state. Standalone `Mark as read` actions are
 removed across the inbox so there is one unambiguous read behavior.
@@ -156,20 +166,57 @@ removed across the inbox so there is one unambiguous read behavior.
 - A notification refresh is eventually consistent; no synchronous “write the other module now” shortcut
   was added.
 - Existing owner/team authorization is applied before search, grouping, or counting.
+- The hub uses the same `Notifications.Read` policy, puts only the authenticated owner and role-derived
+  team audiences into groups, and accepts query-string bearer tokens only on `/hubs/notifications`.
+- SignalR sends no business payload. Redis is advisory transport, not an inbox, queue, or audit log.
+
+## Connection-pool governance
+
+Npgsql was already pooling, but every `UseNpgsql(connectionString)` registration could create a separate
+pool and its default maximum was invisible in capacity planning. Both hosts now create one shared
+`NpgsqlDataSource`; Submission, Notifications, Underwriting, and Claims contexts all borrow from that
+same process pool.
+
+| Host | Default maximum | Purpose |
+|---|---:|---|
+| API | 40 | concurrent HTTP reads/writes across all contexts |
+| Worker | 20 | outbox/projector and cleanup bursts |
+
+At minimum zero, an idle host keeps no unnecessary physical connections. Startup validation rejects
+negative/min-over-max limits and invalid timeouts. `Application Name` identifies API versus Worker in
+`pg_stat_activity`. Production must calculate `(replicas × max pool)` for both hosts and preserve
+operational/migration headroom. Npgsql connection-pool meters and PostgreSQL `pg_stat_activity` should
+drive tuning. RDS Proxy/PgBouncer is a later measured response to connection storms, not a substitute
+for fixing slow queries or an excuse to exceed the database budget.
+
+### Production deployment checklist
+
+- preserve WebSocket upgrade headers through
+  [CloudFront](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-working-with.websockets.html)
+  and the [Application Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-listeners.html);
+- configure an idle timeout compatible with SignalR keepalive/reconnect and test rolling deployments;
+- configure the API and Worker with the same ElastiCache endpoint and channel prefix;
+- redact the hub `access_token` query value from edge, proxy, and application logs;
+- keep hub authorization aligned with `Notifications.Read`, and never add business payloads to the hint;
+- monitor connections, reconnects, Redis publish failures, Npgsql pool acquisition/usage, and
+  PostgreSQL saturation with low-cardinality dimensions;
+- calculate pool budgets for the real replica count before every scaling change; evaluate
+  [RDS Proxy](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-proxy.html) only when measured
+  connection storms or replica counts justify it.
 
 ## Verification
 
 The release-sized verification gate passed:
 
 - `dotnet build LIAnsureProtect.slnx --no-restore`: 0 warnings, 0 errors;
-- standalone backend: 213 Unit tests and 274 Integration tests passed, with 4 intentional opt-in skips;
+- standalone backend: 213 Unit tests and 279 Integration tests passed, with 4 intentional opt-in skips;
 - `SubmissionDbContext`, `NotificationsDbContext`, `UnderwritingDbContext`, and `ClaimsDbContext`:
   no pending model changes;
-- frontend TypeScript, ESLint, production build, and all 101 tests passed;
-- fresh Docker local CI: all migrations applied, 213 Unit tests and 275 Integration tests passed,
-  3 intentional external-service tests skipped, all 101 frontend tests passed, and Docker resources
-  were cleaned up;
-- artifact: `TestResults/local-ci-20260714-213918.zip`.
+- frontend TypeScript, ESLint, production build, and all 104 tests passed;
+- fresh Docker local CI: PostgreSQL and Redis started healthy, all migrations applied, 213 Unit tests
+  and 280 Integration tests passed, 3 intentional external-service tests skipped, all 104 frontend
+  tests and API smoke checks passed, and Docker resources were cleaned up;
+- artifact: `TestResults/local-ci-20260715-001120.zip`.
 
 Acceptance coverage includes:
 

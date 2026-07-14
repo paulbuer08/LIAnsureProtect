@@ -57,8 +57,8 @@ legacy data and audit history.
 The follow-up slice added a third additive migration, `AddEvidenceResponseHistoryAndContacts`.
 Verification held the same release bar: solution build 0 warnings/0 errors; standalone UnitTests 213
 and IntegrationTests 274 plus 4 opt-in skips; four clean pending-model checks; frontend TypeScript,
-ESLint, production build, and 101 tests; then fresh-Docker UnitTests 213 and IntegrationTests 275 plus
-3 intentional external-service skips. Artifact: `TestResults/local-ci-20260714-213918.zip`.
+ESLint, production build, and 104 tests; then fresh-Docker UnitTests 213 and IntegrationTests 280 plus
+3 intentional external-service skips. Artifact: `TestResults/local-ci-20260715-001120.zip`.
 
 Detailed records: `docs/dev/customer-broker-policy-journey-learnings.md`,
 `docs/dev/cyber-control-assurance-and-reassessment-learnings.md`,
@@ -844,6 +844,14 @@ never discover another owner's work. Evidence requests now state a document cont
 Draft/Evidence forms can be safely discarded without mutating durable audit history. Verification used
 all four EF pending-model checks and fresh Docker PostgreSQL; the final local-CI artifact is
 `TestResults/local-ci-20260714-171307.zip`.
+
+The Evidence follow-up closeout then completed the browser-notification and database-capacity edges.
+The Worker publishes a payload-free SignalR invalidation only after its durable Notifications
+projection commits; Redis carries that doorbell between the separate Worker and API processes, while
+the browser re-reads owner/team-authorized HTTP state. Claim notifications gained exact personal and
+adjuster-queue deep links. Separately, one shared Npgsql data source per host replaced hidden
+per-DbContext pool defaults with validated API/Worker budgets, timeouts, pruning, and application names.
+Neither Redis nor a future database proxy replaces PostgreSQL audit truth or measured query tuning.
 
 Design and operational records:
 [Cyber Control Assurance and Reassessment](dev/cyber-control-assurance-and-reassessment-design.md),

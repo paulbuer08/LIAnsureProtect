@@ -61,7 +61,9 @@ response, concern, or document; every response and attachment stays linked in hi
 material-control requests require documentary proof, while manual requests keep an explicit
 Required/Optional/Narrative-only contract. Notifications group by company and Submission reference,
 open the exact subject, mark actionable messages read on open, and refresh the unread badge without
-loading the whole inbox or continuously polling. See the
+loading the whole inbox or continuously polling. A payload-free SignalR hint crosses Redis only after
+the Worker commits the inbox projection; PostgreSQL remains authoritative. API and Worker also expose
+explicit shared Npgsql pool limits instead of hidden per-context defaults. See the
 [design](docs/dev/evidence-response-follow-up-and-notification-context-design.md) and
 [implementation learnings](docs/dev/evidence-response-follow-up-and-notification-context-learnings.md).
 

@@ -43,14 +43,14 @@ vi.mock("../api/claimsApi", () => ({
   setClaimReserve: vi.fn(),
 }));
 
-function renderWorkbench() {
+function renderWorkbench(initialEntries = ["/claims/adjudication"]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
         <ClaimsAdjudicationPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -147,6 +147,15 @@ describe("ClaimsAdjudicationPage", () => {
       await screen.findByText("Ransomware encrypted the file server."),
     ).toBeInTheDocument();
     expect(screen.getByText("Initial estimate.")).toBeInTheDocument();
+  });
+
+  it("opens an exact claim from the notification deep-link query", async () => {
+    renderWorkbench(["/claims/adjudication?claimId=claim-1"]);
+
+    expect(
+      await screen.findByText("Ransomware encrypted the file server."),
+    ).toBeInTheDocument();
+    expect(getAdjudicationDetail).toHaveBeenCalledWith("token-1", "claim-1");
   });
 
   it("claims the file with assign-to-me", async () => {

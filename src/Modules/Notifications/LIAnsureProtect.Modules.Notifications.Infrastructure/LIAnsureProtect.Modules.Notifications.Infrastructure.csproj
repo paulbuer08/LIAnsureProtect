@@ -11,8 +11,12 @@
     <PackageReference Include="AWSSDK.SimpleNotificationService" />
     <PackageReference Include="MediatR" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>

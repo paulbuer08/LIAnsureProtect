@@ -74,14 +74,40 @@ Opening a notification's policy, submission, quote, or evidence destination mark
 read first, then navigates. Standalone `Mark as read` controls are removed; reading is attached to the
 meaningful action that opens the exact subject. The command remains idempotent and owner/team scoped.
 
-### 6. Badge freshness uses a lightweight count query
+### 6. Badge freshness uses an authenticated SignalR invalidation hint
 
-The app shell calls a dedicated unread-count endpoint when the signed-in shell first loads. React Query
-refreshes it after a notification action invalidates the cache, when the Notifications workspace is
-opened, and when the window regains focus. There is no continuous timer. This avoids persistent request
-traffic, with the deliberate trade-off that a newly projected notification may not update the badge
-until one of those meaningful refresh events occurs. Opening an item updates the TanStack Query cache
-optimistically and then reconciles with the server.
+The app shell calls the dedicated unread-count endpoint when the signed-in shell first loads. It then
+opens one authenticated `NotificationHub` connection with automatic reconnect. After the Worker commits
+an inbox projection, it publishes a payload-free `NotificationsChanged` hint through Redis; the browser
+invalidates the TanStack Query inbox/count keys and re-reads authorized HTTP data. Reconnect, window
+focus, Notifications navigation, and read-on-open remain safety nets. There is no continuous timer.
+
+The hint contains no notification ID, title, owner, claim, quote, or other business data. PostgreSQL is
+the source of truth. Redis/SignalR is like a doorbell: it tells the browser to check the mailbox, but it
+does not carry or store the letter. Realtime failure is logged and cannot roll back a committed inbox or
+poison the durable outbox row.
+
+The API and Worker are separate processes, so Redis is required for local cross-process fan-out now—not
+only for a later multi-instance deployment. The same backplane supports multiple API/Worker replicas.
+
+### 7. PostgreSQL pooling is explicit and budgeted per process
+
+Npgsql already pools physical PostgreSQL connections by default, but implicit defaults hide the total
+budget. Each host now registers one shared `NpgsqlDataSource` used by all four DbContexts. The API is
+budgeted at 40 connections and the Worker at 20, leaving headroom under PostgreSQL's ordinary 100-client
+default for migrations and operations. Minimum size is zero so idle development processes do not pin
+connections. Timeouts, pruning, idle lifetime, and maximum lifetime are explicit and validated at start.
+
+The capacity equation is part of deployment review:
+
+```text
+(API replicas × API max pool) + (Worker replicas × Worker max pool) + operational headroom
+    must be below the database connection limit
+```
+
+PgBouncer/RDS Proxy is not added blindly. RDS Proxy remains a measured production gate for connection
+storms or replica growth; EF `DbContext` pooling, sharding, denormalization, and partitioning require
+separate profiling evidence and ownership decisions.
 
 ## Authorization and boundaries
 
@@ -103,13 +129,19 @@ optimistically and then reconciles with the server.
 7. Underwriting can load response history and contact details before deciding.
 8. Quote/evidence notifications show company and Submission reference and group by Submission.
 9. Opening an unread actionable notification marks it read and decreases the badge.
-10. A newly projected notification appears after Notifications navigation, window focus, or another
-    meaningful unread-count cache refresh; no continuous badge poll runs.
+10. A newly projected notification emits a payload-free hint only after projection commits; the browser
+    refreshes inbox/count queries without polling, and focus/reconnect remains a safety net.
+11. Claim notifications deep-link to the exact owner Claim or exact operational queue selection and
+    become read through the same open action.
+12. API and Worker share one explicitly limited Npgsql pool per process across all four DbContexts;
+    invalid pool limits fail startup validation.
 
 ## Deliberate deferrals
 
 - email/phone ownership verification, OTP challenges, and outbound contact workflows;
 - customer-underwriter live chat;
 - automatic approval from contact data or document screening;
-- push/WebSocket notification delivery. If near-real-time badge updates become a production
-  requirement, use a deliberate push channel instead of shortening a polling interval.
+- verified email/phone ownership and outbound contact workflows;
+- business-data push, chat, presence, typing indicators, or Redis as a durable notification store;
+- a database proxy, sharding, denormalization, partitioning, or EF DbContext pooling without measured
+  production evidence.

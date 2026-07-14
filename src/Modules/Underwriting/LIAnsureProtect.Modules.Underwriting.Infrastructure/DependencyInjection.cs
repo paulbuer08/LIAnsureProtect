@@ -11,6 +11,7 @@ using LIAnsureProtect.Platform.Abstractions;
 using LIAnsureProtect.Platform.Abstractions.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 namespace LIAnsureProtect.Modules.Underwriting.Infrastructure;
 
@@ -30,10 +31,19 @@ public static class DependencyInjection
         if (string.IsNullOrWhiteSpace(databaseConnectionString))
             throw new InvalidOperationException("Connection string 'LIAnsureProtect' is required.");
 
-        services.AddDbContext<UnderwritingDbContext>(options =>
+        services.AddDbContext<UnderwritingDbContext>((serviceProvider, options) =>
         {
-            options.UseNpgsql(databaseConnectionString, npgsql =>
-                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", UnderwritingDbContext.SchemaName));
+            var dataSource = serviceProvider.GetService<NpgsqlDataSource>();
+            if (dataSource is null)
+            {
+                options.UseNpgsql(databaseConnectionString, npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", UnderwritingDbContext.SchemaName));
+            }
+            else
+            {
+                options.UseNpgsql(dataSource, npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", UnderwritingDbContext.SchemaName));
+            }
         });
 
         services.AddScoped<IAiUnderwritingReviewRepository, EfAiUnderwritingReviewRepository>();
