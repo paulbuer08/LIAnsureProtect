@@ -778,6 +778,32 @@ public sealed class UnderwritingReferralEndpointTests
     }
 
     [Fact]
+    public async Task Evidence_Request_Response_Rejects_Invalid_Philippine_Phone_Formats()
+    {
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"/api/v1/evidence-requests/{Guid.NewGuid()}/respond",
+            "Customer",
+            "customer-1",
+            new
+            {
+                respondentName = "Jane Applicant",
+                respondentTitle = "CISO",
+                respondentEmail = "jane@example.com",
+                respondentMobileNumber = "not-a-mobile",
+                respondentTelephoneNumber = "not-a-landline",
+                responseText = "Evidence response"
+            });
+
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Philippine mobile format", content, StringComparison.Ordinal);
+        Assert.Contains("Philippine landline format", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task List_Quote_Referrals_Returns_Evidence_Summary_For_Underwriter()
     {
         var quote = CreateReferredQuote("customer-1");

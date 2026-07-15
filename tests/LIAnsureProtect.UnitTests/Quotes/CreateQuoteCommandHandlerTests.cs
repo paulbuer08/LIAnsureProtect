@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Application.Quotes;
+using LIAnsureProtect.Application.Quotes.Assurance;
 using LIAnsureProtect.Application.Quotes.Commands.CreateQuote;
 using LIAnsureProtect.Application.Quotes.Rating;
 using LIAnsureProtect.Application.Quotes.RatingProviders;
@@ -310,6 +311,16 @@ public sealed class CreateQuoteCommandHandlerTests
     private static Quote CreateQuoteWithMfaAssertion(Guid submissionId, string claimedState)
     {
         var createdAtUtc = new DateTime(2026, 6, 21, 1, 0, 0, DateTimeKind.Utc);
+        var detailsJson = ControlAssurancePolicy.Evaluate(new CreateQuoteAssuranceInput(
+                1_000_000m,
+                Enum.Parse<CyberSecurityControlStatus>(claimedState),
+                CyberSecurityControlStatus.Implemented,
+                BackupMaturity.Mature,
+                true,
+                0,
+                SensitiveDataExposure.Moderate))
+            .Single(decision => decision.ControlType == ControlType.MultiFactorAuthentication)
+            .DetailsJson;
         var quote = Quote.Generate(
             submissionId,
             "auth0|owner-user-1",
@@ -328,7 +339,8 @@ public sealed class CreateQuoteCommandHandlerTests
             claimedState,
             false,
             string.Empty,
-            createdAtUtc));
+            createdAtUtc,
+            detailsJson));
         quote.ClearDomainEvents();
         return quote;
     }

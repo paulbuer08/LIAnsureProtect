@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using LIAnsureProtect.Api.Validation;
 using LIAnsureProtect.Application.Common.Security;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -267,13 +268,13 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
 }
 
 public sealed record RespondToEvidenceRequestRequest(
-    string RespondentName,
-    string RespondentTitle,
-    string RespondentEmail,
-    string? RespondentMobileNumber,
-    string? RespondentTelephoneNumber,
-    string? ResponseText,
-    string? OtherConcerns,
+    [Required, MaxLength(120)] string RespondentName,
+    [Required, MaxLength(120)] string RespondentTitle,
+    [Required, EmailAddress, MaxLength(254)] string RespondentEmail,
+    [MaxLength(32), PhilippineMobileNumber] string? RespondentMobileNumber,
+    [MaxLength(32), PhilippineTelephoneNumber] string? RespondentTelephoneNumber,
+    [MaxLength(4000)] string? ResponseText,
+    [MaxLength(2000)] string? OtherConcerns,
     string? AttachmentFileName,
     string? AttachmentContentType,
     long? AttachmentSizeBytes);
@@ -289,10 +290,10 @@ public sealed class RespondToEvidenceRequestFormRequest
     [Required, EmailAddress, MaxLength(254)]
     public string RespondentEmail { get; init; } = string.Empty;
 
-    [MaxLength(32)]
+    [MaxLength(32), PhilippineMobileNumber]
     public string? RespondentMobileNumber { get; init; }
 
-    [MaxLength(32)]
+    [MaxLength(32), PhilippineTelephoneNumber]
     public string? RespondentTelephoneNumber { get; init; }
 
     [MaxLength(4000)]

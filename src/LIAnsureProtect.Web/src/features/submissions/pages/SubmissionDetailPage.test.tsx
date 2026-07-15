@@ -593,6 +593,15 @@ describe("SubmissionDetailPage", () => {
       screen.getByRole("button", { name: "Create reassessment" }),
     ).toBeDisabled();
 
+    await user.click(screen.getByLabelText("MFA covers privileged access"));
+    expect(
+      screen.getByText(/implemented MFA must cover privileged access/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create reassessment" }),
+    ).toBeDisabled();
+    await user.click(screen.getByLabelText("MFA covers privileged access"));
+
     await user.click(screen.getByRole("button", { name: "Cancel reassessment" }));
 
     expect(
@@ -633,7 +642,7 @@ describe("SubmissionDetailPage", () => {
     await user.click(
       await screen.findByRole("button", { name: "Reassess controls" }),
     );
-    await user.selectOptions(screen.getByLabelText("MFA status"), "Partial");
+    await user.click(screen.getByLabelText("Phishing-resistant MFA is used"));
     await completeQuoteAttestation(user);
 
     expect(screen.getByRole("button", { name: "Create reassessment" })).toBeEnabled();

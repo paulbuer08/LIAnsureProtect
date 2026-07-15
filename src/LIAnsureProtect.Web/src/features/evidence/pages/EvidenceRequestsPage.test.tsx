@@ -189,6 +189,23 @@ describe("EvidenceRequestsPage", () => {
     await user.type(screen.getByLabelText("Respondent name"), "Jane Applicant");
     await user.type(screen.getByLabelText("Respondent title"), "CISO");
     await user.type(screen.getByLabelText(/Respondent email/), "jane@example.com");
+    const mobileInput = screen.getByLabelText(/^Respondent mobile number/);
+    const telephoneInput = screen.getByLabelText(/^Respondent telephone number/);
+    await user.type(mobileInput, "not-a-mobile");
+    await user.type(telephoneInput, "not-a-landline");
+    expect(mobileInput).toHaveAttribute("aria-invalid", "true");
+    expect(telephoneInput).toHaveAttribute("aria-invalid", "true");
+    expect(
+      screen.getByText(/enter a Philippine mobile number such as/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/enter a Philippine landline with its area code/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/correct the highlighted contact details/i),
+    ).toBeInTheDocument();
+    await user.clear(mobileInput);
+    await user.clear(telephoneInput);
     await user.type(
       screen.getByLabelText(/^Evidence response/),
       "MFA is enforced for all email and privileged accounts.",

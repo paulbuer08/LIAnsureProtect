@@ -32,14 +32,22 @@ function compactPhone(value: string) {
   return value.trim().replace(/[\s()-]/g, "");
 }
 
-function isValidPhilippineMobile(value: string) {
+function getPhilippineMobileError(value: string) {
   const compact = compactPhone(value);
-  return compact.length === 0 || /^(?:09\d{9}|\+?639\d{9})$/.test(compact);
+  if (compact.length === 0 || /^(?:09\d{9}|\+?639\d{9})$/.test(compact)) {
+    return undefined;
+  }
+
+  return "Enter a Philippine mobile number such as 09171234567 or +639171234567.";
 }
 
-function isValidPhilippineTelephone(value: string) {
+function getPhilippineTelephoneError(value: string) {
   const compact = compactPhone(value);
-  return compact.length === 0 || /^(?:0[2-8]\d{7,8}|\+?63[2-8]\d{7,8})$/.test(compact);
+  if (compact.length === 0 || /^(?:0[2-8]\d{7,8}|\+?63[2-8]\d{7,8})$/.test(compact)) {
+    return undefined;
+  }
+
+  return "Enter a Philippine landline with its area code, such as 02 8123 4567 or +63 2 8123 4567.";
 }
 
 function formatDate(value: string) {
@@ -124,12 +132,22 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
     responseText.trim().length > 0 ||
     otherConcerns.trim().length > 0 ||
     attachments.length > 0;
+  const respondentEmailError =
+    respondentEmail.trim().length > 0 &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(respondentEmail.trim())
+      ? "Enter a valid email address, such as name@example.com."
+      : undefined;
+  const respondentMobileError = getPhilippineMobileError(respondentMobileNumber);
+  const respondentTelephoneError = getPhilippineTelephoneError(
+    respondentTelephoneNumber,
+  );
   const hasRequiredRespondentDetails =
     respondentName.trim().length > 0 &&
     respondentTitle.trim().length > 0 &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(respondentEmail.trim()) &&
-    isValidPhilippineMobile(respondentMobileNumber) &&
-    isValidPhilippineTelephone(respondentTelephoneNumber);
+    respondentEmail.trim().length > 0 &&
+    respondentEmailError === undefined &&
+    respondentMobileError === undefined &&
+    respondentTelephoneError === undefined;
   const maxPendingFollowUps = request.maxPendingFollowUps ?? 5;
   const hasFollowUpCapacity = pendingFollowUpCount < maxPendingFollowUps;
   const hasRequiredNarrative =
@@ -392,9 +410,13 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
               maxLength={respondentEmailMaxLength}
               value={respondentEmail}
               onChange={(event) => setRespondentEmail(event.target.value)}
-              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+              aria-invalid={respondentEmailError !== undefined}
+              aria-describedby={`respondent-email-help-${request.evidenceRequestId}`}
+              className={`mt-2 w-full rounded-lg border bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400 ${respondentEmailError ? "border-red-500" : "border-slate-700"}`}
             />
-            <span className="mt-2 block text-xs text-slate-400">Underwriting may use this address to verify the response. It is not treated as proof by itself.</span>
+            <span id={`respondent-email-help-${request.evidenceRequestId}`} className={`mt-2 block text-xs ${respondentEmailError ? "text-red-300" : "text-slate-400"}`}>
+              {respondentEmailError ?? "Underwriting may use this address to verify the response. It is not treated as proof by itself."}
+            </span>
           </label>
           <label className="block text-sm font-medium text-slate-200">
             Respondent mobile number (optional)
@@ -405,9 +427,13 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
               placeholder="0917 123 4567 or +63 917 123 4567"
               value={respondentMobileNumber}
               onChange={(event) => setRespondentMobileNumber(event.target.value)}
-              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+              aria-invalid={respondentMobileError !== undefined}
+              aria-describedby={`respondent-mobile-help-${request.evidenceRequestId}`}
+              className={`mt-2 w-full rounded-lg border bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400 ${respondentMobileError ? "border-red-500" : "border-slate-700"}`}
             />
-            <span className="mt-2 block text-xs text-slate-400">Philippine mobile numbers use 11 domestic digits beginning with 09, or country code +63 followed by 10 digits beginning with 9.</span>
+            <span id={`respondent-mobile-help-${request.evidenceRequestId}`} className={`mt-2 block text-xs ${respondentMobileError ? "text-red-300" : "text-slate-400"}`}>
+              {respondentMobileError ?? "Philippine mobile numbers use 11 domestic digits beginning with 09, or country code +63 followed by 10 digits beginning with 9."}
+            </span>
           </label>
           <label className="block text-sm font-medium text-slate-200">
             Respondent telephone number (optional)
@@ -418,9 +444,13 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
               placeholder="02 8123 4567 or +63 2 8123 4567"
               value={respondentTelephoneNumber}
               onChange={(event) => setRespondentTelephoneNumber(event.target.value)}
-              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+              aria-invalid={respondentTelephoneError !== undefined}
+              aria-describedby={`respondent-telephone-help-${request.evidenceRequestId}`}
+              className={`mt-2 w-full rounded-lg border bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400 ${respondentTelephoneError ? "border-red-500" : "border-slate-700"}`}
             />
-            <span className="mt-2 block text-xs text-slate-400">Include the Philippine area code. Metro Manila commonly uses 02 domestically or +63 2 internationally.</span>
+            <span id={`respondent-telephone-help-${request.evidenceRequestId}`} className={`mt-2 block text-xs ${respondentTelephoneError ? "text-red-300" : "text-slate-400"}`}>
+              {respondentTelephoneError ?? "Include the Philippine area code. Metro Manila commonly uses 02 domestically or +63 2 internationally."}
+            </span>
           </label>
           <label className="block text-sm font-medium text-slate-200">
             Evidence response
@@ -455,6 +485,11 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
               required={requiresDocumentForThisResponse}
               disabled={respondToEvidenceRequest.isPending}
             />
+          )}
+          {(respondentEmailError || respondentMobileError || respondentTelephoneError) && (
+            <p role="alert" className="rounded-md border border-red-800 bg-red-950/50 p-3 text-sm text-red-200">
+              Correct the highlighted contact details before submitting this evidence response.
+            </p>
           )}
           <div className="flex flex-wrap gap-3">
             <button
