@@ -61,7 +61,8 @@ public sealed class EvidenceRequestRespondedNotificationMapper : IOutboxMessageM
             domainEvent.OccurredAtUtc,
             new Dictionary<string, string>
             {
-                ["respondedByUserId"] = domainEvent.RespondedByUserId
+                ["respondedByUserId"] = domainEvent.RespondedByUserId,
+                ["quoteVersion"] = domainEvent.QuoteVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
             },
             domainEvent.SubmissionReference,
             domainEvent.CompanyName);
@@ -90,7 +91,8 @@ public sealed class EvidenceRequestAcceptedNotificationMapper : IOutboxMessageMa
             domainEvent.OccurredAtUtc,
             new Dictionary<string, string>
             {
-                ["acceptedByUserId"] = domainEvent.AcceptedByUserId
+                ["acceptedByUserId"] = domainEvent.AcceptedByUserId,
+                ["quoteVersion"] = domainEvent.QuoteVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
             },
             domainEvent.SubmissionReference,
             domainEvent.CompanyName);
@@ -119,7 +121,8 @@ public sealed class EvidenceRequestCancelledNotificationMapper : IOutboxMessageM
             domainEvent.OccurredAtUtc,
             new Dictionary<string, string>
             {
-                ["cancelledByUserId"] = domainEvent.CancelledByUserId
+                ["cancelledByUserId"] = domainEvent.CancelledByUserId,
+                ["quoteVersion"] = domainEvent.QuoteVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
             },
             domainEvent.SubmissionReference,
             domainEvent.CompanyName);
@@ -148,7 +151,8 @@ public sealed class EvidenceRequestFollowUpSentNotificationMapper : IOutboxMessa
             domainEvent.OccurredAtUtc,
             new Dictionary<string, string>
             {
-                ["followedUpByUserId"] = domainEvent.FollowedUpByUserId
+                ["followedUpByUserId"] = domainEvent.FollowedUpByUserId,
+                ["quoteVersion"] = domainEvent.QuoteVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
             },
             domainEvent.SubmissionReference,
             domainEvent.CompanyName);
@@ -183,7 +187,8 @@ public sealed class EvidenceRequestRemediationRequiredNotificationMapper
                 ["decision"] = domainEvent.Decision.ToString(),
                 ["reviewReason"] = domainEvent.ReviewReason,
                 ["remediationGuidance"] = domainEvent.RemediationGuidance,
-                ["actionRequired"] = "true"
+                ["actionRequired"] = "true",
+                ["quoteVersion"] = domainEvent.QuoteVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
             },
             domainEvent.SubmissionReference,
             domainEvent.CompanyName);

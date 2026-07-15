@@ -1,6 +1,7 @@
 using System.Text.Json;
 using LIAnsureProtect.Modules.Notifications.Application;
 using LIAnsureProtect.Modules.Notifications.Application.Queries.ListMyNotifications;
+using LIAnsureProtect.Modules.Notifications.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
@@ -29,7 +30,8 @@ public sealed class EfTeamNotificationRepository(NotificationsDbContext dbContex
         if (filter.IsUnread is not null)
         {
             query = filter.IsUnread.Value
-                ? query.Where(entry => !entry.ReadReceipts.Any(receipt => receipt.RecipientUserId == recipientUserId))
+                ? query.Where(entry => entry.LifecycleState == NotificationLifecycleState.Active
+                    && !entry.ReadReceipts.Any(receipt => receipt.RecipientUserId == recipientUserId))
                 : query.Where(entry => entry.ReadReceipts.Any(receipt => receipt.RecipientUserId == recipientUserId));
         }
 
@@ -44,6 +46,11 @@ public sealed class EfTeamNotificationRepository(NotificationsDbContext dbContex
                 entry.SubjectReferenceId,
                 entry.AttributesJson,
                 entry.OccurredAtUtc,
+                entry.LifecycleState,
+                entry.HistoricalAtUtc,
+                entry.HistoricalReason,
+                entry.ReplacementQuoteId,
+                entry.ReplacementQuoteVersion,
                 // Per-user read state: this caller's receipt, if any.
                 ReadAtUtc = entry.ReadReceipts
                     .Where(receipt => receipt.RecipientUserId == recipientUserId)
@@ -78,7 +85,12 @@ public sealed class EfTeamNotificationRepository(NotificationsDbContext dbContex
                 attributes,
                 entry.OccurredAtUtc,
                 entry.ReadAtUtc is not null,
-                entry.ReadAtUtc);
+                entry.ReadAtUtc,
+                entry.LifecycleState.ToString(),
+                entry.HistoricalAtUtc,
+                entry.HistoricalReason,
+                entry.ReplacementQuoteId,
+                entry.ReplacementQuoteVersion);
             })
             .ToList();
     }
@@ -94,6 +106,7 @@ public sealed class EfTeamNotificationRepository(NotificationsDbContext dbContex
         return dbContext.TeamNotificationEntries
             .CountAsync(
                 entry => audiences.Contains(entry.Audience)
+                    && entry.LifecycleState == NotificationLifecycleState.Active
                     && !entry.ReadReceipts.Any(receipt => receipt.RecipientUserId == recipientUserId),
                 cancellationToken);
     }

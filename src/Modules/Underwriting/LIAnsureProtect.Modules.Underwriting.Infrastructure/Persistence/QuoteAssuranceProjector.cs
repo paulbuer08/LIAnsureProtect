@@ -26,6 +26,20 @@ public sealed class QuoteAssuranceProjector(
         if (quote is null)
             return;
 
+        var earlierRequests = await dbContext.Set<QuoteEvidenceRequest>()
+            .Where(request => request.SubmissionId == assuranceEvent.SubmissionId
+                && request.QuoteId != assuranceEvent.QuoteId
+                && request.QuoteDisposition == QuoteEvidenceDisposition.Current
+                && request.QuoteVersion < assuranceEvent.QuoteVersion)
+            .ToListAsync(cancellationToken);
+        foreach (var earlierRequest in earlierRequests)
+        {
+            earlierRequest.MarkQuoteSuperseded(
+                assuranceEvent.QuoteId,
+                assuranceEvent.QuoteVersion,
+                assuranceEvent.OccurredAtUtc);
+        }
+
         foreach (var requirement in quote.Requirements.Where(requirement => requirement.EvidenceRequired))
         {
             if (await evidenceRequests.ExistsForQuoteCategoryAsync(
@@ -48,6 +62,7 @@ public sealed class QuoteAssuranceProjector(
                 "Automated screening is advisory; an underwriter records the final evidence decision.",
                 assuranceEvent.OccurredAtUtc.AddDays(14),
                 assuranceEvent.OccurredAtUtc,
+                quoteVersion: quote.QuoteVersion,
                 documentRequirement: EvidenceDocumentRequirement.Required,
                 submissionReference: quote.SubmissionReference,
                 companyName: quote.CompanyName);

@@ -29,6 +29,7 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? reviewDecision,
         [FromQuery] string? documentRequirement,
+        [FromQuery] string? quoteDisposition,
         [FromQuery] string? cursor,
         [FromQuery] int pageSize = 12,
         CancellationToken cancellationToken = default)
@@ -45,7 +46,8 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
                     pageSize,
                     search,
                     reviewDecision,
-                    documentRequirement),
+                    documentRequirement,
+                    quoteDisposition ?? "Current"),
                 cancellationToken);
 
             return Ok(result);

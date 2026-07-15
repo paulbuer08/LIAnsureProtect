@@ -15,6 +15,9 @@ public sealed class QuoteGeneratedAssuranceMapper : IOutboxMessageMapper<QuoteAs
         return new QuoteAssuranceEvent(
             outboxMessage.Id,
             domainEvent.QuoteId,
+            domainEvent.SubmissionId,
+            domainEvent.Version,
+            domainEvent.SupersedesQuoteId,
             domainEvent.OccurredAtUtc);
     }
 }

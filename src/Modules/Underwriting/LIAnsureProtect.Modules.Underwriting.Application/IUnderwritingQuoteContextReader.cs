@@ -46,6 +46,8 @@ public sealed record QuoteAssuranceRequirementContext(
     Guid QuoteId,
     Guid SubmissionId,
     string OwnerUserId,
+    int QuoteVersion,
+    Guid? SupersedesQuoteId,
     IReadOnlyCollection<QuoteAssuranceRequirement> Requirements,
     string SubmissionReference = "",
     string CompanyName = "");

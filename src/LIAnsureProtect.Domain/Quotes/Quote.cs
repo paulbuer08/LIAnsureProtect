@@ -38,6 +38,8 @@ public sealed class Quote : IHasDomainEvents
 
     public Guid? SupersedesQuoteId { get; private set; }
 
+    public DateTime? SupersededAtUtc { get; private set; }
+
     public QuoteAssuranceStatus AssuranceStatus { get; private set; }
 
     public int EvidenceRequiredCount { get; private set; }
@@ -167,7 +169,8 @@ public sealed class Quote : IHasDomainEvents
             quote.Premium,
             quote.ExpiresAtUtc,
             submissionReference,
-            companyName));
+            companyName,
+            quote.SupersedesQuoteId));
 
         return quote;
     }
@@ -219,6 +222,7 @@ public sealed class Quote : IHasDomainEvents
             throw new InvalidOperationException("A quote cannot be superseded before it was created.");
 
         Status = QuoteStatus.Superseded;
+        SupersededAtUtc = supersededAtUtc;
     }
 
     public QuoteUnderwritingReview ApproveReferral(

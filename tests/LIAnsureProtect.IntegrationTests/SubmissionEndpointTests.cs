@@ -1566,7 +1566,7 @@ public sealed class SubmissionEndpointTests
     }
 
     [Fact]
-    public async Task Create_Quote_Reassessment_Creates_New_Version_And_Supersedes_Prior_Quote()
+    public async Task Create_Quote_Reassessment_Inside_Cooldown_Is_Queued_Then_Approval_Creates_New_Version()
     {
         var submission = CreateSubmittedSubmission("test-user-1");
         using (var scope = webApplicationFactory.Services.CreateScope())
@@ -1590,19 +1590,33 @@ public sealed class SubmissionEndpointTests
 
         using var reassessmentRequest = CreateAuthenticatedPostRequest(
             "Customer",
-            $"{SubmissionsEndpointPath}/{submission.Id}/quotes",
-            CreateBaselineQuoteRequest(isReassessment: true, mfaStatus: "Partial"),
+            $"{SubmissionsEndpointPath}/{submission.Id}/reassessments",
+            CreateBaselineQuoteRequest(isReassessment: true, mfaStatus: "Partial", baseQuoteVersion: 1),
             "test-user-1");
         using var reassessmentResponse = await httpClient.SendAsync(
             reassessmentRequest,
             TestContext.Current.CancellationToken);
-        var reassessmentPayload = await reassessmentResponse.Content.ReadFromJsonAsync<JsonElement>(
+        var queuedPayload = await reassessmentResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+        var reassessmentRequestId = queuedPayload.GetProperty("reassessmentRequestId").GetGuid();
+
+        using var approvalRequest = CreateAuthenticatedPostRequest(
+            "Underwriter",
+            $"/api/v1/underwriting/reassessment-requests/{reassessmentRequestId}/approve",
+            new { reason = "Reviewed changed controls and approved the reassessment." },
+            "test-underwriter-1");
+        using var approvalResponse = await httpClient.SendAsync(
+            approvalRequest,
+            TestContext.Current.CancellationToken);
+        var approvalPayload = await approvalResponse.Content.ReadFromJsonAsync<JsonElement>(
             TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Created, initialResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.Created, reassessmentResponse.StatusCode);
-        Assert.Equal(2, reassessmentPayload.GetProperty("version").GetInt32());
-        Assert.Equal(initialQuoteId, reassessmentPayload.GetProperty("supersedesQuoteId").GetGuid());
+        Assert.Equal(HttpStatusCode.Accepted, reassessmentResponse.StatusCode);
+        Assert.Equal("Pending", queuedPayload.GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.OK, approvalResponse.StatusCode);
+        Assert.Equal("Approved", approvalPayload.GetProperty("status").GetString());
+        Assert.True(approvalPayload.GetProperty("createdQuoteId").GetGuid() != Guid.Empty);
 
         using var verifyScope = webApplicationFactory.Services.CreateScope();
         var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
@@ -1779,7 +1793,8 @@ public sealed class SubmissionEndpointTests
 
     private static object CreateBaselineQuoteRequest(
         bool isReassessment = false,
-        string mfaStatus = "Implemented")
+        string mfaStatus = "Implemented",
+        int? baseQuoteVersion = null)
     {
         return new
         {
@@ -1797,6 +1812,7 @@ public sealed class SubmissionEndpointTests
             attestedByName = "Jane Applicant",
             attestedByTitle = "CFO",
             isReassessment,
+            baseQuoteVersion,
             controlDetails = CreateStrongControlDetails()
         };
     }

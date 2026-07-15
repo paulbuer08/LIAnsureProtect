@@ -21,6 +21,11 @@ public interface IQuoteRepository
         string ownerUserId,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyCollection<Quote>> ListOwnedForSubmissionAsync(
+        Guid submissionId,
+        string ownerUserId,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyCollection<Quote>> ListPendingReferralsAsync(CancellationToken cancellationToken);
 
     Task<Quote?> GetForUnderwritingReviewAsync(Guid quoteId, CancellationToken cancellationToken);

@@ -20,4 +20,10 @@ public sealed class RateLimitingOptions
 
     /// <summary>Length of the dedicated draft-creation window, in seconds.</summary>
     public int DraftCreateWindowSeconds { get; set; } = 60;
+
+    /// <summary>Permitted quote/reassessment creation attempts per caller and submission.</summary>
+    public int ReassessmentPermitLimit { get; set; } = 3;
+
+    /// <summary>Length of the quote/reassessment burst-protection window, in seconds.</summary>
+    public int ReassessmentWindowSeconds { get; set; } = 600;
 }

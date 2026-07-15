@@ -8,4 +8,7 @@ public interface IQuoteAssuranceProjector
 public sealed record QuoteAssuranceEvent(
     Guid SourceOutboxMessageId,
     Guid QuoteId,
+    Guid SubmissionId,
+    int QuoteVersion,
+    Guid? SupersedesQuoteId,
     DateTime OccurredAtUtc);

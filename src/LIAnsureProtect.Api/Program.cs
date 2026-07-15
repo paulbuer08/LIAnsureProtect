@@ -184,6 +184,25 @@ builder.Services.AddRateLimiter(rateLimiterOptions =>
                 QueueLimit = 0
             });
     });
+    rateLimiterOptions.AddPolicy("quote-reassessment-create", context =>
+    {
+        var limits = context.RequestServices.GetRequiredService<IOptions<RateLimitingOptions>>().Value;
+        var callerKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? context.Connection.RemoteIpAddress?.ToString()
+            ?? "anonymous";
+        var submissionKey = context.Request.RouteValues.TryGetValue("submissionId", out var value)
+            ? Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)
+            : "unknown";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            $"quote-reassessment-create:{callerKey}:{submissionKey}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = limits.ReassessmentPermitLimit,
+                Window = TimeSpan.FromSeconds(limits.ReassessmentWindowSeconds),
+                QueueLimit = 0
+            });
+    });
     rateLimiterOptions.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
     {
         var limits = context.RequestServices.GetRequiredService<IOptions<RateLimitingOptions>>().Value;

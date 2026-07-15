@@ -15,7 +15,8 @@ public sealed record ListOwnerEvidenceRequestsQuery(
     int PageSize = 12,
     string? Search = null,
     string? ReviewDecision = null,
-    string? DocumentRequirement = null) : IRequest<ListOwnerEvidenceRequestsResult>;
+    string? DocumentRequirement = null,
+    string? QuoteDisposition = "Current") : IRequest<ListOwnerEvidenceRequestsResult>;
 
 public sealed class ListOwnerEvidenceRequestsQueryHandler(
     IEvidenceRequestsReader reader,
@@ -35,6 +36,7 @@ public sealed class ListOwnerEvidenceRequestsQueryHandler(
         var category = ParseFilter<EvidenceRequestCategory>(request.Category, nameof(request.Category));
         var reviewDecision = ParseFilter<EvidenceReviewDecisionStatus>(request.ReviewDecision, nameof(request.ReviewDecision));
         var documentRequirement = ParseFilter<EvidenceDocumentRequirement>(request.DocumentRequirement, nameof(request.DocumentRequirement));
+        var quoteDisposition = ParseFilter<QuoteEvidenceDisposition>(request.QuoteDisposition, nameof(request.QuoteDisposition));
         if (!string.IsNullOrWhiteSpace(request.Search) && request.Search.Trim().Length > 200)
             throw new ArgumentException("Search text must not exceed 200 characters.", nameof(request));
         var evidenceRequests = await reader.GetOwnerRequestsPageAsync(
@@ -46,6 +48,7 @@ public sealed class ListOwnerEvidenceRequestsQueryHandler(
             request.Search?.Trim(),
             reviewDecision,
             documentRequirement,
+            quoteDisposition,
             cursor?.DueAtUtc,
             cursor?.RequestedAtUtc,
             cursor?.EvidenceRequestId,
@@ -77,7 +80,12 @@ public sealed class ListOwnerEvidenceRequestsQueryHandler(
                 item.UpdatedAtUtc,
                 item.SubmissionReference,
                 item.CompanyName,
-                item.DocumentRequirement.ToString())).ToList(),
+                item.DocumentRequirement.ToString(),
+                item.QuoteVersion,
+                item.QuoteDisposition.ToString(),
+                item.SupersededAtUtc,
+                item.SupersededByQuoteId,
+                item.SupersededByQuoteVersion)).ToList(),
             nextCursor);
     }
 

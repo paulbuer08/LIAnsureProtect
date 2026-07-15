@@ -6,6 +6,8 @@ public static class NotificationMessageTypes
     public const string QuoteReferredForUnderwriting = "quote.referred_for_underwriting";
     public const string QuoteUnderwritingDecisionRecorded = "quote.underwriting_decision_recorded";
     public const string QuoteAccepted = "quote.accepted";
+    public const string ReassessmentReviewRequested = "reassessment.review_requested";
+    public const string ReassessmentReviewDecisionRecorded = "reassessment.review_decision_recorded";
     public const string PolicyBound = "policy.bound";
     public const string EvidenceRequestCreated = "evidence_request.created";
     public const string EvidenceRequestResponded = "evidence_request.responded";

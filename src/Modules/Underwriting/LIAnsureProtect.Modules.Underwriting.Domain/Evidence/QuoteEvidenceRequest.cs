@@ -16,6 +16,16 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
 
     public Guid QuoteId { get; private set; }
 
+    public int QuoteVersion { get; private set; }
+
+    public QuoteEvidenceDisposition QuoteDisposition { get; private set; }
+
+    public DateTime? SupersededAtUtc { get; private set; }
+
+    public Guid? SupersededByQuoteId { get; private set; }
+
+    public int? SupersededByQuoteVersion { get; private set; }
+
     public Guid SubmissionId { get; private set; }
 
     public string SubmissionReference { get; private set; } = string.Empty;
@@ -122,6 +132,8 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         {
             Id = Guid.NewGuid(),
             QuoteId = quoteId,
+            QuoteVersion = quoteVersion,
+            QuoteDisposition = QuoteEvidenceDisposition.Current,
             SubmissionId = submissionId,
             SubmissionReference = string.IsNullOrWhiteSpace(submissionReference)
                 ? $"SUB-LEGACY-{submissionId:N}"[..30]
@@ -150,7 +162,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             evidenceRequest.DueAtUtc,
             requestedAtUtc,
             evidenceRequest.Title,
-            quoteVersion,
+            evidenceRequest.QuoteVersion,
             evidenceRequest.SubmissionReference,
             evidenceRequest.CompanyName));
 
@@ -260,6 +272,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         int pendingFollowUpCount,
         DateTime respondedAtUtc)
     {
+        EnsureCurrentQuote();
         if (Status != EvidenceRequestStatus.Responded)
             throw new InvalidOperationException("Supplemental evidence can only be uploaded after an evidence response.");
 
@@ -338,7 +351,8 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             DueAtUtc,
             respondedAtUtc,
             SubmissionReference,
-            CompanyName));
+            CompanyName,
+            QuoteVersion));
     }
 
     public void RecordReplacementDocumentsUploaded(
@@ -348,6 +362,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         long? attachmentSizeBytes,
         DateTime uploadedAtUtc)
     {
+        EnsureCurrentQuote();
         if (Status != EvidenceRequestStatus.Responded)
             throw new InvalidOperationException("Replacement evidence can only be uploaded after an evidence response.");
 
@@ -375,11 +390,13 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             DueAtUtc,
             uploadedAtUtc,
             SubmissionReference,
-            CompanyName));
+            CompanyName,
+            QuoteVersion));
     }
 
     public void Accept(string acceptedByUserId, string? reviewNotes, DateTime acceptedAtUtc)
     {
+        EnsureCurrentQuote();
         if (Status != EvidenceRequestStatus.Responded)
             throw new InvalidOperationException("Only responded evidence requests can be accepted.");
 
@@ -405,7 +422,8 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             DueAtUtc,
             acceptedAtUtc,
             SubmissionReference,
-            CompanyName));
+            CompanyName,
+            QuoteVersion));
     }
 
     public void Cancel(string cancelledByUserId, string? reviewNotes, DateTime cancelledAtUtc)
@@ -429,11 +447,13 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             DueAtUtc,
             cancelledAtUtc,
             SubmissionReference,
-            CompanyName));
+            CompanyName,
+            QuoteVersion));
     }
 
     public void RecordFollowUpSent(string followedUpByUserId, DateTime followedUpAtUtc)
     {
+        EnsureCurrentQuote();
         if (Status != EvidenceRequestStatus.Open)
             throw new InvalidOperationException("Only open evidence requests can receive follow-up reminders.");
 
@@ -454,7 +474,8 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             DueAtUtc,
             followedUpAtUtc,
             SubmissionReference,
-            CompanyName));
+            CompanyName,
+            QuoteVersion));
     }
 
     public void RecordReviewDecision(
@@ -464,6 +485,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         string reviewedByUserId,
         DateTime reviewedAtUtc)
     {
+        EnsureCurrentQuote();
         if (Status != EvidenceRequestStatus.Responded)
             throw new InvalidOperationException("Only responded evidence requests can receive review decisions.");
 
@@ -494,7 +516,8 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             DueAtUtc,
             reviewedAtUtc,
             SubmissionReference,
-            CompanyName));
+            CompanyName,
+            QuoteVersion));
     }
 
     public void ClearDomainEvents()
@@ -510,6 +533,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
 
     private void EnsureCanRespond()
     {
+        EnsureCurrentQuote();
         if (Status == EvidenceRequestStatus.Open)
             return;
 
@@ -583,11 +607,13 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             DueAtUtc,
             respondedAtUtc,
             SubmissionReference,
-            CompanyName));
+            CompanyName,
+            QuoteVersion));
     }
 
     private void EnsureOpenOrResponded()
     {
+        EnsureCurrentQuote();
         if (Status is not EvidenceRequestStatus.Open and not EvidenceRequestStatus.Responded)
             throw new InvalidOperationException("Evidence request is already closed.");
     }
@@ -622,7 +648,33 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
 
     public void RecordCustomerFollowUpViewed(DateTime viewedAtUtc)
     {
+        EnsureCurrentQuote();
         Touch(viewedAtUtc);
+    }
+
+    public void MarkQuoteSuperseded(
+        Guid supersededByQuoteId,
+        int supersededByQuoteVersion,
+        DateTime supersededAtUtc)
+    {
+        if (QuoteDisposition == QuoteEvidenceDisposition.Superseded)
+            return;
+        if (supersededByQuoteId == Guid.Empty)
+            throw new ArgumentException("Replacement quote id is required.", nameof(supersededByQuoteId));
+        if (supersededByQuoteVersion <= QuoteVersion)
+            throw new InvalidOperationException("Replacement quote version must be newer than this evidence request's quote version.");
+
+        QuoteDisposition = QuoteEvidenceDisposition.Superseded;
+        SupersededByQuoteId = supersededByQuoteId;
+        SupersededByQuoteVersion = supersededByQuoteVersion;
+        SupersededAtUtc = supersededAtUtc;
+        Touch(supersededAtUtc);
+    }
+
+    private void EnsureCurrentQuote()
+    {
+        if (QuoteDisposition == QuoteEvidenceDisposition.Superseded)
+            throw new InvalidOperationException("This evidence request belongs to a superseded quote and is read-only history.");
     }
 
     private void Touch(DateTime updatedAtUtc)

@@ -66,6 +66,7 @@ public static class DependencyInjection
         // A host's AddNotificationRealtime registration runs first and wins this TryAdd fallback.
         services.TryAddSingleton<INotificationRealtimePublisher, NoOpNotificationRealtimePublisher>();
         services.AddScoped<IQuoteRepository, EfCoreQuoteRepository>();
+        services.AddScoped<IReassessmentRequestRepository, EfCoreReassessmentRequestRepository>();
         services.AddScoped<IQuoteReferralDecisionService, QuoteReferralDecisionService>();
         services.AddScoped<IPolicyRepository, EfCorePolicyRepository>();
         services.AddScoped<IUnitOfWork, EfCoreUnitOfWork>();
@@ -78,6 +79,8 @@ public static class DependencyInjection
         services.AddScoped<IOutboxMessageMapper<NotificationMessage>, QuoteGeneratedNotificationMapper>();
         services.AddScoped<IOutboxMessageMapper<NotificationMessage>, QuoteUnderwritingDecisionRecordedNotificationMapper>();
         services.AddScoped<IOutboxMessageMapper<NotificationMessage>, QuoteAcceptedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ReassessmentReviewRequestedNotificationMapper>();
+        services.AddScoped<IOutboxMessageMapper<NotificationMessage>, ReassessmentReviewDecisionRecordedNotificationMapper>();
         services.AddScoped<IOutboxMessageMapper<NotificationMessage>, PolicyBoundNotificationMapper>();
         services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestCreatedNotificationMapper>();
         services.AddScoped<IOutboxMessageMapper<NotificationMessage>, EvidenceRequestRespondedNotificationMapper>();

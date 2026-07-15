@@ -15,6 +15,8 @@ public sealed class NotificationInboxProjector(NotificationsDbContext dbContext)
 {
     public async Task ProjectAsync(NotificationMessage message, CancellationToken cancellationToken)
     {
+        await MarkEarlierQuoteVersionEntriesHistoricalAsync(message, cancellationToken);
+
         switch (message.Audience)
         {
             case NotificationAudiences.CustomerOrBroker:
@@ -29,6 +31,84 @@ public sealed class NotificationInboxProjector(NotificationsDbContext dbContext)
                 // Unknown audience: nothing to persist.
                 break;
         }
+    }
+
+    private async Task MarkEarlierQuoteVersionEntriesHistoricalAsync(
+        NotificationMessage message,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetQuoteContext(message.Attributes, out var submissionId, out var quoteId, out var quoteVersion))
+            return;
+
+        var personalEntries = await dbContext.NotificationInboxEntries
+            .Where(entry => entry.RecipientUserId == message.OwnerUserId
+                && entry.LifecycleState == NotificationLifecycleState.Active)
+            .ToListAsync(cancellationToken);
+        foreach (var entry in personalEntries)
+        {
+            if (IsEarlierQuoteVersion(entry.AttributesJson, submissionId, quoteVersion))
+            {
+                entry.MarkHistorical(
+                    message.OccurredAtUtc,
+                    $"Superseded by quote version {quoteVersion}.",
+                    quoteId,
+                    quoteVersion);
+            }
+        }
+
+        var teamEntries = await dbContext.TeamNotificationEntries
+            .Where(entry => entry.LifecycleState == NotificationLifecycleState.Active)
+            .ToListAsync(cancellationToken);
+        foreach (var entry in teamEntries)
+        {
+            if (IsEarlierQuoteVersion(entry.AttributesJson, submissionId, quoteVersion))
+            {
+                entry.MarkHistorical(
+                    message.OccurredAtUtc,
+                    $"Superseded by quote version {quoteVersion}.",
+                    quoteId,
+                    quoteVersion);
+            }
+        }
+    }
+
+    private static bool TryGetQuoteContext(
+        IReadOnlyDictionary<string, string> attributes,
+        out Guid submissionId,
+        out Guid quoteId,
+        out int quoteVersion)
+    {
+        submissionId = Guid.Empty;
+        quoteId = Guid.Empty;
+        quoteVersion = 0;
+        var versionValue = attributes.TryGetValue("quoteVersion", out var evidenceVersion)
+            ? evidenceVersion
+            : attributes.GetValueOrDefault("version");
+
+        return Guid.TryParse(attributes.GetValueOrDefault("submissionId"), out submissionId)
+            && Guid.TryParse(attributes.GetValueOrDefault("quoteId"), out quoteId)
+            && int.TryParse(versionValue, System.Globalization.CultureInfo.InvariantCulture, out quoteVersion)
+            && quoteVersion > 1;
+    }
+
+    private static bool IsEarlierQuoteVersion(string attributesJson, Guid submissionId, int newQuoteVersion)
+    {
+        var attributes = JsonSerializer.Deserialize<Dictionary<string, string>>(attributesJson);
+        if (attributes is null
+            || !Guid.TryParse(attributes.GetValueOrDefault("submissionId"), out var existingSubmissionId)
+            || existingSubmissionId != submissionId)
+        {
+            return false;
+        }
+
+        var versionValue = attributes.TryGetValue("quoteVersion", out var evidenceVersion)
+            ? evidenceVersion
+            : attributes.GetValueOrDefault("version");
+        return int.TryParse(
+                versionValue,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var existingVersion)
+            && existingVersion < newQuoteVersion;
     }
 
     private async Task ProjectPersonalAsync(NotificationMessage message, CancellationToken cancellationToken)

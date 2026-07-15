@@ -55,6 +55,17 @@ public sealed class TeamNotificationEntryConfiguration : IEntityTypeConfiguratio
             .HasColumnName("created_at_utc")
             .IsRequired();
 
+        builder.Property(entry => entry.LifecycleState)
+            .HasColumnName("lifecycle_state")
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasDefaultValue(NotificationLifecycleState.Active)
+            .IsRequired();
+        builder.Property(entry => entry.HistoricalAtUtc).HasColumnName("historical_at_utc");
+        builder.Property(entry => entry.HistoricalReason).HasColumnName("historical_reason").HasMaxLength(500);
+        builder.Property(entry => entry.ReplacementQuoteId).HasColumnName("replacement_quote_id");
+        builder.Property(entry => entry.ReplacementQuoteVersion).HasColumnName("replacement_quote_version");
+
         // One team entry per source outbox message -> dispatcher retries stay idempotent.
         builder.HasIndex(entry => entry.SourceOutboxMessageId)
             .IsUnique()
@@ -63,6 +74,9 @@ public sealed class TeamNotificationEntryConfiguration : IEntityTypeConfiguratio
         // Fast "this team's inbox, newest first".
         builder.HasIndex(entry => new { entry.Audience, entry.CreatedAtUtc })
             .HasDatabaseName("ix_team_notification_entries_audience_created_at_utc");
+
+        builder.HasIndex(entry => new { entry.Audience, entry.LifecycleState, entry.CreatedAtUtc })
+            .HasDatabaseName("ix_team_notification_entries_audience_lifecycle_created_at_utc");
 
         // Per-user read receipts hang off the entry via its backing field.
         builder.HasMany(entry => entry.ReadReceipts)

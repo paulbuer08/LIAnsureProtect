@@ -44,6 +44,23 @@ namespace LIAnsureProtect.Modules.Notifications.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
 
+                    b.Property<DateTime?>("HistoricalAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("historical_at_utc");
+
+                    b.Property<string>("HistoricalReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("historical_reason");
+
+                    b.Property<string>("LifecycleState")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Active")
+                        .HasColumnName("lifecycle_state");
+
                     b.Property<DateTime>("OccurredAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("occurred_at_utc");
@@ -57,6 +74,14 @@ namespace LIAnsureProtect.Modules.Notifications.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("recipient_user_id");
+
+                    b.Property<Guid?>("ReplacementQuoteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("replacement_quote_id");
+
+                    b.Property<int?>("ReplacementQuoteVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("replacement_quote_version");
 
                     b.Property<Guid>("SourceOutboxMessageId")
                         .HasColumnType("uuid")
@@ -89,6 +114,9 @@ namespace LIAnsureProtect.Modules.Notifications.Infrastructure.Migrations
                     b.HasIndex("RecipientUserId", "ReadAtUtc")
                         .HasDatabaseName("ix_notification_inbox_entries_recipient_read");
 
+                    b.HasIndex("RecipientUserId", "LifecycleState", "ReadAtUtc")
+                        .HasDatabaseName("ix_notification_inbox_entries_recipient_lifecycle_read");
+
                     b.ToTable("notification_inbox_entries", "notifications");
                 });
 
@@ -113,9 +141,34 @@ namespace LIAnsureProtect.Modules.Notifications.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
 
+                    b.Property<DateTime?>("HistoricalAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("historical_at_utc");
+
+                    b.Property<string>("HistoricalReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("historical_reason");
+
+                    b.Property<string>("LifecycleState")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Active")
+                        .HasColumnName("lifecycle_state");
+
                     b.Property<DateTime>("OccurredAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("occurred_at_utc");
+
+                    b.Property<Guid?>("ReplacementQuoteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("replacement_quote_id");
+
+                    b.Property<int?>("ReplacementQuoteVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("replacement_quote_version");
 
                     b.Property<Guid>("SourceOutboxMessageId")
                         .HasColumnType("uuid")
@@ -147,6 +200,9 @@ namespace LIAnsureProtect.Modules.Notifications.Infrastructure.Migrations
 
                     b.HasIndex("Audience", "CreatedAtUtc")
                         .HasDatabaseName("ix_team_notification_entries_audience_created_at_utc");
+
+                    b.HasIndex("Audience", "LifecycleState", "CreatedAtUtc")
+                        .HasDatabaseName("ix_team_notification_entries_audience_lifecycle_created_at_utc");
 
                     b.ToTable("team_notification_entries", "notifications");
                 });

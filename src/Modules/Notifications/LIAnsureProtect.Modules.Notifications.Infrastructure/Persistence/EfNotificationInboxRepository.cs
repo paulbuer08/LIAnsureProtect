@@ -1,6 +1,7 @@
 using System.Text.Json;
 using LIAnsureProtect.Modules.Notifications.Application;
 using LIAnsureProtect.Modules.Notifications.Application.Queries.ListMyNotifications;
+using LIAnsureProtect.Modules.Notifications.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
@@ -23,7 +24,8 @@ public sealed class EfNotificationInboxRepository(NotificationsDbContext dbConte
             query = query.Where(entry => entry.Type == filter.Type);
         if (filter.IsUnread is not null)
             query = filter.IsUnread.Value
-                ? query.Where(entry => entry.ReadAtUtc == null)
+                ? query.Where(entry => entry.ReadAtUtc == null
+                    && entry.LifecycleState == NotificationLifecycleState.Active)
                 : query.Where(entry => entry.ReadAtUtc != null);
 
         var projectedQuery = query
@@ -37,7 +39,12 @@ public sealed class EfNotificationInboxRepository(NotificationsDbContext dbConte
                 entry.SubjectReferenceId,
                 entry.AttributesJson,
                 entry.OccurredAtUtc,
-                entry.ReadAtUtc
+                entry.ReadAtUtc,
+                entry.LifecycleState,
+                entry.HistoricalAtUtc,
+                entry.HistoricalReason,
+                entry.ReplacementQuoteId,
+                entry.ReplacementQuoteVersion
             });
 
         var entries = string.IsNullOrWhiteSpace(filter.Search)
@@ -67,7 +74,12 @@ public sealed class EfNotificationInboxRepository(NotificationsDbContext dbConte
                 attributes,
                 entry.OccurredAtUtc,
                 entry.ReadAtUtc is not null,
-                entry.ReadAtUtc);
+                entry.ReadAtUtc,
+                entry.LifecycleState.ToString(),
+                entry.HistoricalAtUtc,
+                entry.HistoricalReason,
+                entry.ReplacementQuoteId,
+                entry.ReplacementQuoteVersion);
             })
             .ToList();
     }
@@ -78,7 +90,9 @@ public sealed class EfNotificationInboxRepository(NotificationsDbContext dbConte
     {
         return dbContext.NotificationInboxEntries
             .CountAsync(
-                entry => entry.RecipientUserId == recipientUserId && entry.ReadAtUtc == null,
+                entry => entry.RecipientUserId == recipientUserId
+                    && entry.ReadAtUtc == null
+                    && entry.LifecycleState == NotificationLifecycleState.Active,
                 cancellationToken);
     }
 

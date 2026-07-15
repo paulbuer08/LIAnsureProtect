@@ -1,4 +1,5 @@
 using LIAnsureProtect.Modules.Notifications.Application;
+using LIAnsureProtect.Modules.Notifications.Domain;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -107,6 +108,34 @@ public sealed class TeamNotificationInboxTests : IDisposable
             "cust-1", [], TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task New_quote_version_marks_prior_notifications_historical_without_faking_read_state()
+    {
+        var submissionId = Guid.NewGuid();
+        await projector.ProjectAsync(
+            PersonalQuoteMessage(Guid.NewGuid(), submissionId, Guid.NewGuid(), 1),
+            TestContext.Current.CancellationToken);
+        await projector.ProjectAsync(
+            PersonalQuoteMessage(Guid.NewGuid(), submissionId, Guid.NewGuid(), 2),
+            TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var entries = await dbContext.NotificationInboxEntries
+            .OrderBy(entry => entry.OccurredAtUtc)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, entries.Count);
+        Assert.Equal(NotificationLifecycleState.Historical, entries[0].LifecycleState);
+        Assert.Null(entries[0].ReadAtUtc);
+        Assert.Equal(2, entries[0].ReplacementQuoteVersion);
+        Assert.Equal(NotificationLifecycleState.Active, entries[1].LifecycleState);
+
+        var personalRepository = new EfNotificationInboxRepository(dbContext);
+        Assert.Equal(1, await personalRepository.CountUnreadForRecipientAsync(
+            "cust-1",
+            TestContext.Current.CancellationToken));
+    }
+
     private static NotificationMessage TeamMessage(Guid outboxMessageId) => new(
         outboxMessageId.ToString("N"),
         outboxMessageId,
@@ -117,6 +146,26 @@ public sealed class TeamNotificationInboxTests : IDisposable
         SubjectReferenceId: Guid.NewGuid().ToString(),
         OccurredAtUtc: new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc),
         Attributes: new Dictionary<string, string>());
+
+    private static NotificationMessage PersonalQuoteMessage(
+        Guid outboxMessageId,
+        Guid submissionId,
+        Guid quoteId,
+        int quoteVersion) => new(
+        outboxMessageId.ToString("N"),
+        outboxMessageId,
+        NotificationMessageTypes.QuoteReady,
+        NotificationAudiences.CustomerOrBroker,
+        OwnerUserId: "cust-1",
+        SubjectReferenceType: "quote",
+        SubjectReferenceId: quoteId.ToString(),
+        OccurredAtUtc: new DateTime(2026, 7, 12, quoteVersion, 0, 0, DateTimeKind.Utc),
+        Attributes: new Dictionary<string, string>
+        {
+            ["submissionId"] = submissionId.ToString(),
+            ["quoteId"] = quoteId.ToString(),
+            ["version"] = quoteVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        });
 
     public void Dispose()
     {

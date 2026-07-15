@@ -24,7 +24,12 @@ public sealed record EvidenceRequestOwnerSummaryResult(
     DateTime UpdatedAtUtc,
     string SubmissionReference = "",
     string CompanyName = "",
-    string DocumentRequirement = "Required");
+    string DocumentRequirement = "Required",
+    int QuoteVersion = 1,
+    string QuoteDisposition = "Current",
+    DateTime? SupersededAtUtc = null,
+    Guid? SupersededByQuoteId = null,
+    int? SupersededByQuoteVersion = null);
 
 public sealed record QuoteEvidenceRequestResult(
     Guid EvidenceRequestId,
@@ -69,7 +74,12 @@ public sealed record QuoteEvidenceRequestResult(
     string? RespondentMobileNumber = null,
     string? RespondentTelephoneNumber = null,
     int PendingFollowUpCount = 0,
-    int MaxPendingFollowUps = EvidenceResponseFieldRules.MaxPendingFollowUps);
+    int MaxPendingFollowUps = EvidenceResponseFieldRules.MaxPendingFollowUps,
+    int QuoteVersion = 1,
+    string QuoteDisposition = "Current",
+    DateTime? SupersededAtUtc = null,
+    Guid? SupersededByQuoteId = null,
+    int? SupersededByQuoteVersion = null);
 
 public sealed record QuoteEvidenceResponseResult(
     Guid ResponseId,
@@ -157,7 +167,12 @@ internal static class QuoteEvidenceRequestResultFactory
             item.RespondentMobileNumber,
             item.RespondentTelephoneNumber,
             CountPendingFollowUps(responses),
-            EvidenceResponseFieldRules.MaxPendingFollowUps);
+            EvidenceResponseFieldRules.MaxPendingFollowUps,
+            item.QuoteVersion,
+            item.QuoteDisposition,
+            item.SupersededAtUtc,
+            item.SupersededByQuoteId,
+            item.SupersededByQuoteVersion);
     }
 
     public static QuoteEvidenceRequestResult FromRequest(
@@ -211,7 +226,12 @@ internal static class QuoteEvidenceRequestResultFactory
             request.RespondentMobileNumber,
             request.RespondentTelephoneNumber,
             CountPendingFollowUps(responses),
-            EvidenceResponseFieldRules.MaxPendingFollowUps);
+            EvidenceResponseFieldRules.MaxPendingFollowUps,
+            request.QuoteVersion,
+            request.QuoteDisposition.ToString(),
+            request.SupersededAtUtc,
+            request.SupersededByQuoteId,
+            request.SupersededByQuoteVersion);
     }
 
     private static QuoteEvidenceDocumentResult FromDocument(QuoteEvidenceDocument document)

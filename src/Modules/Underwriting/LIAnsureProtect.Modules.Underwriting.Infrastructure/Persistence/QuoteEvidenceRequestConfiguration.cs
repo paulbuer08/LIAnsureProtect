@@ -22,6 +22,27 @@ public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration
             .HasColumnName("quote_id")
             .IsRequired();
 
+        builder.Property(request => request.QuoteVersion)
+            .HasColumnName("quote_version")
+            .HasDefaultValue(1)
+            .IsRequired();
+
+        builder.Property(request => request.QuoteDisposition)
+            .HasColumnName("quote_disposition")
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasDefaultValue(QuoteEvidenceDisposition.Current)
+            .IsRequired();
+
+        builder.Property(request => request.SupersededAtUtc)
+            .HasColumnName("superseded_at_utc");
+
+        builder.Property(request => request.SupersededByQuoteId)
+            .HasColumnName("superseded_by_quote_id");
+
+        builder.Property(request => request.SupersededByQuoteVersion)
+            .HasColumnName("superseded_by_quote_version");
+
         builder.Property(request => request.SubmissionId)
             .HasColumnName("submission_id")
             .IsRequired();
@@ -198,5 +219,13 @@ public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration
                 request.UpdatedAtUtc
             })
             .HasDatabaseName("ix_quote_evidence_requests_quote_status_updated_at_utc");
+
+        builder.HasIndex(request => new
+            {
+                request.SubmissionId,
+                request.QuoteDisposition,
+                request.QuoteVersion
+            })
+            .HasDatabaseName("ix_quote_evidence_requests_submission_disposition_version");
     }
 }

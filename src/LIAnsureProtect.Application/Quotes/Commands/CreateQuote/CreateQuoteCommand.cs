@@ -23,4 +23,5 @@ public sealed record CreateQuoteCommand(
     string? AttestedByName = null,
     string? AttestedByTitle = null,
     bool IsReassessment = false,
-    CyberControlDetails? ControlDetails = null) : IRequest<CreateQuoteResult?>;
+    CyberControlDetails? ControlDetails = null,
+    int? BaseQuoteVersion = null) : IRequest<CreateQuoteResult?>;

@@ -368,9 +368,23 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("owner_user_id");
 
+                    b.Property<string>("QuoteDisposition")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Current")
+                        .HasColumnName("quote_disposition");
+
                     b.Property<Guid>("QuoteId")
                         .HasColumnType("uuid")
                         .HasColumnName("quote_id");
+
+                    b.Property<int>("QuoteVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("quote_version");
 
                     b.Property<string>("RemediationGuidance")
                         .HasMaxLength(2000)
@@ -474,6 +488,18 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("character varying(30)")
                         .HasColumnName("submission_reference");
 
+                    b.Property<DateTime?>("SupersededAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("superseded_at_utc");
+
+                    b.Property<Guid?>("SupersededByQuoteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("superseded_by_quote_id");
+
+                    b.Property<int?>("SupersededByQuoteVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("superseded_by_quote_version");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -498,6 +524,9 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
 
                     b.HasIndex("QuoteId", "Status", "UpdatedAtUtc")
                         .HasDatabaseName("ix_quote_evidence_requests_quote_status_updated_at_utc");
+
+                    b.HasIndex("SubmissionId", "QuoteDisposition", "QuoteVersion")
+                        .HasDatabaseName("ix_quote_evidence_requests_submission_disposition_version");
 
                     b.ToTable("quote_evidence_requests", "underwriting");
                 });
