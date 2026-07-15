@@ -6,6 +6,12 @@
 starts the underwriting flow of Chapter 8), an audited external-provider attempt, and a
 `QuoteGeneratedDomainEvent` in the outbox.
 
+For a pre-contract reassessment, the owner uses the dedicated
+`POST /api/v1/submissions/{submissionId}/reassessments` route and supplies the current Quote version.
+The same deterministic rating pipeline is reused only after durable reassessment governance approves
+the request. This prevents the ordinary Quote endpoint from becoming a bypass around reassessment
+limits.
+
 > **Analogy:** pricing works like a **restaurant kitchen with two chefs**. The house chef
 > (local rating strategies) always cooks the dish — deterministic and fast. A consultant chef
 > (the external rating provider) is *asked for an opinion* and that opinion is filed, but if the
@@ -82,9 +88,25 @@ outage degrades the answer, never blocks it.
 
 ### 4. Reading quotes
 
-The submission detail endpoint/page shows the quote(s) with premium, tier, subjectivities and
-provider indication. Underwriters see referred quotes through their own queue (Chapter 8) —
-never through the owner's endpoints.
+The Submission detail shows the current Quote and links to a nested owner-scoped history at
+`/submissions/{submissionId}/quotes`. Every version has its own exact detail route, premium, tier,
+subjectivities, provider indication, and lifecycle label. A newer version timestamps its predecessor
+as superseded; it never deletes or rewrites that earlier contractual proposal. Underwriters see
+referred current Quotes through their own queue (Chapter 8), while owner endpoints remain owner-scoped.
+
+### 5. Reassessment governance and supersession
+
+A reassessment is a request to re-rate changed control assertions, not permission to create unlimited
+Quotes. The command requires a `BaseQuoteVersion`; a stale base cannot supersede a newer version.
+The initial durable policy permits two successful self-service reassessments in a rolling 24 hours,
+five over the pre-contract lifetime, and enforces a 30-minute cooldown plus a burst limit of three
+attempts per ten minutes per user and Submission. Only one pending manual-review request may exist.
+
+When a request exceeds the immediate allowance, the system stores its normalized snapshot as
+`PendingReview` without calling the provider or creating Evidence. An Underwriter can approve or
+decline it. Approval rechecks the base version, then creates N+1 and supersedes N in the same
+Submission-context transaction; an obsolete request becomes `Stale`. This keeps the audit trail while
+ensuring there is exactly one current pre-contract Quote.
 
 ## Scenario walk-through
 

@@ -125,6 +125,14 @@ stored with the inbox entry. The UI groups a busy owner's notifications by that 
 so four Evidence requests and one Quote-ready message from Submission A are visually separate from
 the same five messages for Submission B. No notification read performs a cross-module join.
 
+Notification read state and Quote lifecycle are independent. When a newer Quote notification is
+projected, lower-version Quote/Evidence entries become `Historical`; their original `ReadAtUtc` value is
+not forged or changed. Historical rows are muted and labelled in the inbox, remain available through
+their exact immutable history links, and are excluded from active unread badges and operational counts.
+Their actions open read-only Quote or Evidence history rather than allowing obsolete work. The same
+rule applies to team inboxes, so Underwriters retain audit context without old versions competing in
+the current queue.
+
 Opening an actionable notification is itself evidence of reading: the UI marks the entry read, updates
 the list/count caches optimistically, removes it immediately from an Unread-only result, and then
 follows the exact subject link. Standalone **Mark as read** controls are removed across the inbox. The

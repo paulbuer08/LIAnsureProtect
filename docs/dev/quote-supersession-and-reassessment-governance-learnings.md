@@ -71,3 +71,21 @@ historical Evidence projection, separate Notification lifecycle/read state, and 
 The standard closeout also runs a zero-warning solution build, full backend tests, all four pending-model
 checks, frontend type/lint/test/build gates, and fresh-Docker local CI.
 
+## Final verification evidence
+
+The 2026-07-16 closeout passed every required gate:
+
+- the whole solution built with `0 Warning(s)` and `0 Error(s)`;
+- backend tests passed with 219 Unit tests and 283 Integration tests, plus three intentionally
+  environment-gated external-service tests skipped by the Docker-backed default run;
+- `SubmissionDbContext`, `NotificationsDbContext`, `UnderwritingDbContext`, and `ClaimsDbContext`
+  each reported no pending model changes;
+- a clean `npm ci` reported zero vulnerabilities, the production frontend build and ESLint passed,
+  and all 111 Vitest tests passed; and
+- full local CI recreated PostgreSQL and Redis, applied all four migration histories, exercised the API
+  smoke checks, produced `TestResults/local-ci-20260716-031625.zip`, and removed its containers,
+  database volume, and network afterward.
+
+Vite/Rolldown still prints the known non-failing `INVALID_ANNOTATION` advisory for two misplaced
+`/*#__PURE__*/` comments inside the published `@microsoft/signalr` dependency. The build exits zero and
+the warning does not originate in application code; no dependency file is patched in the repository.

@@ -100,6 +100,19 @@ stateDiagram-v2
   to `NotReviewed` while preserving the old review row. Name, title, and valid email identify the
   respondent; phone and `Other concerns` are optional supporting channels. Underwriters see the exact
   response/document history through a by-id module query rather than reconstructing it from a queue.
+- Evidence workflow state and Quote lifecycle are deliberately separate. When Quote N+1 supersedes N,
+  every request projected for N becomes `Historical`: its original response/review/document history
+  remains readable, but domain guards reject new responses, files, reminders, acknowledgements, and
+  review decisions. Current owner and Underwriter queues default to current-version requests; an
+  explicit history filter exposes superseded evidence without presenting it as unfinished work.
+
+### Reassessment approval queue
+
+Underwriters also see durable `PendingReview` reassessment requests in the workbench. The row contains
+the normalized owner assertion snapshot and base Quote version, but no provider result and no projected
+Evidence because no new Quote exists yet. Approval revalidates that base version and creates the
+successor Quote transactionally; decline records actor, time, and reason while leaving the current
+Quote untouched. This review is a cost/governance gate, not a hidden rewrite of Quote history.
 
 ## D. Evidence documents — upload, scan, gated download
 
