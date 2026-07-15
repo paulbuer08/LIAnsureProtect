@@ -239,11 +239,14 @@ does not take ownership of the Submission aggregate.
 
 Evidence responses are also append-only. `QuoteEvidenceRequest` keeps the current workflow decision,
 while each owner submission creates a `QuoteEvidenceResponse` audit row containing response kind,
-respondent name/title/email, optional phone, narrative, optional `Other concerns`, and timestamp.
-Documents point to the response that introduced them. A `Responded` request remains supplementable
-only while the current review is `NotReviewed`; once Underwriting records a decision, the existing
-remediation state machine determines whether another owner response is allowed. This avoids silently
-editing what an underwriter may already have relied upon.
+respondent name/title/email, optional Philippine mobile and telephone numbers, narrative, optional
+`Other concerns`, and timestamp. Documents point to the response that introduced them. A `Responded`
+request remains supplementable only while the current review is `NotReviewed`; once Underwriting records
+a decision, the existing remediation state machine determines whether another owner response is allowed.
+Contact-only corrections count as meaningful because they append history instead of rewriting the earlier
+attestation. At most five follow-up rows may be currently unread. An Underwriter explicitly opens one exact
+row to persist `viewed_by_user_id`/`viewed_at_utc`; this restores a slot. The request's optimistic-concurrency
+version prevents a simultaneous append and acknowledgement from silently overwriting workflow state.
 
 Notification list and badge reads deliberately have different costs. The inbox query returns the
 authorized, filterable messages; `GET /api/v1/notifications/unread-count` returns only the authorized
@@ -1066,7 +1069,12 @@ quote_evidence_requests
   responded_by_user_id
   respondent_name
   respondent_title
+  respondent_email
+  respondent_phone                 # legacy read compatibility
+  respondent_mobile_number
+  respondent_telephone_number
   response_text
+  other_concerns
   attachment_file_name
   attachment_content_type
   attachment_size_bytes
@@ -1082,7 +1090,35 @@ quote_evidence_requests
   reviewed_at_utc
   review_notes
   updated_at_utc
+  version                          # optimistic concurrency
 ```
+
+Append-only owner messages are stored separately:
+
+```text
+quote_evidence_responses
+  id
+  evidence_request_id
+  quote_id
+  submission_id
+  owner_user_id
+  responded_by_user_id
+  respondent_name
+  respondent_title
+  respondent_email
+  respondent_phone                 # legacy read compatibility
+  respondent_mobile_number
+  respondent_telephone_number
+  response_text
+  other_concerns
+  kind                             # Initial, FollowUp, Remediation
+  responded_at_utc
+  viewed_by_user_id                # FollowUp acknowledgement only
+  viewed_at_utc
+```
+
+The `(evidence_request_id, kind, viewed_at_utc)` index supports the server-authoritative count of
+currently unread owner follow-ups. Initial and remediation responses do not consume that allowance.
 
 Milestone 27 adds the first real document storage boundary for that evidence workflow:
 

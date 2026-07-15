@@ -67,6 +67,14 @@ explicit shared Npgsql pool limits instead of hidden per-context defaults. See t
 [design](docs/dev/evidence-response-follow-up-and-notification-context-design.md) and
 [implementation learnings](docs/dev/evidence-response-follow-up-and-notification-context-learnings.md).
 
+The current manual-test follow-up keeps Quote versions nested under their Submission but makes the exact
+version reachable from Submission detail. Confirmation-dialog explanations now start behind an accessible
+**More details** disclosure. Evidence contacts distinguish Philippine mobile and telephone numbers, enforce
+server-side format and length rules, and allow contact-only corrections as append-only follow-ups. Owners may
+have five currently unread follow-ups; opening an exact entry in the Underwriting workbench records an audited,
+idempotent acknowledgement and restores one slot. See the
+[follow-up governance learnings](docs/dev/evidence-follow-up-governance-and-quote-navigation-learnings.md).
+
 - The story of every milestone: [**The Build History**](docs/build-history.md)
 - The precise current state: [Project Status](docs/project-status.md) · [Changelog](CHANGELOG.md)
 ## Local Run

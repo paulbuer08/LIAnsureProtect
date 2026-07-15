@@ -51,6 +51,9 @@ Build History.
 - **`dev/evidence-response-follow-up-and-notification-context-design.md`** and its matching learnings record —
   July 2026 append-only pre-review Evidence follow-ups, respondent contact, document-trust correction,
   Submission-aware notification grouping, automatic read-on-open, and unread-badge refresh decisions.
+- **`dev/evidence-follow-up-governance-and-quote-navigation-learnings.md`** — July 2026 progressive
+  confirmation guidance, Submission-owned Quote navigation, Philippine respondent contacts, field limits,
+  and the five-currently-unread Evidence follow-up acknowledgement contract.
 - **`superpowers/plans/`** — execution plans for the plan-driven milestones.
 - **`dev/run-the-app.md`** — the Milestone-9-era run guide (banner-marked historical; still holds
   the troubleshooting catalog and the manual Auth0-token appendix).
