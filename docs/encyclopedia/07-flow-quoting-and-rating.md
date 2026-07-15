@@ -99,10 +99,12 @@ referred current Quotes through their own queue (Chapter 8), while owner endpoin
 A reassessment is a request to re-rate changed control assertions, not permission to create unlimited
 Quotes. The command requires a `BaseQuoteVersion`; a stale base cannot supersede a newer version.
 The initial durable policy permits two successful self-service reassessments in a rolling 24 hours,
-five over the pre-contract lifetime, and enforces a 30-minute cooldown plus a burst limit of three
-attempts per ten minutes per user and Submission. Only one pending manual-review request may exist.
+five over the pre-contract lifetime, and enforces a burst limit of three attempts per ten minutes per
+user and Submission. The original Quote does not start a cooldown, so the first valid reassessment is
+immediate. After a reassessment succeeds, another attempt inside 30 minutes receives retry guidance
+without provider work or an Underwriter task. Only one pending manual-review request may exist.
 
-When a request exceeds the immediate allowance, the system stores its normalized snapshot as
+When a request exceeds the rolling or lifetime count allowance, the system stores its normalized snapshot as
 `PendingReview` without calling the provider or creating Evidence. An Underwriter can approve or
 decline it. Approval rechecks the base version, then creates N+1 and supersedes N in the same
 Submission-context transaction; an obsolete request becomes `Stale`. This keeps the audit trail while

@@ -101,11 +101,16 @@ in layers:
 3. **One pending review:** one submission cannot accumulate multiple manual reassessment requests.
 4. **Burst protection:** at most 3 reassessment attempts per customer and submission per 10 minutes;
    excess traffic receives `429` and `Retry-After`.
-5. **Self-service allowance:** the starting policy permits 2 successful reassessments in a rolling
-   24-hour window, a 30-minute cooldown, and 5 successful reassessments over the pre-contract lifetime.
-6. **Manual overflow:** a valid changed request beyond the self-service allowance creates one lightweight
+5. **Self-service allowance:** the first valid reassessment after the original Quote is immediate. The
+   starting policy permits 2 successful reassessments in a rolling 24-hour window and 5 over the
+   pre-contract lifetime.
+6. **Post-reassessment cooldown:** only a successfully created reassessment Quote (version 2 or later)
+   starts the 30-minute cooldown. A request during that window receives a retryable conflict with the
+   approximate minutes remaining; it creates no manual-review row and performs no provider work. The
+   original version-1 Quote never delays the first reassessment.
+7. **Manual overflow:** a valid changed request beyond the rolling or lifetime count allowance creates one lightweight
    `Pending` reassessment request. It does not call the rating provider or create evidence.
-7. **Underwriter decision:** an authorized underwriter can approve or decline. Approval revalidates the
+8. **Underwriter decision:** an authorized underwriter can approve or decline. Approval revalidates the
    base/current quote, then atomically creates N+1 and supersedes N. Decline leaves the current quote
    untouched and records reason, actor, and time.
 
@@ -138,8 +143,10 @@ Approval deserializes it through the same validator/rating workflow as immediate
 7. Quote history lists every owner-scoped version newest first and exact detail returns 404 for another
    owner.
 8. A stale base version, unchanged controls, accepted/bound quote, cooldown, burst limit, or duplicate
-   pending request performs no provider call and creates no quote/evidence work.
-9. A within-allowance reassessment creates N+1 immediately.
+   pending request performs no provider call and creates no quote/evidence work. Cooldown returns retry
+   guidance and does not create a pending Underwriter task.
+9. The first valid reassessment and later within-allowance requests outside the post-success cooldown
+   create N+1 immediately.
 10. Beyond the allowance, one pending request is created; underwriter approval creates N+1 only after
     revalidation, and decline creates no quote.
 11. All projection retries remain idempotent and SignalR carries only a refresh hint.

@@ -32,10 +32,12 @@ read timestamp and excludes historical rows from active counts.
 ## Reassessment safeguards
 
 The durable policy starts with two successful self-service reassessments per rolling 24 hours, five over
-the pre-contract lifetime, a 30-minute cooldown, one pending manual review, and three attempts per ten
-minutes per user and Submission. A request outside the immediate allowance persists only its normalized
-snapshot. It does not call the rating provider, create a Quote, or generate Evidence until an Underwriter
-approves it.
+the pre-contract lifetime, a post-success 30-minute cooldown, one pending manual review, and three
+attempts per ten minutes per user and Submission. The original version-1 Quote is the baseline, not a
+reassessment, so it never starts the cooldown: the first valid reassessment is immediate. A request
+during a cooldown is rejected with retry guidance and creates no Underwriter work. Only a request beyond
+the rolling or lifetime count allowance persists its normalized snapshot for Underwriter approval. It
+does not call the rating provider, create a Quote, or generate Evidence until approved.
 
 Approval rechecks that the base Quote is still current. A stale request becomes `Stale`; it cannot
 supersede a newer Quote. Approval and the new Quote save in one Submission-context transaction. Decline
@@ -58,7 +60,8 @@ transactional outbox/projectors; no module performs a cross-context write.
 
 - Unchanged or contradictory controls fail before governance or provider work.
 - A stale `BaseQuoteVersion` fails before provider work.
-- A cooldown/allowance overflow creates at most one pending request.
+- A post-reassessment cooldown rejects the request without creating a pending review; rolling/lifetime
+  allowance overflow creates at most one pending request.
 - Historical Evidence rejects responses, files, reminders, reviews, and acknowledgements in the Domain,
   even if a caller bypasses the browser.
 - A lower-version Notification becoming historical does not acquire a fake `ReadAtUtc`.
@@ -70,6 +73,44 @@ Regression coverage proves queued-then-approved reassessment, Quote version/supe
 historical Evidence projection, separate Notification lifecycle/read state, and active-only unread counts.
 The standard closeout also runs a zero-warning solution build, full backend tests, all four pending-model
 checks, frontend type/lint/test/build gates, and fresh-Docker local CI.
+
+## Post-merge self-service cooldown correction
+
+The first implementation used the latest Quote timestamp for cooldown regardless of version. That made
+the original Quote behave as though it were already a successful reassessment, so a customer's first
+valid change could be queued for Underwriter approval immediately after Quote version 1 was generated.
+An integration test had accidentally encoded that result instead of the product rule.
+
+The corrected boundary separates two different safeguards:
+
+- **time throttle:** after version 2 or later is created, a new attempt inside 30 minutes is rejected
+  with safe retry guidance and no provider call, Quote, Evidence, Notification, or pending review;
+- **cost allowance:** after two successful reassessments in the rolling day, or five over the
+  pre-contract lifetime, a valid changed request is queued for an audited Underwriter decision.
+
+Regression coverage now proves the first reassessment creates version 2 immediately, the next attempt
+inside the post-success cooldown is rejected without a pending row or provider attempt, and count
+overflow still queues one request that approval can turn into the next immutable Quote version.
+
+Pending requests created before this correction are retained. Their persisted record does not identify
+whether the old implementation queued them because of time or count, so silently approving, declining,
+or deleting them would invent audit history. A local test account can resolve such a row through the
+existing Underwriter decision or reset its local development data.
+
+### Correction verification evidence
+
+The 2026-07-16 correction passed every required gate:
+
+- the whole solution built with `0 Warning(s)` and `0 Error(s)`;
+- standalone backend tests passed with 226 Unit tests and 284 Integration tests, plus four intentional
+  environment-gated service tests skipped;
+- `SubmissionDbContext`, `NotificationsDbContext`, `UnderwritingDbContext`, and `ClaimsDbContext`
+  each reported no pending model changes;
+- frontend TypeScript, ESLint, production build, and all 111 Vitest tests passed; and
+- full Docker-backed local CI recreated PostgreSQL and Redis, applied all four migration histories,
+  passed 226 Unit tests and 285 Integration tests plus three intentional service skips, clean-installed
+  279 frontend packages with zero vulnerabilities, passed frontend and API smoke gates, produced
+  `TestResults/local-ci-20260716-055648.zip`, and removed its containers, database volume, and network.
 
 ## Final verification evidence
 

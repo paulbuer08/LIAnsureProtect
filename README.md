@@ -44,8 +44,9 @@ immutable quote reassessment versions; automated document findings remain adviso
 
 Quote reassessment history is now governed rather than merely accumulated: exactly one pre-contract
 Quote version is current, earlier Quote/Evidence/Notification records remain immutable history, and
-resource safeguards can queue excess reassessments for human Underwriter approval without calling the
-rating provider. See the [design](docs/dev/quote-supersession-and-reassessment-governance-design.md) and
+the first valid reassessment remains immediate. A post-success cooldown returns retry guidance without
+creating Underwriter work; rolling/lifetime allowance overflow can queue a human decision without
+calling the rating provider. See the [design](docs/dev/quote-supersession-and-reassessment-governance-design.md) and
 [implementation learnings](docs/dev/quote-supersession-and-reassessment-governance-learnings.md).
 
 The latest product-hardening branch makes that journey precise and supportable: customer pages
