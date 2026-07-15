@@ -110,8 +110,10 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
     request.reviewDecision === "NeedsClarification";
   const isPreReviewFollowUp =
     request.status === "Responded" && request.reviewDecision === "NotReviewed";
+  const isHistoricalQuote = request.quoteDisposition === "Superseded";
   const canSubmitResponse =
-    request.status === "Open" || isPreReviewFollowUp || needsSupplementalEvidence;
+    !isHistoricalQuote &&
+    (request.status === "Open" || isPreReviewFollowUp || needsSupplementalEvidence);
   const canUploadReplacement = documents.some(
     (document) => document.scanStatus === "Rejected" || document.scanStatus === "Failed",
   );
@@ -274,6 +276,17 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
       </dl>
 
       <p className="mt-4 text-sm text-slate-300">{request.description}</p>
+      {isHistoricalQuote && (
+        <aside className="mt-4 rounded-md border border-slate-700 bg-slate-950 p-4 text-sm leading-6 text-slate-300">
+          <p className="font-semibold text-slate-100">Historical evidence request · Quote version {request.quoteVersion ?? "earlier"}</p>
+          <p className="mt-1">A later quote superseded this request. Its responses and documents remain readable for audit history, but no further response or underwriting decision can be added here.</p>
+          {request.supersededByQuoteId && (
+            <Link className="mt-2 inline-flex font-semibold text-sky-300 underline" to={`/submissions/${request.submissionId}/quotes/${request.supersededByQuoteId}`}>
+              View replacement quote{request.supersededByQuoteVersion ? ` version ${request.supersededByQuoteVersion}` : ""}
+            </Link>
+          )}
+        </aside>
+      )}
       {documentRequirement !== "Optional" && (
         <p className="mt-3 rounded-md border border-sky-800 bg-sky-950/30 p-3 text-sm text-sky-100">
           Document requirement: <strong>{documentRequirement === "NarrativeOnly" ? "Written response only" : documentRequirement}</strong>.
@@ -611,6 +624,7 @@ export function EvidenceRequestsPage() {
   const [category, setCategory] = useState("");
   const [reviewDecision, setReviewDecision] = useState("");
   const [documentRequirement, setDocumentRequirement] = useState("");
+  const [quoteDisposition, setQuoteDisposition] = useState<"Current" | "Superseded" | "All">("Current");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [cursor, setCursor] = useState<string>();
   const [cursorHistory, setCursorHistory] = useState<Array<string | undefined>>([]);
@@ -620,6 +634,7 @@ export function EvidenceRequestsPage() {
     category: category || undefined,
     reviewDecision: reviewDecision || undefined,
     documentRequirement: documentRequirement || undefined,
+    quoteDisposition,
     overdue: overdueOnly || undefined,
     cursor,
     pageSize: 12,
@@ -664,7 +679,8 @@ export function EvidenceRequestsPage() {
 
         <form className="mt-6 grid gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4 md:grid-cols-2 lg:grid-cols-3" onSubmit={(event) => { event.preventDefault(); setAppliedSearch(search.trim()); resetPage(); }}>
           <label className="text-sm font-semibold text-slate-200 lg:col-span-2">Search your evidence requests<input className="mt-2 block min-h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-white" placeholder="Request, company, submission reference, or exact ID" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-          <div className="flex items-end gap-3"><button className="min-h-10 rounded-md bg-emerald-400 px-4 font-semibold text-slate-950" type="submit">Search</button><button className="min-h-10 rounded-md border border-slate-600 px-4 font-semibold" type="button" onClick={() => { setSearch(""); setAppliedSearch(""); setStatus(""); setCategory(""); setReviewDecision(""); setDocumentRequirement(""); setOverdueOnly(false); resetPage(); }}>Clear</button></div>
+          <div className="flex items-end gap-3"><button className="min-h-10 rounded-md bg-emerald-400 px-4 font-semibold text-slate-950" type="submit">Search</button><button className="min-h-10 rounded-md border border-slate-600 px-4 font-semibold" type="button" onClick={() => { setSearch(""); setAppliedSearch(""); setStatus(""); setCategory(""); setReviewDecision(""); setDocumentRequirement(""); setQuoteDisposition("Current"); setOverdueOnly(false); resetPage(); }}>Clear</button></div>
+          <label className="text-sm font-semibold text-slate-200">Quote history<select value={quoteDisposition} onChange={(event) => { setQuoteDisposition(event.target.value as "Current" | "Superseded" | "All"); resetPage(); }} className="mt-2 block min-h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-white"><option value="Current">Current quote only</option><option value="Superseded">Historical quotes only</option><option value="All">Current and historical</option></select></label>
           <label className="text-sm font-semibold text-slate-200">
             Status
             <select
@@ -730,7 +746,7 @@ export function EvidenceRequestsPage() {
             {evidenceRequests.map((request: EvidenceRequestSummary) => (
               <article
                 key={request.evidenceRequestId}
-                className="rounded-lg border border-slate-800 bg-slate-900 p-5"
+                className={`rounded-lg border p-5 ${request.quoteDisposition === "Superseded" ? "border-slate-800 bg-slate-900/60" : "border-slate-800 bg-slate-900"}`}
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -740,6 +756,7 @@ export function EvidenceRequestsPage() {
                       {request.companyName ?? "Company"} · {request.submissionReference ?? request.submissionId} · {request.category}
                     </p>
                     <p className="mt-2 text-xs font-semibold text-sky-200">Documents: {request.documentRequirement === "NarrativeOnly" ? "Written response only" : request.documentRequirement ?? "Required"}</p>
+                    <p className="mt-2 text-xs font-semibold text-slate-300">Quote version {request.quoteVersion ?? 1} · {request.quoteDisposition === "Superseded" ? "Historical" : "Current"}</p>
                   </div>
                   <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
                     <span className="rounded-md border border-amber-700 px-3 py-1 text-xs font-semibold text-amber-200">
@@ -759,7 +776,7 @@ export function EvidenceRequestsPage() {
                   to={`/evidence-requests/${request.evidenceRequestId}`}
                   className="mt-4 inline-flex rounded-md border border-emerald-400/60 px-4 py-2 text-sm font-semibold text-emerald-200 hover:bg-emerald-400 hover:text-slate-950"
                 >
-                  Open evidence request
+                  {request.quoteDisposition === "Superseded" ? "View historical request" : "Open evidence request"}
                 </Link>
               </article>
             ))}

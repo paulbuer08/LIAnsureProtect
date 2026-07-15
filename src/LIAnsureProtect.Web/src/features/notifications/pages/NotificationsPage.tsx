@@ -58,6 +58,19 @@ function getNotificationAction(
       : null;
   }
 
+  if (subjectReferenceType === "reassessment_request") {
+    if (scope === "team") {
+      return { label: "Review reassessment", to: "/underwriting/quote-referrals" };
+    }
+    const submissionId = attributes.submissionId;
+    const quoteId = attributes.quoteId;
+    return attributes.status === "Approved" && submissionId && quoteId
+      ? { label: "View new quote", to: `/submissions/${submissionId}/quotes/${quoteId}` }
+      : submissionId
+        ? { label: "Open submission", to: `/submissions/${submissionId}` }
+        : null;
+  }
+
   if (subjectReferenceType === "submission") {
     const submissionId =
       attributes.submissionId ??
@@ -168,7 +181,7 @@ export function NotificationsPage() {
     notification: NotificationInboxItem,
     destination: string,
   ) {
-    if (!notification.isRead) {
+    if (!notification.isRead && notification.lifecycleState !== "Historical") {
       await markReadMutation.mutateAsync(notification.notificationId);
     }
     void navigate(destination);
@@ -271,6 +284,7 @@ export function NotificationsPage() {
                     </header>
                     <ul className="divide-y divide-slate-800">
                       {group.notifications.map((notification) => {
+                        const isHistorical = notification.lifecycleState === "Historical";
                         const action = getNotificationAction(
                           notification.subjectReferenceType,
                           notification.subjectReferenceId,
@@ -282,7 +296,9 @@ export function NotificationsPage() {
                           <li
                             key={notification.notificationId}
                             className={`border-l-4 p-5 ${
-                              notification.isRead
+                              isHistorical
+                                ? "border-l-slate-600 bg-slate-950/50"
+                                : notification.isRead
                                 ? "border-l-transparent bg-slate-900"
                                 : "border-l-amber-300 bg-amber-950/20"
                             }`}
@@ -291,9 +307,14 @@ export function NotificationsPage() {
                               <div>
                                 <div className="flex items-center gap-2">
                                   <h3 className="text-base font-semibold text-white">{notification.title}</h3>
-                                  {!notification.isRead && (
+                                  {!isHistorical && !notification.isRead && (
                                     <span className="inline-flex rounded-full border border-amber-300/70 bg-amber-300 px-2 py-0.5 text-xs font-bold text-slate-950">
                                       Unread
+                                    </span>
+                                  )}
+                                  {isHistorical && (
+                                    <span className="inline-flex rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 text-xs font-bold text-slate-200">
+                                      Superseded
                                     </span>
                                   )}
                                   {notification.scope === "team" && (
@@ -303,6 +324,11 @@ export function NotificationsPage() {
                                 {notification.attributes.remediationGuidance && (
                                   <p className="mt-1 text-sm text-slate-300">{notification.attributes.remediationGuidance}</p>
                                 )}
+                                {isHistorical && (
+                                  <p className="mt-2 text-sm text-slate-400">
+                                    {notification.historicalReason ?? "A later quote version replaced this update. It remains available as history."}
+                                  </p>
+                                )}
                                 <NotificationDetails attributes={notification.attributes} />
                                 <p className="mt-2 text-xs text-slate-400">{new Date(notification.occurredAtUtc).toLocaleString()}</p>
                               </div>
@@ -311,14 +337,16 @@ export function NotificationsPage() {
                                   <Link
                                     to={action.to}
                                     onClick={(event) => {
-                                      if (notification.isRead) return;
+                                      if (notification.isRead || isHistorical) return;
                                       event.preventDefault();
                                       void openNotification(notification, action.to);
                                     }}
                                     aria-disabled={markReadMutation.isPending}
                                     className="inline-flex h-fit rounded-lg border border-emerald-400/60 px-4 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-400 hover:text-slate-950 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
                                   >
-                                    {action.label}
+                                    {isHistorical
+                                      ? action.label.replace("Open", "View historical").replace("View quote", "View historical quote")
+                                      : action.label}
                                   </Link>
                                 )}
                                 {!action && notification.isRead && (

@@ -48,6 +48,9 @@ export async function listEvidenceRequests(
   if (filters.search) search.set("search", filters.search);
   if (filters.reviewDecision) search.set("reviewDecision", filters.reviewDecision);
   if (filters.documentRequirement) search.set("documentRequirement", filters.documentRequirement);
+  if (filters.quoteDisposition && filters.quoteDisposition !== "All") {
+    search.set("quoteDisposition", filters.quoteDisposition);
+  }
   search.set("pageSize", String(filters.pageSize ?? 12));
   const response = await fetch(`${apiBaseUrl}/api/v1/evidence-requests?${search}`, {
     headers: authHeaders(accessToken),

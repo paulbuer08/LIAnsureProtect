@@ -12,6 +12,11 @@ export interface NotificationInboxItem {
   occurredAtUtc: string;
   isRead: boolean;
   readAtUtc: string | null;
+  lifecycleState?: "Active" | "Historical";
+  historicalAtUtc?: string | null;
+  historicalReason?: string | null;
+  replacementQuoteId?: string | null;
+  replacementQuoteVersion?: number | null;
 }
 
 export interface ListMyNotificationsResponse {

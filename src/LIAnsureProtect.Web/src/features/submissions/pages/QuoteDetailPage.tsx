@@ -18,6 +18,11 @@ export function QuoteDetailPage() {
         >
           Back to submission
         </Link>
+        {submissionId && (
+          <Link className="ml-5 text-sm font-semibold text-sky-300 underline" to={`/submissions/${submissionId}/quotes`}>
+            All quote versions
+          </Link>
+        )}
         <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-emerald-400">
           Quote history
         </p>
@@ -50,6 +55,7 @@ export function QuoteDetailPage() {
             {quote.status === "Superseded" && (
               <p className="mt-6 rounded-md border border-slate-700 bg-slate-950 p-4 text-sm text-slate-300">
                 This is an immutable historical quote. A later reassessment replaced it, but this version remains available for audit history.
+                {quote.supersededAtUtc ? ` It became historical on ${new Date(quote.supersededAtUtc).toLocaleString()}.` : ""}
               </p>
             )}
           </article>

@@ -7,6 +7,7 @@ import { TransientStatusMessage } from "../../../components/TransientStatusMessa
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { downloadUnderwritingEvidenceDocument } from "../api/underwritingApi";
+import { ReassessmentReviewPanel } from "../components/ReassessmentReviewPanel";
 import {
   useAddQuoteReferralNote,
   useAddQuoteReferralTask,
@@ -1565,6 +1566,8 @@ export function UnderwritingQuoteReferralsPage() {
             </select>
           </label>
         </div>
+
+        <ReassessmentReviewPanel />
 
         <form className="mt-6 grid gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4 md:grid-cols-5" onSubmit={(event: FormEvent) => { event.preventDefault(); setAppliedSearch(search.trim()); }}>
           <label className="text-sm font-semibold text-slate-200">Search referrals<input className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" placeholder="Quote, submission, or owner" value={search} onChange={(event) => setSearch(event.target.value)} /></label>

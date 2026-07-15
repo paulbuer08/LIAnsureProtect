@@ -28,6 +28,7 @@ import type {
   CyberSecurityControlStatus,
   SensitiveDataExposure,
 } from "../types";
+import { isCreatedQuote } from "../types";
 
 type BooleanControlDetailKey = {
   [K in keyof CyberControlDetails]: CyberControlDetails[K] extends boolean
@@ -387,7 +388,9 @@ export function SubmissionDetailPage() {
         }
       : updatedSubmission;
   const canSubmit = displayedSubmission?.status === "Draft";
-  const createdQuote = createQuoteMutation.data;
+  const quoteOutcome = createQuoteMutation.data;
+  const createdQuote = quoteOutcome && isCreatedQuote(quoteOutcome) ? quoteOutcome : undefined;
+  const queuedReassessment = quoteOutcome && !isCreatedQuote(quoteOutcome) ? quoteOutcome : undefined;
   const latestQuote = displayedSubmission?.latestQuote;
   const relatedPolicy = displayedSubmission?.relatedPolicy;
   const acceptedQuote = acceptQuoteMutation.data;
@@ -599,6 +602,7 @@ export function SubmissionDetailPage() {
         attestedByName: attestedByName.trim(),
           attestedByTitle: attestedByTitle.trim(),
           isReassessment: isReassessing,
+          ...(isReassessing ? { baseQuoteVersion: activeQuoteVersion } : {}),
           controlDetails,
         },
       },
@@ -1388,6 +1392,13 @@ export function SubmissionDetailPage() {
               </p>
             )}
 
+            {queuedReassessment && (
+              <p className="mt-5 rounded-md border border-sky-700 bg-sky-950/40 p-4 text-sm leading-6 text-sky-100">
+                <span className="font-semibold">Reassessment awaiting underwriting review.</span>{" "}
+                Your current quote remains active. You will receive a notification after underwriting approves or declines the request.
+              </p>
+            )}
+
             {activeQuoteId && (
               <div className="mt-6 border-t border-slate-800 pt-5">
                 <h2 className="text-base font-semibold text-white">
@@ -1398,6 +1409,12 @@ export function SubmissionDetailPage() {
                   to={`/submissions/${submissionId}/quotes/${activeQuoteId}`}
                 >
                   View quote version {activeQuoteVersion}
+                </Link>
+                <Link
+                  className="ml-5 mt-2 inline-flex min-h-10 items-center font-semibold text-sky-300 underline hover:text-sky-200"
+                  to={`/submissions/${submissionId}/quotes`}
+                >
+                  View all quote versions
                 </Link>
                 {activeAssuranceStatus === "EvidenceRequired" && (
                   <div className="mt-4 rounded-md border border-amber-700 bg-amber-950/40 p-4 text-sm text-amber-100">
