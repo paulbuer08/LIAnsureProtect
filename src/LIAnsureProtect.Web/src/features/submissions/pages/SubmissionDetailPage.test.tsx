@@ -588,6 +588,8 @@ describe("SubmissionDetailPage", () => {
     expect(
       screen.getByRole("heading", { name: "Reassess quote" }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/first valid reassessment is created immediately/i)).toBeInTheDocument();
+    expect(screen.getByText(/only requests beyond the self-service allowance/i)).toBeInTheDocument();
     expect(screen.getByText(/new quote version will preserve/i)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Create reassessment" }),

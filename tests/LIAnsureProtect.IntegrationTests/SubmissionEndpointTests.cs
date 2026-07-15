@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using LIAnsureProtect.Application.Quotes.Commands.CreateQuote;
 using LIAnsureProtect.Application.Quotes.RatingProviders;
 using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
@@ -1566,7 +1567,7 @@ public sealed class SubmissionEndpointTests
     }
 
     [Fact]
-    public async Task Create_Quote_Reassessment_Inside_Cooldown_Is_Queued_Then_Approval_Creates_New_Version()
+    public async Task First_Quote_Reassessment_Is_Immediate_And_Creates_New_Version()
     {
         var submission = CreateSubmittedSubmission("test-user-1");
         using (var scope = webApplicationFactory.Services.CreateScope())
@@ -1596,7 +1597,144 @@ public sealed class SubmissionEndpointTests
         using var reassessmentResponse = await httpClient.SendAsync(
             reassessmentRequest,
             TestContext.Current.CancellationToken);
-        var queuedPayload = await reassessmentResponse.Content.ReadFromJsonAsync<JsonElement>(
+        var reassessmentPayload = await reassessmentResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, initialResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, reassessmentResponse.StatusCode);
+        Assert.Equal(2, reassessmentPayload.GetProperty("version").GetInt32());
+
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var quotes = await verifyDbContext.Quotes
+            .Where(quote => quote.SubmissionId == submission.Id)
+            .OrderBy(quote => quote.Version)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, quotes.Count);
+        Assert.Equal(QuoteStatus.Superseded, quotes[0].Status);
+        Assert.Equal(2, quotes[1].Version);
+        Assert.Equal(initialQuoteId, quotes[1].SupersedesQuoteId);
+        Assert.Empty(await verifyDbContext.ReassessmentRequests.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Reassessment_Inside_Post_Reassessment_Cooldown_Is_Rejected_Without_Pending_Review()
+    {
+        var submission = CreateSubmittedSubmission("test-user-1");
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            dbContext.Submissions.Add(submission);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var initialRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes",
+            CreateBaselineQuoteRequest(),
+            "test-user-1");
+        using var initialResponse = await httpClient.SendAsync(
+            initialRequest,
+            TestContext.Current.CancellationToken);
+
+        using var firstReassessmentRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/reassessments",
+            CreateBaselineQuoteRequest(isReassessment: true, mfaStatus: "Partial", baseQuoteVersion: 1),
+            "test-user-1");
+        using var firstReassessmentResponse = await httpClient.SendAsync(
+            firstReassessmentRequest,
+            TestContext.Current.CancellationToken);
+
+        using var cooldownRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/reassessments",
+            CreateBaselineQuoteRequest(isReassessment: true, edrStatus: "Partial", baseQuoteVersion: 2),
+            "test-user-1");
+        using var cooldownResponse = await httpClient.SendAsync(
+            cooldownRequest,
+            TestContext.Current.CancellationToken);
+        var cooldownPayload = await cooldownResponse.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, initialResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, firstReassessmentResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, cooldownResponse.StatusCode);
+        Assert.Equal("quote.reassessment.cooldown", cooldownPayload.GetProperty("code").GetString());
+        Assert.Contains("Try again in about 30 minutes", cooldownPayload.GetProperty("detail").GetString());
+
+        using var verifyScope = webApplicationFactory.Services.CreateScope();
+        var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        Assert.Equal(
+            2,
+            await verifyDbContext.Quotes.CountAsync(
+                quote => quote.SubmissionId == submission.Id,
+                TestContext.Current.CancellationToken));
+        Assert.Equal(
+            2,
+            await verifyDbContext.QuoteRatingProviderAttempts.CountAsync(
+                attempt => attempt.Quote.SubmissionId == submission.Id,
+                TestContext.Current.CancellationToken));
+        Assert.False(
+            await verifyDbContext.ReassessmentRequests.AnyAsync(
+                request => request.SubmissionId == submission.Id,
+                TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Reassessment_Beyond_Self_Service_Allowance_Is_Queued_Then_Approval_Creates_New_Version()
+    {
+        var submission = CreateSubmittedSubmission("test-user-1");
+        using (var scope = webApplicationFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+            dbContext.Submissions.Add(submission);
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var initialRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/quotes",
+            CreateBaselineQuoteRequest(),
+            "test-user-1");
+        using var initialResponse = await httpClient.SendAsync(
+            initialRequest,
+            TestContext.Current.CancellationToken);
+        await AgeLatestQuoteBeyondCooldownAsync(submission.Id);
+
+        using var firstReassessmentRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/reassessments",
+            CreateBaselineQuoteRequest(isReassessment: true, mfaStatus: "Partial", baseQuoteVersion: 1),
+            "test-user-1");
+        using var firstReassessmentResponse = await httpClient.SendAsync(
+            firstReassessmentRequest,
+            TestContext.Current.CancellationToken);
+        await AgeLatestQuoteBeyondCooldownAsync(submission.Id);
+
+        using var secondReassessmentRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/reassessments",
+            CreateBaselineQuoteRequest(isReassessment: true, edrStatus: "Partial", baseQuoteVersion: 2),
+            "test-user-1");
+        using var secondReassessmentResponse = await httpClient.SendAsync(
+            secondReassessmentRequest,
+            TestContext.Current.CancellationToken);
+        await AgeLatestQuoteBeyondCooldownAsync(submission.Id);
+
+        using var overflowRequest = CreateAuthenticatedPostRequest(
+            "Customer",
+            $"{SubmissionsEndpointPath}/{submission.Id}/reassessments",
+            CreateBaselineQuoteRequest(
+                isReassessment: true,
+                mfaStatus: "Partial",
+                edrStatus: "Partial",
+                baseQuoteVersion: 3),
+            "test-user-1");
+        using var overflowResponse = await httpClient.SendAsync(
+            overflowRequest,
+            TestContext.Current.CancellationToken);
+        var queuedPayload = await overflowResponse.Content.ReadFromJsonAsync<JsonElement>(
             TestContext.Current.CancellationToken);
         var reassessmentRequestId = queuedPayload.GetProperty("reassessmentRequestId").GetGuid();
 
@@ -1612,11 +1750,12 @@ public sealed class SubmissionEndpointTests
             TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Created, initialResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.Accepted, reassessmentResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, firstReassessmentResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, secondReassessmentResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, overflowResponse.StatusCode);
         Assert.Equal("Pending", queuedPayload.GetProperty("status").GetString());
         Assert.Equal(HttpStatusCode.OK, approvalResponse.StatusCode);
         Assert.Equal("Approved", approvalPayload.GetProperty("status").GetString());
-        Assert.True(approvalPayload.GetProperty("createdQuoteId").GetGuid() != Guid.Empty);
 
         using var verifyScope = webApplicationFactory.Services.CreateScope();
         var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
@@ -1624,10 +1763,10 @@ public sealed class SubmissionEndpointTests
             .Where(quote => quote.SubmissionId == submission.Id)
             .OrderBy(quote => quote.Version)
             .ToListAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(2, quotes.Count);
-        Assert.Equal(QuoteStatus.Superseded, quotes[0].Status);
-        Assert.Equal(2, quotes[1].Version);
-        Assert.Equal(initialQuoteId, quotes[1].SupersedesQuoteId);
+        Assert.Equal(4, quotes.Count);
+        Assert.All(quotes.Take(3), quote => Assert.Equal(QuoteStatus.Superseded, quote.Status));
+        Assert.Equal(4, quotes[3].Version);
+        Assert.Equal(quotes[2].Id, quotes[3].SupersedesQuoteId);
     }
 
 
@@ -1789,11 +1928,26 @@ public sealed class SubmissionEndpointTests
         return submission;
     }
 
+    private async Task AgeLatestQuoteBeyondCooldownAsync(Guid submissionId)
+    {
+        using var scope = webApplicationFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SubmissionDbContext>();
+        var latestQuote = await dbContext.Quotes
+            .Where(quote => quote.SubmissionId == submissionId)
+            .OrderByDescending(quote => quote.Version)
+            .FirstAsync(TestContext.Current.CancellationToken);
+        dbContext.Entry(latestQuote)
+            .Property(quote => quote.CreatedAtUtc)
+            .CurrentValue = DateTime.UtcNow.AddMinutes(-(ReassessmentGovernancePolicy.CooldownMinutes + 1));
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
 
 
     private static object CreateBaselineQuoteRequest(
         bool isReassessment = false,
         string mfaStatus = "Implemented",
+        string edrStatus = "Implemented",
         int? baseQuoteVersion = null)
     {
         return new
@@ -1803,7 +1957,7 @@ public sealed class SubmissionEndpointTests
             requestedLimit = 1_000_000m,
             retention = 10_000m,
             mfaStatus,
-            edrStatus = "Implemented",
+            edrStatus,
             backupMaturity = "Mature",
             hasIncidentResponsePlan = true,
             priorCyberIncidents = 0,

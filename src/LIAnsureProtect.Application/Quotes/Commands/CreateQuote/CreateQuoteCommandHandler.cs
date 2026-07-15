@@ -49,6 +49,29 @@ public sealed class CreateQuoteCommandHandler(
         if (request.IsReassessment && existingQuote is not null)
         {
             ValidateBaseVersion(request, existingQuote);
+            var pending = await reassessmentRequests.GetPendingOwnedAsync(
+                submission.Id,
+                ownerUserId,
+                cancellationToken);
+            if (pending is not null)
+            {
+                throw new BusinessConflictException(
+                    "quote.reassessment.pending_exists",
+                    "A reassessment request is already waiting for underwriting review.");
+            }
+
+            var cooldownRemaining = ReassessmentGovernancePolicy.GetCooldownRemaining(
+                existingQuote.Version,
+                existingQuote.CreatedAtUtc,
+                nowUtc);
+            if (cooldownRemaining.HasValue)
+            {
+                var minutesRemaining = Math.Max(1, (int)Math.Ceiling(cooldownRemaining.Value.TotalMinutes));
+                throw new BusinessConflictException(
+                    "quote.reassessment.cooldown",
+                    $"A successful reassessment was created recently. Try again in about {minutesRemaining} minute{(minutesRemaining == 1 ? string.Empty : "s")}.");
+            }
+
             var rollingCount = await reassessmentRequests.CountSuccessfulOwnedAsync(
                 submission.Id,
                 ownerUserId,
@@ -62,21 +85,8 @@ public sealed class CreateQuoteCommandHandler(
 
             if (ReassessmentGovernancePolicy.RequiresManualReview(
                     rollingCount,
-                    lifetimeCount,
-                    existingQuote.CreatedAtUtc,
-                    nowUtc))
+                    lifetimeCount))
             {
-                var pending = await reassessmentRequests.GetPendingOwnedAsync(
-                    submission.Id,
-                    ownerUserId,
-                    cancellationToken);
-                if (pending is not null)
-                {
-                    throw new BusinessConflictException(
-                        "quote.reassessment.pending_exists",
-                        "A reassessment request is already waiting for underwriting review.");
-                }
-
                 var payload = ReassessmentRequestPayloadSerializer.Serialize(request);
                 var reassessmentRequest = ReassessmentRequest.Create(
                     submission.Id,
