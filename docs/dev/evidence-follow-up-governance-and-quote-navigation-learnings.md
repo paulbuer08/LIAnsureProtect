@@ -196,11 +196,15 @@ The added regression coverage proves:
 - Frontend TypeScript and ESLint passed.
 - Frontend production bundle completed successfully.
 - Frontend tests: all 110 passed.
-- Docker-backed local CI: attempted, but the host Docker Desktop Linux engine never became ready. Its
-  internal `vpnkit-bridge` waited for a missing `guest-services/socketforwarder-receive-fds.sock`, while
-  Docker API calls returned HTTP 500. A force-stop, scoped `docker-desktop` WSL termination, and clean
-  restart did not recover it; restarting `com.docker.service` was denied by the current host session.
-  No containers, migrations, or test stages ran. Rerun the standard local-CI command after Docker Desktop
-  is repaired or the machine is restarted; do not treat this host failure as a passing Docker gate.
+- Docker-backed local CI: passed after Docker Desktop recovered. The clean run recreated PostgreSQL and
+  Redis, applied all four migration sets including `AddEvidenceFollowUpGovernance`, passed 217 Unit tests,
+  passed 280 Integration tests with 3 intentional external-service skips, passed frontend build/lint/all
+  110 tests, created `TestResults/local-ci-20260715-212619.zip`, and removed both containers, the database
+  volume, and network.
+
+The first Docker attempt had been blocked by Docker Desktop's missing internal guest-services socket. That
+was a host-runtime failure before any CI stage, not an application failure. Keeping that distinction in the
+record matters: infrastructure that never starts provides no evidence about a migration or test suite. The
+later clean run is the authoritative Docker verification.
 
 The Vite production build still prints the known upstream Rolldown `INVALID_ANNOTATION` diagnostics for two `@microsoft/signalr` comments. Rolldown ignores those comments, transforms the package, and exits successfully. The repository does not patch installed dependency files.
