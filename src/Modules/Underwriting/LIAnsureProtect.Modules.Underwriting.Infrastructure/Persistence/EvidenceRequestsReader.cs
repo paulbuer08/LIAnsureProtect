@@ -196,7 +196,9 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
             request.UpdatedAtUtc,
             request.SubmissionReference,
             request.CompanyName,
-            request.DocumentRequirement.ToString());
+            request.DocumentRequirement.ToString(),
+            request.RespondentMobileNumber,
+            request.RespondentTelephoneNumber);
     }
 
     private static EvidenceRequestSummaryItem CreateSummary(

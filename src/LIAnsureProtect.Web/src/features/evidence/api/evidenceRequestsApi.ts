@@ -83,7 +83,12 @@ export async function respondToEvidenceRequest(
   formData.append("respondentName", request.respondentName);
   formData.append("respondentTitle", request.respondentTitle);
   formData.append("respondentEmail", request.respondentEmail);
-  if (request.respondentPhone) formData.append("respondentPhone", request.respondentPhone);
+  if (request.respondentMobileNumber) {
+    formData.append("respondentMobileNumber", request.respondentMobileNumber);
+  }
+  if (request.respondentTelephoneNumber) {
+    formData.append("respondentTelephoneNumber", request.respondentTelephoneNumber);
+  }
   if (request.responseText) formData.append("responseText", request.responseText);
   if (request.otherConcerns) formData.append("otherConcerns", request.otherConcerns);
 

@@ -22,6 +22,26 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
 });
 
+const respondentNameMaxLength = 120;
+const respondentTitleMaxLength = 120;
+const respondentEmailMaxLength = 254;
+const evidenceResponseMaxLength = 4000;
+const otherConcernsMaxLength = 2000;
+
+function compactPhone(value: string) {
+  return value.trim().replace(/[\s()-]/g, "");
+}
+
+function isValidPhilippineMobile(value: string) {
+  const compact = compactPhone(value);
+  return compact.length === 0 || /^(?:09\d{9}|\+?639\d{9})$/.test(compact);
+}
+
+function isValidPhilippineTelephone(value: string) {
+  const compact = compactPhone(value);
+  return compact.length === 0 || /^(?:0[2-8]\d{7,8}|\+?63[2-8]\d{7,8})$/.test(compact);
+}
+
 function formatDate(value: string) {
   return dateFormatter.format(new Date(value));
 }
@@ -57,7 +77,14 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
   const [respondentName, setRespondentName] = useState(isPreReviewResponse ? request.respondentName ?? "" : "");
   const [respondentTitle, setRespondentTitle] = useState(isPreReviewResponse ? request.respondentTitle ?? "" : "");
   const [respondentEmail, setRespondentEmail] = useState(isPreReviewResponse ? request.respondentEmail ?? "" : "");
-  const [respondentPhone, setRespondentPhone] = useState(isPreReviewResponse ? request.respondentPhone ?? "" : "");
+  const initialMobileNumber = isPreReviewResponse
+    ? request.respondentMobileNumber ?? request.respondentPhone ?? ""
+    : "";
+  const initialTelephoneNumber = isPreReviewResponse
+    ? request.respondentTelephoneNumber ?? ""
+    : "";
+  const [respondentMobileNumber, setRespondentMobileNumber] = useState(initialMobileNumber);
+  const [respondentTelephoneNumber, setRespondentTelephoneNumber] = useState(initialTelephoneNumber);
   const [responseText, setResponseText] = useState("");
   const [otherConcerns, setOtherConcerns] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -65,6 +92,9 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
   const [savedStatus, setSavedStatus] = useState<string>();
   const [savedDocuments, setSavedDocuments] = useState(request.documents ?? []);
   const [savedResponses, setSavedResponses] = useState(request.responses ?? []);
+  const [pendingFollowUpCount, setPendingFollowUpCount] = useState(
+    request.pendingFollowUpCount ?? 0,
+  );
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const documents = savedDocuments.length > 0 ? savedDocuments : request.documents ?? [];
   const needsSupplementalEvidence =
@@ -82,14 +112,26 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
   const documentRequirement = request.documentRequirement ?? "Optional";
   const requiresDocumentForThisResponse =
     documentRequirement === "Required" && !isPreReviewFollowUp;
+  const hasContactChange =
+    respondentName.trim() !== (request.respondentName ?? "").trim() ||
+    respondentTitle.trim() !== (request.respondentTitle ?? "").trim() ||
+    respondentEmail.trim().toLowerCase() !==
+      (request.respondentEmail ?? "").trim().toLowerCase() ||
+    respondentMobileNumber.trim() !== initialMobileNumber.trim() ||
+    respondentTelephoneNumber.trim() !== initialTelephoneNumber.trim();
   const hasFollowUpContent =
+    hasContactChange ||
     responseText.trim().length > 0 ||
     otherConcerns.trim().length > 0 ||
     attachments.length > 0;
   const hasRequiredRespondentDetails =
     respondentName.trim().length > 0 &&
     respondentTitle.trim().length > 0 &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(respondentEmail.trim());
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(respondentEmail.trim()) &&
+    isValidPhilippineMobile(respondentMobileNumber) &&
+    isValidPhilippineTelephone(respondentTelephoneNumber);
+  const maxPendingFollowUps = request.maxPendingFollowUps ?? 5;
+  const hasFollowUpCapacity = pendingFollowUpCount < maxPendingFollowUps;
   const hasRequiredNarrative =
     isPreReviewFollowUp || responseText.trim().length > 0;
 
@@ -97,7 +139,8 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
     setRespondentName("");
     setRespondentTitle("");
     setRespondentEmail("");
-    setRespondentPhone("");
+    setRespondentMobileNumber("");
+    setRespondentTelephoneNumber("");
     setResponseText("");
     setOtherConcerns("");
     setAttachments([]);
@@ -111,7 +154,8 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
       respondentName,
       respondentTitle,
       respondentEmail,
-      respondentPhone,
+      respondentMobileNumber,
+      respondentTelephoneNumber,
       responseText,
       otherConcerns,
     ].some(
@@ -144,7 +188,8 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
         respondentName: respondentName.trim(),
         respondentTitle: respondentTitle.trim(),
         respondentEmail: respondentEmail.trim(),
-        respondentPhone: respondentPhone.trim() || null,
+        respondentMobileNumber: respondentMobileNumber.trim() || null,
+        respondentTelephoneNumber: respondentTelephoneNumber.trim() || null,
         responseText: responseText.trim() || null,
         otherConcerns: otherConcerns.trim() || null,
         attachments,
@@ -154,6 +199,7 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
     setSavedStatus(result.status);
     setSavedDocuments(result.documents ?? []);
     setSavedResponses(result.responses ?? []);
+    setPendingFollowUpCount(result.pendingFollowUpCount ?? pendingFollowUpCount);
     setResponseText("");
     setOtherConcerns("");
     setAttachments([]);
@@ -264,7 +310,9 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
                 </div>
                 <p className="mt-2 text-slate-300">
                   {response.respondentName} · {response.respondentTitle} · {response.respondentEmail}
-                  {response.respondentPhone ? ` · ${response.respondentPhone}` : ""}
+                  {response.respondentMobileNumber ? ` · Mobile ${response.respondentMobileNumber}` : ""}
+                  {response.respondentTelephoneNumber ? ` · Telephone ${response.respondentTelephoneNumber}` : ""}
+                  {!response.respondentMobileNumber && !response.respondentTelephoneNumber && response.respondentPhone ? ` · Contact ${response.respondentPhone}` : ""}
                 </p>
                 {response.responseText && <p className="mt-2 whitespace-pre-wrap text-slate-200">{response.responseText}</p>}
                 {response.otherConcerns && (
@@ -310,14 +358,17 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
       {canSubmitResponse && (
         <form className="mt-5 space-y-4" onSubmit={handleRespond} noValidate>
           {isPreReviewFollowUp && (
-            <p className="rounded-md border border-emerald-800 bg-emerald-950/30 p-3 text-sm text-emerald-100">
-              Underwriting has not reviewed this request yet. You may add a message, concern, or supporting file; the original response remains unchanged.
-            </p>
+            <div className="rounded-md border border-emerald-800 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+              <p>Underwriting has not reviewed this request yet. You may correct contact details or add a message, concern, or supporting file; the original response remains unchanged.</p>
+              <p className="mt-2 font-semibold">Unread follow-ups: {pendingFollowUpCount} of {maxPendingFollowUps}</p>
+              {!hasFollowUpCapacity && <p className="mt-2 text-amber-200">The current limit is reached. You can send another follow-up after an underwriter opens one of the pending entries.</p>}
+            </div>
           )}
           <label className="block text-sm font-medium text-slate-200">
             Respondent name
             <input
               required
+              maxLength={respondentNameMaxLength}
               value={respondentName}
               onChange={(event) => setRespondentName(event.target.value)}
               className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
@@ -327,6 +378,7 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
             Respondent title
             <input
               required
+              maxLength={respondentTitleMaxLength}
               value={respondentTitle}
               onChange={(event) => setRespondentTitle(event.target.value)}
               className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
@@ -337,6 +389,7 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
             <input
               required
               type="email"
+              maxLength={respondentEmailMaxLength}
               value={respondentEmail}
               onChange={(event) => setRespondentEmail(event.target.value)}
               className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
@@ -344,32 +397,53 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
             <span className="mt-2 block text-xs text-slate-400">Underwriting may use this address to verify the response. It is not treated as proof by itself.</span>
           </label>
           <label className="block text-sm font-medium text-slate-200">
-            Respondent phone (optional)
+            Respondent mobile number (optional)
             <input
               type="tel"
-              value={respondentPhone}
-              onChange={(event) => setRespondentPhone(event.target.value)}
+              inputMode="tel"
+              maxLength={24}
+              placeholder="0917 123 4567 or +63 917 123 4567"
+              value={respondentMobileNumber}
+              onChange={(event) => setRespondentMobileNumber(event.target.value)}
               className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
             />
+            <span className="mt-2 block text-xs text-slate-400">Philippine mobile numbers use 11 domestic digits beginning with 09, or country code +63 followed by 10 digits beginning with 9.</span>
+          </label>
+          <label className="block text-sm font-medium text-slate-200">
+            Respondent telephone number (optional)
+            <input
+              type="tel"
+              inputMode="tel"
+              maxLength={24}
+              placeholder="02 8123 4567 or +63 2 8123 4567"
+              value={respondentTelephoneNumber}
+              onChange={(event) => setRespondentTelephoneNumber(event.target.value)}
+              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+            />
+            <span className="mt-2 block text-xs text-slate-400">Include the Philippine area code. Metro Manila commonly uses 02 domestically or +63 2 internationally.</span>
           </label>
           <label className="block text-sm font-medium text-slate-200">
             Evidence response
             <textarea
               required={!isPreReviewFollowUp}
+              maxLength={evidenceResponseMaxLength}
               value={responseText}
               onChange={(event) => setResponseText(event.target.value)}
               className="mt-2 min-h-24 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
             />
             {isPreReviewFollowUp && <span className="mt-2 block text-xs text-slate-400">Optional for a follow-up when you add a concern or file instead.</span>}
+            <span className="mt-1 block text-right text-xs text-slate-500">{responseText.length}/{evidenceResponseMaxLength}</span>
           </label>
           <label className="block text-sm font-medium text-slate-200">
             Other concerns (optional)
             <textarea
               value={otherConcerns}
+              maxLength={otherConcernsMaxLength}
               onChange={(event) => setOtherConcerns(event.target.value)}
               className="mt-2 min-h-20 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
             />
             <span className="mt-2 block text-xs text-slate-400">Use this for context, caveats, or questions that do not belong in the main evidence explanation.</span>
+            <span className="mt-1 block text-right text-xs text-slate-500">{otherConcerns.length}/{otherConcernsMaxLength}</span>
           </label>
           {documentRequirement !== "NarrativeOnly" && (
             <FileDropzone
@@ -390,7 +464,7 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
                 !hasRequiredRespondentDetails ||
                 !hasRequiredNarrative ||
                 (requiresDocumentForThisResponse && attachments.length === 0) ||
-                (isPreReviewFollowUp && !hasFollowUpContent)
+                (isPreReviewFollowUp && (!hasFollowUpContent || !hasFollowUpCapacity))
               }
               className="rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
             >

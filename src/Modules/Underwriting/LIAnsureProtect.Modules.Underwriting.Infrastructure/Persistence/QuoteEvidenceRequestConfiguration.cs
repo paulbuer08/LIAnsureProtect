@@ -103,6 +103,14 @@ public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration
             .HasColumnName("respondent_phone")
             .HasMaxLength(50);
 
+        builder.Property(request => request.RespondentMobileNumber)
+            .HasColumnName("respondent_mobile_number")
+            .HasMaxLength(EvidenceResponseFieldRules.MobileNumberMaxLength);
+
+        builder.Property(request => request.RespondentTelephoneNumber)
+            .HasColumnName("respondent_telephone_number")
+            .HasMaxLength(EvidenceResponseFieldRules.TelephoneNumberMaxLength);
+
         builder.Property(request => request.ResponseText)
             .HasColumnName("response_text")
             .HasMaxLength(4000);
@@ -167,6 +175,12 @@ public sealed class QuoteEvidenceRequestConfiguration : IEntityTypeConfiguration
 
         builder.Property(request => request.UpdatedAtUtc)
             .HasColumnName("updated_at_utc")
+            .IsRequired();
+
+        builder.Property(request => request.Version)
+            .HasColumnName("version")
+            .HasDefaultValue(0)
+            .IsConcurrencyToken()
             .IsRequired();
 
         builder.HasIndex(request => new

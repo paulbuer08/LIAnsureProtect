@@ -17,8 +17,10 @@ import {
   declineQuoteReferral,
   followUpQuoteEvidenceRequest,
   generateAiUnderwritingReview,
+  getQuoteEvidenceRequest,
   listQuoteReferralTimeline,
   listQuoteReferrals,
+  markQuoteEvidenceFollowUpViewed,
   recordQuoteEvidenceReviewDecision,
   releaseQuoteReferralAssignment,
   cancelQuoteEvidenceRequest,
@@ -50,6 +52,7 @@ vi.mock("../api/underwritingApi", () => ({
   completeQuoteReferralTask: vi.fn(),
   listQuoteReferralTimeline: vi.fn(),
   listQuoteReferrals: vi.fn(),
+  markQuoteEvidenceFollowUpViewed: vi.fn(),
   followUpQuoteEvidenceRequest: vi.fn(),
   recordQuoteEvidenceReviewDecision: vi.fn(),
   releaseQuoteReferralAssignment: vi.fn(),
@@ -174,6 +177,7 @@ describe("UnderwritingQuoteReferralsPage", () => {
     vi.mocked(createQuoteEvidenceRequest).mockReset();
     vi.mocked(declineQuoteReferral).mockReset();
     vi.mocked(generateAiUnderwritingReview).mockReset();
+    vi.mocked(getQuoteEvidenceRequest).mockReset();
     vi.mocked(followUpQuoteEvidenceRequest).mockReset();
     vi.mocked(addQuoteReferralNote).mockReset();
     vi.mocked(addQuoteReferralTask).mockReset();
@@ -185,6 +189,7 @@ describe("UnderwritingQuoteReferralsPage", () => {
       entries: [],
     });
     vi.mocked(listQuoteReferrals).mockReset();
+    vi.mocked(markQuoteEvidenceFollowUpViewed).mockReset();
     vi.mocked(recordQuoteEvidenceReviewDecision).mockReset();
     vi.mocked(releaseQuoteReferralAssignment).mockReset();
     vi.mocked(triageQuoteReferralOperation).mockReset();
@@ -563,6 +568,89 @@ describe("UnderwritingQuoteReferralsPage", () => {
       "evidence-1",
     );
     expect(await screen.findByText("Evidence request saved: Open")).toBeInTheDocument();
+  });
+
+  it("opens one unread customer follow-up and records the acknowledgement", async () => {
+    const user = userEvent.setup();
+    const unreadRequest = {
+      evidenceRequestId: "evidence-1",
+      quoteId: "quote-severe",
+      submissionId: "submission-severe",
+      category: "MultiFactorAuthentication",
+      title: "Confirm MFA rollout",
+      description: "Please provide current MFA rollout evidence.",
+      dueAtUtc: "2026-06-25T09:00:00Z",
+      status: "Responded",
+      isOverdue: false,
+      daysUntilDue: 3,
+      requestedByUserId: "auth0|underwriter",
+      requestedAtUtc: "2026-06-22T09:00:00Z",
+      respondedByUserId: "auth0|customer",
+      respondentName: "Jane Applicant",
+      respondentTitle: "CISO",
+      respondentEmail: "jane@example.com",
+      responseText: "A new mobile contact is available.",
+      attachmentFileName: null,
+      attachmentContentType: null,
+      attachmentSizeBytes: null,
+      respondedAtUtc: "2026-06-22T12:00:00Z",
+      acceptedByUserId: null,
+      acceptedAtUtc: null,
+      cancelledByUserId: null,
+      cancelledAtUtc: null,
+      ...notReviewedEvidence,
+      reviewNotes: null,
+      updatedAtUtc: "2026-06-22T12:00:00Z",
+      pendingFollowUpCount: 1,
+      maxPendingFollowUps: 5,
+      responses: [
+        {
+          responseId: "response-follow-up",
+          respondedByUserId: "auth0|customer",
+          respondentName: "Jane Applicant",
+          respondentTitle: "CISO",
+          respondentEmail: "jane@example.com",
+          respondentPhone: null,
+          respondentMobileNumber: "+639171234567",
+          respondentTelephoneNumber: null,
+          responseText: "A new mobile contact is available.",
+          otherConcerns: null,
+          kind: "FollowUp" as const,
+          respondedAtUtc: "2026-06-22T12:00:00Z",
+          viewedByUserId: null,
+          viewedAtUtc: null,
+        },
+      ],
+    };
+    vi.mocked(listQuoteReferrals).mockResolvedValue({ quoteReferrals: [severeReferral] });
+    vi.mocked(getQuoteEvidenceRequest).mockResolvedValue(unreadRequest);
+    vi.mocked(markQuoteEvidenceFollowUpViewed).mockResolvedValue({
+      ...unreadRequest,
+      pendingFollowUpCount: 0,
+      responses: [
+        {
+          ...unreadRequest.responses[0],
+          viewedByUserId: "auth0|underwriter",
+          viewedAtUtc: "2026-06-22T12:05:00Z",
+        },
+      ],
+    });
+
+    renderWorkbench();
+    await user.type(await screen.findByLabelText("Evidence request id"), "evidence-1");
+    await user.click(screen.getByRole("button", { name: "Load evidence request" }));
+
+    expect(await screen.findByRole("button", { name: "Open follow-up" })).toBeInTheDocument();
+    expect(screen.queryByText("A new mobile contact is available.")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Open follow-up" }));
+
+    expect(markQuoteEvidenceFollowUpViewed).toHaveBeenCalledWith(
+      "underwriter-token",
+      "quote-severe",
+      "evidence-1",
+      "response-follow-up",
+    );
+    expect(await screen.findByText("A new mobile contact is available.")).toBeInTheDocument();
   });
 
   it("records evidence sufficiency decisions with owner remediation guidance", async () => {

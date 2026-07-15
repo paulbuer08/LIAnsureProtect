@@ -1,5 +1,3 @@
-using System.Net.Mail;
-
 namespace LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
 
 /// <summary>
@@ -21,11 +19,16 @@ public sealed class QuoteEvidenceResponse
     public string RespondentName { get; private set; } = string.Empty;
     public string RespondentTitle { get; private set; } = string.Empty;
     public string RespondentEmail { get; private set; } = string.Empty;
+    // Retained so historic response rows created before contact fields were split remain readable.
     public string? RespondentPhone { get; private set; }
+    public string? RespondentMobileNumber { get; private set; }
+    public string? RespondentTelephoneNumber { get; private set; }
     public string? ResponseText { get; private set; }
     public string? OtherConcerns { get; private set; }
     public EvidenceResponseKind Kind { get; private set; }
     public DateTime RespondedAtUtc { get; private set; }
+    public string? ViewedByUserId { get; private set; }
+    public DateTime? ViewedAtUtc { get; private set; }
 
     public static QuoteEvidenceResponse Create(
         QuoteEvidenceRequest request,
@@ -39,9 +42,40 @@ public sealed class QuoteEvidenceResponse
         EvidenceResponseKind kind,
         DateTime respondedAtUtc)
     {
+        return Create(
+            request,
+            respondedByUserId,
+            respondentName,
+            respondentTitle,
+            respondentEmail,
+            respondentPhone,
+            null,
+            responseText,
+            otherConcerns,
+            kind,
+            respondedAtUtc);
+    }
+
+    public static QuoteEvidenceResponse Create(
+        QuoteEvidenceRequest request,
+        string respondedByUserId,
+        string respondentName,
+        string respondentTitle,
+        string respondentEmail,
+        string? respondentMobileNumber,
+        string? respondentTelephoneNumber,
+        string? responseText,
+        string? otherConcerns,
+        EvidenceResponseKind kind,
+        DateTime respondedAtUtc)
+    {
         ArgumentNullException.ThrowIfNull(request);
 
-        var normalizedResponse = NormalizeOptional(responseText);
+        var normalizedResponse = EvidenceResponseFieldRules.Optional(
+            responseText,
+            nameof(responseText),
+            "Evidence response",
+            EvidenceResponseFieldRules.ResponseTextMaxLength);
         if (kind is EvidenceResponseKind.Initial or EvidenceResponseKind.Remediation
             && normalizedResponse is null)
         {
@@ -54,39 +88,38 @@ public sealed class QuoteEvidenceResponse
             EvidenceRequestId = request.Id,
             QuoteId = request.QuoteId,
             SubmissionId = request.SubmissionId,
-            OwnerUserId = ValidateRequired(request.OwnerUserId, nameof(request.OwnerUserId)),
-            RespondedByUserId = ValidateRequired(respondedByUserId, nameof(respondedByUserId)),
-            RespondentName = ValidateRequired(respondentName, nameof(respondentName)),
-            RespondentTitle = ValidateRequired(respondentTitle, nameof(respondentTitle)),
-            RespondentEmail = ValidateEmail(respondentEmail),
-            RespondentPhone = NormalizeOptional(respondentPhone),
+            OwnerUserId = EvidenceResponseFieldRules.Required(request.OwnerUserId, nameof(request.OwnerUserId), "Owner user id", 256),
+            RespondedByUserId = EvidenceResponseFieldRules.Required(respondedByUserId, nameof(respondedByUserId), "Responded-by user id", 256),
+            RespondentName = EvidenceResponseFieldRules.Required(respondentName, nameof(respondentName), "Respondent name", EvidenceResponseFieldRules.RespondentNameMaxLength),
+            RespondentTitle = EvidenceResponseFieldRules.Required(respondentTitle, nameof(respondentTitle), "Respondent title", EvidenceResponseFieldRules.RespondentTitleMaxLength),
+            RespondentEmail = EvidenceResponseFieldRules.Email(respondentEmail),
+            RespondentMobileNumber = EvidenceResponseFieldRules.PhilippineMobileNumber(respondentMobileNumber),
+            RespondentTelephoneNumber = EvidenceResponseFieldRules.PhilippineTelephoneNumber(respondentTelephoneNumber),
             ResponseText = normalizedResponse,
-            OtherConcerns = NormalizeOptional(otherConcerns),
+            OtherConcerns = EvidenceResponseFieldRules.Optional(
+                otherConcerns,
+                nameof(otherConcerns),
+                "Other concerns",
+                EvidenceResponseFieldRules.OtherConcernsMaxLength),
             Kind = kind,
             RespondedAtUtc = respondedAtUtc
         };
     }
 
-    private static string ValidateRequired(string value, string parameterName)
+    public bool MarkViewed(string viewedByUserId, DateTime viewedAtUtc)
     {
-        if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException($"{parameterName} is required.", parameterName);
+        if (Kind != EvidenceResponseKind.FollowUp)
+            throw new InvalidOperationException("Only customer follow-up responses use the unread workflow.");
 
-        return value.Trim();
+        if (ViewedAtUtc.HasValue)
+            return false;
+
+        ViewedByUserId = EvidenceResponseFieldRules.Required(
+            viewedByUserId,
+            nameof(viewedByUserId),
+            "Viewed-by user id",
+            256);
+        ViewedAtUtc = viewedAtUtc;
+        return true;
     }
-
-    private static string ValidateEmail(string value)
-    {
-        var trimmed = ValidateRequired(value, nameof(value));
-        if (!MailAddress.TryCreate(trimmed, out var address)
-            || !string.Equals(address.Address, trimmed, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException("Respondent email must be a valid email address.", nameof(value));
-        }
-
-        return trimmed;
-    }
-
-    private static string? NormalizeOptional(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

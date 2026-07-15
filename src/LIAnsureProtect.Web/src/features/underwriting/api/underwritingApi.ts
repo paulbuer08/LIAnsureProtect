@@ -275,6 +275,26 @@ export async function getQuoteEvidenceRequest(
   );
 }
 
+export async function markQuoteEvidenceFollowUpViewed(
+  accessToken: string,
+  quoteId: string,
+  evidenceRequestId: string,
+  responseId: string,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/evidence-requests/${evidenceRequestId}/responses/${responseId}/view`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+    },
+  );
+
+  return parseJsonResponse<QuoteEvidenceRequest>(
+    response,
+    "Evidence follow-up was not found.",
+  );
+}
+
 export async function acceptQuoteEvidenceRequest(
   accessToken: string,
   quoteId: string,

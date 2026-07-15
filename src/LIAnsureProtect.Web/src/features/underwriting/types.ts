@@ -123,6 +123,8 @@ export type QuoteEvidenceRequest = {
   respondentTitle: string | null;
   respondentEmail?: string | null;
   respondentPhone?: string | null;
+  respondentMobileNumber?: string | null;
+  respondentTelephoneNumber?: string | null;
   responseText: string | null;
   otherConcerns?: string | null;
   attachmentFileName: string | null;
@@ -142,6 +144,8 @@ export type QuoteEvidenceRequest = {
   updatedAtUtc: string;
   documents?: QuoteEvidenceDocument[];
   responses?: QuoteEvidenceResponse[];
+  pendingFollowUpCount?: number;
+  maxPendingFollowUps?: number;
 };
 
 export type QuoteEvidenceResponse = {
@@ -151,10 +155,14 @@ export type QuoteEvidenceResponse = {
   respondentTitle: string;
   respondentEmail: string;
   respondentPhone: string | null;
+  respondentMobileNumber?: string | null;
+  respondentTelephoneNumber?: string | null;
   responseText: string | null;
   otherConcerns: string | null;
   kind: "Initial" | "FollowUp" | "Remediation";
   respondedAtUtc: string;
+  viewedByUserId?: string | null;
+  viewedAtUtc?: string | null;
 };
 
 export type QuoteEvidenceDocument = {

@@ -1,4 +1,3 @@
-using System.Net.Mail;
 using LIAnsureProtect.Platform.Abstractions.DomainEvents;
 
 namespace LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
@@ -49,7 +48,12 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
 
     public string? RespondentEmail { get; private set; }
 
+    // Retained so historic rows created before contact fields were split remain readable.
     public string? RespondentPhone { get; private set; }
+
+    public string? RespondentMobileNumber { get; private set; }
+
+    public string? RespondentTelephoneNumber { get; private set; }
 
     public string? ResponseText { get; private set; }
 
@@ -84,6 +88,8 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
     public DateTime? ReviewedAtUtc { get; private set; }
 
     public DateTime UpdatedAtUtc { get; private set; }
+
+    public int Version { get; private set; }
 
     public IReadOnlyCollection<IDomainEvent> DomainEvents => domainEvents.AsReadOnly();
 
@@ -164,6 +170,35 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         long? attachmentSizeBytes,
         DateTime respondedAtUtc)
     {
+        Respond(
+            respondedByUserId,
+            respondentName,
+            respondentTitle,
+            respondentEmail,
+            respondentPhone,
+            null,
+            responseText,
+            otherConcerns,
+            attachmentFileName,
+            attachmentContentType,
+            attachmentSizeBytes,
+            respondedAtUtc);
+    }
+
+    public void Respond(
+        string respondedByUserId,
+        string respondentName,
+        string respondentTitle,
+        string respondentEmail,
+        string? respondentMobileNumber,
+        string? respondentTelephoneNumber,
+        string responseText,
+        string? otherConcerns,
+        string? attachmentFileName,
+        string? attachmentContentType,
+        long? attachmentSizeBytes,
+        DateTime respondedAtUtc)
+    {
         EnsureCanRespond();
 
         RecordResponseDetails(
@@ -171,7 +206,8 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             respondentName,
             respondentTitle,
             respondentEmail,
-            respondentPhone,
+            respondentMobileNumber,
+            respondentTelephoneNumber,
             responseText,
             otherConcerns,
             attachmentFileName,
@@ -193,27 +229,92 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         long? attachmentSizeBytes,
         DateTime respondedAtUtc)
     {
+        RecordSupplementalResponse(
+            respondedByUserId,
+            respondentName,
+            respondentTitle,
+            respondentEmail,
+            respondentPhone,
+            null,
+            responseText,
+            otherConcerns,
+            attachmentFileName,
+            attachmentContentType,
+            attachmentSizeBytes,
+            0,
+            respondedAtUtc);
+    }
+
+    public void RecordSupplementalResponse(
+        string respondedByUserId,
+        string respondentName,
+        string respondentTitle,
+        string respondentEmail,
+        string? respondentMobileNumber,
+        string? respondentTelephoneNumber,
+        string? responseText,
+        string? otherConcerns,
+        string? attachmentFileName,
+        string? attachmentContentType,
+        long? attachmentSizeBytes,
+        int pendingFollowUpCount,
+        DateTime respondedAtUtc)
+    {
         if (Status != EvidenceRequestStatus.Responded)
             throw new InvalidOperationException("Supplemental evidence can only be uploaded after an evidence response.");
 
         if (ReviewDecision != EvidenceReviewDecisionStatus.NotReviewed)
             throw new InvalidOperationException("Supplemental evidence can only be added before underwriting records a review decision.");
 
-        var normalizedResponseText = NormalizeOptional(responseText);
-        var normalizedOtherConcerns = NormalizeOptional(otherConcerns);
+        if (pendingFollowUpCount >= EvidenceResponseFieldRules.MaxPendingFollowUps)
+        {
+            throw new InvalidOperationException(
+                $"Up to {EvidenceResponseFieldRules.MaxPendingFollowUps} unread follow-ups are allowed. Wait until underwriting opens one before sending another.");
+        }
+
+        var normalizedResponseText = EvidenceResponseFieldRules.Optional(
+            responseText,
+            nameof(responseText),
+            "Evidence response",
+            EvidenceResponseFieldRules.ResponseTextMaxLength);
+        var normalizedOtherConcerns = EvidenceResponseFieldRules.Optional(
+            otherConcerns,
+            nameof(otherConcerns),
+            "Other concerns",
+            EvidenceResponseFieldRules.OtherConcernsMaxLength);
         var normalizedAttachmentFileName = NormalizeOptional(attachmentFileName);
+        var normalizedName = EvidenceResponseFieldRules.Required(
+            respondentName,
+            nameof(respondentName),
+            "Respondent name",
+            EvidenceResponseFieldRules.RespondentNameMaxLength);
+        var normalizedTitle = EvidenceResponseFieldRules.Required(
+            respondentTitle,
+            nameof(respondentTitle),
+            "Respondent title",
+            EvidenceResponseFieldRules.RespondentTitleMaxLength);
+        var normalizedEmail = EvidenceResponseFieldRules.Email(respondentEmail);
+        var normalizedMobile = EvidenceResponseFieldRules.PhilippineMobileNumber(respondentMobileNumber);
+        var normalizedTelephone = EvidenceResponseFieldRules.PhilippineTelephoneNumber(respondentTelephoneNumber);
+        var hasContactChange = !string.Equals(normalizedName, RespondentName, StringComparison.Ordinal)
+            || !string.Equals(normalizedTitle, RespondentTitle, StringComparison.Ordinal)
+            || !string.Equals(normalizedEmail, RespondentEmail, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(normalizedMobile, RespondentMobileNumber, StringComparison.Ordinal)
+            || !string.Equals(normalizedTelephone, RespondentTelephoneNumber, StringComparison.Ordinal);
         if (normalizedResponseText is null
             && normalizedOtherConcerns is null
-            && normalizedAttachmentFileName is null)
+            && normalizedAttachmentFileName is null
+            && !hasContactChange)
         {
-            throw new ArgumentException("A supplemental response requires a message, concern, or supporting document.");
+            throw new ArgumentException("A supplemental response requires changed contact details, a message, a concern, or a supporting document.");
         }
 
         RespondedByUserId = ValidateRequired(respondedByUserId, nameof(respondedByUserId), "Responded-by user id is required.");
-        RespondentName = ValidateRequired(respondentName, nameof(respondentName), "Respondent name is required.");
-        RespondentTitle = ValidateRequired(respondentTitle, nameof(respondentTitle), "Respondent title is required.");
-        RespondentEmail = ValidateEmail(respondentEmail);
-        RespondentPhone = NormalizeOptional(respondentPhone);
+        RespondentName = normalizedName;
+        RespondentTitle = normalizedTitle;
+        RespondentEmail = normalizedEmail;
+        RespondentMobileNumber = normalizedMobile;
+        RespondentTelephoneNumber = normalizedTelephone;
         ResponseText = normalizedResponseText ?? ResponseText;
         OtherConcerns = normalizedOtherConcerns;
 
@@ -224,7 +325,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         AttachmentContentType = NormalizeOptional(attachmentContentType) ?? AttachmentContentType;
         AttachmentSizeBytes = attachmentSizeBytes ?? AttachmentSizeBytes;
         RespondedAtUtc = respondedAtUtc;
-        UpdatedAtUtc = respondedAtUtc;
+        Touch(respondedAtUtc);
 
         domainEvents.Add(new QuoteEvidenceRequestRespondedDomainEvent(
             Id,
@@ -261,7 +362,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         AttachmentContentType = NormalizeOptional(attachmentContentType) ?? AttachmentContentType;
         AttachmentSizeBytes = attachmentSizeBytes ?? AttachmentSizeBytes;
         RespondedAtUtc = uploadedAtUtc;
-        UpdatedAtUtc = uploadedAtUtc;
+        Touch(uploadedAtUtc);
 
         domainEvents.Add(new QuoteEvidenceRequestRespondedDomainEvent(
             Id,
@@ -285,7 +386,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         AcceptedByUserId = ValidateRequired(acceptedByUserId, nameof(acceptedByUserId), "Accepted-by user id is required.");
         ReviewNotes = NormalizeOptional(reviewNotes);
         AcceptedAtUtc = acceptedAtUtc;
-        UpdatedAtUtc = acceptedAtUtc;
+        Touch(acceptedAtUtc);
         Status = EvidenceRequestStatus.Accepted;
         ReviewDecision = EvidenceReviewDecisionStatus.Satisfied;
         ReviewReason = ReviewNotes ?? "Evidence satisfied by underwriting review.";
@@ -314,7 +415,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         CancelledByUserId = ValidateRequired(cancelledByUserId, nameof(cancelledByUserId), "Cancelled-by user id is required.");
         ReviewNotes = NormalizeOptional(reviewNotes);
         CancelledAtUtc = cancelledAtUtc;
-        UpdatedAtUtc = cancelledAtUtc;
+        Touch(cancelledAtUtc);
         Status = EvidenceRequestStatus.Cancelled;
 
         domainEvents.Add(new QuoteEvidenceRequestCancelledDomainEvent(
@@ -341,7 +442,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
             nameof(followedUpByUserId),
             "Followed-up-by user id is required.");
 
-        UpdatedAtUtc = followedUpAtUtc;
+        Touch(followedUpAtUtc);
         domainEvents.Add(new QuoteEvidenceRequestFollowUpSentDomainEvent(
             Id,
             QuoteId,
@@ -377,7 +478,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
 
         ReviewDecision = decision;
         ReviewedAtUtc = reviewedAtUtc;
-        UpdatedAtUtc = reviewedAtUtc;
+        Touch(reviewedAtUtc);
 
         domainEvents.Add(new QuoteEvidenceRequestRemediationRequiredDomainEvent(
             Id,
@@ -426,7 +527,8 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         string respondentName,
         string respondentTitle,
         string respondentEmail,
-        string? respondentPhone,
+        string? respondentMobileNumber,
+        string? respondentTelephoneNumber,
         string responseText,
         string? otherConcerns,
         string? attachmentFileName,
@@ -435,12 +537,29 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         DateTime respondedAtUtc)
     {
         RespondedByUserId = ValidateRequired(respondedByUserId, nameof(respondedByUserId), "Responded-by user id is required.");
-        RespondentName = ValidateRequired(respondentName, nameof(respondentName), "Respondent name is required.");
-        RespondentTitle = ValidateRequired(respondentTitle, nameof(respondentTitle), "Respondent title is required.");
-        RespondentEmail = ValidateEmail(respondentEmail);
-        RespondentPhone = NormalizeOptional(respondentPhone);
-        ResponseText = ValidateRequired(responseText, nameof(responseText), "Evidence response text is required.");
-        OtherConcerns = NormalizeOptional(otherConcerns);
+        RespondentName = EvidenceResponseFieldRules.Required(
+            respondentName,
+            nameof(respondentName),
+            "Respondent name",
+            EvidenceResponseFieldRules.RespondentNameMaxLength);
+        RespondentTitle = EvidenceResponseFieldRules.Required(
+            respondentTitle,
+            nameof(respondentTitle),
+            "Respondent title",
+            EvidenceResponseFieldRules.RespondentTitleMaxLength);
+        RespondentEmail = EvidenceResponseFieldRules.Email(respondentEmail);
+        RespondentMobileNumber = EvidenceResponseFieldRules.PhilippineMobileNumber(respondentMobileNumber);
+        RespondentTelephoneNumber = EvidenceResponseFieldRules.PhilippineTelephoneNumber(respondentTelephoneNumber);
+        ResponseText = EvidenceResponseFieldRules.Required(
+            responseText,
+            nameof(responseText),
+            "Evidence response",
+            EvidenceResponseFieldRules.ResponseTextMaxLength);
+        OtherConcerns = EvidenceResponseFieldRules.Optional(
+            otherConcerns,
+            nameof(otherConcerns),
+            "Other concerns",
+            EvidenceResponseFieldRules.OtherConcernsMaxLength);
 
         if (attachmentSizeBytes is < 0)
             throw new InvalidOperationException("Attachment size cannot be negative.");
@@ -449,7 +568,7 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         AttachmentContentType = NormalizeOptional(attachmentContentType);
         AttachmentSizeBytes = attachmentSizeBytes;
         RespondedAtUtc = respondedAtUtc;
-        UpdatedAtUtc = respondedAtUtc;
+        Touch(respondedAtUtc);
         Status = EvidenceRequestStatus.Responded;
         ResetReviewDecision();
 
@@ -492,18 +611,6 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static string ValidateEmail(string value)
-    {
-        var trimmed = ValidateRequired(value, nameof(value), "Respondent email is required.");
-        if (!MailAddress.TryCreate(trimmed, out var address)
-            || !string.Equals(address.Address, trimmed, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException("Respondent email must be a valid email address.", nameof(value));
-        }
-
-        return trimmed;
-    }
-
     private void ResetReviewDecision()
     {
         ReviewDecision = EvidenceReviewDecisionStatus.NotReviewed;
@@ -511,5 +618,16 @@ public sealed class QuoteEvidenceRequest : IHasDomainEvents
         RemediationGuidance = null;
         ReviewedByUserId = null;
         ReviewedAtUtc = null;
+    }
+
+    public void RecordCustomerFollowUpViewed(DateTime viewedAtUtc)
+    {
+        Touch(viewedAtUtc);
+    }
+
+    private void Touch(DateTime updatedAtUtc)
+    {
+        UpdatedAtUtc = updatedAtUtc;
+        Version++;
     }
 }

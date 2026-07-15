@@ -312,7 +312,7 @@ public sealed class QuoteEvidenceRequestTests
         Assert.Equal(EvidenceReviewDecisionStatus.NotReviewed, request.ReviewDecision);
         Assert.Equal(originalResponse, request.ResponseText);
         Assert.Equal("The privileged-account export will be available tomorrow.", request.OtherConcerns);
-        Assert.Equal("+63 917 555 0101", request.RespondentPhone);
+        Assert.Equal("+639175550101", request.RespondentMobileNumber);
         Assert.IsType<QuoteEvidenceRequestRespondedDomainEvent>(request.DomainEvents.Last());
     }
 
@@ -332,8 +332,56 @@ public sealed class QuoteEvidenceRequestTests
                 "Additional context.", null, null, null, null,
                 new DateTime(2026, 6, 22, 13, 0, 0, DateTimeKind.Utc)));
 
-        Assert.Equal("A supplemental response requires a message, concern, or supporting document.", emptyException.Message);
+        Assert.Equal("A supplemental response requires changed contact details, a message, a concern, or a supporting document.", emptyException.Message);
         Assert.Equal("Respondent email must be a valid email address. (Parameter 'value')", emailException.Message);
+    }
+
+    [Fact]
+    public void Pre_review_follow_up_accepts_a_changed_mobile_number_by_itself()
+    {
+        var request = CreateRespondedRequest();
+
+        request.RecordSupplementalResponse(
+            "customer-1",
+            "Jane Applicant",
+            "CISO",
+            "jane@example.com",
+            "09171234567",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0,
+            new DateTime(2026, 7, 15, 8, 0, 0, DateTimeKind.Utc));
+
+        Assert.Equal("+639171234567", request.RespondentMobileNumber);
+        Assert.Null(request.RespondentTelephoneNumber);
+    }
+
+    [Fact]
+    public void Pre_review_follow_up_blocks_a_sixth_currently_unread_entry()
+    {
+        var request = CreateRespondedRequest();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            request.RecordSupplementalResponse(
+                "customer-1",
+                "Jane Applicant",
+                "CISO",
+                "jane@example.com",
+                null,
+                null,
+                "Another follow-up.",
+                null,
+                null,
+                null,
+                null,
+                EvidenceResponseFieldRules.MaxPendingFollowUps,
+                new DateTime(2026, 7, 15, 8, 0, 0, DateTimeKind.Utc)));
+
+        Assert.Contains("Up to 5 unread follow-ups are allowed", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

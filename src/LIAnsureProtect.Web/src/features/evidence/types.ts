@@ -43,7 +43,8 @@ export type RespondToEvidenceRequest = {
   respondentName: string;
   respondentTitle: string;
   respondentEmail: string;
-  respondentPhone?: string | null;
+  respondentMobileNumber?: string | null;
+  respondentTelephoneNumber?: string | null;
   responseText?: string | null;
   otherConcerns?: string | null;
   attachments?: File[];

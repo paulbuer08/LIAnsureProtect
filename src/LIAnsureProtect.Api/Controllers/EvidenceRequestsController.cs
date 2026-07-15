@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using LIAnsureProtect.Application.Common.Security;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -93,7 +94,8 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
                     request.RespondentName,
                     request.RespondentTitle,
                     request.RespondentEmail,
-                    request.RespondentPhone,
+                    request.RespondentMobileNumber,
+                    request.RespondentTelephoneNumber,
                     request.ResponseText,
                     request.OtherConcerns,
                     request.AttachmentFileName,
@@ -141,7 +143,8 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
                     request.RespondentName,
                     request.RespondentTitle,
                     request.RespondentEmail,
-                    request.RespondentPhone,
+                    request.RespondentMobileNumber,
+                    request.RespondentTelephoneNumber,
                     request.ResponseText,
                     request.OtherConcerns,
                     null,
@@ -267,7 +270,8 @@ public sealed record RespondToEvidenceRequestRequest(
     string RespondentName,
     string RespondentTitle,
     string RespondentEmail,
-    string? RespondentPhone,
+    string? RespondentMobileNumber,
+    string? RespondentTelephoneNumber,
     string? ResponseText,
     string? OtherConcerns,
     string? AttachmentFileName,
@@ -276,16 +280,25 @@ public sealed record RespondToEvidenceRequestRequest(
 
 public sealed class RespondToEvidenceRequestFormRequest
 {
+    [Required, MaxLength(120)]
     public string RespondentName { get; init; } = string.Empty;
 
+    [Required, MaxLength(120)]
     public string RespondentTitle { get; init; } = string.Empty;
 
+    [Required, EmailAddress, MaxLength(254)]
     public string RespondentEmail { get; init; } = string.Empty;
 
-    public string? RespondentPhone { get; init; }
+    [MaxLength(32)]
+    public string? RespondentMobileNumber { get; init; }
 
+    [MaxLength(32)]
+    public string? RespondentTelephoneNumber { get; init; }
+
+    [MaxLength(4000)]
     public string? ResponseText { get; init; }
 
+    [MaxLength(2000)]
     public string? OtherConcerns { get; init; }
 
     public IReadOnlyCollection<IFormFile> Attachments { get; init; } = [];

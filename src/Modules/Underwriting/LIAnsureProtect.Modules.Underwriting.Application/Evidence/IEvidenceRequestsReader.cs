@@ -72,7 +72,9 @@ public sealed record EvidenceRequestSnapshot(
     DateTime UpdatedAtUtc,
     string SubmissionReference = "",
     string CompanyName = "",
-    string DocumentRequirement = "Required");
+    string DocumentRequirement = "Required",
+    string? RespondentMobileNumber = null,
+    string? RespondentTelephoneNumber = null);
 
 public sealed record EvidenceRequestOwnerSummaryItem(
     Guid EvidenceRequestId,
