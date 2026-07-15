@@ -35,6 +35,18 @@ Workers
 
 ## Control assurance across Quoting and Underwriting
 
+### Quote supersession is a separate projection dimension
+
+Each Submission has an immutable Quote chain (`N -> N+1`), but only one pre-contract version is current.
+Quoting records `Superseded` plus `SupersededAtUtc`; Underwriting preserves Evidence workflow status and
+adds `Current`/`Superseded`; Notifications preserves read state and adds `Active`/`Historical`. This avoids
+both destructive cleanup and false operational work. The Quote-generated outbox event carries version
+and predecessor identity, and each context's idempotent projector updates only its own tables.
+
+Reassessment governance also belongs to Quoting: base-version concurrency, durable rolling/lifetime
+allowances, cooldown, one pending request, and human approval are evaluated before any rating-provider
+call. SignalR remains only a refresh hint after the owning transaction/projector commits.
+
 Quoting owns what the customer claimed and how it affected rating. Underwriting owns the evidence
 used to test that claim. They do not write each other's tables:
 
