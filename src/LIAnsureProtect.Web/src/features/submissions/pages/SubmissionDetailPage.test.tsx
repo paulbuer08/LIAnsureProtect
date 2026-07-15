@@ -207,6 +207,8 @@ describe("SubmissionDetailPage", () => {
     expect(dialog).toHaveTextContent(
       "This permanently deletes the draft for Example Company.",
     );
+    expect(dialog).not.toHaveTextContent("Why can this draft be deleted?");
+    await user.click(within(dialog).getByRole("button", { name: "More details" }));
     expect(dialog).toHaveTextContent("Why can this draft be deleted?");
     expect(dialog).toHaveTextContent(
       /after you select Submit submission and the system accepts it/i,
@@ -271,9 +273,11 @@ describe("SubmissionDetailPage", () => {
     const dialog = screen.getByRole("dialog", {
       name: "Withdraw this application?",
     });
-    expect(dialog).toHaveTextContent(
+    expect(dialog).not.toHaveTextContent(
       "Why is withdrawal different from deletion?",
     );
+    await user.click(within(dialog).getByRole("button", { name: "More details" }));
+    expect(dialog).toHaveTextContent("Why is withdrawal different from deletion?");
     expect(dialog).toHaveTextContent(/without erasing the record/i);
     expect(withdrawSubmission).not.toHaveBeenCalled();
 
@@ -533,6 +537,12 @@ describe("SubmissionDetailPage", () => {
     renderSubmissionDetailPage();
 
     expect(await screen.findByText("quote-existing")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "View quote version 1" }),
+    ).toHaveAttribute(
+      "href",
+      "/submissions/submission-456/quotes/quote-existing",
+    );
     expect(screen.getByText("₱6,500")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Accept quote" }),
@@ -633,6 +643,8 @@ describe("SubmissionDetailPage", () => {
       name: "Discard reassessment changes?",
     });
     expect(dialog).toHaveTextContent("It does not change or delete the current quote.");
+    expect(dialog).not.toHaveTextContent("Your current quote stays unchanged");
+    await user.click(within(dialog).getByRole("button", { name: "More details" }));
     expect(dialog).toHaveTextContent("Your current quote stays unchanged");
 
     await user.click(within(dialog).getByRole("button", { name: "Discard changes" }));

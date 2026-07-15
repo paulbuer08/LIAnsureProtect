@@ -1304,6 +1304,12 @@ export function SubmissionDetailPage() {
                 <h2 className="text-base font-semibold text-white">
                   Latest quote · version {activeQuoteVersion}
                 </h2>
+                <Link
+                  className="mt-2 inline-flex min-h-10 items-center font-semibold text-emerald-300 underline hover:text-emerald-200"
+                  to={`/submissions/${submissionId}/quotes/${activeQuoteId}`}
+                >
+                  View quote version {activeQuoteVersion}
+                </Link>
                 {activeAssuranceStatus === "EvidenceRequired" && (
                   <div className="mt-4 rounded-md border border-amber-700 bg-amber-950/40 p-4 text-sm text-amber-100">
                     <p className="font-semibold">Provisional — evidence required</p>
