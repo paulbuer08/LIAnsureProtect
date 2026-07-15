@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 
 type ConfirmationDialogInformation = {
   title: string;
@@ -30,8 +30,10 @@ export function ConfirmationDialog({
 }: ConfirmationDialogProps) {
   const titleId = useId();
   const descriptionId = useId();
+  const informationId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const [isInformationExpanded, setIsInformationExpanded] = useState(false);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -106,20 +108,32 @@ export function ConfirmationDialog({
         </p>
         {information && (
           <aside className="mt-5 rounded-lg border border-sky-400/30 bg-sky-950/30 p-4 text-sm text-sky-100">
-            <div className="flex items-start gap-3">
+            <button
+              type="button"
+              aria-expanded={isInformationExpanded}
+              aria-controls={informationId}
+              onClick={() => setIsInformationExpanded((current) => !current)}
+              className="flex w-full items-center gap-3 text-left font-semibold text-white"
+            >
               <span
                 aria-hidden="true"
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-sky-300/60 font-semibold"
               >
                 ?
               </span>
-              <div>
+              <span className="flex-1">More details</span>
+              <span aria-hidden="true" className="text-base text-sky-200">
+                {isInformationExpanded ? "−" : "+"}
+              </span>
+            </button>
+            {isInformationExpanded && (
+              <div id={informationId} className="mt-3 pl-9">
                 <h3 className="font-semibold text-white">{information.title}</h3>
                 <p className="mt-2 leading-6 text-slate-200">
                   {information.description}
                 </p>
               </div>
-            </div>
+            )}
           </aside>
         )}
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

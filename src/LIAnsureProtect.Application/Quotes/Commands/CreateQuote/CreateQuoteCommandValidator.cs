@@ -60,6 +60,14 @@ public sealed class CreateQuoteCommandValidator : AbstractValidator<CreateQuoteC
             .NotNull()
             .WithMessage("Detailed control implementation answers are required.");
 
+        When(command => command.IsReassessment, () =>
+        {
+            RuleFor(command => command.BaseQuoteVersion)
+                .NotNull()
+                .GreaterThanOrEqualTo(1)
+                .WithMessage("The current quote version is required for reassessment.");
+        });
+
         When(command => command.ControlDetails is not null, () =>
         {
             RuleFor(command => command.ControlDetails!.EdrCoveragePercent)

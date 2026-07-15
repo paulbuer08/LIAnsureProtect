@@ -368,9 +368,23 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("owner_user_id");
 
+                    b.Property<string>("QuoteDisposition")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Current")
+                        .HasColumnName("quote_disposition");
+
                     b.Property<Guid>("QuoteId")
                         .HasColumnType("uuid")
                         .HasColumnName("quote_id");
+
+                    b.Property<int>("QuoteVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("quote_version");
 
                     b.Property<string>("RemediationGuidance")
                         .HasMaxLength(2000)
@@ -401,6 +415,11 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("character varying(320)")
                         .HasColumnName("respondent_email");
 
+                    b.Property<string>("RespondentMobileNumber")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("respondent_mobile_number");
+
                     b.Property<string>("RespondentName")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
@@ -410,6 +429,11 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("respondent_phone");
+
+                    b.Property<string>("RespondentTelephoneNumber")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("respondent_telephone_number");
 
                     b.Property<string>("RespondentTitle")
                         .HasMaxLength(200)
@@ -464,6 +488,18 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("character varying(30)")
                         .HasColumnName("submission_reference");
 
+                    b.Property<DateTime?>("SupersededAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("superseded_at_utc");
+
+                    b.Property<Guid?>("SupersededByQuoteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("superseded_by_quote_id");
+
+                    b.Property<int?>("SupersededByQuoteVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("superseded_by_quote_version");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -474,6 +510,13 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at_utc");
 
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("version");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OwnerUserId", "Status", "DueAtUtc")
@@ -481,6 +524,9 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
 
                     b.HasIndex("QuoteId", "Status", "UpdatedAtUtc")
                         .HasDatabaseName("ix_quote_evidence_requests_quote_status_updated_at_utc");
+
+                    b.HasIndex("SubmissionId", "QuoteDisposition", "QuoteVersion")
+                        .HasDatabaseName("ix_quote_evidence_requests_submission_disposition_version");
 
                     b.ToTable("quote_evidence_requests", "underwriting");
                 });
@@ -608,6 +654,11 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("character varying(320)")
                         .HasColumnName("respondent_email");
 
+                    b.Property<string>("RespondentMobileNumber")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("respondent_mobile_number");
+
                     b.Property<string>("RespondentName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -618,6 +669,11 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("respondent_phone");
+
+                    b.Property<string>("RespondentTelephoneNumber")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("respondent_telephone_number");
 
                     b.Property<string>("RespondentTitle")
                         .IsRequired()
@@ -634,10 +690,22 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("submission_id");
 
+                    b.Property<DateTime?>("ViewedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("viewed_at_utc");
+
+                    b.Property<string>("ViewedByUserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("viewed_by_user_id");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OwnerUserId", "EvidenceRequestId")
                         .HasDatabaseName("ix_quote_evidence_responses_owner_request");
+
+                    b.HasIndex("EvidenceRequestId", "Kind", "ViewedAtUtc")
+                        .HasDatabaseName("ix_quote_evidence_responses_request_kind_viewed_at");
 
                     b.HasIndex("EvidenceRequestId", "RespondedAtUtc", "Id")
                         .HasDatabaseName("ix_quote_evidence_responses_request_responded_at");

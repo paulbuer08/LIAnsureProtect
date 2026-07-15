@@ -7,10 +7,12 @@ using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Application.Quotes.Commands.CreateQuote;
 using LIAnsureProtect.Application.Quotes.Queries.GetOwnedQuoteDetail;
+using LIAnsureProtect.Application.Quotes.Queries.ListOwnedQuoteHistory;
 using LIAnsureProtect.Domain.Quotes;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ApplicationValidationException = LIAnsureProtect.Application.Common.Exceptions.ValidationException;
 
 namespace LIAnsureProtect.Api.Controllers;
@@ -27,6 +29,18 @@ public sealed class SubmissionQuotesController(
 {
     private const string IdempotencyKeyHeaderName = "Idempotency-Key";
     private static readonly JsonSerializerOptions FingerprintJsonOptions = JsonSerializerOptions.Web;
+
+    [HttpGet]
+    [Authorize(Policy = ApplicationPolicies.ReadSubmission)]
+    [ProducesResponseType<OwnedQuoteHistoryResult>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OwnedQuoteHistoryResult>> List(
+        Guid submissionId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new ListOwnedQuoteHistoryQuery(submissionId), cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
 
     [HttpGet("{quoteId:guid}")]
     [Authorize(Policy = ApplicationPolicies.ReadSubmission)]
@@ -54,9 +68,47 @@ public sealed class SubmissionQuotesController(
     [ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<CreateQuoteResult>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ReassessmentReviewQueuedResult>(StatusCodes.Status202Accepted)]
     public async Task<ActionResult<CreateQuoteResult>> Create(
         Guid submissionId,
         CreateQuoteRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.IsReassessment)
+        {
+            return BadRequest(Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Use the reassessment endpoint.",
+                detail: "Start reassessment from the current quote so the dedicated safeguards can be applied."));
+        }
+
+        return await ExecuteCreateAsync(
+            submissionId,
+            request,
+            "/api/v1/submissions/{submissionId}/quotes",
+            cancellationToken);
+    }
+
+    [HttpPost("~/api/v1/submissions/{submissionId:guid}/reassessments")]
+    [Authorize(Policy = ApplicationPolicies.CreateQuote)]
+    [EnableRateLimiting("quote-reassessment-create")]
+    [ProducesResponseType<CreateQuoteResult>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ReassessmentReviewQueuedResult>(StatusCodes.Status202Accepted)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public Task<ActionResult<CreateQuoteResult>> Reassess(
+        Guid submissionId,
+        CreateQuoteRequest request,
+        CancellationToken cancellationToken)
+        => ExecuteCreateAsync(
+            submissionId,
+            request with { IsReassessment = true },
+            "/api/v1/submissions/{submissionId}/reassessments",
+            cancellationToken);
+
+    private async Task<ActionResult<CreateQuoteResult>> ExecuteCreateAsync(
+        Guid submissionId,
+        CreateQuoteRequest request,
+        string routeTemplate,
         CancellationToken cancellationToken)
     {
         var command = new CreateQuoteCommand(
@@ -78,7 +130,8 @@ public sealed class SubmissionQuotesController(
             request.AttestedByName,
             request.AttestedByTitle,
             request.IsReassessment,
-            request.ControlDetails);
+            request.ControlDetails,
+            request.BaseQuoteVersion);
 
         var idempotencyKey = GetIdempotencyKey();
         if (!string.IsNullOrWhiteSpace(idempotencyKey))
@@ -89,7 +142,7 @@ public sealed class SubmissionQuotesController(
                 ApplicationPolicies.CreateQuote,
                 CreateRequestFingerprint(
                     HttpMethods.Post,
-                    "/api/v1/submissions/{submissionId}/quotes",
+                    routeTemplate,
                     new
                     {
                         submissionId,
@@ -120,6 +173,13 @@ public sealed class SubmissionQuotesController(
                         return IdempotencyActionResponse.Json(
                             StatusCodes.Status400BadRequest,
                             CreateValidationProblemDetails(exception));
+                    }
+                    catch (ReassessmentReviewQueuedException exception)
+                    {
+                        return IdempotencyActionResponse.Json(
+                            StatusCodes.Status202Accepted,
+                            exception.Result,
+                            $"/api/v1/submissions/{submissionId}/reassessment-requests/{exception.Result.ReassessmentRequestId}");
                     }
                     catch (BusinessConflictException exception)
                     {
@@ -157,6 +217,12 @@ public sealed class SubmissionQuotesController(
         catch (ApplicationValidationException exception)
         {
             return BadRequest(CreateValidationProblemDetails(exception));
+        }
+        catch (ReassessmentReviewQueuedException exception)
+        {
+            return Accepted(
+                $"/api/v1/submissions/{submissionId}/reassessment-requests/{exception.Result.ReassessmentRequestId}",
+                exception.Result);
         }
         catch (BusinessConflictException exception)
         {
@@ -284,4 +350,5 @@ public sealed record CreateQuoteRequest(
     string? AttestedByName = null,
     string? AttestedByTitle = null,
     bool IsReassessment = false,
-    LIAnsureProtect.Application.Quotes.Assurance.CyberControlDetails? ControlDetails = null);
+    LIAnsureProtect.Application.Quotes.Assurance.CyberControlDetails? ControlDetails = null,
+    int? BaseQuoteVersion = null);

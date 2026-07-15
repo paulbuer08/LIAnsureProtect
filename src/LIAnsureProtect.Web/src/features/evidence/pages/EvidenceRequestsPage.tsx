@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router";
 
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { ConfirmationDialog } from "../../../components/ConfirmationDialog";
+import { FileDropzone } from "../../../components/FileDropzone";
 import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { downloadOwnerEvidenceDocument } from "../api/evidenceRequestsApi";
@@ -20,6 +21,34 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   year: "numeric",
 });
+
+const respondentNameMaxLength = 120;
+const respondentTitleMaxLength = 120;
+const respondentEmailMaxLength = 254;
+const evidenceResponseMaxLength = 4000;
+const otherConcernsMaxLength = 2000;
+
+function compactPhone(value: string) {
+  return value.trim().replace(/[\s()-]/g, "");
+}
+
+function getPhilippineMobileError(value: string) {
+  const compact = compactPhone(value);
+  if (compact.length === 0 || /^(?:09\d{9}|\+?639\d{9})$/.test(compact)) {
+    return undefined;
+  }
+
+  return "Enter a Philippine mobile number such as 09171234567 or +639171234567.";
+}
+
+function getPhilippineTelephoneError(value: string) {
+  const compact = compactPhone(value);
+  if (compact.length === 0 || /^(?:0[2-8]\d{7,8}|\+?63[2-8]\d{7,8})$/.test(compact)) {
+    return undefined;
+  }
+
+  return "Enter a Philippine landline with its area code, such as 02 8123 4567 or +63 2 8123 4567.";
+}
 
 function formatDate(value: string) {
   return dateFormatter.format(new Date(value));
@@ -56,7 +85,14 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
   const [respondentName, setRespondentName] = useState(isPreReviewResponse ? request.respondentName ?? "" : "");
   const [respondentTitle, setRespondentTitle] = useState(isPreReviewResponse ? request.respondentTitle ?? "" : "");
   const [respondentEmail, setRespondentEmail] = useState(isPreReviewResponse ? request.respondentEmail ?? "" : "");
-  const [respondentPhone, setRespondentPhone] = useState(isPreReviewResponse ? request.respondentPhone ?? "" : "");
+  const initialMobileNumber = isPreReviewResponse
+    ? request.respondentMobileNumber ?? request.respondentPhone ?? ""
+    : "";
+  const initialTelephoneNumber = isPreReviewResponse
+    ? request.respondentTelephoneNumber ?? ""
+    : "";
+  const [respondentMobileNumber, setRespondentMobileNumber] = useState(initialMobileNumber);
+  const [respondentTelephoneNumber, setRespondentTelephoneNumber] = useState(initialTelephoneNumber);
   const [responseText, setResponseText] = useState("");
   const [otherConcerns, setOtherConcerns] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -64,6 +100,9 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
   const [savedStatus, setSavedStatus] = useState<string>();
   const [savedDocuments, setSavedDocuments] = useState(request.documents ?? []);
   const [savedResponses, setSavedResponses] = useState(request.responses ?? []);
+  const [pendingFollowUpCount, setPendingFollowUpCount] = useState(
+    request.pendingFollowUpCount ?? 0,
+  );
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const documents = savedDocuments.length > 0 ? savedDocuments : request.documents ?? [];
   const needsSupplementalEvidence =
@@ -71,8 +110,10 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
     request.reviewDecision === "NeedsClarification";
   const isPreReviewFollowUp =
     request.status === "Responded" && request.reviewDecision === "NotReviewed";
+  const isHistoricalQuote = request.quoteDisposition === "Superseded";
   const canSubmitResponse =
-    request.status === "Open" || isPreReviewFollowUp || needsSupplementalEvidence;
+    !isHistoricalQuote &&
+    (request.status === "Open" || isPreReviewFollowUp || needsSupplementalEvidence);
   const canUploadReplacement = documents.some(
     (document) => document.scanStatus === "Rejected" || document.scanStatus === "Failed",
   );
@@ -81,14 +122,36 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
   const documentRequirement = request.documentRequirement ?? "Optional";
   const requiresDocumentForThisResponse =
     documentRequirement === "Required" && !isPreReviewFollowUp;
+  const hasContactChange =
+    respondentName.trim() !== (request.respondentName ?? "").trim() ||
+    respondentTitle.trim() !== (request.respondentTitle ?? "").trim() ||
+    respondentEmail.trim().toLowerCase() !==
+      (request.respondentEmail ?? "").trim().toLowerCase() ||
+    respondentMobileNumber.trim() !== initialMobileNumber.trim() ||
+    respondentTelephoneNumber.trim() !== initialTelephoneNumber.trim();
   const hasFollowUpContent =
+    hasContactChange ||
     responseText.trim().length > 0 ||
     otherConcerns.trim().length > 0 ||
     attachments.length > 0;
+  const respondentEmailError =
+    respondentEmail.trim().length > 0 &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(respondentEmail.trim())
+      ? "Enter a valid email address, such as name@example.com."
+      : undefined;
+  const respondentMobileError = getPhilippineMobileError(respondentMobileNumber);
+  const respondentTelephoneError = getPhilippineTelephoneError(
+    respondentTelephoneNumber,
+  );
   const hasRequiredRespondentDetails =
     respondentName.trim().length > 0 &&
     respondentTitle.trim().length > 0 &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(respondentEmail.trim());
+    respondentEmail.trim().length > 0 &&
+    respondentEmailError === undefined &&
+    respondentMobileError === undefined &&
+    respondentTelephoneError === undefined;
+  const maxPendingFollowUps = request.maxPendingFollowUps ?? 5;
+  const hasFollowUpCapacity = pendingFollowUpCount < maxPendingFollowUps;
   const hasRequiredNarrative =
     isPreReviewFollowUp || responseText.trim().length > 0;
 
@@ -96,7 +159,8 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
     setRespondentName("");
     setRespondentTitle("");
     setRespondentEmail("");
-    setRespondentPhone("");
+    setRespondentMobileNumber("");
+    setRespondentTelephoneNumber("");
     setResponseText("");
     setOtherConcerns("");
     setAttachments([]);
@@ -110,7 +174,8 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
       respondentName,
       respondentTitle,
       respondentEmail,
-      respondentPhone,
+      respondentMobileNumber,
+      respondentTelephoneNumber,
       responseText,
       otherConcerns,
     ].some(
@@ -143,7 +208,8 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
         respondentName: respondentName.trim(),
         respondentTitle: respondentTitle.trim(),
         respondentEmail: respondentEmail.trim(),
-        respondentPhone: respondentPhone.trim() || null,
+        respondentMobileNumber: respondentMobileNumber.trim() || null,
+        respondentTelephoneNumber: respondentTelephoneNumber.trim() || null,
         responseText: responseText.trim() || null,
         otherConcerns: otherConcerns.trim() || null,
         attachments,
@@ -153,6 +219,7 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
     setSavedStatus(result.status);
     setSavedDocuments(result.documents ?? []);
     setSavedResponses(result.responses ?? []);
+    setPendingFollowUpCount(result.pendingFollowUpCount ?? pendingFollowUpCount);
     setResponseText("");
     setOtherConcerns("");
     setAttachments([]);
@@ -209,12 +276,24 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
       </dl>
 
       <p className="mt-4 text-sm text-slate-300">{request.description}</p>
-      <p className="mt-3 rounded-md border border-sky-800 bg-sky-950/30 p-3 text-sm text-sky-100">
-        Document requirement: <strong>{documentRequirement === "NarrativeOnly" ? "Written response only" : documentRequirement}</strong>.
-        {documentRequirement === "Required" && " The first response and any requested remediation must include at least one supporting file. You may add a later pre-review follow-up without repeating a file."}
-        {documentRequirement === "Optional" && " A document may be attached when it helps underwriting validate the response. Your named contact and written explanation support human follow-up, but neither automatically proves the control."}
-        {documentRequirement === "NarrativeOnly" && " Underwriting will evaluate the named contact and written explanation; the response is still an assertion until a reviewer validates it."}
-      </p>
+      {isHistoricalQuote && (
+        <aside className="mt-4 rounded-md border border-slate-700 bg-slate-950 p-4 text-sm leading-6 text-slate-300">
+          <p className="font-semibold text-slate-100">Historical evidence request · Quote version {request.quoteVersion ?? "earlier"}</p>
+          <p className="mt-1">A later quote superseded this request. Its responses and documents remain readable for audit history, but no further response or underwriting decision can be added here.</p>
+          {request.supersededByQuoteId && (
+            <Link className="mt-2 inline-flex font-semibold text-sky-300 underline" to={`/submissions/${request.submissionId}/quotes/${request.supersededByQuoteId}`}>
+              View replacement quote{request.supersededByQuoteVersion ? ` version ${request.supersededByQuoteVersion}` : ""}
+            </Link>
+          )}
+        </aside>
+      )}
+      {documentRequirement !== "Optional" && (
+        <p className="mt-3 rounded-md border border-sky-800 bg-sky-950/30 p-3 text-sm text-sky-100">
+          Document requirement: <strong>{documentRequirement === "NarrativeOnly" ? "Written response only" : documentRequirement}</strong>.
+          {documentRequirement === "Required" && " The first response and any requested remediation must include at least one supporting file. You may add a later pre-review follow-up without repeating a file."}
+          {documentRequirement === "NarrativeOnly" && " Underwriting will evaluate the named contact and written explanation; the response is still an assertion until a reviewer validates it."}
+        </p>
+      )}
 
       <section className="mt-4 rounded-md border border-slate-800 bg-slate-950 p-4 text-sm">
         <div className="flex flex-wrap items-center gap-2">
@@ -249,7 +328,11 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
           <p className="mt-1 text-xs text-slate-400">
             Each submitted response is retained as audit history. A follow-up adds a new entry and never replaces an earlier answer.
           </p>
-          <ol className="mt-3 space-y-3">
+          <ol
+            aria-label="Response history entries"
+            tabIndex={0}
+            className="mt-3 max-h-80 space-y-3 overflow-y-auto pr-2 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          >
             {savedResponses.map((response) => (
               <li key={response.responseId} className="rounded-md border border-slate-800 p-3 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -258,7 +341,9 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
                 </div>
                 <p className="mt-2 text-slate-300">
                   {response.respondentName} · {response.respondentTitle} · {response.respondentEmail}
-                  {response.respondentPhone ? ` · ${response.respondentPhone}` : ""}
+                  {response.respondentMobileNumber ? ` · Mobile ${response.respondentMobileNumber}` : ""}
+                  {response.respondentTelephoneNumber ? ` · Telephone ${response.respondentTelephoneNumber}` : ""}
+                  {!response.respondentMobileNumber && !response.respondentTelephoneNumber && response.respondentPhone ? ` · Contact ${response.respondentPhone}` : ""}
                 </p>
                 {response.responseText && <p className="mt-2 whitespace-pre-wrap text-slate-200">{response.responseText}</p>}
                 {response.otherConcerns && (
@@ -304,14 +389,17 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
       {canSubmitResponse && (
         <form className="mt-5 space-y-4" onSubmit={handleRespond} noValidate>
           {isPreReviewFollowUp && (
-            <p className="rounded-md border border-emerald-800 bg-emerald-950/30 p-3 text-sm text-emerald-100">
-              Underwriting has not reviewed this request yet. You may add a message, concern, or supporting file; the original response remains unchanged.
-            </p>
+            <div className="rounded-md border border-emerald-800 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+              <p>Underwriting has not reviewed this request yet. You may correct contact details or add a message, concern, or supporting file; the original response remains unchanged.</p>
+              <p className="mt-2 font-semibold">Unread follow-ups: {pendingFollowUpCount} of {maxPendingFollowUps}</p>
+              {!hasFollowUpCapacity && <p className="mt-2 text-amber-200">The current limit is reached. You can send another follow-up after an underwriter opens one of the pending entries.</p>}
+            </div>
           )}
           <label className="block text-sm font-medium text-slate-200">
             Respondent name
             <input
               required
+              maxLength={respondentNameMaxLength}
               value={respondentName}
               onChange={(event) => setRespondentName(event.target.value)}
               className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
@@ -321,6 +409,7 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
             Respondent title
             <input
               required
+              maxLength={respondentTitleMaxLength}
               value={respondentTitle}
               onChange={(event) => setRespondentTitle(event.target.value)}
               className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
@@ -331,58 +420,90 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
             <input
               required
               type="email"
+              maxLength={respondentEmailMaxLength}
               value={respondentEmail}
               onChange={(event) => setRespondentEmail(event.target.value)}
-              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+              aria-invalid={respondentEmailError !== undefined}
+              aria-describedby={`respondent-email-help-${request.evidenceRequestId}`}
+              className={`mt-2 w-full rounded-lg border bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400 ${respondentEmailError ? "border-red-500" : "border-slate-700"}`}
             />
-            <span className="mt-2 block text-xs text-slate-400">Underwriting may use this address to verify the response. It is not treated as proof by itself.</span>
+            <span id={`respondent-email-help-${request.evidenceRequestId}`} className={`mt-2 block text-xs ${respondentEmailError ? "text-red-300" : "text-slate-400"}`}>
+              {respondentEmailError ?? "Underwriting may use this address to verify the response. It is not treated as proof by itself."}
+            </span>
           </label>
           <label className="block text-sm font-medium text-slate-200">
-            Respondent phone (optional)
+            Respondent mobile number (optional)
             <input
               type="tel"
-              value={respondentPhone}
-              onChange={(event) => setRespondentPhone(event.target.value)}
-              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+              inputMode="tel"
+              maxLength={24}
+              placeholder="0917 123 4567 or +63 917 123 4567"
+              value={respondentMobileNumber}
+              onChange={(event) => setRespondentMobileNumber(event.target.value)}
+              aria-invalid={respondentMobileError !== undefined}
+              aria-describedby={`respondent-mobile-help-${request.evidenceRequestId}`}
+              className={`mt-2 w-full rounded-lg border bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400 ${respondentMobileError ? "border-red-500" : "border-slate-700"}`}
             />
+            <span id={`respondent-mobile-help-${request.evidenceRequestId}`} className={`mt-2 block text-xs ${respondentMobileError ? "text-red-300" : "text-slate-400"}`}>
+              {respondentMobileError ?? "Philippine mobile numbers use 11 domestic digits beginning with 09, or country code +63 followed by 10 digits beginning with 9."}
+            </span>
+          </label>
+          <label className="block text-sm font-medium text-slate-200">
+            Respondent telephone number (optional)
+            <input
+              type="tel"
+              inputMode="tel"
+              maxLength={24}
+              placeholder="02 8123 4567 or +63 2 8123 4567"
+              value={respondentTelephoneNumber}
+              onChange={(event) => setRespondentTelephoneNumber(event.target.value)}
+              aria-invalid={respondentTelephoneError !== undefined}
+              aria-describedby={`respondent-telephone-help-${request.evidenceRequestId}`}
+              className={`mt-2 w-full rounded-lg border bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400 ${respondentTelephoneError ? "border-red-500" : "border-slate-700"}`}
+            />
+            <span id={`respondent-telephone-help-${request.evidenceRequestId}`} className={`mt-2 block text-xs ${respondentTelephoneError ? "text-red-300" : "text-slate-400"}`}>
+              {respondentTelephoneError ?? "Include the Philippine area code. Metro Manila commonly uses 02 domestically or +63 2 internationally."}
+            </span>
           </label>
           <label className="block text-sm font-medium text-slate-200">
             Evidence response
             <textarea
               required={!isPreReviewFollowUp}
+              maxLength={evidenceResponseMaxLength}
               value={responseText}
               onChange={(event) => setResponseText(event.target.value)}
               className="mt-2 min-h-24 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
             />
             {isPreReviewFollowUp && <span className="mt-2 block text-xs text-slate-400">Optional for a follow-up when you add a concern or file instead.</span>}
+            <span className="mt-1 block text-right text-xs text-slate-500">{responseText.length}/{evidenceResponseMaxLength}</span>
           </label>
           <label className="block text-sm font-medium text-slate-200">
             Other concerns (optional)
             <textarea
               value={otherConcerns}
+              maxLength={otherConcernsMaxLength}
               onChange={(event) => setOtherConcerns(event.target.value)}
               className="mt-2 min-h-20 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
             />
             <span className="mt-2 block text-xs text-slate-400">Use this for context, caveats, or questions that do not belong in the main evidence explanation.</span>
+            <span className="mt-1 block text-right text-xs text-slate-500">{otherConcerns.length}/{otherConcernsMaxLength}</span>
           </label>
-          {documentRequirement !== "NarrativeOnly" && <label className="block text-sm font-medium text-slate-200">
-            Evidence files
-            <input
-              aria-label="Evidence files"
-              required={requiresDocumentForThisResponse}
-              multiple
-              type="file"
+          {documentRequirement !== "NarrativeOnly" && (
+            <FileDropzone
+              label="Evidence files"
+              description="Upload up to 5 files. Supported formats: PDF, PNG, JPEG, TXT, CSV, DOCX, and XLSX."
               accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.docx,.xlsx"
-              onChange={(event) =>
-                setAttachments(Array.from(event.target.files ?? []))
-              }
-              className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none file:mr-4 file:rounded-md file:border-0 file:bg-emerald-400 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-950 focus:border-emerald-400"
+              files={attachments}
+              onFilesChange={setAttachments}
+              required={requiresDocumentForThisResponse}
+              disabled={respondToEvidenceRequest.isPending}
             />
-            <span className="mt-2 block text-xs text-slate-400">
-              Upload up to 5 files. Supported formats: PDF, PNG, JPEG, TXT, CSV,
-              DOCX, and XLSX.
-            </span>
-          </label>}
+          )}
+          {(respondentEmailError || respondentMobileError || respondentTelephoneError) && (
+            <p role="alert" className="rounded-md border border-red-800 bg-red-950/50 p-3 text-sm text-red-200">
+              Correct the highlighted contact details before submitting this evidence response.
+            </p>
+          )}
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
@@ -391,7 +512,7 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
                 !hasRequiredRespondentDetails ||
                 !hasRequiredNarrative ||
                 (requiresDocumentForThisResponse && attachments.length === 0) ||
-                (isPreReviewFollowUp && !hasFollowUpContent)
+                (isPreReviewFollowUp && (!hasFollowUpContent || !hasFollowUpCapacity))
               }
               className="rounded-lg bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
             >
@@ -437,7 +558,7 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
                         document.originalFileName,
                       )
                     }
-                    className="font-semibold text-emerald-300 hover:text-emerald-200"
+                    className="cursor-pointer font-semibold text-emerald-300 hover:text-emerald-200"
                   >
                     Download {document.originalFileName}
                   </button>
@@ -469,22 +590,22 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
           </ul>
           {canUploadReplacement && (
             <form className="mt-4 space-y-3" onSubmit={handleReplacementUpload}>
-              <label className="block text-sm font-medium text-slate-200">
-                Replacement evidence files
-                <input
-                  aria-label="Replacement evidence files"
-                  multiple
-                  type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.docx,.xlsx"
-                  onChange={(event) =>
-                    setReplacementAttachments(Array.from(event.target.files ?? []))
-                  }
-                  className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none file:mr-4 file:rounded-md file:border-0 file:bg-amber-300 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-950 focus:border-amber-300"
-                />
-              </label>
+              <FileDropzone
+                label="Replacement evidence files"
+                description="Upload up to 5 clean replacement files in PDF, PNG, JPEG, TXT, CSV, DOCX, or XLSX format."
+                accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.docx,.xlsx"
+                files={replacementAttachments}
+                onFilesChange={setReplacementAttachments}
+                disabled={uploadReplacementEvidenceDocuments.isPending}
+                tone="amber"
+              />
               <button
                 type="submit"
-                className="rounded-lg bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-200"
+                disabled={
+                  uploadReplacementEvidenceDocuments.isPending ||
+                  replacementAttachments.length === 0
+                }
+                className="rounded-lg bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
               >
                 Upload replacement evidence
               </button>
@@ -503,6 +624,7 @@ export function EvidenceRequestsPage() {
   const [category, setCategory] = useState("");
   const [reviewDecision, setReviewDecision] = useState("");
   const [documentRequirement, setDocumentRequirement] = useState("");
+  const [quoteDisposition, setQuoteDisposition] = useState<"Current" | "Superseded" | "All">("Current");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [cursor, setCursor] = useState<string>();
   const [cursorHistory, setCursorHistory] = useState<Array<string | undefined>>([]);
@@ -512,6 +634,7 @@ export function EvidenceRequestsPage() {
     category: category || undefined,
     reviewDecision: reviewDecision || undefined,
     documentRequirement: documentRequirement || undefined,
+    quoteDisposition,
     overdue: overdueOnly || undefined,
     cursor,
     pageSize: 12,
@@ -556,7 +679,8 @@ export function EvidenceRequestsPage() {
 
         <form className="mt-6 grid gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4 md:grid-cols-2 lg:grid-cols-3" onSubmit={(event) => { event.preventDefault(); setAppliedSearch(search.trim()); resetPage(); }}>
           <label className="text-sm font-semibold text-slate-200 lg:col-span-2">Search your evidence requests<input className="mt-2 block min-h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-white" placeholder="Request, company, submission reference, or exact ID" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-          <div className="flex items-end gap-3"><button className="min-h-10 rounded-md bg-emerald-400 px-4 font-semibold text-slate-950" type="submit">Search</button><button className="min-h-10 rounded-md border border-slate-600 px-4 font-semibold" type="button" onClick={() => { setSearch(""); setAppliedSearch(""); setStatus(""); setCategory(""); setReviewDecision(""); setDocumentRequirement(""); setOverdueOnly(false); resetPage(); }}>Clear</button></div>
+          <div className="flex items-end gap-3"><button className="min-h-10 rounded-md bg-emerald-400 px-4 font-semibold text-slate-950" type="submit">Search</button><button className="min-h-10 rounded-md border border-slate-600 px-4 font-semibold" type="button" onClick={() => { setSearch(""); setAppliedSearch(""); setStatus(""); setCategory(""); setReviewDecision(""); setDocumentRequirement(""); setQuoteDisposition("Current"); setOverdueOnly(false); resetPage(); }}>Clear</button></div>
+          <label className="text-sm font-semibold text-slate-200">Quote history<select value={quoteDisposition} onChange={(event) => { setQuoteDisposition(event.target.value as "Current" | "Superseded" | "All"); resetPage(); }} className="mt-2 block min-h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-white"><option value="Current">Current quote only</option><option value="Superseded">Historical quotes only</option><option value="All">Current and historical</option></select></label>
           <label className="text-sm font-semibold text-slate-200">
             Status
             <select
@@ -622,7 +746,7 @@ export function EvidenceRequestsPage() {
             {evidenceRequests.map((request: EvidenceRequestSummary) => (
               <article
                 key={request.evidenceRequestId}
-                className="rounded-lg border border-slate-800 bg-slate-900 p-5"
+                className={`rounded-lg border p-5 ${request.quoteDisposition === "Superseded" ? "border-slate-800 bg-slate-900/60" : "border-slate-800 bg-slate-900"}`}
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -632,6 +756,7 @@ export function EvidenceRequestsPage() {
                       {request.companyName ?? "Company"} · {request.submissionReference ?? request.submissionId} · {request.category}
                     </p>
                     <p className="mt-2 text-xs font-semibold text-sky-200">Documents: {request.documentRequirement === "NarrativeOnly" ? "Written response only" : request.documentRequirement ?? "Required"}</p>
+                    <p className="mt-2 text-xs font-semibold text-slate-300">Quote version {request.quoteVersion ?? 1} · {request.quoteDisposition === "Superseded" ? "Historical" : "Current"}</p>
                   </div>
                   <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
                     <span className="rounded-md border border-amber-700 px-3 py-1 text-xs font-semibold text-amber-200">
@@ -651,7 +776,7 @@ export function EvidenceRequestsPage() {
                   to={`/evidence-requests/${request.evidenceRequestId}`}
                   className="mt-4 inline-flex rounded-md border border-emerald-400/60 px-4 py-2 text-sm font-semibold text-emerald-200 hover:bg-emerald-400 hover:text-slate-950"
                 >
-                  Open evidence request
+                  {request.quoteDisposition === "Superseded" ? "View historical request" : "Open evidence request"}
                 </Link>
               </article>
             ))}

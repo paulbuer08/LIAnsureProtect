@@ -16,6 +16,7 @@ import type {
   QuoteReferralTimelineResponse,
   QuoteReferralTriageRequest,
   RecordQuoteEvidenceReviewDecisionRequest,
+  ReassessmentRequest,
   ReviewQuoteEvidenceRequest,
   UnderwriteQuoteReferralResult,
 } from "../types";
@@ -272,6 +273,47 @@ export async function getQuoteEvidenceRequest(
   return parseJsonResponse<QuoteEvidenceRequest>(
     response,
     "Evidence request was not found.",
+  );
+}
+
+export async function listReassessmentRequests(accessToken: string, status = "Pending") {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/reassessment-requests?status=${encodeURIComponent(status)}`,
+    { headers: authHeaders(accessToken) },
+  );
+  return parseJsonResponse<ReassessmentRequest[]>(response, "Reassessment review queue was not found.");
+}
+
+export async function reviewReassessmentRequest(
+  accessToken: string,
+  reassessmentRequestId: string,
+  decision: "approve" | "decline",
+  reason: string,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/reassessment-requests/${reassessmentRequestId}/${decision}`,
+    { method: "POST", headers: jsonHeaders(accessToken), body: JSON.stringify({ reason }) },
+  );
+  return parseJsonResponse<ReassessmentRequest>(response, "Reassessment request was not found.");
+}
+
+export async function markQuoteEvidenceFollowUpViewed(
+  accessToken: string,
+  quoteId: string,
+  evidenceRequestId: string,
+  responseId: string,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/underwriting/quote-referrals/${quoteId}/evidence-requests/${evidenceRequestId}/responses/${responseId}/view`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+    },
+  );
+
+  return parseJsonResponse<QuoteEvidenceRequest>(
+    response,
+    "Evidence follow-up was not found.",
   );
 }
 

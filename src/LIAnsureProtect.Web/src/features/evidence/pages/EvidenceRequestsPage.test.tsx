@@ -11,6 +11,7 @@ import {
   uploadReplacementEvidenceDocuments,
 } from "../api/evidenceRequestsApi";
 import { useEvidenceRequest } from "../hooks/useEvidenceRequests";
+import type { QuoteEvidenceRequest } from "../types";
 import { EvidenceRequestCard } from "./EvidenceRequestsPage";
 
 const getAccessTokenSilently = vi.fn();
@@ -188,8 +189,25 @@ describe("EvidenceRequestsPage", () => {
     await user.type(screen.getByLabelText("Respondent name"), "Jane Applicant");
     await user.type(screen.getByLabelText("Respondent title"), "CISO");
     await user.type(screen.getByLabelText(/Respondent email/), "jane@example.com");
+    const mobileInput = screen.getByLabelText(/^Respondent mobile number/);
+    const telephoneInput = screen.getByLabelText(/^Respondent telephone number/);
+    await user.type(mobileInput, "not-a-mobile");
+    await user.type(telephoneInput, "not-a-landline");
+    expect(mobileInput).toHaveAttribute("aria-invalid", "true");
+    expect(telephoneInput).toHaveAttribute("aria-invalid", "true");
+    expect(
+      screen.getByText(/enter a Philippine mobile number such as/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/enter a Philippine landline with its area code/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/correct the highlighted contact details/i),
+    ).toBeInTheDocument();
+    await user.clear(mobileInput);
+    await user.clear(telephoneInput);
     await user.type(
-      screen.getByLabelText("Evidence response"),
+      screen.getByLabelText(/^Evidence response/),
       "MFA is enforced for all email and privileged accounts.",
     );
     await user.upload(screen.getByLabelText("Evidence files"), [mfaFile, edrFile]);
@@ -202,7 +220,8 @@ describe("EvidenceRequestsPage", () => {
         respondentName: "Jane Applicant",
         respondentTitle: "CISO",
         respondentEmail: "jane@example.com",
-        respondentPhone: null,
+        respondentMobileNumber: null,
+        respondentTelephoneNumber: null,
         responseText: "MFA is enforced for all email and privileged accounts.",
         otherConcerns: null,
         attachments: [mfaFile, edrFile],
@@ -545,7 +564,7 @@ describe("EvidenceRequestsPage", () => {
     await user.type(screen.getByLabelText("Respondent title"), "CISO");
     await user.type(screen.getByLabelText(/Respondent email/), "jane@example.com");
     await user.type(
-      screen.getByLabelText("Evidence response"),
+      screen.getByLabelText(/^Evidence response/),
       "Supplemental response: MFA applies to email and privileged accounts.",
     );
     await user.click(screen.getByRole("button", { name: "Submit remediation evidence" }));
@@ -557,7 +576,8 @@ describe("EvidenceRequestsPage", () => {
         respondentName: "Jane Applicant",
         respondentTitle: "CISO",
         respondentEmail: "jane@example.com",
-        respondentPhone: null,
+        respondentMobileNumber: null,
+        respondentTelephoneNumber: null,
         responseText: "Supplemental response: MFA applies to email and privileged accounts.",
         otherConcerns: null,
         attachments: [],
@@ -566,7 +586,7 @@ describe("EvidenceRequestsPage", () => {
     expect(await screen.findByText("Evidence response saved: Responded")).toBeInTheDocument();
   });
 
-  it("allows an auditable concern-only follow-up before underwriting review", async () => {
+  it("allows an auditable mobile-number-only follow-up before underwriting review", async () => {
     const user = userEvent.setup();
     const respondedRequest = {
       evidenceRequestId: "evidence-follow-up",
@@ -589,6 +609,8 @@ describe("EvidenceRequestsPage", () => {
       respondentTitle: "CISO",
       respondentEmail: "jane@example.com",
       respondentPhone: null,
+      respondentMobileNumber: null,
+      respondentTelephoneNumber: null,
       responseText: "Backups are tested quarterly.",
       otherConcerns: null,
       attachmentFileName: "backup-report.pdf",
@@ -611,6 +633,8 @@ describe("EvidenceRequestsPage", () => {
           respondentTitle: "CISO",
           respondentEmail: "jane@example.com",
           respondentPhone: null,
+          respondentMobileNumber: null,
+          respondentTelephoneNumber: null,
           responseText: "Backups are tested quarterly.",
           otherConcerns: null,
           kind: "Initial" as const,
@@ -621,8 +645,8 @@ describe("EvidenceRequestsPage", () => {
     vi.mocked(getEvidenceRequest).mockResolvedValue(respondedRequest);
     vi.mocked(respondToEvidenceRequest).mockResolvedValue({
       ...respondedRequest,
-      respondentPhone: "+63 917 555 0101",
-      otherConcerns: "The restore-test export will be available tomorrow.",
+      respondentMobileNumber: "+639175550101",
+      pendingFollowUpCount: 1,
       responses: [
         ...respondedRequest.responses,
         {
@@ -631,9 +655,11 @@ describe("EvidenceRequestsPage", () => {
           respondentName: "Jane Applicant",
           respondentTitle: "CISO",
           respondentEmail: "jane@example.com",
-          respondentPhone: "+63 917 555 0101",
+          respondentPhone: null,
+          respondentMobileNumber: "+639175550101",
+          respondentTelephoneNumber: null,
           responseText: null,
-          otherConcerns: "The restore-test export will be available tomorrow.",
+          otherConcerns: null,
           kind: "FollowUp",
           respondedAtUtc: "2026-07-14T11:00:00Z",
         },
@@ -644,11 +670,11 @@ describe("EvidenceRequestsPage", () => {
 
     expect(await screen.findByRole("button", { name: "Send follow-up" })).toBeDisabled();
     expect(screen.getByText(/original response remains unchanged/i)).toBeInTheDocument();
-    await user.type(screen.getByLabelText("Respondent phone (optional)"), "+63 917 555 0101");
     await user.type(
-      screen.getByLabelText(/Other concerns/),
-      "The restore-test export will be available tomorrow.",
+      screen.getByLabelText(/^Respondent mobile number/),
+      "+63 917 555 0101",
     );
+    expect(screen.getByRole("button", { name: "Send follow-up" })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "Send follow-up" }));
 
     expect(respondToEvidenceRequest).toHaveBeenCalledWith(
@@ -658,12 +684,75 @@ describe("EvidenceRequestsPage", () => {
         respondentName: "Jane Applicant",
         respondentTitle: "CISO",
         respondentEmail: "jane@example.com",
-        respondentPhone: "+63 917 555 0101",
+        respondentMobileNumber: "+63 917 555 0101",
+        respondentTelephoneNumber: null,
         responseText: null,
-        otherConcerns: "The restore-test export will be available tomorrow.",
+        otherConcerns: null,
         attachments: [],
       },
     );
     expect(await screen.findByText("FollowUp response")).toBeInTheDocument();
+  });
+
+  it("lets a Required evidence follow-up use new narrative without another file", async () => {
+    const user = userEvent.setup();
+    const respondedRequest: QuoteEvidenceRequest = {
+      evidenceRequestId: "evidence-required-follow-up",
+      quoteId: "quote-1",
+      submissionId: "submission-1",
+      submissionReference: "SUB-2026-ABCDEF1234567890",
+      companyName: "Example Company",
+      documentRequirement: "Required" as const,
+      category: "MultiFactorAuthentication",
+      title: "Verify multi-factor authentication",
+      description: "Provide current MFA evidence.",
+      dueAtUtc: "2026-07-28T09:00:00Z",
+      status: "Responded",
+      isOverdue: false,
+      daysUntilDue: 14,
+      requestedByUserId: "system-assurance-policy",
+      requestedAtUtc: "2026-07-14T09:00:00Z",
+      respondedByUserId: "customer-1",
+      respondentName: "Jane Applicant",
+      respondentTitle: "CISO",
+      respondentEmail: "jane@example.com",
+      respondentPhone: null,
+      responseText: "The original response included the required document.",
+      otherConcerns: null,
+      attachmentFileName: null,
+      attachmentContentType: null,
+      attachmentSizeBytes: null,
+      respondedAtUtc: "2026-07-14T10:00:00Z",
+      acceptedByUserId: null,
+      acceptedAtUtc: null,
+      cancelledByUserId: null,
+      cancelledAtUtc: null,
+      ...notReviewedEvidence,
+      reviewNotes: null,
+      updatedAtUtc: "2026-07-14T10:00:00Z",
+      documents: [],
+      responses: [],
+    };
+    vi.mocked(getEvidenceRequest).mockResolvedValue(respondedRequest);
+    vi.mocked(respondToEvidenceRequest).mockResolvedValue(respondedRequest);
+
+    renderEvidenceRequestsPage();
+
+    const button = await screen.findByRole("button", { name: "Send follow-up" });
+    await user.type(
+      screen.getByLabelText(/^Evidence response/),
+      "MFA coverage now includes the remaining service accounts.",
+    );
+    expect(button).toBeEnabled();
+    await user.click(button);
+
+    expect(respondToEvidenceRequest).toHaveBeenCalledWith(
+      "owner-token",
+      "evidence-required-follow-up",
+      expect.objectContaining({
+        responseText: "MFA coverage now includes the remaining service accounts.",
+        attachments: [],
+      }),
+    );
   });
 });

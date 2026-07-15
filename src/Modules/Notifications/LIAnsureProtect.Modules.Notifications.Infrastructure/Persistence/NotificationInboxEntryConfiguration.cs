@@ -62,6 +62,17 @@ public sealed class NotificationInboxEntryConfiguration : IEntityTypeConfigurati
         builder.Property(entry => entry.ReadAtUtc)
             .HasColumnName("read_at_utc");
 
+        builder.Property(entry => entry.LifecycleState)
+            .HasColumnName("lifecycle_state")
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasDefaultValue(NotificationLifecycleState.Active)
+            .IsRequired();
+        builder.Property(entry => entry.HistoricalAtUtc).HasColumnName("historical_at_utc");
+        builder.Property(entry => entry.HistoricalReason).HasColumnName("historical_reason").HasMaxLength(500);
+        builder.Property(entry => entry.ReplacementQuoteId).HasColumnName("replacement_quote_id");
+        builder.Property(entry => entry.ReplacementQuoteVersion).HasColumnName("replacement_quote_version");
+
         // One inbox entry per source outbox message -> dispatcher retries stay idempotent.
         builder.HasIndex(entry => entry.SourceOutboxMessageId)
             .IsUnique()
@@ -70,5 +81,8 @@ public sealed class NotificationInboxEntryConfiguration : IEntityTypeConfigurati
         // Fast "my inbox" and "my unread count" reads.
         builder.HasIndex(entry => new { entry.RecipientUserId, entry.ReadAtUtc })
             .HasDatabaseName("ix_notification_inbox_entries_recipient_read");
+
+        builder.HasIndex(entry => new { entry.RecipientUserId, entry.LifecycleState, entry.ReadAtUtc })
+            .HasDatabaseName("ix_notification_inbox_entries_recipient_lifecycle_read");
     }
 }

@@ -42,6 +42,12 @@ and see when a quote is provisional. Required evidence is created through the tr
 reviewed by Underwriting, and must be satisfied before acceptance. Pre-acceptance improvements use
 immutable quote reassessment versions; automated document findings remain advisory.
 
+Quote reassessment history is now governed rather than merely accumulated: exactly one pre-contract
+Quote version is current, earlier Quote/Evidence/Notification records remain immutable history, and
+resource safeguards can queue excess reassessments for human Underwriter approval without calling the
+rating provider. See the [design](docs/dev/quote-supersession-and-reassessment-governance-design.md) and
+[implementation learnings](docs/dev/quote-supersession-and-reassessment-governance-learnings.md).
+
 The latest product-hardening branch makes that journey precise and supportable: customer pages
 never print raw API JSON or internal exception text; reassessment can be cancelled; evidence requests
 use paged summaries and exact detail routes; quote/evidence notifications identify and open their exact
@@ -66,6 +72,14 @@ the Worker commits the inbox projection; PostgreSQL remains authoritative. API a
 explicit shared Npgsql pool limits instead of hidden per-context defaults. See the
 [design](docs/dev/evidence-response-follow-up-and-notification-context-design.md) and
 [implementation learnings](docs/dev/evidence-response-follow-up-and-notification-context-learnings.md).
+
+The current manual-test follow-up keeps Quote versions nested under their Submission but makes the exact
+version reachable from Submission detail. Confirmation-dialog explanations now start behind an accessible
+**More details** disclosure. Evidence contacts distinguish Philippine mobile and telephone numbers, enforce
+server-side format and length rules, and allow contact-only corrections as append-only follow-ups. Owners may
+have five currently unread follow-ups; opening an exact entry in the Underwriting workbench records an audited,
+idempotent acknowledgement and restores one slot. See the
+[follow-up governance learnings](docs/dev/evidence-follow-up-governance-and-quote-navigation-learnings.md).
 
 - The story of every milestone: [**The Build History**](docs/build-history.md)
 - The precise current state: [Project Status](docs/project-status.md) · [Changelog](CHANGELOG.md)

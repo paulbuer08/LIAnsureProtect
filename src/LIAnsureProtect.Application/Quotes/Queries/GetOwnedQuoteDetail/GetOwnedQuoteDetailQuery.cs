@@ -23,7 +23,8 @@ public sealed record OwnedQuoteDetailResult(
     string AssuranceStatus,
     int EvidenceRequiredCount,
     int EvidenceSatisfiedCount,
-    IReadOnlyList<OwnedQuoteControlAssertionResult> ControlAssertions);
+    IReadOnlyList<OwnedQuoteControlAssertionResult> ControlAssertions,
+    DateTime? SupersededAtUtc);
 
 public sealed record OwnedQuoteControlAssertionResult(
     string ControlType,
@@ -77,7 +78,8 @@ public sealed class GetOwnedQuoteDetailQueryHandler(
                         item.AssuranceState.ToString(),
                         item.EvidenceRequired,
                         item.EvidenceReason,
-                        item.DetailsJson)).ToList());
+                        item.DetailsJson)).ToList(),
+                quote.SupersededAtUtc);
     }
 
     private static string[] SplitLines(string value) =>

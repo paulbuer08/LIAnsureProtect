@@ -12,4 +12,5 @@ public sealed record QuoteGeneratedDomainEvent(
     decimal Premium = 0,
     DateTime? ExpiresAtUtc = null,
     string? SubmissionReference = null,
-    string? CompanyName = null) : IDomainEvent;
+    string? CompanyName = null,
+    Guid? SupersedesQuoteId = null) : IDomainEvent;

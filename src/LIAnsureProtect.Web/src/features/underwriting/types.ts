@@ -123,6 +123,8 @@ export type QuoteEvidenceRequest = {
   respondentTitle: string | null;
   respondentEmail?: string | null;
   respondentPhone?: string | null;
+  respondentMobileNumber?: string | null;
+  respondentTelephoneNumber?: string | null;
   responseText: string | null;
   otherConcerns?: string | null;
   attachmentFileName: string | null;
@@ -142,6 +144,29 @@ export type QuoteEvidenceRequest = {
   updatedAtUtc: string;
   documents?: QuoteEvidenceDocument[];
   responses?: QuoteEvidenceResponse[];
+  pendingFollowUpCount?: number;
+  maxPendingFollowUps?: number;
+  quoteVersion?: number;
+  quoteDisposition?: "Current" | "Superseded";
+  supersededAtUtc?: string | null;
+  supersededByQuoteId?: string | null;
+  supersededByQuoteVersion?: number | null;
+};
+
+export type ReassessmentRequest = {
+  reassessmentRequestId: string;
+  submissionId: string;
+  baseQuoteId: string;
+  baseQuoteVersion: number;
+  status: "Pending" | "Approved" | "Declined" | "Stale";
+  submissionReference: string;
+  companyName: string;
+  requestedAtUtc: string;
+  requestedByUserId: string;
+  reviewedAtUtc?: string | null;
+  reviewedByUserId?: string | null;
+  decisionReason?: string | null;
+  createdQuoteId?: string | null;
 };
 
 export type QuoteEvidenceResponse = {
@@ -151,10 +176,14 @@ export type QuoteEvidenceResponse = {
   respondentTitle: string;
   respondentEmail: string;
   respondentPhone: string | null;
+  respondentMobileNumber?: string | null;
+  respondentTelephoneNumber?: string | null;
   responseText: string | null;
   otherConcerns: string | null;
   kind: "Initial" | "FollowUp" | "Remediation";
   respondedAtUtc: string;
+  viewedByUserId?: string | null;
+  viewedAtUtc?: string | null;
 };
 
 export type QuoteEvidenceDocument = {

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+using LIAnsureProtect.Api.Validation;
 using LIAnsureProtect.Application.Common.Security;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -27,6 +29,7 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? reviewDecision,
         [FromQuery] string? documentRequirement,
+        [FromQuery] string? quoteDisposition,
         [FromQuery] string? cursor,
         [FromQuery] int pageSize = 12,
         CancellationToken cancellationToken = default)
@@ -43,7 +46,8 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
                     pageSize,
                     search,
                     reviewDecision,
-                    documentRequirement),
+                    documentRequirement,
+                    quoteDisposition ?? "Current"),
                 cancellationToken);
 
             return Ok(result);
@@ -93,7 +97,8 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
                     request.RespondentName,
                     request.RespondentTitle,
                     request.RespondentEmail,
-                    request.RespondentPhone,
+                    request.RespondentMobileNumber,
+                    request.RespondentTelephoneNumber,
                     request.ResponseText,
                     request.OtherConcerns,
                     request.AttachmentFileName,
@@ -141,7 +146,8 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
                     request.RespondentName,
                     request.RespondentTitle,
                     request.RespondentEmail,
-                    request.RespondentPhone,
+                    request.RespondentMobileNumber,
+                    request.RespondentTelephoneNumber,
                     request.ResponseText,
                     request.OtherConcerns,
                     null,
@@ -264,28 +270,38 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
 }
 
 public sealed record RespondToEvidenceRequestRequest(
-    string RespondentName,
-    string RespondentTitle,
-    string RespondentEmail,
-    string? RespondentPhone,
-    string? ResponseText,
-    string? OtherConcerns,
+    [Required, MaxLength(120)] string RespondentName,
+    [Required, MaxLength(120)] string RespondentTitle,
+    [Required, EmailAddress, MaxLength(254)] string RespondentEmail,
+    [MaxLength(32), PhilippineMobileNumber] string? RespondentMobileNumber,
+    [MaxLength(32), PhilippineTelephoneNumber] string? RespondentTelephoneNumber,
+    [MaxLength(4000)] string? ResponseText,
+    [MaxLength(2000)] string? OtherConcerns,
     string? AttachmentFileName,
     string? AttachmentContentType,
     long? AttachmentSizeBytes);
 
 public sealed class RespondToEvidenceRequestFormRequest
 {
+    [Required, MaxLength(120)]
     public string RespondentName { get; init; } = string.Empty;
 
+    [Required, MaxLength(120)]
     public string RespondentTitle { get; init; } = string.Empty;
 
+    [Required, EmailAddress, MaxLength(254)]
     public string RespondentEmail { get; init; } = string.Empty;
 
-    public string? RespondentPhone { get; init; }
+    [MaxLength(32), PhilippineMobileNumber]
+    public string? RespondentMobileNumber { get; init; }
 
+    [MaxLength(32), PhilippineTelephoneNumber]
+    public string? RespondentTelephoneNumber { get; init; }
+
+    [MaxLength(4000)]
     public string? ResponseText { get; init; }
 
+    [MaxLength(2000)]
     public string? OtherConcerns { get; init; }
 
     public IReadOnlyCollection<IFormFile> Attachments { get; init; } = [];

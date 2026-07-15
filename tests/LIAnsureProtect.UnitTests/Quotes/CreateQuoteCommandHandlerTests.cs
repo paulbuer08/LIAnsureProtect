@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application.Common.Persistence;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using LIAnsureProtect.Application.Quotes;
+using LIAnsureProtect.Application.Quotes.Assurance;
 using LIAnsureProtect.Application.Quotes.Commands.CreateQuote;
 using LIAnsureProtect.Application.Quotes.Rating;
 using LIAnsureProtect.Application.Quotes.RatingProviders;
@@ -218,7 +219,11 @@ public sealed class CreateQuoteCommandHandlerTests
             .Returns(Task.CompletedTask);
         var providerClient = CreateSuccessfulProviderClient();
         var handler = CreateHandler(submission, quoteRepository.Object, providerClient.Object);
-        var command = CreateCommand(submission.Id) with { IsReassessment = true };
+        var command = CreateCommand(submission.Id) with
+        {
+            IsReassessment = true,
+            BaseQuoteVersion = existingQuote.Version
+        };
 
         var result = await handler.Handle(command, TestContext.Current.CancellationToken);
 
@@ -280,17 +285,30 @@ public sealed class CreateQuoteCommandHandlerTests
             .Setup(work => work.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
-        return new CreateQuoteCommandHandler(
-            submissionRepository.Object,
+        var reassessmentRequests = new Mock<IReassessmentRequestRepository>();
+        reassessmentRequests
+            .Setup(repository => repository.CountSuccessfulOwnedAsync(
+                submission.Id,
+                "auth0|owner-user-1",
+                It.IsAny<DateTime?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        var quoteCreationService = new QuoteCreationService(
             quoteRepository,
-            unitOfWork.Object,
-            new TestCurrentUser("auth0|owner-user-1"),
             new CyberRatingStrategySelector(
             [
                 new HighRiskCyberRatingStrategy(),
                 new BaselineCyberRatingStrategy()
             ]),
             providerClient);
+
+        return new CreateQuoteCommandHandler(
+            submissionRepository.Object,
+            quoteRepository,
+            reassessmentRequests.Object,
+            quoteCreationService,
+            unitOfWork.Object,
+            new TestCurrentUser("auth0|owner-user-1"));
     }
 
     private static Submission CreateSubmittedSubmission()
@@ -310,6 +328,16 @@ public sealed class CreateQuoteCommandHandlerTests
     private static Quote CreateQuoteWithMfaAssertion(Guid submissionId, string claimedState)
     {
         var createdAtUtc = new DateTime(2026, 6, 21, 1, 0, 0, DateTimeKind.Utc);
+        var detailsJson = ControlAssurancePolicy.Evaluate(new CreateQuoteAssuranceInput(
+                1_000_000m,
+                Enum.Parse<CyberSecurityControlStatus>(claimedState),
+                CyberSecurityControlStatus.Implemented,
+                BackupMaturity.Mature,
+                true,
+                0,
+                SensitiveDataExposure.Moderate))
+            .Single(decision => decision.ControlType == ControlType.MultiFactorAuthentication)
+            .DetailsJson;
         var quote = Quote.Generate(
             submissionId,
             "auth0|owner-user-1",
@@ -328,7 +356,8 @@ public sealed class CreateQuoteCommandHandlerTests
             claimedState,
             false,
             string.Empty,
-            createdAtUtc));
+            createdAtUtc,
+            detailsJson));
         quote.ClearDomainEvents();
         return quote;
     }

@@ -63,6 +63,12 @@ const QuoteDetailPage = lazy(() =>
   })),
 );
 
+const QuoteHistoryPage = lazy(() =>
+  import("./features/submissions/pages/QuoteHistoryPage").then((module) => ({
+    default: module.QuoteHistoryPage,
+  })),
+);
+
 const EvidenceRequestDetailPage = lazy(() =>
   import("./features/evidence/pages/EvidenceRequestDetailPage").then((module) => ({
     default: module.EvidenceRequestDetailPage,
@@ -180,6 +186,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={roleGroups.customerWork}>
               <EvidenceRequestsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/submissions/:submissionId/quotes"
+          element={
+            <ProtectedRoute allowedRoles={roleGroups.customerWork}>
+              <QuoteHistoryPage />
             </ProtectedRoute>
           }
         />

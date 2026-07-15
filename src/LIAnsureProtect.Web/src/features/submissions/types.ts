@@ -85,7 +85,18 @@ export type CreateQuoteRequest = {
   attestedByName: string;
   attestedByTitle: string;
   isReassessment?: boolean;
+  baseQuoteVersion?: number | null;
   controlDetails: CyberControlDetails;
+};
+
+export type ReassessmentReviewQueuedResponse = {
+  reassessmentRequestId: string;
+  submissionId: string;
+  baseQuoteId: string;
+  baseQuoteVersion: number;
+  status: "Pending";
+  requestedAtUtc: string;
+  message: string;
 };
 
 export type RatingProviderIndication = {
@@ -140,7 +151,34 @@ export type OwnedQuoteDetail = SubmissionQuoteSummary & {
   quoteId: string;
   submissionId: string;
   createdAtUtc: string;
+  supersededAtUtc?: string | null;
 };
+
+export type QuoteHistoryItem = {
+  quoteId: string;
+  submissionId: string;
+  version: number;
+  status: string;
+  premium: number;
+  requestedLimit: number;
+  retention: number;
+  riskTier: string;
+  assuranceStatus: string;
+  evidenceRequiredCount: number;
+  evidenceSatisfiedCount: number;
+  createdAtUtc: string;
+  expiresAtUtc: string;
+  supersedesQuoteId?: string | null;
+  supersededAtUtc?: string | null;
+};
+
+export type QuoteHistoryResponse = { quotes: QuoteHistoryItem[] };
+
+export type CreateQuoteOutcome = CreateQuoteResponse | ReassessmentReviewQueuedResponse;
+
+export function isCreatedQuote(outcome: CreateQuoteOutcome): outcome is CreateQuoteResponse {
+  return "quoteId" in outcome;
+}
 
 export type AcceptQuoteRequest = {
   acceptedByName: string;

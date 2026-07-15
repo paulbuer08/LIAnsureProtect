@@ -28,6 +28,7 @@ import type {
   CyberSecurityControlStatus,
   SensitiveDataExposure,
 } from "../types";
+import { isCreatedQuote } from "../types";
 
 type BooleanControlDetailKey = {
   [K in keyof CyberControlDetails]: CyberControlDetails[K] extends boolean
@@ -155,6 +156,71 @@ function controlFingerprint(
   state: Omit<QuoteControlState, "requestedLimit" | "retention">,
 ) {
   return JSON.stringify(state);
+}
+
+function getControlValidationErrors(
+  state: Omit<QuoteControlState, "requestedLimit" | "retention">,
+) {
+  const errors: string[] = [];
+  const { controlDetails } = state;
+
+  if (
+    state.mfaStatus === "Implemented" &&
+    (!controlDetails.mfaCoversPrivilegedAccess ||
+      !controlDetails.mfaCoversEmail ||
+      !controlDetails.mfaCoversRemoteAccess)
+  ) {
+    errors.push(
+      "Implemented MFA must cover privileged access, email, and remote access. Choose a lower MFA status if that is not yet true.",
+    );
+  }
+
+  if (
+    state.edrStatus === "Implemented" &&
+    (controlDetails.edrCoveragePercent < 90 ||
+      !controlDetails.edrCoversServers ||
+      !controlDetails.edrActivelyMonitored ||
+      !controlDetails.edrTamperProtection)
+  ) {
+    errors.push(
+      "Implemented EDR requires at least 90% coverage, server coverage, active monitoring, and tamper protection. Choose a lower EDR status if that is not yet true.",
+    );
+  }
+
+  if (
+    state.backupMaturity === "Mature" &&
+    (!controlDetails.backupsImmutableOrOffline ||
+      !controlDetails.backupCredentialsSeparated ||
+      !controlDetails.restoreTestedLast12Months)
+  ) {
+    errors.push(
+      "Mature backups require immutable or offline copies, separate credentials, and a restore test in the last 12 months. Choose a lower backup maturity if that is not yet true.",
+    );
+  }
+
+  if (
+    state.hasIncidentResponsePlan &&
+    (!controlDetails.incidentPlanApproved ||
+      !controlDetails.incidentPlanUpdatedLast12Months ||
+      !controlDetails.incidentPlanTestedLast12Months ||
+      !controlDetails.incidentRolesNamed)
+  ) {
+    errors.push(
+      "An incident response plan marked as in place must be approved, current, tested, and assign named roles. Mark the plan as not in place if any of those statements is not yet true.",
+    );
+  }
+
+  if (
+    state.sensitiveDataExposure === "Low" &&
+    (!controlDetails.sensitiveDataInventoryMaintained ||
+      !controlDetails.sensitiveDataEncrypted)
+  ) {
+    errors.push(
+      "Low sensitive-data exposure requires a maintained data inventory and encryption. Choose a higher exposure level if either control is not yet true.",
+    );
+  }
+
+  return errors;
 }
 
 const controlDetailCheckboxes: ReadonlyArray<{
@@ -322,7 +388,9 @@ export function SubmissionDetailPage() {
         }
       : updatedSubmission;
   const canSubmit = displayedSubmission?.status === "Draft";
-  const createdQuote = createQuoteMutation.data;
+  const quoteOutcome = createQuoteMutation.data;
+  const createdQuote = quoteOutcome && isCreatedQuote(quoteOutcome) ? quoteOutcome : undefined;
+  const queuedReassessment = quoteOutcome && !isCreatedQuote(quoteOutcome) ? quoteOutcome : undefined;
   const latestQuote = displayedSubmission?.latestQuote;
   const relatedPolicy = displayedSubmission?.relatedPolicy;
   const acceptedQuote = acceptQuoteMutation.data;
@@ -424,6 +492,15 @@ export function SubmissionDetailPage() {
     sensitiveDataExposure,
     controlDetails,
   });
+  const controlValidationErrors = getControlValidationErrors({
+    mfaStatus,
+    edrStatus,
+    backupMaturity,
+    hasIncidentResponsePlan,
+    sensitiveDataExposure,
+    controlDetails,
+  });
+  const hasValidControlDetails = controlValidationErrors.length === 0;
   const hasReassessmentChanges =
     !isReassessing ||
     (reassessmentBaseline !== undefined &&
@@ -492,6 +569,7 @@ export function SubmissionDetailPage() {
     if (
       !displayedSubmission ||
       !canGenerateQuoteRequest ||
+      !hasValidControlDetails ||
       !hasReassessmentChanges
     ) {
       return;
@@ -524,6 +602,7 @@ export function SubmissionDetailPage() {
         attestedByName: attestedByName.trim(),
           attestedByTitle: attestedByTitle.trim(),
           isReassessment: isReassessing,
+          ...(isReassessing ? { baseQuoteVersion: activeQuoteVersion } : {}),
           controlDetails,
         },
       },
@@ -1158,6 +1237,16 @@ export function SubmissionDetailPage() {
                       />
                     </label>
                   </div>
+                  {controlValidationErrors.length > 0 && (
+                    <div role="alert" className="mt-4 rounded-md border border-red-800 bg-red-950/50 p-3 text-sm text-red-200">
+                      <p className="font-semibold">Resolve these control inconsistencies:</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        {controlValidationErrors.map((error) => (
+                          <li key={error}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </fieldset>
 
                 {needsPriorIncidentDetails && (
@@ -1266,6 +1355,7 @@ export function SubmissionDetailPage() {
                   disabled={
                     createQuoteMutation.isPending ||
                     !canGenerateQuoteRequest ||
+                    !hasValidControlDetails ||
                     !hasReassessmentChanges
                   }
                   className="mt-5 inline-flex min-h-10 items-center rounded-md bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
@@ -1287,7 +1377,10 @@ export function SubmissionDetailPage() {
                 )}
                 {isReassessing && !hasReassessmentChanges && (
                   <p className="mt-3 text-sm text-amber-200">
-                    Change at least one control answer before creating a reassessment.
+                    The control answers still match the latest saved quote. A
+                    reassessment needs at least one different high-level status or
+                    detailed implementation answer; changing only the attesting
+                    person does not create a new risk assessment.
                   </p>
                 )}
               </div>
@@ -1299,11 +1392,30 @@ export function SubmissionDetailPage() {
               </p>
             )}
 
+            {queuedReassessment && (
+              <p className="mt-5 rounded-md border border-sky-700 bg-sky-950/40 p-4 text-sm leading-6 text-sky-100">
+                <span className="font-semibold">Reassessment awaiting underwriting review.</span>{" "}
+                Your current quote remains active. You will receive a notification after underwriting approves or declines the request.
+              </p>
+            )}
+
             {activeQuoteId && (
               <div className="mt-6 border-t border-slate-800 pt-5">
                 <h2 className="text-base font-semibold text-white">
                   Latest quote · version {activeQuoteVersion}
                 </h2>
+                <Link
+                  className="mt-2 inline-flex min-h-10 items-center font-semibold text-emerald-300 underline hover:text-emerald-200"
+                  to={`/submissions/${submissionId}/quotes/${activeQuoteId}`}
+                >
+                  View quote version {activeQuoteVersion}
+                </Link>
+                <Link
+                  className="ml-5 mt-2 inline-flex min-h-10 items-center font-semibold text-sky-300 underline hover:text-sky-200"
+                  to={`/submissions/${submissionId}/quotes`}
+                >
+                  View all quote versions
+                </Link>
                 {activeAssuranceStatus === "EvidenceRequired" && (
                   <div className="mt-4 rounded-md border border-amber-700 bg-amber-950/40 p-4 text-sm text-amber-100">
                     <p className="font-semibold">Provisional — evidence required</p>

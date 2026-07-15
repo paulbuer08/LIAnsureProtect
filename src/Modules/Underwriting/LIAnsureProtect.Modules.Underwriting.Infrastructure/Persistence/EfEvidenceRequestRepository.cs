@@ -27,6 +27,28 @@ public sealed class EfEvidenceRequestRepository(UnderwritingDbContext dbContext)
             .ToListAsync(cancellationToken);
     }
 
+    public Task<int> CountPendingFollowUpsAsync(
+        Guid evidenceRequestId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.Set<QuoteEvidenceResponse>().CountAsync(
+            response => response.EvidenceRequestId == evidenceRequestId
+                && response.Kind == EvidenceResponseKind.FollowUp
+                && response.ViewedAtUtc == null,
+            cancellationToken);
+    }
+
+    public Task<QuoteEvidenceResponse?> GetResponseForUnderwritingAsync(
+        Guid evidenceRequestId,
+        Guid responseId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.Set<QuoteEvidenceResponse>().SingleOrDefaultAsync(
+            response => response.Id == responseId
+                && response.EvidenceRequestId == evidenceRequestId,
+            cancellationToken);
+    }
+
     public Task<QuoteEvidenceRequest?> GetForUnderwritingAsync(
         Guid quoteId,
         Guid evidenceRequestId,
@@ -59,6 +81,17 @@ public sealed class EfEvidenceRequestRepository(UnderwritingDbContext dbContext)
             : Task.FromResult(false);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken)
-        => dbContext.SaveChangesAsync(cancellationToken);
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new InvalidOperationException(
+                "The evidence request changed while this action was being saved. Refresh and try again.",
+                exception);
+        }
+    }
 }

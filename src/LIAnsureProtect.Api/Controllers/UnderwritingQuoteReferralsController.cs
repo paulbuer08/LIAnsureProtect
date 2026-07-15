@@ -125,6 +125,38 @@ public sealed class UnderwritingQuoteReferralsController(ISender sender) : Contr
         return result is null ? NotFound() : Ok(result);
     }
 
+    [HttpPost("{quoteId:guid}/evidence-requests/{evidenceRequestId:guid}/responses/{responseId:guid}/view")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ModuleQuoteEvidenceRequestResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleQuoteEvidenceRequestResult>> MarkEvidenceFollowUpViewed(
+        Guid quoteId,
+        Guid evidenceRequestId,
+        Guid responseId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new MarkQuoteEvidenceFollowUpViewedCommand(
+                    quoteId,
+                    evidenceRequestId,
+                    responseId),
+                cancellationToken);
+
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Evidence follow-up cannot be opened.",
+                exception.Message));
+        }
+    }
+
     [HttpPost("{quoteId:guid}/evidence-requests/{evidenceRequestId:guid}/accept")]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

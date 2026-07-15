@@ -1,4 +1,4 @@
-import type { CreateQuoteRequest, CreateQuoteResponse } from "../types";
+import type { CreateQuoteOutcome, CreateQuoteRequest } from "../types";
 import { parseJsonResponse } from "../../../lib/apiClient";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5223";
@@ -13,7 +13,7 @@ export async function createQuote(
   request: CreateQuoteRequest,
 ) {
   const response = await fetch(
-    `${apiBaseUrl}/api/v1/submissions/${submissionId}/quotes`,
+    `${apiBaseUrl}/api/v1/submissions/${submissionId}/${request.isReassessment ? "reassessments" : "quotes"}`,
     {
       method: "POST",
       headers: {
@@ -25,7 +25,7 @@ export async function createQuote(
     },
   );
 
-  return parseJsonResponse<CreateQuoteResponse>(response, {
+  return parseJsonResponse<CreateQuoteOutcome>(response, {
     notFoundMessage: "Submission was not found.",
   });
 }

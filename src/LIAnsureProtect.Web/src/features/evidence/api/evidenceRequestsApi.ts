@@ -48,6 +48,9 @@ export async function listEvidenceRequests(
   if (filters.search) search.set("search", filters.search);
   if (filters.reviewDecision) search.set("reviewDecision", filters.reviewDecision);
   if (filters.documentRequirement) search.set("documentRequirement", filters.documentRequirement);
+  if (filters.quoteDisposition && filters.quoteDisposition !== "All") {
+    search.set("quoteDisposition", filters.quoteDisposition);
+  }
   search.set("pageSize", String(filters.pageSize ?? 12));
   const response = await fetch(`${apiBaseUrl}/api/v1/evidence-requests?${search}`, {
     headers: authHeaders(accessToken),
@@ -83,7 +86,12 @@ export async function respondToEvidenceRequest(
   formData.append("respondentName", request.respondentName);
   formData.append("respondentTitle", request.respondentTitle);
   formData.append("respondentEmail", request.respondentEmail);
-  if (request.respondentPhone) formData.append("respondentPhone", request.respondentPhone);
+  if (request.respondentMobileNumber) {
+    formData.append("respondentMobileNumber", request.respondentMobileNumber);
+  }
+  if (request.respondentTelephoneNumber) {
+    formData.append("respondentTelephoneNumber", request.respondentTelephoneNumber);
+  }
   if (request.responseText) formData.append("responseText", request.responseText);
   if (request.otherConcerns) formData.append("otherConcerns", request.otherConcerns);
 

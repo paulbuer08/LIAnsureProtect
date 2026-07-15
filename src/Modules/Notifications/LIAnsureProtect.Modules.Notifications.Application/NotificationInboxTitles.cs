@@ -11,6 +11,10 @@ public static class NotificationInboxTitles
             : "Your quote is ready",
         NotificationMessageTypes.QuoteUnderwritingDecisionRecorded => "Underwriting decision recorded",
         NotificationMessageTypes.QuoteAccepted => "Quote accepted",
+        NotificationMessageTypes.ReassessmentReviewRequested => "Reassessment review requested",
+        NotificationMessageTypes.ReassessmentReviewDecisionRecorded => attributes?.TryGetValue("status", out var reassessmentStatus) == true
+            ? $"Reassessment {reassessmentStatus.ToLowerInvariant()}"
+            : "Reassessment review completed",
         NotificationMessageTypes.PolicyBound => "Your policy is bound",
         NotificationMessageTypes.EvidenceRequestCreated => attributes?.TryGetValue("requestTitle", out var requestTitle) == true
             ? $"Evidence requested: {requestTitle}"

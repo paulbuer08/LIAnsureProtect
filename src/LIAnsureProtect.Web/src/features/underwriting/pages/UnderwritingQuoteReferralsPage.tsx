@@ -7,6 +7,7 @@ import { TransientStatusMessage } from "../../../components/TransientStatusMessa
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { downloadUnderwritingEvidenceDocument } from "../api/underwritingApi";
+import { ReassessmentReviewPanel } from "../components/ReassessmentReviewPanel";
 import {
   useAddQuoteReferralNote,
   useAddQuoteReferralTask,
@@ -21,6 +22,7 @@ import {
   useFollowUpQuoteEvidenceRequest,
   useGetQuoteEvidenceRequest,
   useGenerateAiUnderwritingReview,
+  useMarkQuoteEvidenceFollowUpViewed,
   useQuoteReferralTimeline,
   useRecordQuoteEvidenceReviewDecision,
   useReleaseQuoteReferralAssignment,
@@ -317,6 +319,7 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
   const cancelEvidenceRequest = useCancelQuoteEvidenceRequest();
   const followUpEvidenceRequest = useFollowUpQuoteEvidenceRequest();
   const getEvidenceRequest = useGetQuoteEvidenceRequest();
+  const markEvidenceFollowUpViewed = useMarkQuoteEvidenceFollowUpViewed();
   const recordEvidenceReviewDecision = useRecordQuoteEvidenceReviewDecision();
   const [category, setCategory] = useState("MultiFactorAuthentication");
   const [title, setTitle] = useState("");
@@ -358,6 +361,7 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
     cancelEvidenceRequest.error ??
     followUpEvidenceRequest.error ??
     getEvidenceRequest.error ??
+    markEvidenceFollowUpViewed.error ??
     recordEvidenceReviewDecision.error;
 
   async function handleCreateEvidenceRequest(event: FormEvent<HTMLFormElement>) {
@@ -428,6 +432,17 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
     setLastEvidenceResult(result);
   }
 
+  async function handleOpenEvidenceFollowUp(responseId: string) {
+    if (!lastEvidenceResult) return;
+
+    const result = await markEvidenceFollowUpViewed.mutateAsync({
+      quoteId: quote.quoteId,
+      evidenceRequestId: lastEvidenceResult.evidenceRequestId,
+      responseId,
+    });
+    setLastEvidenceResult(result);
+  }
+
   return (
     <section className="rounded-lg border border-amber-900 bg-amber-950/25 p-5">
       <p className="text-sm font-semibold uppercase tracking-wide text-amber-300">
@@ -455,12 +470,18 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
           <p className="mt-1 text-emerald-100/80">
             {lastEvidenceResult.companyName ?? quote.companyName} · {lastEvidenceResult.submissionReference ?? lastEvidenceResult.submissionId}
           </p>
-          {lastEvidenceResult.respondentEmail && (
+          {lastEvidenceResult.respondentEmail &&
+            !(
+              lastEvidenceResult.responses?.at(-1)?.kind === "FollowUp" &&
+              !lastEvidenceResult.responses?.at(-1)?.viewedAtUtc
+            ) && (
             <div className="mt-3 rounded-md border border-emerald-900 p-2">
               <p className="font-semibold">Latest respondent</p>
               <p className="mt-1">
                 {lastEvidenceResult.respondentName} · {lastEvidenceResult.respondentTitle} · {lastEvidenceResult.respondentEmail}
-                {lastEvidenceResult.respondentPhone ? ` · ${lastEvidenceResult.respondentPhone}` : ""}
+                {lastEvidenceResult.respondentMobileNumber ? ` · Mobile ${lastEvidenceResult.respondentMobileNumber}` : ""}
+                {lastEvidenceResult.respondentTelephoneNumber ? ` · Telephone ${lastEvidenceResult.respondentTelephoneNumber}` : ""}
+                {!lastEvidenceResult.respondentMobileNumber && !lastEvidenceResult.respondentTelephoneNumber && lastEvidenceResult.respondentPhone ? ` · Contact ${lastEvidenceResult.respondentPhone}` : ""}
               </p>
               {lastEvidenceResult.otherConcerns && <p className="mt-1">Other concerns: {lastEvidenceResult.otherConcerns}</p>}
             </div>
@@ -468,13 +489,38 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
           {(lastEvidenceResult.responses?.length ?? 0) > 0 && (
             <div className="mt-3">
               <p className="font-semibold">Response history</p>
-              <ol className="mt-2 space-y-2">
+              <ol
+                aria-label="Underwriter response history entries"
+                tabIndex={0}
+                className="mt-2 max-h-80 space-y-2 overflow-y-auto pr-2 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              >
                 {lastEvidenceResult.responses?.map((response) => (
-                  <li key={response.responseId} className="rounded-md border border-emerald-900 p-2">
-                    <p className="font-semibold">{response.kind} · {new Date(response.respondedAtUtc).toLocaleString()}</p>
-                    <p className="mt-1">{response.respondentName} · {response.respondentTitle} · {response.respondentEmail}{response.respondentPhone ? ` · ${response.respondentPhone}` : ""}</p>
-                    {response.responseText && <p className="mt-1 whitespace-pre-wrap">{response.responseText}</p>}
-                    {response.otherConcerns && <p className="mt-1 whitespace-pre-wrap">Other concerns: {response.otherConcerns}</p>}
+                  <li key={response.responseId} className={`rounded-md border p-2 ${response.kind === "FollowUp" && !response.viewedAtUtc ? "border-amber-400 bg-amber-950/20" : "border-emerald-900"}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-semibold">{response.kind} · {new Date(response.respondedAtUtc).toLocaleString()}</p>
+                      {response.kind === "FollowUp" && !response.viewedAtUtc && (
+                        <button
+                          type="button"
+                          disabled={markEvidenceFollowUpViewed.isPending}
+                          onClick={() => void handleOpenEvidenceFollowUp(response.responseId)}
+                          className="rounded-md bg-amber-300 px-3 py-2 text-xs font-semibold text-slate-950 hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                        >
+                          Open follow-up
+                        </button>
+                      )}
+                      {response.kind === "FollowUp" && response.viewedAtUtc && (
+                        <span className="text-xs text-emerald-200">Opened {new Date(response.viewedAtUtc).toLocaleString()}</span>
+                      )}
+                    </div>
+                    {response.kind !== "FollowUp" || response.viewedAtUtc ? (
+                      <>
+                        <p className="mt-1">{response.respondentName} · {response.respondentTitle} · {response.respondentEmail}{response.respondentMobileNumber ? ` · Mobile ${response.respondentMobileNumber}` : ""}{response.respondentTelephoneNumber ? ` · Telephone ${response.respondentTelephoneNumber}` : ""}{!response.respondentMobileNumber && !response.respondentTelephoneNumber && response.respondentPhone ? ` · Contact ${response.respondentPhone}` : ""}</p>
+                        {response.responseText && <p className="mt-1 whitespace-pre-wrap">{response.responseText}</p>}
+                        {response.otherConcerns && <p className="mt-1 whitespace-pre-wrap">Other concerns: {response.otherConcerns}</p>}
+                      </>
+                    ) : (
+                      <p className="mt-1 text-amber-100">This customer follow-up is unread. Open it to view the details and restore one follow-up slot for the customer.</p>
+                    )}
                   </li>
                 ))}
               </ol>
@@ -511,7 +557,7 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
                             document.originalFileName,
                           )
                         }
-                        className="font-semibold text-emerald-200 hover:text-white"
+                        className="cursor-pointer font-semibold text-emerald-200 hover:text-white"
                       >
                         Download {document.originalFileName}
                       </button>
@@ -1520,6 +1566,8 @@ export function UnderwritingQuoteReferralsPage() {
             </select>
           </label>
         </div>
+
+        <ReassessmentReviewPanel />
 
         <form className="mt-6 grid gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4 md:grid-cols-5" onSubmit={(event: FormEvent) => { event.preventDefault(); setAppliedSearch(search.trim()); }}>
           <label className="text-sm font-semibold text-slate-200">Search referrals<input className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" placeholder="Quote, submission, or owner" value={search} onChange={(event) => setSearch(event.target.value)} /></label>

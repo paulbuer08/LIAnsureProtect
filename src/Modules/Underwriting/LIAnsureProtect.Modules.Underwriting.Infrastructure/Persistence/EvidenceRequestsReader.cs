@@ -45,6 +45,7 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
         string? search,
         EvidenceReviewDecisionStatus? reviewDecision,
         EvidenceDocumentRequirement? documentRequirement,
+        QuoteEvidenceDisposition? quoteDisposition,
         DateTime? cursorDueAtUtc,
         DateTime? cursorRequestedAtUtc,
         Guid? cursorEvidenceRequestId,
@@ -87,6 +88,9 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
         if (documentRequirement.HasValue)
             query = query.Where(request => request.DocumentRequirement == documentRequirement.Value);
 
+        if (quoteDisposition.HasValue)
+            query = query.Where(request => request.QuoteDisposition == quoteDisposition.Value);
+
         if (overdue == true)
             query = query.Where(request => request.Status == EvidenceRequestStatus.Open && request.DueAtUtc < nowUtc);
         else if (overdue == false)
@@ -127,7 +131,12 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
                 request.UpdatedAtUtc,
                 request.SubmissionReference,
                 request.CompanyName,
-                request.DocumentRequirement))
+                request.DocumentRequirement,
+                request.QuoteVersion,
+                request.QuoteDisposition,
+                request.SupersededAtUtc,
+                request.SupersededByQuoteId,
+                request.SupersededByQuoteVersion))
             .ToListAsync(cancellationToken);
 
         return requests.Select(request => request with
@@ -146,7 +155,8 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
 
         var requests = await dbContext.Set<QuoteEvidenceRequest>()
             .AsNoTracking()
-            .Where(request => quoteIds.Contains(request.QuoteId))
+            .Where(request => quoteIds.Contains(request.QuoteId)
+                && request.QuoteDisposition == QuoteEvidenceDisposition.Current)
             .ToListAsync(cancellationToken);
 
         var nowUtc = DateTime.UtcNow;
@@ -196,7 +206,14 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
             request.UpdatedAtUtc,
             request.SubmissionReference,
             request.CompanyName,
-            request.DocumentRequirement.ToString());
+            request.DocumentRequirement.ToString(),
+            request.RespondentMobileNumber,
+            request.RespondentTelephoneNumber,
+            request.QuoteVersion,
+            request.QuoteDisposition.ToString(),
+            request.SupersededAtUtc,
+            request.SupersededByQuoteId,
+            request.SupersededByQuoteVersion);
     }
 
     private static EvidenceRequestSummaryItem CreateSummary(

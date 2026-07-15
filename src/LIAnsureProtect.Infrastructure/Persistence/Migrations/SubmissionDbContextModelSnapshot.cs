@@ -377,6 +377,10 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("submission_id");
 
+                    b.Property<DateTime?>("SupersededAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("superseded_at_utc");
+
                     b.Property<Guid?>("SupersedesQuoteId")
                         .HasColumnType("uuid")
                         .HasColumnName("supersedes_quote_id");
@@ -572,6 +576,110 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_quote_underwriting_reviews_quote_id_created_at_utc");
 
                     b.ToTable("quote_underwriting_reviews", (string)null);
+                });
+
+            modelBuilder.Entity("LIAnsureProtect.Domain.Quotes.ReassessmentRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BaseQuoteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("base_quote_id");
+
+                    b.Property<int>("BaseQuoteVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("base_quote_version");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("company_name");
+
+                    b.Property<Guid?>("CreatedQuoteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_quote_id");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_fingerprint");
+
+                    b.Property<string>("RequestPayloadJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("request_payload");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.Property<string>("RequestedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at_utc");
+
+                    b.Property<string>("ReviewedByUserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("reviewed_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submission_id");
+
+                    b.Property<string>("SubmissionReference")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("submission_reference");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BaseQuoteId");
+
+                    b.HasIndex("SubmissionId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_reassessment_requests_submission_pending")
+                        .HasFilter("status = 'Pending'");
+
+                    b.HasIndex("Status", "RequestedAtUtc")
+                        .HasDatabaseName("ix_reassessment_requests_status_requested_at_utc");
+
+                    b.HasIndex("OwnerUserId", "SubmissionId", "RequestedAtUtc")
+                        .HasDatabaseName("ix_reassessment_requests_owner_submission_requested_at_utc");
+
+                    b.ToTable("reassessment_requests", (string)null);
                 });
 
             modelBuilder.Entity("LIAnsureProtect.Domain.Submissions.Submission", b =>
@@ -841,6 +949,21 @@ namespace LIAnsureProtect.Infrastructure.Persistence.Migrations
                     b.HasOne("LIAnsureProtect.Domain.Quotes.Quote", null)
                         .WithMany()
                         .HasForeignKey("QuoteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LIAnsureProtect.Domain.Quotes.ReassessmentRequest", b =>
+                {
+                    b.HasOne("LIAnsureProtect.Domain.Quotes.Quote", null)
+                        .WithMany()
+                        .HasForeignKey("BaseQuoteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LIAnsureProtect.Domain.Submissions.Submission", null)
+                        .WithMany()
+                        .HasForeignKey("SubmissionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

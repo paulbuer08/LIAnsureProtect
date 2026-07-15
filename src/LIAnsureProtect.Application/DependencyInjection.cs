@@ -1,6 +1,7 @@
 using FluentValidation;
 using LIAnsureProtect.Application.Common.Behaviors;
 using LIAnsureProtect.Application.Quotes.Rating;
+using LIAnsureProtect.Application.Quotes.Commands.CreateQuote;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LIAnsureProtect.Application;
@@ -21,6 +22,7 @@ public static class DependencyInjection
         services.AddTransient<ICyberRatingStrategy, HighRiskCyberRatingStrategy>();
         services.AddTransient<ICyberRatingStrategy, BaselineCyberRatingStrategy>();
         services.AddTransient<ICyberRatingStrategySelector, CyberRatingStrategySelector>();
+        services.AddScoped<IQuoteCreationService, QuoteCreationService>();
 
         return services;
     }

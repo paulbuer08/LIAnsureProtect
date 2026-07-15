@@ -98,4 +98,83 @@ public sealed class ControlAssurancePolicyTests
         Assert.Contains(result.Errors, error => error.ErrorMessage.Contains("incident plan", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Errors, error => error.ErrorMessage.Contains("Low sensitive-data", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void Reassessment_accepts_a_changed_detailed_control_answer()
+    {
+        var previousDecision = ControlAssurancePolicy.Evaluate(CreateAssuranceInput(
+            new CyberControlDetails(
+                true, true, true, true, false,
+                98, true, true, true,
+                true, true, true, 4, 8,
+                true, true, true, true,
+                true, true, ["Personal data"], "Moderate")));
+        var previous = previousDecision
+            .Select(decision => ControlAssertion.Create(
+                Guid.NewGuid(),
+                1,
+                decision.ControlType,
+                decision.ClaimedState,
+                decision.EvidenceRequired,
+                decision.EvidenceReason,
+                DateTime.UtcNow,
+                decision.DetailsJson))
+            .ToArray();
+        var current = ControlAssurancePolicy.Evaluate(CreateAssuranceInput(
+            new CyberControlDetails(
+                true, true, true, true, true,
+                98, true, true, true,
+                true, true, true, 4, 8,
+                true, true, true, true,
+                true, true, ["Personal data"], "Moderate")));
+
+        var result = ControlAssurancePolicy.ApplyReassessmentRules(current, previous);
+
+        Assert.Equal(5, result.Count);
+    }
+
+    [Fact]
+    public void Reassessment_ignores_json_property_order_when_details_are_unchanged()
+    {
+        var current = ControlAssurancePolicy.Evaluate(CreateAssuranceInput(
+            new CyberControlDetails(
+                true, true, true, true, false,
+                98, true, true, true,
+                true, true, true, 4, 8,
+                true, true, true, true,
+                true, true, ["Personal data"], "Moderate")));
+        var previous = current
+            .Select(decision => ControlAssertion.Create(
+                Guid.NewGuid(),
+                1,
+                decision.ControlType,
+                decision.ClaimedState,
+                decision.EvidenceRequired,
+                decision.EvidenceReason,
+                DateTime.UtcNow,
+                ReverseJsonPropertyOrder(decision.DetailsJson)))
+            .ToArray();
+
+        var exception = Assert.Throws<LIAnsureProtect.Application.Common.Exceptions.BusinessConflictException>(
+            (Action)(() => ControlAssurancePolicy.ApplyReassessmentRules(current, previous)));
+
+        Assert.Equal("quote.reassessment.no_changes", exception.Code);
+    }
+
+    private static CreateQuoteAssuranceInput CreateAssuranceInput(CyberControlDetails details) => new(
+        1_000_000m,
+        CyberSecurityControlStatus.Implemented,
+        CyberSecurityControlStatus.Implemented,
+        BackupMaturity.Mature,
+        true,
+        0,
+        SensitiveDataExposure.Moderate,
+        details);
+
+    private static string ReverseJsonPropertyOrder(string json)
+    {
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+        var properties = document.RootElement.EnumerateObject().Reverse().ToArray();
+        return $"{{{string.Join(',', properties.Select(property => $"\"{property.Name}\":{property.Value.GetRawText()}"))}}}";
+    }
 }

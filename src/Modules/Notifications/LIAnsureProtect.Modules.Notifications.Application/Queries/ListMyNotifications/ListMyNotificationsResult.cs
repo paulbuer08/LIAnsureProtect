@@ -15,4 +15,9 @@ public sealed record NotificationInboxItemResult(
     IReadOnlyDictionary<string, string> Attributes,
     DateTime OccurredAtUtc,
     bool IsRead,
-    DateTime? ReadAtUtc);
+    DateTime? ReadAtUtc,
+    string LifecycleState = "Active",
+    DateTime? HistoricalAtUtc = null,
+    string? HistoricalReason = null,
+    Guid? ReplacementQuoteId = null,
+    int? ReplacementQuoteVersion = null);

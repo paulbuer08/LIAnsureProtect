@@ -38,6 +38,16 @@ public sealed class TeamNotificationEntry
 
     public DateTime CreatedAtUtc { get; private set; }
 
+    public NotificationLifecycleState LifecycleState { get; private set; }
+
+    public DateTime? HistoricalAtUtc { get; private set; }
+
+    public string? HistoricalReason { get; private set; }
+
+    public Guid? ReplacementQuoteId { get; private set; }
+
+    public int? ReplacementQuoteVersion { get; private set; }
+
     public IReadOnlyCollection<TeamNotificationReadReceipt> ReadReceipts => _readReceipts;
 
     /// <summary>
@@ -50,6 +60,22 @@ public sealed class TeamNotificationEntry
             return;
 
         _readReceipts.Add(TeamNotificationReadReceipt.Create(Id, recipientUserId, readAtUtc));
+    }
+
+    public void MarkHistorical(
+        DateTime historicalAtUtc,
+        string reason,
+        Guid replacementQuoteId,
+        int replacementQuoteVersion)
+    {
+        if (LifecycleState == NotificationLifecycleState.Historical)
+            return;
+
+        LifecycleState = NotificationLifecycleState.Historical;
+        HistoricalAtUtc = historicalAtUtc;
+        HistoricalReason = reason;
+        ReplacementQuoteId = replacementQuoteId;
+        ReplacementQuoteVersion = replacementQuoteVersion;
     }
 
     public static TeamNotificationEntry Create(
@@ -72,7 +98,8 @@ public sealed class TeamNotificationEntry
             AttributesJson = attributesJson,
             SourceOutboxMessageId = sourceOutboxMessageId,
             OccurredAtUtc = occurredAtUtc,
-            CreatedAtUtc = createdAtUtc
+            CreatedAtUtc = createdAtUtc,
+            LifecycleState = NotificationLifecycleState.Active
         };
     }
 }

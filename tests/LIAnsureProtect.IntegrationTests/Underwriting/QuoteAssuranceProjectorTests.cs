@@ -33,6 +33,8 @@ public sealed class QuoteAssuranceProjectorTests : IDisposable
                 quoteId,
                 submissionId,
                 "customer-1",
+                1,
+                null,
                 [
                     new QuoteAssuranceRequirement(
                         "MultiFactorAuthentication",
@@ -56,6 +58,9 @@ public sealed class QuoteAssuranceProjectorTests : IDisposable
         var assuranceEvent = new QuoteAssuranceEvent(
             sourceMessageId,
             quoteId,
+            submissionId,
+            1,
+            null,
             new DateTime(2026, 7, 12, 0, 0, 0, DateTimeKind.Utc));
         var projector = new QuoteAssuranceProjector(
             dbContext,
@@ -81,6 +86,69 @@ public sealed class QuoteAssuranceProjectorTests : IDisposable
         quoteContextReader.Verify(
             reader => reader.GetForAssuranceAsync(quoteId, It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task Reassessment_marks_prior_quote_requests_historical_and_creates_current_version()
+    {
+        var projector = new QuoteAssuranceProjector(
+            dbContext,
+            quoteContextReader.Object,
+            new EfEvidenceRequestRepository(dbContext));
+        await projector.ProjectAsync(
+            new QuoteAssuranceEvent(
+                Guid.NewGuid(),
+                quoteId,
+                submissionId,
+                1,
+                null,
+                new DateTime(2026, 7, 12, 0, 0, 0, DateTimeKind.Utc)),
+            TestContext.Current.CancellationToken);
+
+        var replacementQuoteId = Guid.NewGuid();
+        quoteContextReader
+            .Setup(reader => reader.GetForAssuranceAsync(replacementQuoteId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new QuoteAssuranceRequirementContext(
+                replacementQuoteId,
+                submissionId,
+                "customer-1",
+                2,
+                quoteId,
+                [
+                    new QuoteAssuranceRequirement(
+                        "MultiFactorAuthentication",
+                        true,
+                        "Changed MFA assertion requires current evidence.")
+                ],
+                "SUB-2026-TEST",
+                "Example Company"));
+
+        await projector.ProjectAsync(
+            new QuoteAssuranceEvent(
+                Guid.NewGuid(),
+                replacementQuoteId,
+                submissionId,
+                2,
+                quoteId,
+                new DateTime(2026, 7, 12, 1, 0, 0, DateTimeKind.Utc)),
+            TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        var requests = await dbContext.QuoteEvidenceRequests
+            .OrderBy(request => request.QuoteVersion)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, requests.Count);
+        Assert.All(
+            requests.Where(request => request.QuoteVersion == 1),
+            request =>
+            {
+                Assert.Equal(QuoteEvidenceDisposition.Superseded, request.QuoteDisposition);
+                Assert.Equal(replacementQuoteId, request.SupersededByQuoteId);
+                Assert.Equal(2, request.SupersededByQuoteVersion);
+            });
+        var current = Assert.Single(requests, request => request.QuoteVersion == 2);
+        Assert.Equal(QuoteEvidenceDisposition.Current, current.QuoteDisposition);
     }
 
     public void Dispose()

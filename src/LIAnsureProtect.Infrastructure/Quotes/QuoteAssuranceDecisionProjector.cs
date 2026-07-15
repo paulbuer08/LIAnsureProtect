@@ -26,7 +26,7 @@ public sealed class QuoteAssuranceDecisionProjector(SubmissionDbContext dbContex
             return;
 
         var controlType = MapControlType(decisionEvent.EvidenceCategory);
-        if (controlType is not null)
+        if (quote.Status != QuoteStatus.Superseded && controlType is not null)
         {
             quote.RecordAssuranceDecision(
                 controlType.Value,

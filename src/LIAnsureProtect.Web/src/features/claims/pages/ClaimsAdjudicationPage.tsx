@@ -652,7 +652,7 @@ export function ClaimsAdjudicationPage() {
                               document.originalFileName,
                             )
                           }
-                          className="font-semibold text-emerald-300 hover:text-emerald-200"
+                          className="cursor-pointer font-semibold text-emerald-300 hover:text-emerald-200"
                         >
                           Download {document.originalFileName}
                         </button>

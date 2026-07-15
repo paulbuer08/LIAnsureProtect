@@ -1,6 +1,7 @@
 using LIAnsureProtect.Application.Common.Exceptions;
 using LIAnsureProtect.Domain.Quotes;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace LIAnsureProtect.Application.Quotes.Assurance;
 
@@ -94,13 +95,14 @@ public static class ControlAssurancePolicy
         var previousByType = previous.ToDictionary(assertion => assertion.ControlType);
         var changed = current
             .Where(decision => previousByType.TryGetValue(decision.ControlType, out var prior)
-                && !string.Equals(prior.ClaimedState, decision.ClaimedState, StringComparison.Ordinal))
+                && (!string.Equals(prior.ClaimedState, decision.ClaimedState, StringComparison.Ordinal)
+                    || !JsonSemanticallyEquals(prior.DetailsJson, decision.DetailsJson)))
             .ToArray();
 
         if (changed.Length == 0)
             throw new BusinessConflictException(
                 "quote.reassessment.no_changes",
-                "Change at least one control answer before creating a reassessment.");
+                "Change at least one control answer from the saved quote before creating a reassessment.");
 
         return current
             .Select(decision =>
@@ -118,6 +120,18 @@ public static class ControlAssurancePolicy
                 };
             })
             .ToArray();
+    }
+
+    private static bool JsonSemanticallyEquals(string left, string right)
+    {
+        try
+        {
+            return JsonNode.DeepEquals(JsonNode.Parse(left), JsonNode.Parse(right));
+        }
+        catch (JsonException)
+        {
+            return string.Equals(left, right, StringComparison.Ordinal);
+        }
     }
 
     private static bool IsImprovement(ControlType controlType, string previous, string current)

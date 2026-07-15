@@ -67,6 +67,9 @@ public sealed class QuoteConfiguration : IEntityTypeConfiguration<Quote>
         builder.Property(quote => quote.SupersedesQuoteId)
             .HasColumnName("supersedes_quote_id");
 
+        builder.Property(quote => quote.SupersededAtUtc)
+            .HasColumnName("superseded_at_utc");
+
         builder.Property(quote => quote.AssuranceStatus)
             .HasColumnName("assurance_status")
             .HasConversion<string>()

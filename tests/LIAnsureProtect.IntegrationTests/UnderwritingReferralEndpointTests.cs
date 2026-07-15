@@ -402,7 +402,7 @@ public sealed class UnderwritingReferralEndpointTests
                 respondentName = "Jane Applicant",
                 respondentTitle = "CISO",
                 respondentEmail = "jane.applicant@example.com",
-                respondentPhone = "+63 917 555 0101",
+                respondentMobileNumber = "+63 917 555 0101",
                 responseText = (string?)null,
                 otherConcerns = "The privileged-account export will be available tomorrow."
             });
@@ -433,6 +433,22 @@ public sealed class UnderwritingReferralEndpointTests
         var underwriterDetailContent = await underwriterDetailResponse.Content.ReadAsStringAsync(
             TestContext.Current.CancellationToken);
         using var underwriterDetailPayload = JsonDocument.Parse(underwriterDetailContent);
+        var followUpResponseId = underwriterDetailPayload.RootElement
+            .GetProperty("responses")[1]
+            .GetProperty("responseId")
+            .GetGuid();
+
+        using var viewFollowUpRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{QueueEndpointPath}/{quote.Id}/evidence-requests/{evidenceRequestId}/responses/{followUpResponseId}/view",
+            "Underwriter",
+            "underwriter-1");
+        using var viewFollowUpResponse = await httpClient.SendAsync(
+            viewFollowUpRequest,
+            TestContext.Current.CancellationToken);
+        var viewFollowUpContent = await viewFollowUpResponse.Content.ReadAsStringAsync(
+            TestContext.Current.CancellationToken);
+        using var viewFollowUpPayload = JsonDocument.Parse(viewFollowUpContent);
 
         using var acceptRequest = CreateAuthenticatedRequest(
             HttpMethod.Post,
@@ -469,9 +485,15 @@ public sealed class UnderwritingReferralEndpointTests
             ownerDetailPayload.RootElement.GetProperty("otherConcerns").GetString());
         Assert.Equal(HttpStatusCode.OK, underwriterDetailResponse.StatusCode);
         Assert.Equal(2, underwriterDetailPayload.RootElement.GetProperty("responses").GetArrayLength());
+        Assert.Equal(1, underwriterDetailPayload.RootElement.GetProperty("pendingFollowUpCount").GetInt32());
         Assert.Equal(
             "jane.applicant@example.com",
             underwriterDetailPayload.RootElement.GetProperty("respondentEmail").GetString());
+        Assert.Equal(HttpStatusCode.OK, viewFollowUpResponse.StatusCode);
+        Assert.Equal(0, viewFollowUpPayload.RootElement.GetProperty("pendingFollowUpCount").GetInt32());
+        Assert.Equal(
+            "underwriter-1",
+            viewFollowUpPayload.RootElement.GetProperty("responses")[1].GetProperty("viewedByUserId").GetString());
         Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, timelineResponse.StatusCode);
         Assert.Contains("EvidenceRequestCreated", timelineContent);
@@ -753,6 +775,32 @@ public sealed class UnderwritingReferralEndpointTests
         using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Evidence_Request_Response_Rejects_Invalid_Philippine_Phone_Formats()
+    {
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"/api/v1/evidence-requests/{Guid.NewGuid()}/respond",
+            "Customer",
+            "customer-1",
+            new
+            {
+                respondentName = "Jane Applicant",
+                respondentTitle = "CISO",
+                respondentEmail = "jane@example.com",
+                respondentMobileNumber = "not-a-mobile",
+                respondentTelephoneNumber = "not-a-landline",
+                responseText = "Evidence response"
+            });
+
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Philippine mobile format", content, StringComparison.Ordinal);
+        Assert.Contains("Philippine landline format", content, StringComparison.Ordinal);
     }
 
     [Fact]

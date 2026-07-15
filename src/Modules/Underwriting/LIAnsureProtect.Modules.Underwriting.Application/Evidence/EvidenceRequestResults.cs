@@ -24,7 +24,12 @@ public sealed record EvidenceRequestOwnerSummaryResult(
     DateTime UpdatedAtUtc,
     string SubmissionReference = "",
     string CompanyName = "",
-    string DocumentRequirement = "Required");
+    string DocumentRequirement = "Required",
+    int QuoteVersion = 1,
+    string QuoteDisposition = "Current",
+    DateTime? SupersededAtUtc = null,
+    Guid? SupersededByQuoteId = null,
+    int? SupersededByQuoteVersion = null);
 
 public sealed record QuoteEvidenceRequestResult(
     Guid EvidenceRequestId,
@@ -65,7 +70,16 @@ public sealed record QuoteEvidenceRequestResult(
     string SubmissionReference = "",
     string CompanyName = "",
     string DocumentRequirement = "Required",
-    IReadOnlyCollection<QuoteEvidenceResponseResult>? Responses = null);
+    IReadOnlyCollection<QuoteEvidenceResponseResult>? Responses = null,
+    string? RespondentMobileNumber = null,
+    string? RespondentTelephoneNumber = null,
+    int PendingFollowUpCount = 0,
+    int MaxPendingFollowUps = EvidenceResponseFieldRules.MaxPendingFollowUps,
+    int QuoteVersion = 1,
+    string QuoteDisposition = "Current",
+    DateTime? SupersededAtUtc = null,
+    Guid? SupersededByQuoteId = null,
+    int? SupersededByQuoteVersion = null);
 
 public sealed record QuoteEvidenceResponseResult(
     Guid ResponseId,
@@ -77,7 +91,11 @@ public sealed record QuoteEvidenceResponseResult(
     string? ResponseText,
     string? OtherConcerns,
     string Kind,
-    DateTime RespondedAtUtc);
+    DateTime RespondedAtUtc,
+    string? RespondentMobileNumber = null,
+    string? RespondentTelephoneNumber = null,
+    string? ViewedByUserId = null,
+    DateTime? ViewedAtUtc = null);
 
 public sealed record QuoteEvidenceDocumentResult(
     Guid DocumentId,
@@ -145,7 +163,16 @@ internal static class QuoteEvidenceRequestResultFactory
             item.SubmissionReference,
             item.CompanyName,
             item.DocumentRequirement,
-            (responses ?? []).OrderBy(response => response.RespondedAtUtc).ThenBy(response => response.Id).Select(FromResponse).ToList());
+            (responses ?? []).OrderBy(response => response.RespondedAtUtc).ThenBy(response => response.Id).Select(FromResponse).ToList(),
+            item.RespondentMobileNumber,
+            item.RespondentTelephoneNumber,
+            CountPendingFollowUps(responses),
+            EvidenceResponseFieldRules.MaxPendingFollowUps,
+            item.QuoteVersion,
+            item.QuoteDisposition,
+            item.SupersededAtUtc,
+            item.SupersededByQuoteId,
+            item.SupersededByQuoteVersion);
     }
 
     public static QuoteEvidenceRequestResult FromRequest(
@@ -195,7 +222,16 @@ internal static class QuoteEvidenceRequestResultFactory
             request.SubmissionReference,
             request.CompanyName,
             request.DocumentRequirement.ToString(),
-            (responses ?? []).OrderBy(response => response.RespondedAtUtc).ThenBy(response => response.Id).Select(FromResponse).ToList());
+            (responses ?? []).OrderBy(response => response.RespondedAtUtc).ThenBy(response => response.Id).Select(FromResponse).ToList(),
+            request.RespondentMobileNumber,
+            request.RespondentTelephoneNumber,
+            CountPendingFollowUps(responses),
+            EvidenceResponseFieldRules.MaxPendingFollowUps,
+            request.QuoteVersion,
+            request.QuoteDisposition.ToString(),
+            request.SupersededAtUtc,
+            request.SupersededByQuoteId,
+            request.SupersededByQuoteVersion);
     }
 
     private static QuoteEvidenceDocumentResult FromDocument(QuoteEvidenceDocument document)
@@ -233,8 +269,16 @@ internal static class QuoteEvidenceRequestResultFactory
             response.ResponseText,
             response.OtherConcerns,
             response.Kind.ToString(),
-            response.RespondedAtUtc);
+            response.RespondedAtUtc,
+            response.RespondentMobileNumber,
+            response.RespondentTelephoneNumber,
+            response.ViewedByUserId,
+            response.ViewedAtUtc);
     }
+
+    private static int CountPendingFollowUps(IReadOnlyCollection<QuoteEvidenceResponse>? responses)
+        => (responses ?? []).Count(response =>
+            response.Kind == EvidenceResponseKind.FollowUp && response.ViewedAtUtc is null);
 
     private static string[] DeserializeFindings(string value)
     {

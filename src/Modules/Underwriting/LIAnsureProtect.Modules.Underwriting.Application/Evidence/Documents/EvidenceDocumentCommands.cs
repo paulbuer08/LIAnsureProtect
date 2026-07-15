@@ -11,7 +11,8 @@ public sealed record RespondToQuoteEvidenceRequestCommand(
     string RespondentName,
     string RespondentTitle,
     string RespondentEmail,
-    string? RespondentPhone,
+    string? RespondentMobileNumber,
+    string? RespondentTelephoneNumber,
     string? ResponseText,
     string? OtherConcerns,
     string? AttachmentFileName,
@@ -34,6 +35,11 @@ public sealed record RecordQuoteEvidenceReviewDecisionCommand(
     string Decision,
     string Reason,
     string? RemediationGuidance) : IRequest<QuoteEvidenceRequestResult?>;
+
+public sealed record MarkQuoteEvidenceFollowUpViewedCommand(
+    Guid QuoteId,
+    Guid EvidenceRequestId,
+    Guid ResponseId) : IRequest<QuoteEvidenceRequestResult?>;
 
 public sealed record DownloadOwnerEvidenceDocumentQuery(
     Guid EvidenceRequestId,
@@ -87,14 +93,38 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
                 ? EvidenceResponseKind.Remediation
                 : EvidenceResponseKind.Initial;
 
+        var pendingFollowUpCount = isPreReviewFollowUp
+            ? await evidenceRequestRepository.CountPendingFollowUpsAsync(
+                evidenceRequest.Id,
+                cancellationToken)
+            : 0;
+
         if (isPreReviewFollowUp
             && string.IsNullOrWhiteSpace(request.ResponseText)
             && string.IsNullOrWhiteSpace(request.OtherConcerns)
+            && string.Equals(request.RespondentName.Trim(), evidenceRequest.RespondentName, StringComparison.Ordinal)
+            && string.Equals(request.RespondentTitle.Trim(), evidenceRequest.RespondentTitle, StringComparison.Ordinal)
+            && string.Equals(request.RespondentEmail.Trim(), evidenceRequest.RespondentEmail, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(
+                EvidenceResponseFieldRules.PhilippineMobileNumber(request.RespondentMobileNumber),
+                evidenceRequest.RespondentMobileNumber,
+                StringComparison.Ordinal)
+            && string.Equals(
+                EvidenceResponseFieldRules.PhilippineTelephoneNumber(request.RespondentTelephoneNumber),
+                evidenceRequest.RespondentTelephoneNumber,
+                StringComparison.Ordinal)
             && request.Documents.Count == 0)
         {
             throw new ArgumentException(
-                "A follow-up must include an additional response, other concerns, or at least one document.",
+                "A follow-up must include changed contact details, an additional response, other concerns, or at least one document.",
                 nameof(request));
+        }
+
+        if (isPreReviewFollowUp
+            && pendingFollowUpCount >= EvidenceResponseFieldRules.MaxPendingFollowUps)
+        {
+            throw new InvalidOperationException(
+                $"Up to {EvidenceResponseFieldRules.MaxPendingFollowUps} unread follow-ups are allowed. Wait until underwriting opens one before sending another.");
         }
 
         if (evidenceRequest.DocumentRequirement == EvidenceDocumentRequirement.Required
@@ -121,7 +151,8 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
             request.RespondentName,
             request.RespondentTitle,
             request.RespondentEmail,
-            request.RespondentPhone,
+            request.RespondentMobileNumber,
+            request.RespondentTelephoneNumber,
             request.ResponseText,
             request.OtherConcerns,
             responseKind,
@@ -147,12 +178,14 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
                 request.RespondentName,
                 request.RespondentTitle,
                 request.RespondentEmail,
-                request.RespondentPhone,
+                request.RespondentMobileNumber,
+                request.RespondentTelephoneNumber,
                 request.ResponseText,
                 request.OtherConcerns,
                 evidenceDocuments.FirstOrDefault()?.OriginalFileName ?? request.AttachmentFileName,
                 evidenceDocuments.FirstOrDefault()?.ContentType ?? request.AttachmentContentType,
                 evidenceDocuments.FirstOrDefault()?.SizeBytes ?? request.AttachmentSizeBytes,
+                pendingFollowUpCount,
                 respondedAtUtc);
         }
         else
@@ -162,7 +195,8 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
                 request.RespondentName,
                 request.RespondentTitle,
                 request.RespondentEmail,
-                request.RespondentPhone,
+                request.RespondentMobileNumber,
+                request.RespondentTelephoneNumber,
                 request.ResponseText ?? string.Empty,
                 request.OtherConcerns,
                 evidenceDocuments.FirstOrDefault()?.OriginalFileName ?? request.AttachmentFileName,
@@ -252,6 +286,54 @@ public sealed class UploadReplacementEvidenceDocumentsCommandHandler(
         return QuoteEvidenceRequestResultFactory.FromRequest(
             evidenceRequest,
             existingDocuments.Concat(replacementDocuments).ToList());
+    }
+}
+
+public sealed class MarkQuoteEvidenceFollowUpViewedCommandHandler(
+    IEvidenceRequestRepository evidenceRequestRepository,
+    IEvidenceDocumentRepository evidenceDocumentRepository,
+    ICurrentUser currentUser)
+    : IRequestHandler<MarkQuoteEvidenceFollowUpViewedCommand, QuoteEvidenceRequestResult?>
+{
+    public async Task<QuoteEvidenceRequestResult?> Handle(
+        MarkQuoteEvidenceFollowUpViewedCommand request,
+        CancellationToken cancellationToken)
+    {
+        var evidenceRequest = await evidenceRequestRepository.GetForUnderwritingAsync(
+            request.QuoteId,
+            request.EvidenceRequestId,
+            cancellationToken);
+        if (evidenceRequest is null)
+            return null;
+
+        var response = await evidenceRequestRepository.GetResponseForUnderwritingAsync(
+            request.EvidenceRequestId,
+            request.ResponseId,
+            cancellationToken);
+        if (response is null)
+            return null;
+
+        var underwriterUserId = CurrentEvidenceUser.GetRequiredUserId(
+            currentUser,
+            "An authenticated underwriter user id is required to open an evidence follow-up.");
+        var viewedAtUtc = DateTime.UtcNow;
+        if (response.MarkViewed(underwriterUserId, viewedAtUtc))
+        {
+            evidenceRequest.RecordCustomerFollowUpViewed(viewedAtUtc);
+            await evidenceRequestRepository.SaveChangesAsync(cancellationToken);
+        }
+
+        var responses = await evidenceRequestRepository.ListResponsesAsync(
+            evidenceRequest.Id,
+            cancellationToken);
+        var documents = await evidenceDocumentRepository.ListForRequestsAsync(
+            [evidenceRequest.Id],
+            cancellationToken);
+
+        return QuoteEvidenceRequestResultFactory.FromRequest(
+            evidenceRequest,
+            documents,
+            responses);
     }
 }
 

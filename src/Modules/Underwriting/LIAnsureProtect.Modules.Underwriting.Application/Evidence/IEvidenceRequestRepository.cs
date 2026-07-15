@@ -14,6 +14,15 @@ public interface IEvidenceRequestRepository
         Guid evidenceRequestId,
         CancellationToken cancellationToken);
 
+    Task<int> CountPendingFollowUpsAsync(
+        Guid evidenceRequestId,
+        CancellationToken cancellationToken);
+
+    Task<QuoteEvidenceResponse?> GetResponseForUnderwritingAsync(
+        Guid evidenceRequestId,
+        Guid responseId,
+        CancellationToken cancellationToken);
+
     Task<QuoteEvidenceRequest?> GetForUnderwritingAsync(
         Guid quoteId,
         Guid evidenceRequestId,

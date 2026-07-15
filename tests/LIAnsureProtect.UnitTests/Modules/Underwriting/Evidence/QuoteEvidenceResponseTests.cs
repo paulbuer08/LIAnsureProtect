@@ -16,6 +16,7 @@ public sealed class QuoteEvidenceResponseTests
             " CISO ",
             "jane@example.com",
             " +63 917 555 0101 ",
+            "02 8123 4567",
             null,
             " Export follows tomorrow. ",
             EvidenceResponseKind.FollowUp,
@@ -25,10 +26,42 @@ public sealed class QuoteEvidenceResponseTests
         Assert.Equal("Jane Applicant", response.RespondentName);
         Assert.Equal("CISO", response.RespondentTitle);
         Assert.Equal("jane@example.com", response.RespondentEmail);
-        Assert.Equal("+63 917 555 0101", response.RespondentPhone);
+        Assert.Equal("+639175550101", response.RespondentMobileNumber);
+        Assert.Equal("+63281234567", response.RespondentTelephoneNumber);
         Assert.Null(response.ResponseText);
         Assert.Equal("Export follows tomorrow.", response.OtherConcerns);
         Assert.Equal(EvidenceResponseKind.FollowUp, response.Kind);
+    }
+
+    [Fact]
+    public void Create_rejects_non_philippine_contact_formats_and_excessive_text()
+    {
+        var request = CreateRequest();
+
+        Assert.Throws<ArgumentException>(() => QuoteEvidenceResponse.Create(
+            request, "customer-1", "Jane", "CISO", "jane@example.com",
+            "+1 202 555 0101", null, "Additional context.", null,
+            EvidenceResponseKind.FollowUp, DateTime.UtcNow));
+        Assert.Throws<ArgumentException>(() => QuoteEvidenceResponse.Create(
+            request, "customer-1", "Jane", "CISO", "jane@example.com",
+            null, null, new string('x', EvidenceResponseFieldRules.ResponseTextMaxLength + 1), null,
+            EvidenceResponseKind.FollowUp, DateTime.UtcNow));
+    }
+
+    [Fact]
+    public void MarkViewed_is_idempotent_and_only_applies_to_customer_follow_ups()
+    {
+        var request = CreateRequest();
+        var response = QuoteEvidenceResponse.Create(
+            request, "customer-1", "Jane", "CISO", "jane@example.com",
+            null, null, "Additional context.", null,
+            EvidenceResponseKind.FollowUp, DateTime.UtcNow);
+        var viewedAtUtc = new DateTime(2026, 7, 15, 8, 0, 0, DateTimeKind.Utc);
+
+        Assert.True(response.MarkViewed("underwriter-1", viewedAtUtc));
+        Assert.False(response.MarkViewed("underwriter-2", viewedAtUtc.AddMinutes(1)));
+        Assert.Equal("underwriter-1", response.ViewedByUserId);
+        Assert.Equal(viewedAtUtc, response.ViewedAtUtc);
     }
 
     [Fact]

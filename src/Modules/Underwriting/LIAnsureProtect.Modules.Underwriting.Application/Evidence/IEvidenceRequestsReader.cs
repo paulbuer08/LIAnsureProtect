@@ -23,6 +23,7 @@ public interface IEvidenceRequestsReader
         string? search,
         EvidenceReviewDecisionStatus? reviewDecision,
         EvidenceDocumentRequirement? documentRequirement,
+        QuoteEvidenceDisposition? quoteDisposition,
         DateTime? cursorDueAtUtc,
         DateTime? cursorRequestedAtUtc,
         Guid? cursorEvidenceRequestId,
@@ -72,7 +73,14 @@ public sealed record EvidenceRequestSnapshot(
     DateTime UpdatedAtUtc,
     string SubmissionReference = "",
     string CompanyName = "",
-    string DocumentRequirement = "Required");
+    string DocumentRequirement = "Required",
+    string? RespondentMobileNumber = null,
+    string? RespondentTelephoneNumber = null,
+    int QuoteVersion = 1,
+    string QuoteDisposition = "Current",
+    DateTime? SupersededAtUtc = null,
+    Guid? SupersededByQuoteId = null,
+    int? SupersededByQuoteVersion = null);
 
 public sealed record EvidenceRequestOwnerSummaryItem(
     Guid EvidenceRequestId,
@@ -91,7 +99,12 @@ public sealed record EvidenceRequestOwnerSummaryItem(
     DateTime UpdatedAtUtc,
     string SubmissionReference = "",
     string CompanyName = "",
-    EvidenceDocumentRequirement DocumentRequirement = EvidenceDocumentRequirement.Required);
+    EvidenceDocumentRequirement DocumentRequirement = EvidenceDocumentRequirement.Required,
+    int QuoteVersion = 1,
+    QuoteEvidenceDisposition QuoteDisposition = QuoteEvidenceDisposition.Current,
+    DateTime? SupersededAtUtc = null,
+    Guid? SupersededByQuoteId = null,
+    int? SupersededByQuoteVersion = null);
 
 public sealed record EvidenceRequestSummaryItem(
     Guid QuoteId,

@@ -25,6 +25,11 @@ export type EvidenceRequestSummary = {
   reviewDecision: string;
   remediationGuidance?: string | null;
   updatedAtUtc: string;
+  quoteVersion?: number;
+  quoteDisposition?: "Current" | "Superseded";
+  supersededAtUtc?: string | null;
+  supersededByQuoteId?: string | null;
+  supersededByQuoteVersion?: number | null;
 };
 
 export type EvidenceRequestFilters = {
@@ -37,13 +42,15 @@ export type EvidenceRequestFilters = {
   search?: string;
   reviewDecision?: string;
   documentRequirement?: string;
+  quoteDisposition?: "Current" | "Superseded" | "All";
 };
 
 export type RespondToEvidenceRequest = {
   respondentName: string;
   respondentTitle: string;
   respondentEmail: string;
-  respondentPhone?: string | null;
+  respondentMobileNumber?: string | null;
+  respondentTelephoneNumber?: string | null;
   responseText?: string | null;
   otherConcerns?: string | null;
   attachments?: File[];

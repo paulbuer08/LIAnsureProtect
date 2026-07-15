@@ -78,6 +78,8 @@ public sealed class QuoteUnderwritingContextReader(
             quote.Id,
             quote.SubmissionId,
             quote.OwnerUserId,
+            quote.Version,
+            quote.SupersedesQuoteId,
             quote.ControlAssertions
                 .Select(assertion => new QuoteAssuranceRequirement(
                     ToEvidenceCategory(assertion.ControlType),

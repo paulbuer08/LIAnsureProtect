@@ -27,7 +27,8 @@ public sealed record QuoteEvidenceRequestRespondedDomainEvent(
     DateTime DueAtUtc,
     DateTime OccurredAtUtc,
     string? SubmissionReference = null,
-    string? CompanyName = null) : IDomainEvent;
+    string? CompanyName = null,
+    int QuoteVersion = 1) : IDomainEvent;
 
 public sealed record QuoteEvidenceRequestAcceptedDomainEvent(
     Guid EvidenceRequestId,
@@ -40,7 +41,8 @@ public sealed record QuoteEvidenceRequestAcceptedDomainEvent(
     DateTime DueAtUtc,
     DateTime OccurredAtUtc,
     string? SubmissionReference = null,
-    string? CompanyName = null) : IDomainEvent;
+    string? CompanyName = null,
+    int QuoteVersion = 1) : IDomainEvent;
 
 public sealed record QuoteEvidenceRequestCancelledDomainEvent(
     Guid EvidenceRequestId,
@@ -53,7 +55,8 @@ public sealed record QuoteEvidenceRequestCancelledDomainEvent(
     DateTime DueAtUtc,
     DateTime OccurredAtUtc,
     string? SubmissionReference = null,
-    string? CompanyName = null) : IDomainEvent;
+    string? CompanyName = null,
+    int QuoteVersion = 1) : IDomainEvent;
 
 public sealed record QuoteEvidenceRequestFollowUpSentDomainEvent(
     Guid EvidenceRequestId,
@@ -66,7 +69,8 @@ public sealed record QuoteEvidenceRequestFollowUpSentDomainEvent(
     DateTime DueAtUtc,
     DateTime OccurredAtUtc,
     string? SubmissionReference = null,
-    string? CompanyName = null) : IDomainEvent;
+    string? CompanyName = null,
+    int QuoteVersion = 1) : IDomainEvent;
 
 public sealed record QuoteEvidenceRequestRemediationRequiredDomainEvent(
     Guid EvidenceRequestId,
@@ -82,4 +86,5 @@ public sealed record QuoteEvidenceRequestRemediationRequiredDomainEvent(
     DateTime DueAtUtc,
     DateTime OccurredAtUtc,
     string? SubmissionReference = null,
-    string? CompanyName = null) : IDomainEvent;
+    string? CompanyName = null,
+    int QuoteVersion = 1) : IDomainEvent;

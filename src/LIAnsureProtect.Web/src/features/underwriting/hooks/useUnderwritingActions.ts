@@ -16,6 +16,7 @@ import {
   getQuoteEvidenceRequest,
   generateAiUnderwritingReview,
   listQuoteReferralTimeline,
+  markQuoteEvidenceFollowUpViewed,
   recordQuoteEvidenceReviewDecision,
   releaseQuoteReferralAssignment,
   triageQuoteReferralOperation,
@@ -389,6 +390,33 @@ export function useRecordQuoteEvidenceReviewDecision() {
         quoteId,
         evidenceRequestId,
         request,
+      );
+    },
+    onSuccess: (_result, variables) =>
+      invalidateOperationsQueries(queryClient, variables.quoteId),
+  });
+}
+
+export function useMarkQuoteEvidenceFollowUpViewed() {
+  const { getAccessTokenSilently } = useAuth0();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      quoteId,
+      evidenceRequestId,
+      responseId,
+    }: {
+      quoteId: string;
+      evidenceRequestId: string;
+      responseId: string;
+    }) => {
+      const accessToken = await getAccessTokenSilently();
+      return markQuoteEvidenceFollowUpViewed(
+        accessToken,
+        quoteId,
+        evidenceRequestId,
+        responseId,
       );
     },
     onSuccess: (_result, variables) =>
