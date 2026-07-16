@@ -273,6 +273,122 @@ authorized workflow.
 - Which legacy notification rows lack Quote ids or meaningful titles? Define a safe no-action fallback
   rather than inferring identity from display text.
 
+## Collected item 4 — independent Underwriting evidence-review queue and reachable follow-ups
+
+### Observed gap and root cause
+
+The customer can reach `Unread follow-ups: 5 of 5`, after which the server correctly refuses another
+follow-up until an Underwriter opens one pending response. The Underwriting workbench can nevertheless
+show `No referred quotes are waiting for review`, leaving no Evidence request or follow-up for the
+Underwriter to open.
+
+This is a real workflow deadlock caused by conflating two independent dimensions:
+
+- **Quote referral status** answers whether rating referred the whole Quote for manual underwriting.
+- **Evidence assurance state** answers whether one or more control claims need human Evidence review.
+
+The workbench query starts with `ListPendingReferralsAsync`, which selects only `QuoteStatus.Referred`,
+and then asks Underwriting for Evidence summaries only for those Quote ids. A `Quoted` Quote may still
+have `EvidenceRequired` assurance and `Responded`/`NotReviewed` requests, but it is excluded before the
+Evidence query runs. The Underwriting API can load an exact Quote/Evidence request pair, and the UI has
+an `Open follow-up` action that persists `ViewedAtUtc`, but that panel exists only after a referral is
+selected. Collected item 3's wrong customer-route notification action removes the only likely workaround.
+
+The five-item limit itself is working as coded: it counts immutable `FollowUp` response rows whose
+`ViewedAtUtc` is null. The missing piece is a complete, discoverable Underwriting work queue that lets an
+authorized Underwriter consume those entries.
+
+### Approved product behavior
+
+1. Every current Evidence request requiring Underwriting attention is discoverable whether the Quote is
+   `Quoted`, `Referred`, or otherwise eligible for pre-contract Evidence review.
+2. The workbench presents separate **Quote referrals**, **Evidence review**, and **Reassessment review**
+   queues. One queue's empty state must not imply the others are empty.
+3. The Evidence review queue includes at least responded/not-reviewed requests, unread customer
+   follow-ups, remediation responses, scan-ready documents awaiting decision, and overdue open requests.
+4. Queue entries show company, submission reference, Quote version/id, request title/category, status,
+   review decision, due/overdue state, document state, unread-follow-up count, and latest activity time.
+5. Opening a queue item or a capability-aware notification deep link resolves the exact request through
+   the Underwriter-authorized API without requiring the Quote to be in the referral queue.
+6. Each unread follow-up remains concealed until the Underwriter deliberately opens that individual
+   entry. Opening one entry idempotently records who/when, releases exactly one customer follow-up slot,
+   and leaves the other pending entries unread.
+7. Viewing a request is not the same as recording an Evidence decision. `ViewedAtUtc`, request status,
+   and review decision remain distinct audited facts.
+8. A customer is never permanently blocked by an internally unreachable queue. Operational monitoring
+   identifies pending follow-ups that exceed an age/SLA threshold.
+9. Current-Quote rules remain authoritative. Historical/superseded Evidence stays read-only and does not
+   re-enter active queues or consume the current request's follow-up allowance.
+10. Team assignment/concurrency behavior is explicit. The first authorized Underwriter to open a
+    follow-up records the durable team acknowledgement; duplicate clicks or another Underwriter opening
+    the same entry do not restore multiple slots.
+
+### Implementation boundary for the future batch
+
+- Add an Underwriting-owned, paged Evidence work-queue query/API independent of
+  `IQuoteRepository.ListPendingReferralsAsync`. Prefer an endpoint such as
+  `GET /api/v1/underwriting/evidence-requests` protected by the existing Underwriting policy.
+- Build the queue from the Underwriting module's Evidence requests/responses/documents and current Quote
+  disposition projection. Use the request's existing Quote id, submission reference, company, version,
+  status, review decision, due date, and latest activity fields; do not join another module's tables.
+- Add suitable composite indexes only after verifying the final server-side filters/order with query
+  plans. The likely hot predicates are current disposition, review/status, unread follow-up existence,
+  due date, and latest activity.
+- Add an Evidence-review section/tab and independent count to the Underwriting workbench. Support search,
+  filters, cursor pagination, stable ordering, empty/loading/error states, and the exact deep-link query
+  parameters designed in collected item 3.
+- Keep the existing per-response, idempotent
+  `POST .../responses/{responseId}/view` command or replace it with an equally explicit resource command.
+  Do not mark all follow-ups viewed merely because the containing page rendered.
+- After a successful view transaction, invalidate the Evidence queue/detail, customer owner-detail,
+  unread capacity, and applicable Notification queries. Publish only a payload-free refresh hint after
+  commit; PostgreSQL remains authoritative.
+- Reconcile the matching Underwriting team notification/read receipt using collected items 2 and 3.
+  Opening from the queue or notification must converge to the same response-view and notification state.
+- Add an operational metric/log for oldest unread follow-up age and counts at/near the per-request limit.
+  Do not include response text, contact data, filenames, or other sensitive Evidence in telemetry.
+- Preserve module boundaries: the Underwriting module owns Evidence queue state; Notifications supplies
+  hints/deep links and read receipts through events/contracts, never cross-schema writes.
+
+### Acceptance scenarios
+
+1. A `Quoted` (not `Referred`) current Quote with a responded/not-reviewed Evidence request appears in
+   the Underwriting Evidence review queue while the Quote referral queue remains empty.
+2. Five unread follow-ups appear under the exact request with a visible `5 unread` indicator.
+3. Opening one follow-up records one `ViewedAtUtc`/Underwriter identity, reveals its contents, and changes
+   the customer capacity from 5 of 5 to 4 of 5 after refresh/realtime invalidation.
+4. Reopening the same follow-up or racing two Underwriters is idempotent and cannot release two slots.
+5. Opening the request shell without opening a concealed follow-up releases no slot.
+6. An Underwriter can record the eventual Evidence decision independently of whether every informational
+   follow-up was opened, subject to the existing document/review gates.
+7. A capability-aware notification selects the same exact queue item and does not route to the
+   Customer/Broker Evidence page.
+8. New follow-ups arrive in the queue and badge through outbox projection/SignalR hints without polling;
+   focus/navigation refresh remains a safety net.
+9. A superseded Quote's Evidence and responses remain in audit/history but disappear from active queue
+   counts and cannot consume or restore capacity for the current request.
+10. Another owner/request id, malformed deep link, or unauthorized role cannot expose Evidence or mark a
+    response viewed.
+11. Queue pagination and filters remain stable with many Quotes, requests, and follow-ups, and use
+    server-side queries rather than loading the entire dataset into memory.
+12. Domain/idempotency, repository/query, authorization/API integration, concurrency, outbox/projector,
+    frontend queue/deep-link/cache, accessibility, module-boundary, pending-model, and full Docker-backed
+    local-CI tests pass.
+
+### Re-audit questions before implementation
+
+- Should evidence work be assigned independently from Quote-referral assignment? The recommended first
+  slice uses the existing Underwriting team queue and durable first-view identity; add explicit Evidence
+  assignment only when operational ownership rules are defined.
+- Which states qualify as `Needs attention`, and what is their priority order? Recommended ordering is
+  SLA breach/overdue, unread customer follow-up, responded/not-reviewed, then oldest latest activity.
+- Should opening one notification reveal one follow-up or navigate to the request with that exact response
+  focused? Prefer the latter while keeping the response explicitly concealed until the Underwriter opens
+  it.
+- Should follow-up capacity replenish on `viewed` or only on a stronger `acknowledged` action? Current
+  approved behavior uses deliberate open/view; retain it unless Compliance requires explicit
+  acknowledgement.
+
 ## Future collected items
 
 Add later approved findings below this heading. Keep each entry independent enough to re-audit, estimate,
