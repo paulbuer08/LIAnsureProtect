@@ -29,6 +29,7 @@ import type {
   SensitiveDataExposure,
 } from "../types";
 import { isCreatedQuote } from "../types";
+import { useAcknowledgeNotificationSubject } from "../../notifications/hooks/useNotifications";
 
 type BooleanControlDetailKey = {
   [K in keyof CyberControlDetails]: CyberControlDetails[K] extends boolean
@@ -352,6 +353,9 @@ export function SubmissionDetailPage() {
     useState(false);
   const [effectiveDate, setEffectiveDate] = useState(defaultEffectiveDate);
   const submissionQuery = useSubmissionDetail(submissionId);
+  useAcknowledgeNotificationSubject("submission", submissionId, {
+    enabled: submissionQuery.isSuccess,
+  });
   const updateSubmissionMutation = useUpdateSubmission();
   const submitSubmissionMutation = useSubmitSubmission();
   const createQuoteMutation = useCreateQuote();
@@ -926,7 +930,7 @@ export function SubmissionDetailPage() {
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
                   {isReassessing
-                    ? "Change at least one control answer. Claimed improvements require supporting evidence, and a new quote version will preserve the prior result. A better outcome is not guaranteed."
+                    ? "Change at least one control answer. Your first valid reassessment is created immediately. After a successful reassessment, wait 30 minutes before requesting another; only requests beyond the self-service allowance go to underwriting review. Claimed improvements require supporting evidence, and a new quote version will preserve the prior result. A better outcome is not guaranteed."
                     : "Provide your organization's current security posture as accurately as possible. These answers affect the risk assessment, premium, and whether underwriting evidence is required. Any quote may remain subject to verification of selected controls."}
                 </p>
 

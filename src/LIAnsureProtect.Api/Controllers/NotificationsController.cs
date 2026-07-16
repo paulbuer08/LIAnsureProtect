@@ -1,5 +1,6 @@
 using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Modules.Notifications.Application.Commands.MarkNotificationRead;
+using LIAnsureProtect.Modules.Notifications.Application.Commands.AcknowledgeNotificationSubject;
 using LIAnsureProtect.Modules.Notifications.Application.Queries.ListMyNotifications;
 using LIAnsureProtect.Modules.Notifications.Application.Queries.GetUnreadNotificationCount;
 using MediatR;
@@ -66,5 +67,41 @@ public sealed class NotificationsController(ISender sender) : ControllerBase
             cancellationToken);
 
         return marked ? Ok() : NotFound();
+    }
+
+    [HttpPost("subjects/{subjectReferenceType}/{subjectReferenceId}/view")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> AcknowledgeSubject(
+        string subjectReferenceType,
+        string subjectReferenceId,
+        [FromQuery] string scope = "personal",
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await sender.Send(
+                new AcknowledgeNotificationSubjectCommand(
+                    subjectReferenceType,
+                    subjectReferenceId,
+                    scope),
+                cancellationToken);
+            return NoContent();
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Notification subject is invalid.",
+                Detail = exception.Message
+            });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 }

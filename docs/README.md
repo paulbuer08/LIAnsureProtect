@@ -24,6 +24,7 @@
 | Per-milestone documentation rules | [dev/milestone-documentation-practice.md](dev/milestone-documentation-practice.md) |
 | Business domain: cyber specialty insurance | [business/cyber-specialty-insurance-overview.md](business/cyber-specialty-insurance-overview.md) |
 | Business domain: user roles & ownership rules | [business/user-roles.md](business/user-roles.md) |
+| Future Broker firms, client organizations, delegated authority, and ownership migration | [dev/broker-organizations-and-delegated-access-plan.md](dev/broker-organizations-and-delegated-access-plan.md) |
 | Core concepts explained (modular monolith, outbox, …) | [concepts/README.md](concepts/README.md) |
 | Phase 2 infra/edge/identity decisions + domain/Auth0 setup log | [dev/phase2-infrastructure-and-identity-decisions.md](dev/phase2-infrastructure-and-identity-decisions.md) |
 | Customer errors, support IDs, CloudWatch alarms, and browser telemetry | [dev/production-observability-and-customer-errors-runbook.md](dev/production-observability-and-customer-errors-runbook.md) |
@@ -54,6 +55,10 @@ Build History.
 - **`dev/evidence-follow-up-governance-and-quote-navigation-learnings.md`** — July 2026 progressive
   confirmation guidance, Submission-owned Quote navigation, Philippine respondent contacts, field limits,
   and the five-currently-unread Evidence follow-up acknowledgement contract.
+- **`dev/manual-retest-hardening-batch-plan.md`** and its matching learnings record — July 2026
+  respondent email deliverability/verification, exact-subject Notification acknowledgement,
+  capability-aware actions, independent Underwriting Evidence review, stable scope tabs, and concise
+  accessible contact guidance.
 - **`superpowers/plans/`** — execution plans for the plan-driven milestones.
 - **`dev/run-the-app.md`** — the Milestone-9-era run guide (banner-marked historical; still holds
   the troubleshooting catalog and the manual Auth0-token appendix).

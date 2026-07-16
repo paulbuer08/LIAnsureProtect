@@ -14,6 +14,7 @@ public static class ApplicationPolicies
     public const string BindPolicy = "Policies.Bind";
     public const string ReadPolicy = "Policies.Read";
     public const string ReadNotifications = "Notifications.Read";
+    public const string ReadTeamNotifications = "Notifications.ReadTeam";
     public const string FileClaim = "Claims.File";
     public const string ReadClaim = "Claims.Read";
     public const string RespondToClaim = "Claims.Respond";

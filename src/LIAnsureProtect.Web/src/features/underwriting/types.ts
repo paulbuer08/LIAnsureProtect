@@ -29,6 +29,42 @@ export type QuoteReferralFilters = {
   evidenceState?: string;
 };
 
+export type UnderwritingEvidenceQueueFilters = {
+  search?: string;
+  status?: string;
+  reviewDecision?: string;
+  overdue?: boolean;
+  unreadFollowUps?: boolean;
+  cursor?: string;
+  pageSize?: number;
+};
+
+export type UnderwritingEvidenceQueueItem = {
+  evidenceRequestId: string;
+  quoteId: string;
+  submissionId: string;
+  submissionReference: string;
+  companyName: string;
+  quoteVersion: number;
+  category: string;
+  title: string;
+  dueAtUtc: string;
+  status: string;
+  reviewDecision: string;
+  documentRequirement: string;
+  pendingFollowUpCount: number;
+  documentCount: number;
+  downloadableDocumentCount: number;
+  oldestPendingFollowUpAtUtc?: string | null;
+  latestActivityAtUtc: string;
+  isOverdue: boolean;
+};
+
+export type ListUnderwritingEvidenceQueueResponse = {
+  evidenceRequests: UnderwritingEvidenceQueueItem[];
+  nextCursor: string | null;
+};
+
 export type QuoteReferralOperationsSummary = {
   assignedUnderwriterUserId: string | null;
   priority: string;
@@ -184,6 +220,10 @@ export type QuoteEvidenceResponse = {
   respondedAtUtc: string;
   viewedByUserId?: string | null;
   viewedAtUtc?: string | null;
+  emailDomainStatus?: "MailCapable" | "AddressFallback" | "Undeliverable" | "Unverified";
+  emailVerificationStatus?: "Unverified" | "VerificationPending" | "Verified";
+  emailVerificationSentAtUtc?: string | null;
+  emailVerifiedAtUtc?: string | null;
 };
 
 export type QuoteEvidenceDocument = {

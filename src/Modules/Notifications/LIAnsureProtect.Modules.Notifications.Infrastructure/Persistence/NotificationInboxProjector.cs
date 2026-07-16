@@ -17,6 +17,15 @@ public sealed class NotificationInboxProjector(NotificationsDbContext dbContext)
     {
         await MarkEarlierQuoteVersionEntriesHistoricalAsync(message, cancellationToken);
 
+        // A successful Evidence response is durable proof that the owner saw that exact request.
+        // Record the personal watermark in the Notifications context before projecting the separate
+        // Underwriting team work item.
+        if (message.Type == NotificationMessageTypes.EvidenceRequestResponded
+            && !string.IsNullOrWhiteSpace(message.OwnerUserId))
+        {
+            await AcknowledgePersonalSubjectAsync(message, cancellationToken);
+        }
+
         switch (message.Audience)
         {
             case NotificationAudiences.CustomerOrBroker:
@@ -132,6 +141,17 @@ public sealed class NotificationInboxProjector(NotificationsDbContext dbContext)
             message.OccurredAtUtc,
             DateTime.UtcNow);
 
+        var viewedThroughUtc = await dbContext.NotificationSubjectViews
+            .Where(view => view.RecipientUserId == message.OwnerUserId
+                && view.Scope == NotificationScopes.Personal
+                && view.Audience == NotificationAudiences.CustomerOrBroker
+                && view.SubjectReferenceType == message.SubjectReferenceType
+                && view.SubjectReferenceId == message.SubjectReferenceId)
+            .Select(view => (DateTime?)view.ViewedThroughUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (viewedThroughUtc is not null && viewedThroughUtc.Value >= message.OccurredAtUtc)
+            entry.MarkRead(viewedThroughUtc.Value);
+
         await dbContext.NotificationInboxEntries.AddAsync(entry, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -153,7 +173,60 @@ public sealed class NotificationInboxProjector(NotificationsDbContext dbContext)
             message.OccurredAtUtc,
             DateTime.UtcNow);
 
+        var priorViews = await dbContext.NotificationSubjectViews
+            .Where(view => view.Scope == NotificationScopes.Team
+                && view.Audience == message.Audience
+                && view.SubjectReferenceType == message.SubjectReferenceType
+                && view.SubjectReferenceId == message.SubjectReferenceId
+                && view.ViewedThroughUtc >= message.OccurredAtUtc)
+            .Select(view => new { view.RecipientUserId, view.ViewedThroughUtc })
+            .ToListAsync(cancellationToken);
+        foreach (var priorView in priorViews)
+            entry.MarkReadBy(priorView.RecipientUserId, priorView.ViewedThroughUtc);
+
         await dbContext.TeamNotificationEntries.AddAsync(entry, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task AcknowledgePersonalSubjectAsync(
+        NotificationMessage message,
+        CancellationToken cancellationToken)
+    {
+        var view = await dbContext.NotificationSubjectViews.FirstOrDefaultAsync(
+            candidate => candidate.RecipientUserId == message.OwnerUserId
+                && candidate.Scope == NotificationScopes.Personal
+                && candidate.Audience == NotificationAudiences.CustomerOrBroker
+                && candidate.SubjectReferenceType == message.SubjectReferenceType
+                && candidate.SubjectReferenceId == message.SubjectReferenceId,
+            cancellationToken);
+
+        if (view is null)
+        {
+            await dbContext.NotificationSubjectViews.AddAsync(
+                NotificationSubjectView.Create(
+                    message.OwnerUserId,
+                    NotificationScopes.Personal,
+                    NotificationAudiences.CustomerOrBroker,
+                    message.SubjectReferenceType,
+                    message.SubjectReferenceId,
+                    message.OccurredAtUtc),
+                cancellationToken);
+        }
+        else
+        {
+            view.MoveThrough(message.OccurredAtUtc);
+        }
+
+        var entries = await dbContext.NotificationInboxEntries
+            .Where(entry => entry.RecipientUserId == message.OwnerUserId
+                && entry.SubjectReferenceType == message.SubjectReferenceType
+                && entry.SubjectReferenceId == message.SubjectReferenceId
+                && entry.OccurredAtUtc <= message.OccurredAtUtc
+                && entry.LifecycleState == NotificationLifecycleState.Active)
+            .ToListAsync(cancellationToken);
+        foreach (var entry in entries)
+            entry.MarkRead(message.OccurredAtUtc);
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

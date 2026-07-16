@@ -5,6 +5,7 @@ import type {
   AiUnderwritingReviewResponse,
   CreateQuoteEvidenceRequest,
   ListQuoteReferralsResponse,
+  ListUnderwritingEvidenceQueueResponse,
   QuoteEvidenceRequest,
   QuoteReferralNoteRequest,
   QuoteReferralFilters,
@@ -19,6 +20,7 @@ import type {
   ReassessmentRequest,
   ReviewQuoteEvidenceRequest,
   UnderwriteQuoteReferralResult,
+  UnderwritingEvidenceQueueFilters,
 } from "../types";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5223";
@@ -75,6 +77,21 @@ export async function listQuoteReferrals(
   return parseJsonResponse<ListQuoteReferralsResponse>(
     response,
     "Underwriting referral queue was not found.",
+  );
+}
+
+export async function listUnderwritingEvidenceQueue(
+  accessToken: string,
+  filters: UnderwritingEvidenceQueueFilters = {},
+) {
+  const url = new URL(`${apiBaseUrl}/api/v1/underwriting/evidence-requests`);
+  for (const [name, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== "") url.searchParams.set(name, String(value));
+  }
+  const response = await fetch(url, { headers: authHeaders(accessToken) });
+  return parseJsonResponse<ListUnderwritingEvidenceQueueResponse>(
+    response,
+    "Underwriting evidence queue was not found.",
   );
 }
 

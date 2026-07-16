@@ -1,5 +1,6 @@
 using LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
 using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Email;
 using LIAnsureProtect.Platform.Abstractions.Documents;
 using LIAnsureProtect.Platform.Abstractions.Security;
 using MediatR;
@@ -66,7 +67,8 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
     IEvidenceDocumentRepository evidenceDocumentRepository,
     ICurrentUser currentUser,
     IDocumentStorageService documentStorageService,
-    IEvidenceDocumentScanner evidenceDocumentScanner)
+    IEvidenceDocumentScanner evidenceDocumentScanner,
+    IRespondentEmailDomainChecker emailDomainChecker)
     : IRequestHandler<RespondToQuoteEvidenceRequestCommand, QuoteEvidenceRequestResult?>
 {
     public async Task<QuoteEvidenceRequestResult?> Handle(
@@ -144,6 +146,16 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
                 nameof(request));
         }
 
+        var emailDomainResult = await emailDomainChecker.CheckAsync(
+            request.RespondentEmail,
+            cancellationToken);
+        if (emailDomainResult.Status == EmailDomainCapabilityStatus.Undeliverable)
+        {
+            throw new ArgumentException(
+                emailDomainResult.UserMessage ?? "This respondent email domain cannot receive email.",
+                nameof(request));
+        }
+
         var respondedAtUtc = DateTime.UtcNow;
         var response = QuoteEvidenceResponse.Create(
             evidenceRequest,
@@ -156,7 +168,8 @@ public sealed class RespondToQuoteEvidenceRequestCommandHandler(
             request.ResponseText,
             request.OtherConcerns,
             responseKind,
-            respondedAtUtc);
+            respondedAtUtc,
+            emailDomainResult.Status.ToString());
         var evidenceDocuments = await EvidenceDocumentUploadWorkflow.StoreAndScanDocumentsAsync(
             request.Documents,
             EvidenceDocumentRequestFacts.FromRequest(evidenceRequest, response.Id),

@@ -10,11 +10,18 @@ import { TransientStatusMessage } from "../../../components/TransientStatusMessa
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { downloadOwnerEvidenceDocument } from "../api/evidenceRequestsApi";
 import {
+  useCheckRespondentEmailDomain,
   useEvidenceRequests,
+  useRequestRespondentEmailVerification,
   useRespondToEvidenceRequest,
   useUploadReplacementEvidenceDocuments,
+  useVerifyRespondentEmail,
 } from "../hooks/useEvidenceRequests";
-import type { EvidenceRequestSummary, QuoteEvidenceRequest } from "../types";
+import type {
+  EmailDomainCapability,
+  EvidenceRequestSummary,
+  QuoteEvidenceRequest,
+} from "../types";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -80,11 +87,17 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
   const { getAccessTokenSilently } = useAuth0();
   const respondToEvidenceRequest = useRespondToEvidenceRequest();
   const uploadReplacementEvidenceDocuments = useUploadReplacementEvidenceDocuments();
+  const checkRespondentEmailDomain = useCheckRespondentEmailDomain();
+  const requestRespondentEmailVerification = useRequestRespondentEmailVerification();
+  const verifyRespondentEmail = useVerifyRespondentEmail();
   const isPreReviewResponse =
     request.status === "Responded" && request.reviewDecision === "NotReviewed";
   const [respondentName, setRespondentName] = useState(isPreReviewResponse ? request.respondentName ?? "" : "");
   const [respondentTitle, setRespondentTitle] = useState(isPreReviewResponse ? request.respondentTitle ?? "" : "");
   const [respondentEmail, setRespondentEmail] = useState(isPreReviewResponse ? request.respondentEmail ?? "" : "");
+  const [emailDomainResult, setEmailDomainResult] = useState<EmailDomainCapability>();
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationStatusMessage, setVerificationStatusMessage] = useState<string>();
   const initialMobileNumber = isPreReviewResponse
     ? request.respondentMobileNumber ?? request.respondentPhone ?? ""
     : "";
@@ -134,11 +147,15 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
     responseText.trim().length > 0 ||
     otherConcerns.trim().length > 0 ||
     attachments.length > 0;
-  const respondentEmailError =
+  const respondentEmailSyntaxError =
     respondentEmail.trim().length > 0 &&
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(respondentEmail.trim())
       ? "Enter a valid email address, such as name@example.com."
       : undefined;
+  const respondentEmailError = respondentEmailSyntaxError ??
+    (emailDomainResult?.status === "Undeliverable"
+      ? emailDomainResult.userMessage ?? "This email domain cannot receive mail."
+      : undefined);
   const respondentMobileError = getPhilippineMobileError(respondentMobileNumber);
   const respondentTelephoneError = getPhilippineTelephoneError(
     respondentTelephoneNumber,
@@ -154,6 +171,67 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
   const hasFollowUpCapacity = pendingFollowUpCount < maxPendingFollowUps;
   const hasRequiredNarrative =
     isPreReviewFollowUp || responseText.trim().length > 0;
+  const latestResponse = savedResponses.at(-1);
+
+  async function handleEmailDomainCheck() {
+    const emailAddress = respondentEmail.trim();
+    if (emailAddress.length === 0 || respondentEmailSyntaxError) return;
+
+    try {
+      const result = await checkRespondentEmailDomain.mutateAsync(emailAddress);
+      setEmailDomainResult(result);
+    } catch {
+      setEmailDomainResult({
+        status: "Unverified",
+        domain: emailAddress.split("@").at(-1) ?? "",
+        suggestion: null,
+        userMessage: "The email domain could not be checked right now. You may continue, but the address remains unverified.",
+        isAuthoritative: false,
+      });
+    }
+  }
+
+  async function handleRequestEmailVerification(responseId: string) {
+    try {
+      const result = await requestRespondentEmailVerification.mutateAsync({
+        evidenceRequestId: request.evidenceRequestId,
+        responseId,
+      });
+      setSavedResponses((responses) => responses.map((response) =>
+        response.responseId === responseId
+          ? {
+              ...response,
+              emailVerificationStatus: result.status,
+              emailVerificationSentAtUtc: result.sentAtUtc,
+            }
+          : response));
+      setVerificationStatusMessage("Verification email sent. Enter the one-time code below.");
+    } catch (error) {
+      setVerificationStatusMessage(getErrorMessage(error, "Unable to send the verification email."));
+    }
+  }
+
+  async function handleVerifyEmail(responseId: string) {
+    try {
+      const result = await verifyRespondentEmail.mutateAsync({
+        evidenceRequestId: request.evidenceRequestId,
+        responseId,
+        verificationCode: verificationCode.trim(),
+      });
+      setSavedResponses((responses) => responses.map((response) =>
+        response.responseId === responseId
+          ? {
+              ...response,
+              emailVerificationStatus: result.status,
+              emailVerifiedAtUtc: result.verifiedAtUtc,
+            }
+          : response));
+      setVerificationCode("");
+      setVerificationStatusMessage("Respondent email verified.");
+    } catch (error) {
+      setVerificationStatusMessage(getErrorMessage(error, "The verification code could not be accepted."));
+    }
+  }
 
   function discardResponseAndLeave() {
     setRespondentName("");
@@ -345,6 +423,14 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
                   {response.respondentTelephoneNumber ? ` · Telephone ${response.respondentTelephoneNumber}` : ""}
                   {!response.respondentMobileNumber && !response.respondentTelephoneNumber && response.respondentPhone ? ` · Contact ${response.respondentPhone}` : ""}
                 </p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-md border border-slate-700 px-2 py-1 text-slate-300">
+                    Domain: {response.emailDomainStatus ?? "Unverified"}
+                  </span>
+                  <span className={`rounded-md border px-2 py-1 ${response.emailVerificationStatus === "Verified" ? "border-emerald-700 text-emerald-200" : "border-amber-800 text-amber-200"}`}>
+                    Email: {response.emailVerificationStatus ?? "Unverified"}
+                  </span>
+                </div>
                 {response.responseText && <p className="mt-2 whitespace-pre-wrap text-slate-200">{response.responseText}</p>}
                 {response.otherConcerns && (
                   <p className="mt-2 whitespace-pre-wrap rounded-md border border-amber-900 bg-amber-950/20 p-2 text-amber-100">
@@ -354,6 +440,48 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
               </li>
             ))}
           </ol>
+        </section>
+      )}
+
+      {latestResponse && latestResponse.emailVerificationStatus !== "Verified" && (
+        <section className="mt-4 rounded-md border border-sky-800 bg-sky-950/20 p-4 text-sm text-sky-100">
+          <h3 className="font-semibold text-white">Verify the respondent email</h3>
+          <p className="mt-1 leading-6">
+            Verification confirms control of {latestResponse.respondentEmail}. It does not by itself prove the evidence or control assertion.
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <button
+              type="button"
+              disabled={requestRespondentEmailVerification.isPending}
+              onClick={() => void handleRequestEmailVerification(latestResponse.responseId)}
+              className="rounded-lg border border-sky-600 px-4 py-2 font-semibold text-sky-100 hover:border-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {latestResponse.emailVerificationStatus === "VerificationPending" ? "Resend verification email" : "Send verification email"}
+            </button>
+            {latestResponse.emailVerificationStatus === "VerificationPending" && (
+              <>
+                <label className="text-sm font-medium text-slate-200">
+                  One-time verification code
+                  <input
+                    value={verificationCode}
+                    onChange={(event) => setVerificationCode(event.target.value)}
+                    autoComplete="one-time-code"
+                    maxLength={128}
+                    className="mt-2 block rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-emerald-400"
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={verifyRespondentEmail.isPending || verificationCode.trim().length === 0}
+                  onClick={() => void handleVerifyEmail(latestResponse.responseId)}
+                  className="rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                >
+                  Verify email
+                </button>
+              </>
+            )}
+          </div>
+          {verificationStatusMessage && <p role="status" className="mt-3 text-sky-200">{verificationStatusMessage}</p>}
         </section>
       )}
 
@@ -415,22 +543,42 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
               className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
             />
           </label>
-          <label className="block text-sm font-medium text-slate-200">
-            Respondent email
+          <div className="block text-sm font-medium text-slate-200">
+            <label htmlFor={`respondent-email-${request.evidenceRequestId}`}>Respondent email</label>
             <input
+              id={`respondent-email-${request.evidenceRequestId}`}
               required
               type="email"
               maxLength={respondentEmailMaxLength}
               value={respondentEmail}
-              onChange={(event) => setRespondentEmail(event.target.value)}
+              onChange={(event) => {
+                setRespondentEmail(event.target.value);
+                setEmailDomainResult(undefined);
+                checkRespondentEmailDomain.reset();
+              }}
+              onBlur={() => void handleEmailDomainCheck()}
               aria-invalid={respondentEmailError !== undefined}
               aria-describedby={`respondent-email-help-${request.evidenceRequestId}`}
               className={`mt-2 w-full rounded-lg border bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400 ${respondentEmailError ? "border-red-500" : "border-slate-700"}`}
             />
             <span id={`respondent-email-help-${request.evidenceRequestId}`} className={`mt-2 block text-xs ${respondentEmailError ? "text-red-300" : "text-slate-400"}`}>
-              {respondentEmailError ?? "Underwriting may use this address to verify the response. It is not treated as proof by itself."}
+              {respondentEmailError ?? emailDomainResult?.userMessage ?? "Underwriting may use this address to verify the response."}
             </span>
-          </label>
+            {emailDomainResult?.suggestion && emailDomainResult.suggestion !== emailDomainResult.domain && (
+              <button
+                type="button"
+                className="mt-2 block text-xs font-semibold text-sky-300 underline"
+                onClick={() => {
+                  const localPart = respondentEmail.trim().split("@")[0];
+                  setRespondentEmail(`${localPart}@${emailDomainResult.suggestion}`);
+                  setEmailDomainResult(undefined);
+                }}
+              >
+                Use {emailDomainResult.suggestion} instead
+              </button>
+            )}
+            {checkRespondentEmailDomain.isPending && <span className="mt-2 block text-xs text-slate-400">Checking whether this domain can receive mail…</span>}
+          </div>
           <label className="block text-sm font-medium text-slate-200">
             Respondent mobile number (optional)
             <input
@@ -444,8 +592,8 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
               aria-describedby={`respondent-mobile-help-${request.evidenceRequestId}`}
               className={`mt-2 w-full rounded-lg border bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400 ${respondentMobileError ? "border-red-500" : "border-slate-700"}`}
             />
-            <span id={`respondent-mobile-help-${request.evidenceRequestId}`} className={`mt-2 block text-xs ${respondentMobileError ? "text-red-300" : "text-slate-400"}`}>
-              {respondentMobileError ?? "Philippine mobile numbers use 11 domestic digits beginning with 09, or country code +63 followed by 10 digits beginning with 9."}
+            <span id={`respondent-mobile-help-${request.evidenceRequestId}`} className={respondentMobileError ? "mt-2 block text-xs text-red-300" : "sr-only"}>
+              {respondentMobileError ?? "Use a Philippine mobile number such as 0917 123 4567 or +63 917 123 4567."}
             </span>
           </label>
           <label className="block text-sm font-medium text-slate-200">
@@ -461,8 +609,8 @@ export function EvidenceRequestCard({ request }: { request: QuoteEvidenceRequest
               aria-describedby={`respondent-telephone-help-${request.evidenceRequestId}`}
               className={`mt-2 w-full rounded-lg border bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400 ${respondentTelephoneError ? "border-red-500" : "border-slate-700"}`}
             />
-            <span id={`respondent-telephone-help-${request.evidenceRequestId}`} className={`mt-2 block text-xs ${respondentTelephoneError ? "text-red-300" : "text-slate-400"}`}>
-              {respondentTelephoneError ?? "Include the Philippine area code. Metro Manila commonly uses 02 domestically or +63 2 internationally."}
+            <span id={`respondent-telephone-help-${request.evidenceRequestId}`} className={respondentTelephoneError ? "mt-2 block text-xs text-red-300" : "sr-only"}>
+              {respondentTelephoneError ?? "Include the Philippine area code, such as 02 8123 4567 or +63 2 8123 4567."}
             </span>
           </label>
           <label className="block text-sm font-medium text-slate-200">

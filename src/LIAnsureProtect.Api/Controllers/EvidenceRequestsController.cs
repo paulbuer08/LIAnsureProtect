@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ModuleEvidence = LIAnsureProtect.Modules.Underwriting.Application.Evidence;
 using ModuleEvidenceDocuments = LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
+using ModuleEvidenceEmail = LIAnsureProtect.Modules.Underwriting.Application.Evidence.Email;
 using ModuleOwnerEvidenceRequests = LIAnsureProtect.Modules.Underwriting.Application.Evidence.Queries.ListOwnerEvidenceRequests;
 using ModuleOwnerEvidenceRequest = LIAnsureProtect.Modules.Underwriting.Application.Evidence.Queries.GetOwnerEvidenceRequest;
 
@@ -17,6 +18,30 @@ namespace LIAnsureProtect.Api.Controllers;
 [ServiceFilter<Caching.ReferralQueueCacheInvalidationFilter>]
 public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
 {
+    [HttpPost("email-domain-check")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ModuleEvidenceEmail.EmailDomainCapabilityResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleEvidenceEmail.EmailDomainCapabilityResult>> CheckEmailDomain(
+        CheckRespondentEmailDomainRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await sender.Send(
+                new ModuleEvidenceEmail.CheckRespondentEmailDomainQuery(request.EmailAddress),
+                cancellationToken));
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Respondent email is invalid.",
+                exception.Message));
+        }
+    }
+
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -180,6 +205,72 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
         }
     }
 
+    [HttpPost("{evidenceRequestId:guid}/responses/{responseId:guid}/email-verification")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ModuleEvidenceEmail.RespondentEmailVerificationResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleEvidenceEmail.RespondentEmailVerificationResult>> RequestEmailVerification(
+        Guid evidenceRequestId,
+        Guid responseId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new ModuleEvidenceEmail.RequestRespondentEmailVerificationCommand(evidenceRequestId, responseId),
+                cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Verification email cannot be sent.",
+                exception.Message));
+        }
+    }
+
+    [HttpPost("{evidenceRequestId:guid}/responses/{responseId:guid}/email-verification/verify")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ModuleEvidenceEmail.RespondentEmailVerificationResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ModuleEvidenceEmail.RespondentEmailVerificationResult>> VerifyEmail(
+        Guid evidenceRequestId,
+        Guid responseId,
+        VerifyRespondentEmailRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new ModuleEvidenceEmail.VerifyRespondentEmailCommand(
+                    evidenceRequestId,
+                    responseId,
+                    request.VerificationCode),
+                cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Verification code is invalid.",
+                exception.Message));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(CreateProblemDetails(
+                StatusCodes.Status409Conflict,
+                "Respondent email cannot be verified.",
+                exception.Message));
+        }
+    }
+
     [HttpGet("{evidenceRequestId:guid}/documents/{documentId:guid}/download")]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -268,6 +359,12 @@ public sealed class EvidenceRequestsController(ISender sender) : ControllerBase
         };
     }
 }
+
+public sealed record CheckRespondentEmailDomainRequest(
+    [Required, EmailAddress, MaxLength(254)] string EmailAddress);
+
+public sealed record VerifyRespondentEmailRequest(
+    [Required, MaxLength(100)] string VerificationCode);
 
 public sealed record RespondToEvidenceRequestRequest(
     [Required, MaxLength(120)] string RespondentName,

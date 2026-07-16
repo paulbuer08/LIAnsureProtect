@@ -63,6 +63,13 @@ public sealed class CurrentUserEndpointTests
         Assert.Equal("adjuster@example.com", root.GetProperty("email").GetString());
         var roles = root.GetProperty("roles").EnumerateArray().Select(role => role.GetString()).ToArray();
         Assert.Contains("ClaimsAdjuster", roles);
+        var capabilities = root.GetProperty("capabilities").EnumerateArray()
+            .Select(capability => capability.GetString())
+            .ToArray();
+        Assert.Contains("Claims.Adjudicate", capabilities);
+        Assert.Contains("Notifications.Read", capabilities);
+        Assert.Contains("Notifications.ReadTeam", capabilities);
+        Assert.DoesNotContain("EvidenceRequests.Respond", capabilities);
     }
 
     [Fact]

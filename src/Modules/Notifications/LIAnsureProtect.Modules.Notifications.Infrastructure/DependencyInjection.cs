@@ -86,6 +86,7 @@ public static class DependencyInjection
 
         services.AddScoped<INotificationInboxRepository, EfNotificationInboxRepository>();
         services.AddScoped<ITeamNotificationRepository, EfTeamNotificationRepository>();
+        services.AddScoped<INotificationSubjectAcknowledgementRepository, EfNotificationSubjectAcknowledgementRepository>();
         services.AddScoped<INotificationProjector, NotificationInboxProjector>();
 
         // Ports & Adapters: the notification publisher is chosen by the active deployment profile.

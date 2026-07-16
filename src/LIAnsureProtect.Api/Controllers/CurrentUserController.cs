@@ -1,4 +1,5 @@
 using LIAnsureProtect.Platform.Abstractions.Security;
+using LIAnsureProtect.Application.Common.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -21,14 +22,44 @@ public sealed class CurrentUserController(ICurrentUser currentUser) : Controller
     [ProducesResponseType<CurrentUserResult>(StatusCodes.Status200OK)]
     public ActionResult<CurrentUserResult> Get()
     {
+        var roles = currentUser.GetRoles().ToArray();
         return Ok(new CurrentUserResult(
             currentUser.UserId ?? string.Empty,
             currentUser.Email,
-            currentUser.GetRoles().ToArray()));
+            roles,
+            CurrentUserCapabilities.ForRoles(roles)));
     }
 }
 
 public sealed record CurrentUserResult(
     string UserId,
     string? Email,
-    IReadOnlyCollection<string> Roles);
+    IReadOnlyCollection<string> Roles,
+    IReadOnlyCollection<string> Capabilities);
+
+internal static class CurrentUserCapabilities
+{
+    public static IReadOnlyCollection<string> ForRoles(IReadOnlyCollection<string> roles)
+    {
+        var capabilities = new HashSet<string>(StringComparer.Ordinal);
+        if (roles.Any(role => role is ApplicationRoles.Customer or ApplicationRoles.Broker or ApplicationRoles.Admin))
+        {
+            capabilities.UnionWith([
+                ApplicationPolicies.ReadSubmission,
+                ApplicationPolicies.RespondToEvidenceRequest,
+                ApplicationPolicies.ReadPolicy,
+                ApplicationPolicies.ReadClaim
+            ]);
+        }
+        if (roles.Any(role => role is ApplicationRoles.Underwriter or ApplicationRoles.Admin))
+            capabilities.Add(ApplicationPolicies.UnderwriteQuote);
+        if (roles.Any(role => role is ApplicationRoles.ClaimsAdjuster or ApplicationRoles.Admin))
+            capabilities.Add(ApplicationPolicies.AdjudicateClaim);
+        if (roles.Any(role => role is ApplicationRoles.Underwriter or ApplicationRoles.ClaimsAdjuster or ApplicationRoles.Admin))
+            capabilities.Add(ApplicationPolicies.ReadTeamNotifications);
+        if (roles.Count > 0)
+            capabilities.Add(ApplicationPolicies.ReadNotifications);
+
+        return capabilities.Order(StringComparer.Ordinal).ToArray();
+    }
+}

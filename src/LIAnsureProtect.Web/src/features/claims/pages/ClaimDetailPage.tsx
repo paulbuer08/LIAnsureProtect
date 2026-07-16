@@ -9,6 +9,7 @@ import { formatCurrency } from "../../../lib/currency";
 import { downloadOwnerClaimDocument } from "../api/claimsApi";
 import { useClaimDetail, useClaimantActions } from "../hooks/useClaims";
 import { claimDocumentKinds } from "../types";
+import { useAcknowledgeNotificationSubject } from "../../notifications/hooks/useNotifications";
 
 function getErrorMessage(error: unknown) {
   return getUserErrorMessage(error, "Something went wrong.");
@@ -18,6 +19,7 @@ export function ClaimDetailPage() {
   const { claimId = "" } = useParams();
   const { getAccessTokenSilently } = useAuth0();
   const detailQuery = useClaimDetail(claimId);
+  useAcknowledgeNotificationSubject("claim", claimId, { enabled: detailQuery.isSuccess });
   const [downloadError, setDownloadError] = useState<string>();
 
   async function handleDownloadDocument(documentId: string, fileName: string) {

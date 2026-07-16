@@ -7,6 +7,30 @@ public sealed record ListOwnerEvidenceRequestsResult(
     IReadOnlyCollection<EvidenceRequestOwnerSummaryResult> EvidenceRequests,
     string? NextCursor);
 
+public sealed record ListUnderwritingEvidenceQueueResult(
+    IReadOnlyCollection<UnderwritingEvidenceQueueItemResult> EvidenceRequests,
+    string? NextCursor);
+
+public sealed record UnderwritingEvidenceQueueItemResult(
+    Guid EvidenceRequestId,
+    Guid QuoteId,
+    Guid SubmissionId,
+    string SubmissionReference,
+    string CompanyName,
+    int QuoteVersion,
+    string Category,
+    string Title,
+    DateTime DueAtUtc,
+    string Status,
+    string ReviewDecision,
+    string DocumentRequirement,
+    int PendingFollowUpCount,
+    int DocumentCount,
+    int DownloadableDocumentCount,
+    DateTime? OldestPendingFollowUpAtUtc,
+    DateTime LatestActivityAtUtc,
+    bool IsOverdue);
+
 public sealed record EvidenceRequestOwnerSummaryResult(
     Guid EvidenceRequestId,
     Guid QuoteId,
@@ -95,7 +119,11 @@ public sealed record QuoteEvidenceResponseResult(
     string? RespondentMobileNumber = null,
     string? RespondentTelephoneNumber = null,
     string? ViewedByUserId = null,
-    DateTime? ViewedAtUtc = null);
+    DateTime? ViewedAtUtc = null,
+    string EmailDomainStatus = "Unverified",
+    string EmailVerificationStatus = "Unverified",
+    DateTime? EmailVerificationSentAtUtc = null,
+    DateTime? EmailVerifiedAtUtc = null);
 
 public sealed record QuoteEvidenceDocumentResult(
     Guid DocumentId,
@@ -273,7 +301,11 @@ internal static class QuoteEvidenceRequestResultFactory
             response.RespondentMobileNumber,
             response.RespondentTelephoneNumber,
             response.ViewedByUserId,
-            response.ViewedAtUtc);
+            response.ViewedAtUtc,
+            response.EmailDomainStatus,
+            response.EmailVerificationStatus,
+            response.EmailVerificationSentAtUtc,
+            response.EmailVerifiedAtUtc);
     }
 
     private static int CountPendingFollowUps(IReadOnlyCollection<QuoteEvidenceResponse>? responses)

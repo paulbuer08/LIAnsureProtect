@@ -50,6 +50,12 @@ events); in-process module event bus now → outbox → SNS/SQS later.
 `Rating` · `Underwriting` (referral ops, evidence, AI) · `Quoting` · `Policy` · **`Claims` ✅ delivered (Phase 3, CM1–CM8 — FNOL→adjudication→settlement; ClaimsAdjuster activated; own `claims` schema)** · `Documents` ·
 `Notifications` (personal **+ team inbox**).
 
+The approved future Broker model is a dedicated Accounts/Companies and delegated-access milestone, not
+an extension of the current user-owned Customer workflow. It introduces Broker firms, client companies,
+memberships, approved Broker-client relationships, capability-specific delegation, and an incremental
+organization-ownership migration. Full design and phased plan:
+[broker-organizations-and-delegated-access-plan.md](broker-organizations-and-delegated-access-plan.md).
+
 ## Cross-cutting workstreams (acceptance criteria on every milestone)
 
 - **Documentation & Concepts Handbook** — every concept/tool/AWS-service/pattern documented richly (simple

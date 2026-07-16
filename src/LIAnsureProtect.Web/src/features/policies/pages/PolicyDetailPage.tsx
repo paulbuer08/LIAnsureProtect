@@ -4,12 +4,14 @@ import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { useClaimablePolicies } from "../../claims/hooks/useClaims";
 import { usePolicy } from "../hooks/usePolicies";
+import { useAcknowledgeNotificationSubject } from "../../notifications/hooks/useNotifications";
 
 export function PolicyDetailPage() {
   const { policyId } = useParams();
   const query = usePolicy(policyId);
   const claimableQuery = useClaimablePolicies();
   const policy = query.data;
+  useAcknowledgeNotificationSubject("policy", policyId, { enabled: query.isSuccess });
   const canFileClaim = Boolean(policy && claimableQuery.data?.policies.some((item) => item.policyId === policy.policyId));
 
   return <main className="min-h-screen bg-slate-950 px-6 py-12 text-white"><section className="mx-auto max-w-5xl">

@@ -13,12 +13,23 @@ public static class ReassessmentGovernancePolicy
 
     public static bool RequiresManualReview(
         int successfulInRollingWindow,
-        int successfulLifetime,
+        int successfulLifetime)
+        => successfulInRollingWindow >= MaxSelfServiceInRollingWindow
+            || successfulLifetime >= MaxSelfServiceLifetime;
+
+    public static TimeSpan? GetCooldownRemaining(
+        int latestQuoteVersion,
         DateTime latestQuoteCreatedAtUtc,
         DateTime nowUtc)
-        => successfulInRollingWindow >= MaxSelfServiceInRollingWindow
-            || successfulLifetime >= MaxSelfServiceLifetime
-            || nowUtc - latestQuoteCreatedAtUtc < TimeSpan.FromMinutes(CooldownMinutes);
+    {
+        // Version 1 is the original quote, not a reassessment. It must never delay the
+        // customer's first valid self-service reassessment.
+        if (latestQuoteVersion <= 1)
+            return null;
+
+        var remaining = TimeSpan.FromMinutes(CooldownMinutes) - (nowUtc - latestQuoteCreatedAtUtc);
+        return remaining > TimeSpan.Zero ? remaining : null;
+    }
 }
 
 public sealed record ReassessmentReviewQueuedResult(

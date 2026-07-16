@@ -613,6 +613,39 @@ namespace LIAnsureProtect.Modules.Underwriting.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("EmailDomainStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("email_domain_status");
+
+                    b.Property<DateTime?>("EmailVerificationExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("email_verification_expires_at_utc");
+
+                    b.Property<int>("EmailVerificationSendCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("email_verification_send_count");
+
+                    b.Property<DateTime?>("EmailVerificationSentAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("email_verification_sent_at_utc");
+
+                    b.Property<string>("EmailVerificationStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("email_verification_status");
+
+                    b.Property<string>("EmailVerificationTokenHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("email_verification_token_hash");
+
+                    b.Property<DateTime?>("EmailVerifiedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("email_verified_at_utc");
+
                     b.Property<Guid>("EvidenceRequestId")
                         .HasColumnType("uuid")
                         .HasColumnName("evidence_request_id");

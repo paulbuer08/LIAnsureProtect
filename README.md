@@ -44,8 +44,9 @@ immutable quote reassessment versions; automated document findings remain adviso
 
 Quote reassessment history is now governed rather than merely accumulated: exactly one pre-contract
 Quote version is current, earlier Quote/Evidence/Notification records remain immutable history, and
-resource safeguards can queue excess reassessments for human Underwriter approval without calling the
-rating provider. See the [design](docs/dev/quote-supersession-and-reassessment-governance-design.md) and
+the first valid reassessment remains immediate. A post-success cooldown returns retry guidance without
+creating Underwriter work; rolling/lifetime allowance overflow can queue a human decision without
+calling the rating provider. See the [design](docs/dev/quote-supersession-and-reassessment-governance-design.md) and
 [implementation learnings](docs/dev/quote-supersession-and-reassessment-governance-learnings.md).
 
 The latest product-hardening branch makes that journey precise and supportable: customer pages
@@ -80,6 +81,19 @@ server-side format and length rules, and allow contact-only corrections as appen
 have five currently unread follow-ups; opening an exact entry in the Underwriting workbench records an audited,
 idempotent acknowledgement and restores one slot. See the
 [follow-up governance learnings](docs/dev/evidence-follow-up-governance-and-quote-navigation-learnings.md).
+
+The grouped manual-retest hardening batch now makes Evidence and Notifications converge no matter how
+the user entered the workflow. Exact subject views acknowledge only the matching older updates;
+server-derived capabilities choose owner versus operations actions; and the Underwriting workbench has
+an Evidence queue independent of Quote referrals. Respondent email trust is progressive: DNS can reject
+an authoritative undeliverable domain, while a short-lived one-time code separately proves mailbox
+access without claiming the Evidence itself is true. Local messages are captured in Mailpit. See the
+[batch implementation learnings](docs/dev/manual-retest-hardening-batch-learnings.md).
+
+The future Broker firm/client-organization/delegated-authority model is deliberately not part of this
+batch. Its complete approval, consent, authorization, audit, ownership-migration, and phased-delivery
+plan is preserved in the
+[Broker organizations milestone plan](docs/dev/broker-organizations-and-delegated-access-plan.md).
 
 - The story of every milestone: [**The Build History**](docs/build-history.md)
 - The precise current state: [Project Status](docs/project-status.md) · [Changelog](CHANGELOG.md)

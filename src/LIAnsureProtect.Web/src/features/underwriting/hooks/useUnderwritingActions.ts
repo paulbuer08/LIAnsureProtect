@@ -32,6 +32,7 @@ import type {
   ReviewQuoteEvidenceRequest,
 } from "../types";
 import { quoteReferralsQueryKey } from "./useQuoteReferrals";
+import { evidenceQueueQueryKey } from "./useEvidenceQueue";
 
 export const quoteReferralTimelineQueryKey = (quoteId?: string) => [
   "underwriting",
@@ -429,6 +430,7 @@ function invalidateOperationsQueries(
   quoteId: string,
 ) {
   void queryClient.invalidateQueries({ queryKey: quoteReferralsQueryKey });
+  void queryClient.invalidateQueries({ queryKey: evidenceQueueQueryKey });
   void queryClient.invalidateQueries({
     queryKey: quoteReferralTimelineQueryKey(quoteId),
   });

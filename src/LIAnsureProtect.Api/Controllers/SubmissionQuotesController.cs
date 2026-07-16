@@ -187,7 +187,7 @@ public sealed class SubmissionQuotesController(
                             StatusCodes.Status409Conflict,
                             CreateProblemDetails(
                                 StatusCodes.Status409Conflict,
-                                "Reassessment needs a change.",
+                                GetBusinessConflictTitle(exception.Code),
                                 exception.PublicMessage,
                                 exception.Code));
                     }
@@ -228,7 +228,7 @@ public sealed class SubmissionQuotesController(
         {
             return Conflict(CreateProblemDetails(
                 StatusCodes.Status409Conflict,
-                "Reassessment needs a change.",
+                GetBusinessConflictTitle(exception.Code),
                 exception.PublicMessage,
                 exception.Code));
         }
@@ -330,6 +330,14 @@ public sealed class SubmissionQuotesController(
             Title = "One or more validation errors occurred."
         };
     }
+
+    private static string GetBusinessConflictTitle(string code)
+        => code switch
+        {
+            "quote.reassessment.cooldown" => "Reassessment cooldown is active.",
+            "quote.reassessment.pending_exists" => "A reassessment is already pending.",
+            _ => "Reassessment needs a change."
+        };
 }
 
 public sealed record CreateQuoteRequest(

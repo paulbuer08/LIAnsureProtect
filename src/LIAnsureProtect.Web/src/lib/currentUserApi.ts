@@ -11,6 +11,7 @@ export type CurrentUser = {
   userId: string;
   email: string | null;
   roles: string[];
+  capabilities?: string[];
 };
 
 export async function fetchCurrentUser(accessToken: string): Promise<CurrentUser> {

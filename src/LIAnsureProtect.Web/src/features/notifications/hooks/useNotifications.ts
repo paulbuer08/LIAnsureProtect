@@ -1,8 +1,10 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 
 import {
   getUnreadNotificationCount,
+  acknowledgeNotificationSubject,
   listMyNotifications,
   markNotificationRead,
 } from "../api/notificationsApi";
@@ -30,6 +32,51 @@ export function useNotifications(options?: {
       return listMyNotifications(accessToken, options?.filters);
     },
   });
+}
+
+export function useAcknowledgeNotificationSubject(
+  subjectReferenceType: string,
+  subjectReferenceId: string | undefined,
+  options?: { enabled?: boolean; scope?: "personal" | "team" },
+) {
+  const { getAccessTokenSilently } = useAuth0();
+  const queryClient = useQueryClient();
+  const lastAttemptedKey = useRef<string | undefined>(undefined);
+  const enabled = Boolean(subjectReferenceId) && (options?.enabled ?? true);
+  const scope = options?.scope ?? "personal";
+
+  useEffect(() => {
+    if (!enabled || !subjectReferenceId) return;
+    const key = `${scope}:${subjectReferenceType}:${subjectReferenceId}`;
+    if (lastAttemptedKey.current === key) return;
+    lastAttemptedKey.current = key;
+
+    void (async () => {
+      try {
+        const accessToken = await getAccessTokenSilently();
+        await acknowledgeNotificationSubject(
+          accessToken,
+          subjectReferenceType,
+          subjectReferenceId,
+          scope,
+        );
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: notificationsQueryKey }),
+          queryClient.invalidateQueries({ queryKey: notificationUnreadCountQueryKey }),
+        ]);
+      } catch {
+        // Acknowledgement is a non-blocking inbox concern. The already authorized subject remains
+        // usable, and focus/realtime invalidation provides a later retry opportunity.
+      }
+    })();
+  }, [
+    enabled,
+    getAccessTokenSilently,
+    queryClient,
+    scope,
+    subjectReferenceId,
+    subjectReferenceType,
+  ]);
 }
 
 export function useUnreadNotificationCount(options?: { enabled?: boolean }) {

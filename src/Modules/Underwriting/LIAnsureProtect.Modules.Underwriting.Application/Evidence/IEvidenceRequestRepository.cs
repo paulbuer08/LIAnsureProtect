@@ -23,6 +23,12 @@ public interface IEvidenceRequestRepository
         Guid responseId,
         CancellationToken cancellationToken);
 
+    Task<QuoteEvidenceResponse?> GetResponseForOwnerAsync(
+        Guid evidenceRequestId,
+        Guid responseId,
+        string ownerUserId,
+        CancellationToken cancellationToken);
+
     Task<QuoteEvidenceRequest?> GetForUnderwritingAsync(
         Guid quoteId,
         Guid evidenceRequestId,

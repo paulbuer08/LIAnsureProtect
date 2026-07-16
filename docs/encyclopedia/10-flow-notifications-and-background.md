@@ -100,16 +100,19 @@ team (gated by the caller's audiences — a customer can never mark a team entry
 
 Frontend: `features/notifications` — `useNotifications` loads the inbox on demand, while a separate
 small query refreshes unread count; mark-read updates both caches. The page reads the existing
-server-authoritative `/api/v1/me` role result. Customer/Broker
+server-authoritative `/api/v1/me` capability result. Customer/Broker
 personal-only users see one inbox with **no tabs at all**. Underwriter, ClaimsAdjuster, and Admin keep
-**All / Personal / Team** tabs and the Team badge. If role capability changes during a session, an
-invalid/stale filter resets safely.
+**All / Personal / Team** tabs and the Team badge. These controls remain visible even when the selected
+scope is empty, loading, or failed; scope-specific empty states appear below them. If capability changes
+during a session, an invalid/stale filter resets safely.
 
 Notification actions are subject-aware: Policy → **View policy** at `/policies/{policyId}`;
 Quote → exact immutable Quote; Submission → **Open submission**; Evidence request → **Open evidence
-request**; personal Claim → owner Claim detail; team Claim → the exact selected Claim in the
+request** for an owner, while an Underwriting team Evidence update deep-links to the exact request in
+the authorized workbench; personal Claim → owner Claim detail; team Claim → the exact selected Claim in the
 adjudication workbench. Subject type is
-the primary decision, with safe attributes supplying related ids. API audience filtering remains the
+the primary decision, with scope/audience, `/me` capabilities, and safe attributes supplying related
+ids. A caller without a usable capability receives a readable update without a broken action. API audience filtering remains the
 security boundary; hiding tabs is role-correct UX, not authorization.
 
 The header does not poll. `GET /api/v1/notifications/unread-count` applies the same personal/team
@@ -133,10 +136,14 @@ Their actions open read-only Quote or Evidence history rather than allowing obso
 rule applies to team inboxes, so Underwriters retain audit context without old versions competing in
 the current queue.
 
-Opening an actionable notification is itself evidence of reading: the UI marks the entry read, updates
-the list/count caches optimistically, removes it immediately from an Unread-only result, and then
-follows the exact subject link. Standalone **Mark as read** controls are removed across the inbox. The
-server command remains owner/team-scoped and idempotent, so retrying that interaction is harmless.
+Read acknowledgement belongs to the subject, not the Notifications page. After an authorized exact
+Evidence, Quote, Policy, Claim, or Submission detail read succeeds, the UI posts the normalized subject
+and scope to Notifications and refreshes the inbox/count caches. A recipient/subject
+`ViewedThroughUtc` watermark prevents an older delayed projection from resurrecting unread state while
+leaving genuinely newer updates unread. Evidence responses also acknowledge the owner's exact request
+through an outbox/projector safety net for non-browser clients. Failed/unauthorized/not-found detail
+reads acknowledge nothing. The command is idempotent, personal/team audiences remain separate, and
+standalone **Mark as read** controls stay removed.
 
 ## The Worker's second job: idempotency cleanup
 

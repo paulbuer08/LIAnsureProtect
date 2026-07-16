@@ -44,8 +44,10 @@ both destructive cleanup and false operational work. The Quote-generated outbox 
 and predecessor identity, and each context's idempotent projector updates only its own tables.
 
 Reassessment governance also belongs to Quoting: base-version concurrency, durable rolling/lifetime
-allowances, cooldown, one pending request, and human approval are evaluated before any rating-provider
-call. SignalR remains only a refresh hint after the owning transaction/projector commits.
+allowances, post-success cooldown, one pending request, and human approval are evaluated before any
+rating-provider call. Quote version 1 is the baseline and never delays the first valid self-service
+reassessment; cooldown rejects without creating manual-review work, while count overflow can enter the
+audited approval queue. SignalR remains only a refresh hint after the owning transaction/projector commits.
 
 Quoting owns what the customer claimed and how it affected rating. Underwriting owns the evidence
 used to test that claim. They do not write each other's tables:

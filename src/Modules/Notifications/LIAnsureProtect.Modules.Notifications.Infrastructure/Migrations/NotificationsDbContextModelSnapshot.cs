@@ -120,6 +120,64 @@ namespace LIAnsureProtect.Modules.Notifications.Infrastructure.Migrations
                     b.ToTable("notification_inbox_entries", "notifications");
                 });
 
+            modelBuilder.Entity("LIAnsureProtect.Modules.Notifications.Domain.NotificationSubjectView", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("audience");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("RecipientUserId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("recipient_user_id");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("scope");
+
+                    b.Property<string>("SubjectReferenceId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("subject_reference_id");
+
+                    b.Property<string>("SubjectReferenceType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("subject_reference_type");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<DateTime>("ViewedThroughUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("viewed_through_utc");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipientUserId", "Scope", "Audience", "SubjectReferenceType", "SubjectReferenceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_notification_subject_views_recipient_scope_subject");
+
+                    b.ToTable("notification_subject_views", "notifications");
+                });
+
             modelBuilder.Entity("LIAnsureProtect.Modules.Notifications.Domain.TeamNotificationEntry", b =>
                 {
                     b.Property<Guid>("Id")

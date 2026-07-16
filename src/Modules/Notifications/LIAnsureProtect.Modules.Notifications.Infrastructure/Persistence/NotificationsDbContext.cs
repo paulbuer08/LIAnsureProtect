@@ -17,6 +17,8 @@ public sealed class NotificationsDbContext(DbContextOptions<NotificationsDbConte
 
     public DbSet<TeamNotificationEntry> TeamNotificationEntries => Set<TeamNotificationEntry>();
 
+    public DbSet<NotificationSubjectView> NotificationSubjectViews => Set<NotificationSubjectView>();
+
     protected override string? Schema => SchemaName;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

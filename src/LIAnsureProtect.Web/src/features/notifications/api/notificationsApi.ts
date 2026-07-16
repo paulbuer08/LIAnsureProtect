@@ -61,3 +61,21 @@ export async function markNotificationRead(
 
   await ensureOk(response, "Notification was not found.");
 }
+
+export async function acknowledgeNotificationSubject(
+  accessToken: string,
+  subjectReferenceType: string,
+  subjectReferenceId: string,
+  scope: "personal" | "team" = "personal",
+) {
+  const url = new URL(
+    `${apiBaseUrl}/api/v1/notifications/subjects/${encodeURIComponent(subjectReferenceType)}/${encodeURIComponent(subjectReferenceId)}/view`,
+  );
+  url.searchParams.set("scope", scope);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+
+  await ensureOk(response, "Notification subject was not found.");
+}

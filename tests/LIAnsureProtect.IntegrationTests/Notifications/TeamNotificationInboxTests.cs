@@ -136,6 +136,40 @@ public sealed class TeamNotificationInboxTests : IDisposable
             TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task Delayed_Team_Projection_Uses_Subject_View_Watermark()
+    {
+        var subjectId = Guid.NewGuid().ToString();
+        var acknowledgements = new EfNotificationSubjectAcknowledgementRepository(dbContext);
+        await acknowledgements.AcknowledgeAsync(
+            "uw-a",
+            NotificationScopes.Team,
+            [NotificationAudiences.UnderwritingOperations],
+            "evidence-request",
+            subjectId,
+            new DateTime(2026, 7, 16, 10, 0, 0, DateTimeKind.Utc),
+            TestContext.Current.CancellationToken);
+
+        var message = TeamMessage(Guid.NewGuid()) with
+        {
+            Type = NotificationMessageTypes.EvidenceRequestResponded,
+            SubjectReferenceType = "evidence-request",
+            SubjectReferenceId = subjectId,
+            OccurredAtUtc = new DateTime(2026, 7, 16, 9, 59, 0, DateTimeKind.Utc)
+        };
+        await projector.ProjectAsync(message, TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+        Assert.True(Assert.Single(await repository.ListForAudiencesAsync(
+            "uw-a",
+            [NotificationAudiences.UnderwritingOperations],
+            TestContext.Current.CancellationToken)).IsRead);
+        Assert.False(Assert.Single(await repository.ListForAudiencesAsync(
+            "uw-b",
+            [NotificationAudiences.UnderwritingOperations],
+            TestContext.Current.CancellationToken)).IsRead);
+    }
+
     private static NotificationMessage TeamMessage(Guid outboxMessageId) => new(
         outboxMessageId.ToString("N"),
         outboxMessageId,

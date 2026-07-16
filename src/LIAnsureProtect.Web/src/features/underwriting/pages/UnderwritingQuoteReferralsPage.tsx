@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import type { FormEvent } from "react";
+import { useSearchParams } from "react-router";
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
 
 import { TransientStatusMessage } from "../../../components/TransientStatusMessage";
@@ -8,6 +9,7 @@ import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { downloadUnderwritingEvidenceDocument } from "../api/underwritingApi";
 import { ReassessmentReviewPanel } from "../components/ReassessmentReviewPanel";
+import { useAcknowledgeNotificationSubject } from "../../notifications/hooks/useNotifications";
 import {
   useAddQuoteReferralNote,
   useAddQuoteReferralTask,
@@ -29,6 +31,7 @@ import {
   useTriageQuoteReferralOperation,
 } from "../hooks/useUnderwritingActions";
 import { useQuoteReferrals } from "../hooks/useQuoteReferrals";
+import { useEvidenceQueue } from "../hooks/useEvidenceQueue";
 import type {
   AiUnderwritingReviewResponse,
   QuoteEvidenceRequest,
@@ -233,7 +236,7 @@ function OperationsSummary({ operations }: { operations: QuoteReferralOperations
   );
 }
 
-function EvidenceSummary({ quote }: { quote: QuoteReferral }) {
+function EvidenceSummary({ quote }: { quote: Pick<QuoteReferral, "evidence"> }) {
   const evidence = quote.evidence;
 
   return (
@@ -312,7 +315,15 @@ function EvidenceSummary({ quote }: { quote: QuoteReferral }) {
   );
 }
 
-function EvidencePanel({ quote }: { quote: QuoteReferral }) {
+type EvidencePanelQuote = Pick<QuoteReferral, "quoteId" | "companyName" | "operations" | "evidence">;
+
+function EvidencePanel({
+  quote,
+  initialEvidenceRequestId,
+}: {
+  quote: EvidencePanelQuote;
+  initialEvidenceRequestId?: string;
+}) {
   const { getAccessTokenSilently } = useAuth0();
   const createEvidenceRequest = useCreateQuoteEvidenceRequest();
   const acceptEvidenceRequest = useAcceptQuoteEvidenceRequest();
@@ -335,6 +346,25 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
   const [remediationGuidance, setRemediationGuidance] = useState("");
   const [lastEvidenceResult, setLastEvidenceResult] = useState<QuoteEvidenceRequest>();
   const [downloadError, setDownloadError] = useState<string>();
+  const autoLoadedKey = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!initialEvidenceRequestId) return;
+    const key = `${quote.quoteId}:${initialEvidenceRequestId}`;
+    if (autoLoadedKey.current === key) return;
+    autoLoadedKey.current = key;
+    setEvidenceRequestId(initialEvidenceRequestId);
+    void getEvidenceRequest.mutateAsync({
+      quoteId: quote.quoteId,
+      evidenceRequestId: initialEvidenceRequestId,
+    }).then(setLastEvidenceResult).catch(() => undefined);
+  }, [getEvidenceRequest, initialEvidenceRequestId, quote.quoteId]);
+
+  useAcknowledgeNotificationSubject(
+    "evidence-request",
+    lastEvidenceResult?.evidenceRequestId,
+    { enabled: Boolean(lastEvidenceResult), scope: "team" },
+  );
 
   async function handleDownloadDocument(
     requestId: string,
@@ -461,6 +491,12 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
       {lastEvidenceResult && (
         <div className="mt-4 rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm text-emerald-100">
           <p className="font-semibold">Evidence request saved: {lastEvidenceResult.status}</p>
+          <h3 className="mt-2 text-base font-semibold text-white">
+            {lastEvidenceResult.title}
+          </h3>
+          <p className="mt-1 text-emerald-100/80">
+            Control: {lastEvidenceResult.category}
+          </p>
           {downloadError && (
             <p className="mt-1 rounded-md border border-red-900 bg-red-950 p-2 text-xs text-red-200">
               {downloadError}
@@ -515,6 +551,14 @@ function EvidencePanel({ quote }: { quote: QuoteReferral }) {
                     {response.kind !== "FollowUp" || response.viewedAtUtc ? (
                       <>
                         <p className="mt-1">{response.respondentName} · {response.respondentTitle} · {response.respondentEmail}{response.respondentMobileNumber ? ` · Mobile ${response.respondentMobileNumber}` : ""}{response.respondentTelephoneNumber ? ` · Telephone ${response.respondentTelephoneNumber}` : ""}{!response.respondentMobileNumber && !response.respondentTelephoneNumber && response.respondentPhone ? ` · Contact ${response.respondentPhone}` : ""}</p>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-md border border-emerald-800 px-2 py-1">
+                            Domain: {response.emailDomainStatus ?? "Unverified"}
+                          </span>
+                          <span className={`rounded-md border px-2 py-1 ${response.emailVerificationStatus === "Verified" ? "border-emerald-500 text-emerald-100" : "border-amber-600 text-amber-100"}`}>
+                            Email: {response.emailVerificationStatus ?? "Unverified"}
+                          </span>
+                        </div>
                         {response.responseText && <p className="mt-1 whitespace-pre-wrap">{response.responseText}</p>}
                         {response.otherConcerns && <p className="mt-1 whitespace-pre-wrap">Other concerns: {response.otherConcerns}</p>}
                       </>
@@ -1455,6 +1499,7 @@ function ReferralCard({
 }
 
 export function UnderwritingQuoteReferralsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [riskTier, setRiskTier] = useState("");
@@ -1472,6 +1517,24 @@ export function UnderwritingQuoteReferralsPage() {
     () => referralsQuery.data?.quoteReferrals ?? [],
     [referralsQuery.data?.quoteReferrals],
   );
+  const [evidenceSearch, setEvidenceSearch] = useState("");
+  const [appliedEvidenceSearch, setAppliedEvidenceSearch] = useState("");
+  const [evidenceStatus, setEvidenceStatus] = useState("");
+  const [evidenceUnreadOnly, setEvidenceUnreadOnly] = useState(false);
+  const [evidenceCursor, setEvidenceCursor] = useState<string>();
+  const evidenceQueueQuery = useEvidenceQueue({
+    search: appliedEvidenceSearch || undefined,
+    status: evidenceStatus || undefined,
+    unreadFollowUps: evidenceUnreadOnly || undefined,
+    cursor: evidenceCursor,
+    pageSize: 12,
+  });
+  const evidenceQueue = evidenceQueueQuery.data?.evidenceRequests ?? [];
+  const deepLinkedQuoteId = searchParams.get("quoteId") ?? undefined;
+  const deepLinkedEvidenceRequestId = searchParams.get("evidenceRequestId") ?? undefined;
+  const selectedEvidence = evidenceQueue.find((item) =>
+    item.quoteId === deepLinkedQuoteId
+      && item.evidenceRequestId === deepLinkedEvidenceRequestId);
   const [queueFilter, setQueueFilter] = useState<QueueFilter>("all");
   const [selectedQuoteId, setSelectedQuoteId] = useState<string>();
   const [aiReview, setAiReview] = useState<AiUnderwritingReviewResponse>();
@@ -1568,6 +1631,65 @@ export function UnderwritingQuoteReferralsPage() {
         </div>
 
         <ReassessmentReviewPanel />
+
+        <section className="mt-6 rounded-lg border border-cyan-800 bg-slate-900 p-5" aria-labelledby="evidence-review-queue-title">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 id="evidence-review-queue-title" className="text-xl font-semibold">Evidence review queue</h2>
+              <p className="mt-2 text-sm text-slate-300">Current evidence work remains available even when its quote was not referred.</p>
+            </div>
+            <span className="rounded-full bg-cyan-300 px-3 py-1 text-sm font-semibold text-slate-950">
+              {evidenceQueue.length} on this page
+            </span>
+          </div>
+          <form className="mt-4 grid gap-3 md:grid-cols-[1fr_220px_auto]" onSubmit={(event) => { event.preventDefault(); setEvidenceCursor(undefined); setAppliedEvidenceSearch(evidenceSearch.trim()); }}>
+            <label className="text-sm font-semibold text-slate-200">Search evidence<input value={evidenceSearch} onChange={(event) => setEvidenceSearch(event.target.value)} placeholder="Company, submission, quote, or request" className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" /></label>
+            <label className="text-sm font-semibold text-slate-200">Status<select value={evidenceStatus} onChange={(event) => { setEvidenceStatus(event.target.value); setEvidenceCursor(undefined); }} className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2"><option value="">All active statuses</option><option value="Open">Open</option><option value="Responded">Responded</option></select></label>
+            <div className="flex items-end gap-3"><button type="submit" className="rounded-md bg-cyan-300 px-4 py-2 font-semibold text-slate-950">Search</button><button type="button" onClick={() => { setEvidenceSearch(""); setAppliedEvidenceSearch(""); setEvidenceStatus(""); setEvidenceUnreadOnly(false); setEvidenceCursor(undefined); }} className="rounded-md border border-slate-600 px-4 py-2 font-semibold">Clear</button></div>
+            <label className="flex items-center gap-2 text-sm text-slate-200 md:col-span-3"><input type="checkbox" checked={evidenceUnreadOnly} onChange={(event) => { setEvidenceUnreadOnly(event.target.checked); setEvidenceCursor(undefined); }} />Unread customer follow-ups only</label>
+          </form>
+          {evidenceQueueQuery.isPending && <p role="status" className="mt-4 text-sm text-slate-300">Loading evidence review work...</p>}
+          {evidenceQueueQuery.isError && <p role="alert" className="mt-4 rounded-md border border-red-900 bg-red-950 p-3 text-sm text-red-200">{getErrorMessage(evidenceQueueQuery.error, "Unable to load evidence review work.")}</p>}
+          {evidenceQueueQuery.isSuccess && evidenceQueue.length === 0 && !deepLinkedEvidenceRequestId && <p className="mt-4 text-sm text-slate-300">No current evidence requests match these filters.</p>}
+          {evidenceQueue.length > 0 && (
+            <ul className="mt-4 grid gap-3 lg:grid-cols-2">
+              {evidenceQueue.map((item) => (
+                <li key={item.evidenceRequestId} className="rounded-md border border-slate-700 bg-slate-950 p-4">
+                  <div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{item.title}</p><p className="mt-1 text-sm text-slate-300">{item.companyName} · {item.submissionReference}</p></div>{item.pendingFollowUpCount > 0 && <span className="rounded-full bg-amber-300 px-2 py-1 text-xs font-semibold text-slate-950">{item.pendingFollowUpCount} unread</span>}</div>
+                  <p className="mt-2 text-xs text-slate-400">Quote version {item.quoteVersion} · {item.category} · {item.status}/{item.reviewDecision}</p>
+                  <p className="mt-1 text-xs text-slate-400">{item.documentCount} documents · {item.downloadableDocumentCount} ready · {item.isOverdue ? "Overdue" : `Due ${formatDate(item.dueAtUtc)}`}</p>
+                  <button type="button" onClick={() => setSearchParams((current) => { const next = new URLSearchParams(current); next.set("quoteId", item.quoteId); next.set("evidenceRequestId", item.evidenceRequestId); return next; })} className="mt-3 rounded-md border border-cyan-400 px-3 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-300 hover:text-slate-950">Review evidence request</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {evidenceQueueQuery.data?.nextCursor && <button type="button" onClick={() => setEvidenceCursor(evidenceQueueQuery.data.nextCursor ?? undefined)} className="mt-4 rounded-md border border-slate-600 px-4 py-2 text-sm font-semibold">Next page</button>}
+        </section>
+
+        {deepLinkedQuoteId && deepLinkedEvidenceRequestId && (
+          <div className="mt-6">
+            <EvidencePanel
+              key={`${deepLinkedQuoteId}:${deepLinkedEvidenceRequestId}`}
+              initialEvidenceRequestId={deepLinkedEvidenceRequestId}
+              quote={{
+                quoteId: deepLinkedQuoteId,
+                companyName: selectedEvidence?.companyName,
+                operations: null,
+                evidence: {
+                  openRequestCount: 0,
+                  respondedRequestCount: 0,
+                  unreviewedRespondedRequestCount: 0,
+                  satisfiedRequestCount: 0,
+                  needsAttentionRequestCount: 0,
+                  overdueRequestCount: 0,
+                  nextOpenDueAtUtc: null,
+                  isWaitingForInformation: true,
+                  latestEvidenceActivityAtUtc: selectedEvidence?.latestActivityAtUtc ?? null,
+                },
+              }}
+            />
+          </div>
+        )}
 
         <form className="mt-6 grid gap-4 rounded-lg border border-slate-800 bg-slate-900 p-4 md:grid-cols-5" onSubmit={(event: FormEvent) => { event.preventDefault(); setAppliedSearch(search.trim()); }}>
           <label className="text-sm font-semibold text-slate-200">Search referrals<input className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2" placeholder="Quote, submission, or owner" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
