@@ -7,19 +7,21 @@
 
 ## What you are about to run
 
-LIAnsureProtect has **five moving parts** locally:
+LIAnsureProtect has **six moving parts** locally:
 
 | Part | What it is | Where it runs |
 |---|---|---|
 | **PostgreSQL** (with pgvector) | The system of record — all business data | Docker container (`liansureprotect-postgres`) |
 | **Redis** | Payload-free SignalR backplane between Worker and API; optional cache adapter | Docker container (`liansureprotect-redis`) |
+| **Mailpit** | Safe local SMTP capture for respondent email verification codes | Docker container (`liansureprotect-mailpit`) — inbox at <http://localhost:8025> |
 | **API** (`LIAnsureProtect.Api`) | The HTTP backend the browser talks to | Your machine, `dotnet run` — <http://localhost:5223> |
 | **Worker** (`LIAnsureProtect.Worker`) | Background loop: drains the outbox (notifications, projections), cleans idempotency records | Your machine, `dotnet run` (optional but recommended) |
 | **Web** (`LIAnsureProtect.Web`) | The React UI | Your machine, `npm run dev` — <http://localhost:5173> |
 
 > **Analogy:** PostgreSQL is the **filing room**, the API is the **front desk**, the Worker is the
 > **mailroom clerk** who walks the outbox to the post office every few seconds, and the Web app is
-> the **customer lobby**. You can open the front desk without the mailroom clerk — but then
+> the **customer lobby**. Mailpit is a **local practice mailbox**: it catches verification messages
+> without sending real email. You can open the front desk without the mailroom clerk — but then
 > notifications/queue projections sit in the outbox until the clerk shows up.
 
 Optional (only for AWS-adapter development): **LocalStack** (S3 + SNS + SQS emulator). Redis is part
@@ -127,7 +129,7 @@ VITE_API_BASE_URL=http://localhost:5223
 .\scripts\dev-up.ps1
 ```
 
-This resets local Docker Postgres and Redis (fresh database each time by default), applies the EF Core
+This resets local Docker Postgres, Redis, and Mailpit (fresh database each time by default), applies the EF Core
 migrations for **all four DbContexts** (`SubmissionDbContext`, `NotificationsDbContext`,
 `UnderwritingDbContext`, `ClaimsDbContext`), builds, and runs the API at <http://localhost:5223>.
 Keep it running.
@@ -158,6 +160,12 @@ npm run dev
 ```
 
 Open <http://localhost:5173>, click **Log in**, sign in with one of your Auth0 test users.
+
+When an Evidence respondent requests an email verification code, open Mailpit at
+<http://localhost:8025>. The API defaults to `localhost:1025`; no local SMTP credentials are needed.
+To use a different relay, set `LIANSUREPROTECT_SMTP_HOST`, `LIANSUREPROTECT_SMTP_PORT`,
+`LIANSUREPROTECT_SMTP_FROM`, `LIANSUREPROTECT_SMTP_TLS`, and optional username/password values in the
+API process environment. Never commit production SMTP credentials.
 
 ## Quick health checks
 
@@ -211,6 +219,8 @@ S3/SNS/SQS on `localhost:4566`.
 | PostgreSQL | `localhost:5432` (`postgres`/`postgres`, db `liansureprotect`) |
 | LocalStack (opt-in) | `http://localhost:4566` |
 | Redis (opt-in) | `localhost:6379` |
+| Mailpit SMTP capture | `localhost:1025` |
+| Mailpit browser inbox | `http://localhost:8025` |
 
 ## Stopping everything
 

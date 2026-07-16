@@ -100,11 +100,30 @@ stateDiagram-v2
   to `NotReviewed` while preserving the old review row. Name, title, and valid email identify the
   respondent; phone and `Other concerns` are optional supporting channels. Underwriters see the exact
   response/document history through a by-id module query rather than reconstructing it from a queue.
+- Respondent email trust is progressive rather than binary. Syntax validation remains deterministic;
+  an Underwriting Infrastructure DNS adapter classifies MX/null-MX/NXDOMAIN/address-fallback results;
+  and a short-lived single-use code can prove mailbox access for the exact immutable response. DNS or
+  mailbox verification never proves the Evidence claim and never makes the review decision. Local
+  verification email is captured by Mailpit; production uses a secret-configured SMTP relay.
 - Evidence workflow state and Quote lifecycle are deliberately separate. When Quote N+1 supersedes N,
   every request projected for N becomes `Historical`: its original response/review/document history
   remains readable, but domain guards reject new responses, files, reminders, acknowledgements, and
   review decisions. Current owner and Underwriter queues default to current-version requests; an
   explicit history filter exposes superseded evidence without presenting it as unfinished work.
+
+### Independent Evidence review queue
+
+The Underwriting workbench has three independent operational dimensions: Quote referrals, Evidence
+review, and exceptional reassessment approval. `GET /api/v1/underwriting/evidence-requests` reads the
+Underwriting module directly and therefore includes current `Quoted` Evidence work even when no Quote
+referral exists. It uses server-side search/filters and cursor paging, prioritizing overdue work,
+unread customer follow-ups, then responded/not-reviewed requests. Exact notification links select a
+Quote/request pair in this queue through the Underwriter-authorized detail API; they never reuse the
+customer-only Evidence route.
+
+Opening a request shell does not release customer follow-up capacity. Each concealed follow-up has its
+own idempotent view command; opening it records the Underwriter and UTC time and restores exactly one
+slot. This keeps `Viewed`, request status, and the human Evidence decision as three separate audit facts.
 
 ### Reassessment approval queue
 

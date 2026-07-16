@@ -82,6 +82,19 @@ have five currently unread follow-ups; opening an exact entry in the Underwritin
 idempotent acknowledgement and restores one slot. See the
 [follow-up governance learnings](docs/dev/evidence-follow-up-governance-and-quote-navigation-learnings.md).
 
+The grouped manual-retest hardening batch now makes Evidence and Notifications converge no matter how
+the user entered the workflow. Exact subject views acknowledge only the matching older updates;
+server-derived capabilities choose owner versus operations actions; and the Underwriting workbench has
+an Evidence queue independent of Quote referrals. Respondent email trust is progressive: DNS can reject
+an authoritative undeliverable domain, while a short-lived one-time code separately proves mailbox
+access without claiming the Evidence itself is true. Local messages are captured in Mailpit. See the
+[batch implementation learnings](docs/dev/manual-retest-hardening-batch-learnings.md).
+
+The future Broker firm/client-organization/delegated-authority model is deliberately not part of this
+batch. Its complete approval, consent, authorization, audit, ownership-migration, and phased-delivery
+plan is preserved in the
+[Broker organizations milestone plan](docs/dev/broker-organizations-and-delegated-access-plan.md).
+
 - The story of every milestone: [**The Build History**](docs/build-history.md)
 - The precise current state: [Project Status](docs/project-status.md) · [Changelog](CHANGELOG.md)
 ## Local Run

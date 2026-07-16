@@ -8,6 +8,30 @@ The format follows simple milestone-based entries.
 
 ### Added
 
+- Manual-retest hardening batch: progressive respondent email trust now combines syntax validation,
+  DNS mail-capability classification, non-blocking provider typo suggestions, and owner/request-scoped
+  single-use mailbox verification. Mailpit captures local codes; DNS/SMTP remain Underwriting
+  Infrastructure adapters; verification never decides Evidence.
+- Subject-aware Notification acknowledgement now works from every successful exact detail route and
+  from the durable Evidence-response event. A recipient/subject viewed-through watermark prevents
+  delayed older projections from reviving unread badges while preserving newer updates.
+- Server-derived capabilities now drive notification actions and scope controls. Underwriting team
+  Evidence updates deep-link to the exact authorized workbench request; unusable actions are omitted;
+  All/Personal/Team tabs remain present through empty/loading/error results for team-capable users.
+- Independent paged Underwriting Evidence review queue for current requests, including Quoted work that
+  has no Quote referral. Exact follow-up viewing remains explicit and idempotent, releasing one customer
+  slot while preserving request/review audit facts. Queue telemetry contains counts/age only.
+- Additive `AddNotificationSubjectViews` and `AddRespondentEmailVerification` migrations, central
+  `DnsClient` dependency, pinned Mailpit local service, concise accessible respondent-contact guidance,
+  and full design/operations learnings in `docs/dev/manual-retest-hardening-batch-learnings.md`.
+- Manual-retest hardening verification passed with a zero-warning solution build; 228 standalone Unit
+  tests; 290 standalone Integration tests plus 4 intentional opt-in skips; four clean EF pending-model
+  checks; and frontend TypeScript, ESLint, production build, and all 117 tests. Fresh Docker local CI
+  applied all four migration histories, passed 228 Unit tests and 291 Integration tests plus 3
+  intentional external-service skips, passed frontend and API smoke gates, created
+  `TestResults/local-ci-20260717-011229.zip`, and cleaned PostgreSQL, Redis, Mailpit, the volume, and the
+  network.
+
 - Quote supersession and reassessment governance: every successor Quote preserves and timestamps the prior version; owner-scoped `/submissions/{id}/quotes` lists the complete immutable history; Evidence and Notification projections distinguish current work from historical audit records; historical rows remain readable but non-actionable and no longer inflate active unread/overdue/Underwriting counts.
 - Reassessment cost and abuse controls: stale base versions are rejected before provider work; the starting policy applies a 30-minute cooldown, two successful reassessments per rolling day, five over the pre-contract lifetime, three attempts per ten minutes, and one pending manual request. Overflow queues a lightweight audited Underwriter decision; approval revalidates and creates the successor atomically, while decline leaves the current Quote untouched.
 - Customer and Underwriter journey support for supersession: queued feedback, nested Quote history, current/historical Evidence filters, replacement links, muted historical Notifications, exact read-only history, and an Underwriting approve/decline queue. Runtime cross-context effects continue through the custom transactional outbox and idempotent projectors.

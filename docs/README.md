@@ -55,6 +55,10 @@ Build History.
 - **`dev/evidence-follow-up-governance-and-quote-navigation-learnings.md`** — July 2026 progressive
   confirmation guidance, Submission-owned Quote navigation, Philippine respondent contacts, field limits,
   and the five-currently-unread Evidence follow-up acknowledgement contract.
+- **`dev/manual-retest-hardening-batch-plan.md`** and its matching learnings record — July 2026
+  respondent email deliverability/verification, exact-subject Notification acknowledgement,
+  capability-aware actions, independent Underwriting Evidence review, stable scope tabs, and concise
+  accessible contact guidance.
 - **`superpowers/plans/`** — execution plans for the plan-driven milestones.
 - **`dev/run-the-app.md`** — the Milestone-9-era run guide (banner-marked historical; still holds
   the troubleshooting catalog and the manual Auth0-token appendix).

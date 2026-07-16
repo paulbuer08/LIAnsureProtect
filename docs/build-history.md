@@ -47,6 +47,22 @@ domain model intact while making its identities, decisions, and navigation under
 - Notification context now travels as safe event snapshots. The inbox groups by company and human
   Submission reference, and exact actions mark themselves read. A small unread-count query loads on
   meaningful navigation/focus/cache events without continuously polling or loading the whole inbox.
+- Exact subject acknowledgement now works from any authorized detail route, backed by recipient/subject
+  watermarks so delayed older projections stay read and newer updates remain unread. Server-derived
+  capabilities route owner and operations actions to different authorized workflows.
+- Underwriting Evidence review became an independent paged queue rather than a side-effect of Quote
+  referral. A Quoted request and its unread follow-ups remain reachable even with no referral row.
+- Respondent email trust became progressive: deterministic syntax, DNS mail-capability checks, and a
+  single-use mailbox challenge are distinct from the human Evidence truth decision. Mailpit provides a
+  zero-delivery local SMTP inbox.
+
+This hardening batch passed the complete release gate on 2026-07-17: the solution build had 0 warnings
+and 0 errors; standalone tests passed 228 Unit and 290 Integration tests plus four intentional opt-in
+skips; all four EF models matched their migrations; and TypeScript, ESLint, the production build, and
+all 117 frontend tests passed. Fresh Docker CI then applied every migration history and passed 228 Unit
+and 291 Integration tests plus three intentional external-service skips before creating
+`TestResults/local-ci-20260717-011229.zip` and removing PostgreSQL, Redis, Mailpit, its volume, and its
+network.
 
 The architectural lesson was that convenience features still need boundaries. Search first selects an
 authorized haystack (owner, team, or operations policy), then narrows it. Evidence display snapshots
@@ -65,6 +81,9 @@ Detailed records: `docs/dev/customer-broker-policy-journey-learnings.md`,
 `docs/dev/customer-error-and-notification-hardening-learnings.md`, and
 `docs/dev/role-aware-search-navigation-and-form-safety-learnings.md`, and
 `docs/dev/evidence-response-follow-up-and-notification-context-learnings.md`.
+The grouped manual-retest implementation is recorded in
+`docs/dev/manual-retest-hardening-batch-learnings.md`; the future Broker organization model remains
+separate in `docs/dev/broker-organizations-and-delegated-access-plan.md`.
 
 ---
 

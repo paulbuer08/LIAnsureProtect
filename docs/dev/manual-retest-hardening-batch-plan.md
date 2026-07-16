@@ -1,6 +1,14 @@
-# Manual-retest hardening batch — collection plan
+# Manual-retest hardening batch — implementation plan
 
-**Status:** collecting approved findings; implementation has not started.
+**Status:** implemented and fully verified on `fix/reassessment-self-service-cooldown`; protected-main closeout is in progress.
+
+**Implementation record:** `docs/dev/manual-retest-hardening-batch-learnings.md`
+
+The collection rule below explains how the batch was assembled. The six accepted items are now
+implemented together so their shared notification, Evidence, capability, and audit contracts remain
+consistent. The separately approved Broker organization/delegated-access design remains future work
+in `docs/dev/broker-organizations-and-delegated-access-plan.md`; no Broker ownership model was folded
+into this batch.
 
 **Collection rule:** add related manual-testing findings here until the user decides that the batch is
 large enough to implement together. Recording an item does not authorize a partial implementation.
