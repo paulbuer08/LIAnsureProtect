@@ -176,6 +176,21 @@ export function NotificationsPage() {
     (notification) => filter === "all" || notification.scope === filter,
   );
   const notificationGroups = groupNotifications(visibleNotifications);
+  const hasActiveResultFilters = Boolean(appliedSearch || readState);
+  const emptyHeading = hasActiveResultFilters
+    ? "No notifications match these filters."
+    : filter === "personal"
+      ? "No personal notifications."
+      : filter === "team"
+        ? "No team notifications."
+        : "No notifications yet.";
+  const emptyDescription = hasActiveResultFilters
+    ? "Change or clear the search and read-state filters to see other updates."
+    : filter === "personal"
+      ? "Personal updates addressed directly to you will appear here."
+      : filter === "team"
+        ? "Updates for your operational teams will appear here."
+        : "Updates about your submissions, quotes, policies, and evidence requests will appear here.";
 
   async function openNotification(
     notification: NotificationInboxItem,
@@ -214,6 +229,40 @@ export function NotificationsPage() {
           <div className="flex gap-3 sm:col-span-3"><button type="submit" className="rounded-md bg-emerald-400 px-4 py-2 font-semibold text-slate-950">Search</button><button type="button" className="rounded-md border border-slate-600 px-4 py-2 font-semibold" onClick={() => { setSearch(""); setAppliedSearch(""); setReadState(""); }}>Clear</button></div>
         </form>
 
+        {canFilterByTeam && (
+          <div
+            role="tablist"
+            aria-label="Filter notifications"
+            className="mt-8 inline-flex rounded-lg border border-slate-800 bg-slate-900 p-1"
+          >
+            {filterTabs.map((tab) => (
+              <button
+                key={tab.value}
+                id={`notification-scope-${tab.value}`}
+                type="button"
+                role="tab"
+                aria-selected={filter === tab.value}
+                aria-controls="notification-results"
+                tabIndex={filter === tab.value ? 0 : -1}
+                onClick={() => setFilter(tab.value)}
+                className={`rounded-md px-4 py-1.5 text-sm font-semibold ${
+                  filter === tab.value
+                    ? "bg-emerald-400 text-slate-950"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div
+          id="notification-results"
+          role={canFilterByTeam ? "tabpanel" : "region"}
+          aria-labelledby={canFilterByTeam ? `notification-scope-${filter}` : undefined}
+          aria-label={canFilterByTeam ? undefined : "Notification results"}
+        >
         {notificationsQuery.isPending && (
           <p className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-300">
             Loading notifications...
@@ -229,42 +278,16 @@ export function NotificationsPage() {
         {notificationsQuery.isSuccess && notifications.length === 0 && (
           <section className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-6">
             <h2 className="text-lg font-semibold text-white">
-              No notifications yet.
+              {emptyHeading}
             </h2>
             <p className="mt-2 text-sm text-slate-300">
-              Updates about your submissions, quotes, policies, and evidence
-              requests will appear here.
+              {emptyDescription}
             </p>
           </section>
         )}
 
         {notificationsQuery.isSuccess && notifications.length > 0 && (
           <>
-            {canFilterByTeam && (
-              <div
-                role="tablist"
-                aria-label="Filter notifications"
-                className="mt-8 inline-flex rounded-lg border border-slate-800 bg-slate-900 p-1"
-              >
-                {filterTabs.map((tab) => (
-                  <button
-                    key={tab.value}
-                    type="button"
-                    role="tab"
-                    aria-selected={filter === tab.value}
-                    onClick={() => setFilter(tab.value)}
-                    className={`rounded-md px-4 py-1.5 text-sm font-semibold ${
-                      filter === tab.value
-                        ? "bg-emerald-400 text-slate-950"
-                        : "text-slate-300 hover:text-white"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {visibleNotifications.length === 0 ? (
               <p className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-5 text-sm text-slate-300">
                 No notifications in this view.
@@ -364,6 +387,7 @@ export function NotificationsPage() {
             )}
           </>
         )}
+        </div>
       </section>
     </main>
   );

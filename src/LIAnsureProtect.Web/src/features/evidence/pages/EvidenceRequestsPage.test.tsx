@@ -185,6 +185,10 @@ describe("EvidenceRequestsPage", () => {
     expect(screen.getByText("Due in 3 days")).toBeInTheDocument();
     expect(screen.getByText(/SUB-2026-1234567890ABCDEF/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit evidence response" })).toBeDisabled();
+    expect(screen.getByText("Underwriting may use this address to verify the response.")).toBeInTheDocument();
+    expect(screen.queryByText(/not treated as proof by itself/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Philippine mobile numbers use 11 domestic digits/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Metro Manila commonly uses 02/i)).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Respondent name"), "Jane Applicant");
     await user.type(screen.getByLabelText("Respondent title"), "CISO");

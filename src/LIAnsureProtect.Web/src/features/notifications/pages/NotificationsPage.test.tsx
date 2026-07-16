@@ -357,4 +357,47 @@ describe("NotificationsPage", () => {
       screen.queryByText("Quote referred for underwriting"),
     ).not.toBeInTheDocument();
   });
+
+  it("keeps team-capable scope tabs visible when the selected server scope is empty", async () => {
+    const user = userEvent.setup();
+    vi.mocked(useCurrentUser).mockReturnValue({
+      data: { userId: "underwriter-1", email: null, roles: ["Underwriter"] },
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+    } as unknown as ReturnType<typeof useCurrentUser>);
+    vi.mocked(listMyNotifications).mockImplementation(async (_token, filters) => ({
+      notifications: filters?.scope === "personal"
+        ? []
+        : [
+            {
+              notificationId: "team-1",
+              scope: "team",
+              audience: "underwriting-operations",
+              type: "evidence_request.responded",
+              title: "Evidence response received",
+              subjectReferenceType: "evidence-request",
+              subjectReferenceId: "evidence-1",
+              attributes: { quoteId: "quote-1", evidenceRequestId: "evidence-1" },
+              occurredAtUtc: "2026-07-16T09:00:00Z",
+              isRead: false,
+              readAtUtc: null,
+            },
+          ],
+      unreadCount: filters?.scope === "personal" ? 0 : 1,
+    }));
+
+    renderNotificationsPage();
+
+    expect(await screen.findByText("Evidence response received")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Personal" }));
+
+    expect(await screen.findByText("No personal notifications.")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "All" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Personal" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Team" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Team" }));
+    expect(await screen.findByText("Evidence response received")).toBeInTheDocument();
+  });
 });
