@@ -184,6 +184,95 @@ The bug is that acknowledgement is tied to one navigation origin instead of the 
 - Should a failed acknowledgement be retried silently after the detail remains usable, or receive a
   small non-blocking status message? It must never hide the resource or display raw diagnostics.
 
+## Collected item 3 — capability-aware notification actions and Underwriting evidence deep links
+
+### Observed gap
+
+When a customer responds to an Evidence request, the outbox correctly projects an
+`EvidenceRequestResponded` team notification for Underwriting operations. The Notification contains the
+exact Evidence request id and Quote id, but the React action resolver treats every
+`evidence-request` subject alike and always builds the customer route
+`/evidence-requests/{evidenceRequestId}`. That route is intentionally restricted to Customer, Broker,
+and Admin. An Underwriter therefore receives a relevant team update whose action can only lead to an
+`Access restricted` page.
+
+The authorization screen is behaving correctly and must not be weakened. The defect is the action
+contract: a notification action was derived from subject type alone without considering the recipient's
+authorized workflow.
+
+### Approved product behavior
+
+1. Underwriters continue to receive team notifications when a customer responds to Evidence. Suppressing
+   the notification would hide work that Underwriting must review.
+2. A Customer/Broker evidence notification opens the exact owner-facing Evidence request route.
+3. An Underwriting team evidence notification opens the Underwriting workbench, selects the exact Quote,
+   and opens or focuses the exact Evidence request through the Underwriter-authorized API.
+4. Admin behavior follows its effective server-authoritative capabilities. It must not be inferred only
+   from navigation visibility or untrusted token/UI state.
+5. If the recipient does not have a usable action for that notification, the UI renders an informative,
+   non-actionable update rather than a link that predictably produces 403/access-restricted.
+6. Clicking a valid action marks that exact personal/team notification read only after the destination
+   resource has been resolved successfully, consistent with collected item 2.
+7. Server-side policies remain the security boundary. Role-aware routing improves correctness and user
+   experience but never replaces authorization on the destination endpoint.
+8. Titles for operational notifications must describe the event (for example, `Evidence response
+   received`) rather than the generic `Notification`, so the Underwriter can understand the task before
+   opening it.
+
+### Implementation boundary for the future batch
+
+- Introduce one typed notification-action resolver that accepts notification type, subject type/id,
+  scope/audience, attributes, and the capabilities returned by `GET /api/v1/me`. Do not scatter role
+  string checks across cards and pages.
+- Preserve `evidenceRequestId` and `quoteId` in the notification contract. For an Underwriting team
+  action, generate a stable deep link such as
+  `/underwriting/quote-referrals?quoteId={quoteId}&evidenceRequestId={evidenceRequestId}`.
+- Teach the Underwriting workbench to validate the query parameters, select the matching referral, and
+  load the exact request through
+  `GET /api/v1/underwriting/quote-referrals/{quoteId}/evidence-requests/{evidenceRequestId}`. Invalid,
+  stale, superseded, or unauthorized references must receive safe not-found/unavailable handling.
+- Keep owner and Underwriting query handlers separate. Do not grant Underwriters access to
+  `GET /api/v1/evidence-requests/{id}` and do not make the customer React route accept Underwriters.
+- Keep team projection role-gated through the Notifications audience model. Add an automated contract
+  check ensuring every actionable notification type/audience combination resolves to a route and API
+  policy that audience can use.
+- Apply the same audit to Quote, Submission, Policy, Claim, reassessment, and future subjects so no role
+  receives an action that points at another role's workflow.
+- Coordinate with collected item 2 so successful deep-link resolution acknowledges the team receipt,
+  while a failed destination does not silently mark it read.
+
+### Acceptance scenarios
+
+1. A Customer responding to an Evidence request creates an Underwriting team notification with a clear
+   `Evidence response received` title and the exact Quote/request context.
+2. An Underwriter clicking that action remains inside the authorized Underwriting workbench, with the
+   matching Quote selected and the exact Evidence request loaded.
+3. The same Underwriter cannot access the customer-only Evidence detail API or page directly; existing
+   403/access-restricted behavior remains intact.
+4. A Customer/Broker notification for the same subject continues to open the owner-facing detail route.
+5. Opening request A cannot select request B, even when both have the same category or company.
+6. A stale, malformed, superseded, or nonexistent deep link cannot expose another owner's Evidence and
+   does not mark the notification read.
+7. A user without the required capability sees no unusable action; the update remains readable and the
+   API still enforces its policy independently.
+8. Admin and multi-role accounts resolve actions from their effective capabilities deterministically.
+9. Personal/team tabs, unread counts, read receipts, SignalR refresh hints, and item-2 subject
+   acknowledgement stay consistent after navigation.
+10. Notification mapper/title tests, role/audience/action matrix tests, Underwriting API integration
+    tests, React routing/deep-link tests, accessibility tests, module-boundary tests, and full
+    Docker-backed local CI pass.
+
+### Re-audit questions before implementation
+
+- Should the Underwriting workbench open the Evidence panel inline or use a dedicated Underwriter-only
+  Evidence detail route? Prefer the inline deep link while the current workbench owns all review actions;
+  introduce a dedicated route only if the panel becomes too large or requires independently shareable
+  navigation state.
+- Which Admin capability should win when an Admin can perform both owner-support and Underwriting work?
+  Base this on the notification's scope/audience plus effective capabilities, not a hard-coded role order.
+- Which legacy notification rows lack Quote ids or meaningful titles? Define a safe no-action fallback
+  rather than inferring identity from display text.
+
 ## Future collected items
 
 Add later approved findings below this heading. Keep each entry independent enough to re-audit, estimate,
