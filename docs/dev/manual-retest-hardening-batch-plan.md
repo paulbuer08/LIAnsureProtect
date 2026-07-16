@@ -97,6 +97,93 @@ Use progressive validation rather than a provider allowlist:
   or in a future Accounts/Contacts context? Preserve response history regardless of the chosen read model.
 - What retention and resend limits will Legal/Compliance approve for respondent contact verification?
 
+## Collected item 2 — subject-aware notification acknowledgement from every entry path
+
+### Observed gap
+
+The Notifications page marks an unread entry as read before navigating to its subject. The Evidence
+request list uses an ordinary link to the same exact detail route, while a bookmarked/direct detail URL
+only loads the Underwriting-owned request. Consequently, a customer can open and even respond to
+`Verify incident response readiness` while its `Evidence requested` Notification remains unread and the
+header badge remains inflated.
+
+This is not a conflict between Evidence status and Notification status: `Responded` answers what happened
+to the Evidence workflow, while `Unread` records whether the recipient has acknowledged the message.
+The bug is that acknowledgement is tied to one navigation origin instead of the subject being viewed.
+
+### Approved product behavior
+
+1. Successfully opening an exact active subject acknowledges its applicable active Notification whether
+   navigation started from Notifications, Evidence, a dashboard/deep link, a bookmark, or a direct URL.
+2. Loading, unauthorized, not-found, and failed subject pages do not mark anything read. A resource is
+   acknowledged only after its owner-scoped detail read succeeds.
+3. Responding to an Evidence request is definitive acknowledgement even for a non-browser API client.
+4. Acknowledgement is subject-aware and recipient-scoped. Opening one Evidence request must not read the
+   other requests created for the same Quote or Submission.
+5. If several active messages concern the exact same subject, viewing the subject acknowledges entries
+   that occurred at or before the view time. A genuinely newer update projected afterward remains unread.
+6. Historical/superseded Notifications retain their original read audit state and remain excluded from
+   active unread counts; subject acknowledgement must not manufacture a historical read timestamp.
+7. The badge and inbox refresh immediately after acknowledgement. Existing focus/navigation refresh
+   remains a safety net, and payload-free SignalR remains only a refresh hint.
+8. The same reusable behavior should be audited for Quote, Policy, Claim, Submission, and reassessment
+   subjects. Apply it only where the exact destination actually reveals the notification's subject.
+
+### Implementation boundary for the future batch
+
+- Keep Evidence GET endpoints safe and cacheable. Do not add a write side effect to
+  `GET /api/v1/evidence-requests/{id}`.
+- Add an explicit idempotent Notifications command/API addressed by normalized subject type and exact
+  subject id. Notifications remains authoritative for recipient-scoped read state; Evidence does not
+  write the Notifications schema or reference its repository.
+- After an exact resource query succeeds, a shared React hook acknowledges that subject and invalidates
+  both inbox and unread-count TanStack Query caches. Guard the effect against rerenders and retries.
+- Persist a recipient/subject `viewed-through` watermark in the Notifications context. Without it, a
+  notification projected shortly after the customer opens the subject could become incorrectly unread
+  because the acknowledgement arrived first. The idempotent projector applies the watermark only when
+  the message occurrence time is not newer than the recorded view time.
+- Consume the existing `QuoteEvidenceRequestRespondedDomainEvent` through the transactional outbox to
+  acknowledge the owner's matching request notification. This covers API clients and makes response a
+  durable proof of awareness without a cross-schema write.
+- Use the existing exact subject reference (`evidence-request` plus Evidence request id), owner identity,
+  event occurrence time, and outbox dedupe identity. Do not infer by title, category, Quote, company, or
+  display text.
+- Keep personal and team read models distinct. Re-audit team subject acknowledgement separately because
+  team entries use per-user read receipts rather than one owner-specific `ReadAtUtc`.
+- Publish/invalidate only after the Notifications transaction commits. Failures must surface as safe,
+  retryable acknowledgement errors without preventing the user from viewing the resource.
+
+### Acceptance scenarios
+
+1. Opening an unread request from Notifications marks only that entry read and navigates to exact detail.
+2. Opening the same unread request from the Evidence list marks the corresponding entry read and reduces
+   the badge without visiting the Notifications page.
+3. Visiting the owner-scoped detail URL directly or refreshing it produces the same idempotent outcome.
+4. Submitting the first Evidence response marks the request notification acknowledged even when the
+   caller never invoked the browser acknowledgement command.
+5. Opening one of four Evidence requests changes only its exact subject; the other three remain unread.
+6. Another owner's subject id returns 404/unauthorized and cannot change either owner's read state.
+7. A subject acknowledgement committed before a delayed request-notification projection prevents the
+   older message from later inflating the badge.
+8. A new remediation or other update for the same subject occurring after the watermark remains unread.
+9. Historical entries remain historical and retain their original read timestamp/null state.
+10. Browser cache, multi-tab/focus refresh, SignalR reconnection, outbox replay, and duplicate commands
+    converge to the same unread count without polling or double decrement.
+11. Equivalent Quote, Policy, Claim, Submission, and reassessment routes are covered where their detail
+    page proves that the corresponding update was viewed.
+12. Unit, Notifications repository/projector, API integration, frontend routing/cache, accessibility,
+    module-boundary, and full Docker-backed local-CI tests pass.
+
+### Re-audit questions before implementation
+
+- Should opening a subject acknowledge all older active messages for that exact subject or only the
+  newest visible one? The recommended rule is `OccurredAtUtc <= ViewedThroughUtc` so later updates remain
+  unread.
+- Which non-Evidence destinations truly expose enough context to count as viewed? Do not acknowledge a
+  notification merely because a broad list page was opened.
+- Should a failed acknowledgement be retried silently after the detail remains usable, or receive a
+  small non-blocking status message? It must never hide the resource or display raw diagnostics.
+
 ## Future collected items
 
 Add later approved findings below this heading. Keep each entry independent enough to re-audit, estimate,
