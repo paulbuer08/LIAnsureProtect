@@ -24,6 +24,7 @@
 | Per-milestone documentation rules | [dev/milestone-documentation-practice.md](dev/milestone-documentation-practice.md) |
 | Business domain: cyber specialty insurance | [business/cyber-specialty-insurance-overview.md](business/cyber-specialty-insurance-overview.md) |
 | Business domain: user roles & ownership rules | [business/user-roles.md](business/user-roles.md) |
+| Future Broker firms, client organizations, delegated authority, and ownership migration | [dev/broker-organizations-and-delegated-access-plan.md](dev/broker-organizations-and-delegated-access-plan.md) |
 | Core concepts explained (modular monolith, outbox, …) | [concepts/README.md](concepts/README.md) |
 | Phase 2 infra/edge/identity decisions + domain/Auth0 setup log | [dev/phase2-infrastructure-and-identity-decisions.md](dev/phase2-infrastructure-and-identity-decisions.md) |
 | Customer errors, support IDs, CloudWatch alarms, and browser telemetry | [dev/production-observability-and-customer-errors-runbook.md](dev/production-observability-and-customer-errors-runbook.md) |
