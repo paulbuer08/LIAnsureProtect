@@ -389,6 +389,74 @@ authorized Underwriter consume those entries.
   approved behavior uses deliberate open/view; retain it unless Compliance requires explicit
   acknowledgement.
 
+## Collected item 5 — persistent notification scope tabs and filter-aware empty states
+
+### Observed gap and root cause
+
+Team-capable users initially see `All`, `Personal`, and `Team`. Selecting `Personal` can make the entire
+tab strip disappear when that scope contains no entries, leaving the user unable to select `All` or
+`Team` again without reloading/navigating.
+
+The frontend currently renders both the scope tabs and notification results only inside
+`notificationsQuery.isSuccess && notifications.length > 0`. Scope is also sent to the server, so a valid
+empty Personal response sets `notifications.length` to zero and removes the controls. The existing team
+filter test does not catch this because its API mock returns the same mixed collection for every scope
+request instead of honoring the requested filter.
+
+### Approved product behavior
+
+1. `All`, `Personal`, and `Team` remain visible for every team-capable role whenever the Notifications
+   page is available, regardless of loading, empty, filtered-empty, or populated results.
+2. Customer/Broker personal-only pages continue to have no scope tabs at all.
+3. Selecting an empty scope preserves the selection and shows a scope-specific message such as
+   `No personal notifications` or `No team notifications` beneath the tabs.
+4. `No notifications yet` is reserved for an actually empty inbox with no search, read-state, or scope
+   filter hiding results.
+5. Search/read-state combinations show `No notifications match these filters` and keep all filter
+   controls available.
+6. Switching back to `All` or another scope works without a page reload and restores that scope's
+   results.
+7. Loading or failure of one scope does not erase navigation. The error belongs in the result panel,
+   while the stable filters remain usable for retry or switching scope.
+8. Scope availability comes from server-authoritative capabilities returned by `GET /api/v1/me`, not
+   from whether the current query happened to return a team row.
+
+### Implementation boundary for the future batch
+
+- Render the capability-gated tab list independently from result cardinality. Separate the stable page
+  controls from loading/error/empty/populated result panels.
+- Keep the server-side `scope` filter; do not fetch every notification merely to make client filtering
+  easier. TanStack Query should cache each scope/filter combination under a distinct key.
+- Derive empty-state copy from the selected scope and active search/read filters. If distinguishing an
+  empty global inbox from an empty filtered view requires metadata, extend the result contract with
+  minimal counts rather than issuing hidden broad queries on every tab change.
+- Preserve the selected scope during refetch/realtime invalidation. If URL query-state is introduced,
+  validate unsupported scope values and fall back according to the user's capabilities.
+- Complete the tab accessibility contract: stable `tablist`, selected state, keyboard navigation,
+  focus visibility, and a labelled result region/tabpanel. Do not move focus unexpectedly on refetch.
+- Update tests so the mocked API returns different data for `all`, `personal`, and `team` requests and
+  asserts the actual query contract, not only client-visible filtering.
+
+### Acceptance scenarios
+
+1. An Underwriter with only team notifications selects Personal, sees a personal-empty message, and the
+   `All`, `Personal`, and `Team` tabs remain visible.
+2. The same user selects Team or All without reloading and the team notifications return.
+3. A team-capable user with no notifications in any scope still sees all three tabs and a true-inbox
+   empty state.
+4. A Customer/Broker sees no tabs and receives the personal-only empty/populated experience.
+5. Search and read-state filters that match zero rows preserve the scope tabs and show filter-specific
+   empty copy.
+6. Scope-specific loading and API failure states preserve controls and expose accessible status/error
+   feedback.
+7. SignalR, focus, notification-read, and collected-item-2 acknowledgement invalidations do not reset the
+   selected scope or temporarily remove the tabs.
+8. Multi-role/Admin capability changes resolve deterministically after `GET /api/v1/me` completes.
+9. React unit tests exercise distinct server responses per scope, keyboard behavior, empty/error/loading
+   panels, and returning from an empty scope.
+10. Frontend TypeScript, lint, all tests/build, accessibility verification, and full Docker-backed local
+    CI pass without changing backend authorization or weakening existing tests.
+
 ## Future collected items
 
 Add later approved findings below this heading. Keep each entry independent enough to re-audit, estimate,
