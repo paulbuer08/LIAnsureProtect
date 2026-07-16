@@ -457,6 +457,40 @@ request instead of honoring the requested filter.
 10. Frontend TypeScript, lint, all tests/build, accessibility verification, and full Docker-backed local
     CI pass without changing backend authorization or weakening existing tests.
 
+## Collected item 6 — concise respondent-contact guidance
+
+### Approved presentation change
+
+The Customer/Broker Evidence response form currently repeats the mobile and telephone examples twice:
+once in each placeholder and again as a full sentence below the input. The duplication consumes vertical
+space without adding new guidance.
+
+For the grouped implementation:
+
+- Keep the mobile placeholder `0917 123 4567 or +63 917 123 4567`.
+- Remove the normally visible sentence `Philippine mobile numbers use 11 domestic digits beginning with
+  09, or country code +63 followed by 10 digits beginning with 9.`
+- Keep the telephone placeholder `02 8123 4567 or +63 2 8123 4567`.
+- Remove the normally visible sentence `Include the Philippine area code. Metro Manila commonly uses 02
+  domestically or +63 2 internationally.`
+- Change the email help text to `Underwriting may use this address to verify the response.` by removing
+  only `It is not treated as proof by itself.`
+- Preserve the current validation rules. When a supplied email, mobile number, or telephone number is
+  invalid, show its specific visible error beneath the field; cosmetic simplification must not recreate
+  the earlier silent-disabled-button problem.
+- Do not leave `aria-describedby` pointing to an element that was removed. Keep a visually hidden format
+  hint for assistive technology or conditionally connect the input to the visible validation error.
+
+### Acceptance scenarios
+
+1. Empty valid fields show the requested concise presentation and existing placeholders.
+2. Invalid mobile, telephone, and email values still show precise visible errors and `aria-invalid`.
+3. Correcting an invalid value removes its error without restoring the removed explanatory paragraph.
+4. Screen readers retain an accessible label and format/error relationship even though the normal visual
+   helper text is gone.
+5. Initial response and follow-up modes use the same wording and validation behavior.
+6. Frontend tests, accessibility checks, TypeScript, lint, build, and full local CI pass.
+
 ## Future collected items
 
 Add later approved findings below this heading. Keep each entry independent enough to re-audit, estimate,
