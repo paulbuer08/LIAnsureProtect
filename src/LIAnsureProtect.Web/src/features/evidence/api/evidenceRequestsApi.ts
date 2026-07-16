@@ -5,6 +5,8 @@ import type {
   ListEvidenceRequestsResponse,
   QuoteEvidenceRequest,
   RespondToEvidenceRequest,
+  EmailDomainCapability,
+  RespondentEmailVerification,
 } from "../types";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5223";
@@ -75,6 +77,44 @@ export async function getEvidenceRequest(
     response,
     "Evidence request was not found.",
   );
+}
+
+export async function checkRespondentEmailDomain(accessToken: string, emailAddress: string) {
+  const response = await fetch(`${apiBaseUrl}/api/v1/evidence-requests/email-domain-check`, {
+    method: "POST",
+    headers: { ...authHeaders(accessToken), "Content-Type": "application/json" },
+    body: JSON.stringify({ emailAddress }),
+  });
+  return parseJsonResponse<EmailDomainCapability>(response, "Email domain check was not found.");
+}
+
+export async function requestRespondentEmailVerification(
+  accessToken: string,
+  evidenceRequestId: string,
+  responseId: string,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/evidence-requests/${evidenceRequestId}/responses/${responseId}/email-verification`,
+    { method: "POST", headers: authHeaders(accessToken) },
+  );
+  return parseJsonResponse<RespondentEmailVerification>(response, "Evidence response was not found.");
+}
+
+export async function verifyRespondentEmail(
+  accessToken: string,
+  evidenceRequestId: string,
+  responseId: string,
+  verificationCode: string,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/v1/evidence-requests/${evidenceRequestId}/responses/${responseId}/email-verification/verify`,
+    {
+      method: "POST",
+      headers: { ...authHeaders(accessToken), "Content-Type": "application/json" },
+      body: JSON.stringify({ verificationCode }),
+    },
+  );
+  return parseJsonResponse<RespondentEmailVerification>(response, "Evidence response was not found.");
 }
 
 export async function respondToEvidenceRequest(

@@ -33,6 +33,18 @@ public interface IEvidenceRequestsReader
     Task<IReadOnlyCollection<EvidenceRequestSummaryItem>> GetSummariesAsync(
         IReadOnlyCollection<Guid> quoteIds,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<UnderwritingEvidenceQueueItem>> GetUnderwritingQueuePageAsync(
+        string? search,
+        EvidenceRequestStatus? status,
+        EvidenceReviewDecisionStatus? reviewDecision,
+        bool? overdue,
+        bool? unreadFollowUps,
+        int? cursorPriority,
+        DateTime? cursorUpdatedAtUtc,
+        Guid? cursorEvidenceRequestId,
+        int take,
+        CancellationToken cancellationToken);
 }
 
 public sealed record EvidenceRequestSnapshot(
@@ -117,3 +129,24 @@ public sealed record EvidenceRequestSummaryItem(
     DateTime? NextOpenDueAtUtc,
     bool IsWaitingForInformation,
     DateTime? LatestEvidenceActivityAtUtc);
+
+public sealed record UnderwritingEvidenceQueueItem(
+    Guid EvidenceRequestId,
+    Guid QuoteId,
+    Guid SubmissionId,
+    string SubmissionReference,
+    string CompanyName,
+    int QuoteVersion,
+    EvidenceRequestCategory Category,
+    string Title,
+    DateTime DueAtUtc,
+    EvidenceRequestStatus Status,
+    EvidenceReviewDecisionStatus ReviewDecision,
+    EvidenceDocumentRequirement DocumentRequirement,
+    int PendingFollowUpCount,
+    int DocumentCount,
+    int DownloadableDocumentCount,
+    DateTime? OldestPendingFollowUpAtUtc,
+    DateTime UpdatedAtUtc,
+    int Priority,
+    bool IsOverdue);

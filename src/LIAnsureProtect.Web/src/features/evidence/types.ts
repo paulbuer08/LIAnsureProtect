@@ -58,3 +58,19 @@ export type RespondToEvidenceRequest = {
   attachmentContentType?: string | null;
   attachmentSizeBytes?: number | null;
 };
+
+export type EmailDomainCapability = {
+  status: "MailCapable" | "AddressFallback" | "Undeliverable" | "Unverified";
+  domain: string;
+  suggestion: string | null;
+  userMessage: string | null;
+  isAuthoritative: boolean;
+};
+
+export type RespondentEmailVerification = {
+  responseId: string;
+  status: "Unverified" | "VerificationPending" | "Verified";
+  sentAtUtc: string | null;
+  expiresAtUtc: string | null;
+  verifiedAtUtc: string | null;
+};

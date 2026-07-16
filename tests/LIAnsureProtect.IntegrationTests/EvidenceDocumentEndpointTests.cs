@@ -7,6 +7,7 @@ using LIAnsureProtect.Domain.Quotes;
 using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.IntegrationTests.Security;
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Email;
 using LIAnsureProtect.Modules.Underwriting.Domain.Evidence.Documents;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
@@ -62,6 +63,8 @@ public sealed class EvidenceDocumentEndpointTests
 
             builder.ConfigureTestServices(services =>
             {
+                services.RemoveAll<IRespondentEmailDomainChecker>();
+                services.AddSingleton<IRespondentEmailDomainChecker, TestRespondentEmailDomainChecker>();
                 services.RemoveAll<IDbContextOptionsConfiguration<SubmissionDbContext>>();
                 services.RemoveAll<DbContextOptions>();
                 services.RemoveAll<DbContextOptions<SubmissionDbContext>>();

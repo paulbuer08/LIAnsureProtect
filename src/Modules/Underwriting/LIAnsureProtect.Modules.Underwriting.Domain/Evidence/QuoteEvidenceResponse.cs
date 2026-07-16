@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 namespace LIAnsureProtect.Modules.Underwriting.Domain.Evidence;
 
 /// <summary>
@@ -29,6 +31,13 @@ public sealed class QuoteEvidenceResponse
     public DateTime RespondedAtUtc { get; private set; }
     public string? ViewedByUserId { get; private set; }
     public DateTime? ViewedAtUtc { get; private set; }
+    public string EmailDomainStatus { get; private set; } = "Unverified";
+    public string EmailVerificationStatus { get; private set; } = "Unverified";
+    public string? EmailVerificationTokenHash { get; private set; }
+    public DateTime? EmailVerificationExpiresAtUtc { get; private set; }
+    public DateTime? EmailVerificationSentAtUtc { get; private set; }
+    public DateTime? EmailVerifiedAtUtc { get; private set; }
+    public int EmailVerificationSendCount { get; private set; }
 
     public static QuoteEvidenceResponse Create(
         QuoteEvidenceRequest request,
@@ -40,7 +49,8 @@ public sealed class QuoteEvidenceResponse
         string? responseText,
         string? otherConcerns,
         EvidenceResponseKind kind,
-        DateTime respondedAtUtc)
+        DateTime respondedAtUtc,
+        string emailDomainStatus = "Unverified")
     {
         return Create(
             request,
@@ -53,7 +63,8 @@ public sealed class QuoteEvidenceResponse
             responseText,
             otherConcerns,
             kind,
-            respondedAtUtc);
+            respondedAtUtc,
+            emailDomainStatus);
     }
 
     public static QuoteEvidenceResponse Create(
@@ -67,7 +78,8 @@ public sealed class QuoteEvidenceResponse
         string? responseText,
         string? otherConcerns,
         EvidenceResponseKind kind,
-        DateTime respondedAtUtc)
+        DateTime respondedAtUtc,
+        string emailDomainStatus = "Unverified")
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -102,8 +114,62 @@ public sealed class QuoteEvidenceResponse
                 "Other concerns",
                 EvidenceResponseFieldRules.OtherConcernsMaxLength),
             Kind = kind,
-            RespondedAtUtc = respondedAtUtc
+            RespondedAtUtc = respondedAtUtc,
+            EmailDomainStatus = string.IsNullOrWhiteSpace(emailDomainStatus) ? "Unverified" : emailDomainStatus.Trim(),
+            EmailVerificationStatus = "Unverified"
         };
+    }
+
+    public void BeginEmailVerification(string tokenHash, DateTime sentAtUtc, DateTime expiresAtUtc)
+    {
+        if (EmailVerifiedAtUtc.HasValue)
+            return;
+        if (EmailVerificationSentAtUtc.HasValue && EmailVerificationSentAtUtc.Value > sentAtUtc.AddMinutes(-1))
+            throw new InvalidOperationException("Wait one minute before requesting another verification email.");
+        if (EmailVerificationSentAtUtc.HasValue && EmailVerificationSentAtUtc.Value <= sentAtUtc.AddHours(-24))
+            EmailVerificationSendCount = 0;
+        if (EmailVerificationSendCount >= 5
+            && EmailVerificationSentAtUtc.HasValue
+            && EmailVerificationSentAtUtc.Value > sentAtUtc.AddHours(-24))
+            throw new InvalidOperationException("The daily verification-email limit is reached. Try again later.");
+
+        EmailVerificationTokenHash = EvidenceResponseFieldRules.Required(
+            tokenHash,
+            nameof(tokenHash),
+            "Email verification token hash",
+            128);
+        EmailVerificationSentAtUtc = sentAtUtc;
+        EmailVerificationExpiresAtUtc = expiresAtUtc;
+        EmailVerificationStatus = "VerificationPending";
+        EmailVerificationSendCount++;
+    }
+
+    public void VerifyEmail(string tokenHash, DateTime verifiedAtUtc)
+    {
+        if (EmailVerifiedAtUtc.HasValue)
+            throw new InvalidOperationException("This respondent email is already verified.");
+        if (EmailVerificationTokenHash is null || !EmailVerificationExpiresAtUtc.HasValue)
+            throw new InvalidOperationException("Request a verification email first.");
+        if (EmailVerificationExpiresAtUtc.Value <= verifiedAtUtc)
+            throw new InvalidOperationException("This verification code has expired. Request a new email.");
+        if (!CryptographicOperations.FixedTimeEquals(
+                Convert.FromHexString(EmailVerificationTokenHash),
+                Convert.FromHexString(tokenHash)))
+            throw new InvalidOperationException("The verification code is invalid.");
+
+        EmailVerifiedAtUtc = verifiedAtUtc;
+        EmailVerificationStatus = "Verified";
+        EmailVerificationTokenHash = null;
+        EmailVerificationExpiresAtUtc = null;
+    }
+
+    public void RecordEmailVerificationDeliveryFailed()
+    {
+        if (EmailVerifiedAtUtc.HasValue)
+            return;
+        EmailVerificationStatus = "Unverified";
+        EmailVerificationTokenHash = null;
+        EmailVerificationExpiresAtUtc = null;
     }
 
     public bool MarkViewed(string viewedByUserId, DateTime viewedAtUtc)

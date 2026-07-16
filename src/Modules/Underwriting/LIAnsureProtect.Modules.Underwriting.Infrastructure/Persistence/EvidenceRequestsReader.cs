@@ -166,6 +166,124 @@ public sealed class EvidenceRequestsReader(UnderwritingDbContext dbContext) : IE
             .ToList();
     }
 
+    public async Task<IReadOnlyCollection<UnderwritingEvidenceQueueItem>> GetUnderwritingQueuePageAsync(
+        string? search,
+        EvidenceRequestStatus? status,
+        EvidenceReviewDecisionStatus? reviewDecision,
+        bool? overdue,
+        bool? unreadFollowUps,
+        int? cursorPriority,
+        DateTime? cursorUpdatedAtUtc,
+        Guid? cursorEvidenceRequestId,
+        int take,
+        CancellationToken cancellationToken)
+    {
+        var nowUtc = DateTime.UtcNow;
+        var responses = dbContext.Set<QuoteEvidenceResponse>();
+        var documents = dbContext.Set<Domain.Evidence.Documents.QuoteEvidenceDocument>();
+        var query = dbContext.Set<QuoteEvidenceRequest>()
+            .AsNoTracking()
+            .Where(request => request.QuoteDisposition == QuoteEvidenceDisposition.Current
+                && request.Status != EvidenceRequestStatus.Cancelled
+                && request.Status != EvidenceRequestStatus.Accepted)
+            .Select(request => new
+            {
+                Request = request,
+                PendingFollowUpCount = responses.Count(response =>
+                    response.EvidenceRequestId == request.Id
+                    && response.Kind == EvidenceResponseKind.FollowUp
+                    && response.ViewedAtUtc == null),
+                OldestPendingFollowUpAtUtc = responses
+                    .Where(response => response.EvidenceRequestId == request.Id
+                        && response.Kind == EvidenceResponseKind.FollowUp
+                        && response.ViewedAtUtc == null)
+                    .Select(response => (DateTime?)response.RespondedAtUtc)
+                    .Min(),
+                DocumentCount = documents.Count(document => document.EvidenceRequestId == request.Id),
+                DownloadableDocumentCount = documents.Count(document =>
+                    document.EvidenceRequestId == request.Id
+                    && document.ScanStatus == Domain.Evidence.Documents.EvidenceDocumentScanStatus.Clean),
+                Priority = request.Status == EvidenceRequestStatus.Open && request.DueAtUtc < nowUtc
+                    ? 0
+                    : responses.Any(response => response.EvidenceRequestId == request.Id
+                        && response.Kind == EvidenceResponseKind.FollowUp
+                        && response.ViewedAtUtc == null)
+                        ? 1
+                        : request.Status == EvidenceRequestStatus.Responded
+                            && request.ReviewDecision == EvidenceReviewDecisionStatus.NotReviewed
+                            ? 2
+                            : request.ReviewDecision == EvidenceReviewDecisionStatus.NeedsClarification
+                                || request.ReviewDecision == EvidenceReviewDecisionStatus.Insufficient
+                                ? 3
+                                : 4
+            });
+
+        if (status.HasValue)
+            query = query.Where(item => item.Request.Status == status.Value);
+        if (reviewDecision.HasValue)
+            query = query.Where(item => item.Request.ReviewDecision == reviewDecision.Value);
+        if (overdue == true)
+            query = query.Where(item => item.Request.Status == EvidenceRequestStatus.Open && item.Request.DueAtUtc < nowUtc);
+        else if (overdue == false)
+            query = query.Where(item => item.Request.Status != EvidenceRequestStatus.Open || item.Request.DueAtUtc >= nowUtc);
+        if (unreadFollowUps == true)
+            query = query.Where(item => item.PendingFollowUpCount > 0);
+        else if (unreadFollowUps == false)
+            query = query.Where(item => item.PendingFollowUpCount == 0);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = $"%{search.ToUpperInvariant()}%";
+            var exactId = Guid.TryParse(search, out var parsedId) ? parsedId : (Guid?)null;
+#pragma warning disable CA1304, CA1311 // Translated by EF into provider-side UPPER.
+            query = query.Where(item =>
+                EF.Functions.Like(item.Request.Title.ToUpper(), pattern)
+                || EF.Functions.Like(item.Request.SubmissionReference.ToUpper(), pattern)
+                || EF.Functions.Like(item.Request.CompanyName.ToUpper(), pattern)
+                || (exactId.HasValue && (item.Request.Id == exactId.Value
+                    || item.Request.QuoteId == exactId.Value
+                    || item.Request.SubmissionId == exactId.Value)));
+#pragma warning restore CA1304, CA1311
+        }
+
+        if (cursorPriority.HasValue && cursorUpdatedAtUtc.HasValue && cursorEvidenceRequestId.HasValue)
+        {
+            query = query.Where(item =>
+                item.Priority > cursorPriority.Value
+                || (item.Priority == cursorPriority.Value && item.Request.UpdatedAtUtc < cursorUpdatedAtUtc.Value)
+                || (item.Priority == cursorPriority.Value
+                    && item.Request.UpdatedAtUtc == cursorUpdatedAtUtc.Value
+                    && item.Request.Id.CompareTo(cursorEvidenceRequestId.Value) > 0));
+        }
+
+        return await query
+            .OrderBy(item => item.Priority)
+            .ThenByDescending(item => item.Request.UpdatedAtUtc)
+            .ThenBy(item => item.Request.Id)
+            .Take(take)
+            .Select(item => new UnderwritingEvidenceQueueItem(
+                item.Request.Id,
+                item.Request.QuoteId,
+                item.Request.SubmissionId,
+                item.Request.SubmissionReference,
+                item.Request.CompanyName,
+                item.Request.QuoteVersion,
+                item.Request.Category,
+                item.Request.Title,
+                item.Request.DueAtUtc,
+                item.Request.Status,
+                item.Request.ReviewDecision,
+                item.Request.DocumentRequirement,
+                item.PendingFollowUpCount,
+                item.DocumentCount,
+                item.DownloadableDocumentCount,
+                item.OldestPendingFollowUpAtUtc,
+                item.Request.UpdatedAtUtc,
+                item.Priority,
+                item.Request.Status == EvidenceRequestStatus.Open && item.Request.DueAtUtc < nowUtc))
+            .ToListAsync(cancellationToken);
+    }
+
     private static EvidenceRequestSnapshot ToSnapshot(QuoteEvidenceRequest request, DateTime nowUtc)
     {
         return new EvidenceRequestSnapshot(

@@ -2,9 +2,11 @@ using LIAnsureProtect.Application.Common.Security;
 using LIAnsureProtect.Application.Quotes.Queries.ListQuoteReferrals;
 using LIAnsureProtect.Modules.Quoting.Application.ReferralDecisions;
 using LIAnsureProtect.Modules.Underwriting.Application.Commands.GenerateAiUnderwritingReview;
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Commands.ManageEvidenceRequests;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Documents;
 using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Queries.GetUnderwritingEvidenceRequest;
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Queries.ListUnderwritingEvidenceQueue;
 using LIAnsureProtect.Modules.Underwriting.Application.Referrals.Commands.ManageReferralOperations;
 using LIAnsureProtect.Modules.Underwriting.Domain.Referrals;
 using MediatR;
@@ -26,8 +28,69 @@ namespace LIAnsureProtect.Api.Controllers;
 [Route("api/v1/underwriting/quote-referrals")]
 [Authorize(Policy = ApplicationPolicies.UnderwriteQuote)]
 [ServiceFilter<Caching.ReferralQueueCacheInvalidationFilter>]
-public sealed class UnderwritingQuoteReferralsController(ISender sender) : ControllerBase
+public sealed class UnderwritingQuoteReferralsController(
+    ISender sender,
+    ILogger<UnderwritingQuoteReferralsController> logger) : ControllerBase
 {
+    private static readonly Action<ILogger, int, double, Exception?> LogUnreadEvidenceFollowUps =
+        LoggerMessage.Define<int, double>(
+            LogLevel.Information,
+            new EventId(4101, "UnreadEvidenceFollowUps"),
+            "Underwriting evidence queue page contains {PendingFollowUpCount} unread follow-ups; oldest age is {OldestPendingFollowUpAgeMinutes} minutes.");
+
+    [HttpGet("/api/v1/underwriting/evidence-requests")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ListUnderwritingEvidenceQueueResult>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ListUnderwritingEvidenceQueueResult>> ListEvidenceQueue(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] string? reviewDecision,
+        [FromQuery] bool? overdue,
+        [FromQuery] bool? unreadFollowUps,
+        [FromQuery] string? cursor,
+        [FromQuery] int pageSize = 12,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new ListUnderwritingEvidenceQueueQuery(
+                    search,
+                    status,
+                    reviewDecision,
+                    overdue,
+                    unreadFollowUps,
+                    cursor,
+                    pageSize),
+                cancellationToken);
+            var pendingFollowUpCount = result.EvidenceRequests.Sum(item => item.PendingFollowUpCount);
+            var oldestPendingAtUtc = result.EvidenceRequests
+                .Where(item => item.OldestPendingFollowUpAtUtc.HasValue)
+                .Select(item => item.OldestPendingFollowUpAtUtc)
+                .Min();
+            if (pendingFollowUpCount > 0)
+            {
+                LogUnreadEvidenceFollowUps(
+                    logger,
+                    pendingFollowUpCount,
+                    oldestPendingAtUtc.HasValue
+                        ? Math.Max(0, (DateTime.UtcNow - oldestPendingAtUtc.Value).TotalMinutes)
+                        : 0,
+                    null);
+            }
+            return Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(CreateProblemDetails(
+                StatusCodes.Status400BadRequest,
+                "Evidence queue filters are invalid.",
+                exception.Message));
+        }
+    }
+
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

@@ -20,6 +20,7 @@ import {
   getQuoteEvidenceRequest,
   listQuoteReferralTimeline,
   listQuoteReferrals,
+  listUnderwritingEvidenceQueue,
   markQuoteEvidenceFollowUpViewed,
   recordQuoteEvidenceReviewDecision,
   releaseQuoteReferralAssignment,
@@ -52,6 +53,7 @@ vi.mock("../api/underwritingApi", () => ({
   completeQuoteReferralTask: vi.fn(),
   listQuoteReferralTimeline: vi.fn(),
   listQuoteReferrals: vi.fn(),
+  listUnderwritingEvidenceQueue: vi.fn(),
   markQuoteEvidenceFollowUpViewed: vi.fn(),
   followUpQuoteEvidenceRequest: vi.fn(),
   recordQuoteEvidenceReviewDecision: vi.fn(),
@@ -59,7 +61,7 @@ vi.mock("../api/underwritingApi", () => ({
   triageQuoteReferralOperation: vi.fn(),
 }));
 
-function renderWorkbench() {
+function renderWorkbench(initialEntries = ["/underwriting/quote-referrals"]) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -73,7 +75,7 @@ function renderWorkbench() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
         <UnderwritingQuoteReferralsPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -189,6 +191,11 @@ describe("UnderwritingQuoteReferralsPage", () => {
       entries: [],
     });
     vi.mocked(listQuoteReferrals).mockReset();
+    vi.mocked(listUnderwritingEvidenceQueue).mockReset();
+    vi.mocked(listUnderwritingEvidenceQueue).mockResolvedValue({
+      evidenceRequests: [],
+      nextCursor: null,
+    });
     vi.mocked(markQuoteEvidenceFollowUpViewed).mockReset();
     vi.mocked(recordQuoteEvidenceReviewDecision).mockReset();
     vi.mocked(releaseQuoteReferralAssignment).mockReset();
@@ -212,6 +219,71 @@ describe("UnderwritingQuoteReferralsPage", () => {
 
     expect(
       await screen.findByText("No referred quotes are waiting for review."),
+    ).toBeInTheDocument();
+  });
+
+  it("opens an exact evidence request deep link without requiring a referred quote", async () => {
+    vi.mocked(listQuoteReferrals).mockResolvedValue({ quoteReferrals: [] });
+    vi.mocked(getQuoteEvidenceRequest).mockResolvedValue({
+      evidenceRequestId: "evidence-direct",
+      quoteId: "quote-direct",
+      submissionId: "submission-direct",
+      submissionReference: "SUB-2026-DIRECT",
+      companyName: "Direct Evidence Company",
+      documentRequirement: "Required",
+      category: "IncidentResponsePlan",
+      title: "Review the direct evidence request",
+      description: "This request remains actionable outside the referral queue.",
+      dueAtUtc: "2026-07-30T09:00:00Z",
+      status: "Responded",
+      isOverdue: false,
+      daysUntilDue: 14,
+      requestedByUserId: "system-assurance-policy",
+      requestedAtUtc: "2026-07-16T09:00:00Z",
+      respondedByUserId: "auth0|customer",
+      respondentName: "Jane Applicant",
+      respondentTitle: "CISO",
+      respondentEmail: "jane@example.com",
+      respondentMobileNumber: null,
+      respondentTelephoneNumber: null,
+      responseText: "The incident plan is attached.",
+      otherConcerns: null,
+      attachmentFileName: null,
+      attachmentContentType: null,
+      attachmentSizeBytes: null,
+      respondedAtUtc: "2026-07-16T10:00:00Z",
+      acceptedByUserId: null,
+      acceptedAtUtc: null,
+      cancelledByUserId: null,
+      cancelledAtUtc: null,
+      ...notReviewedEvidence,
+      reviewNotes: null,
+      updatedAtUtc: "2026-07-16T10:00:00Z",
+      documents: [],
+      responses: [],
+      pendingFollowUpCount: 0,
+      maxPendingFollowUps: 5,
+      quoteVersion: 1,
+      quoteDisposition: "Current",
+      supersededAtUtc: null,
+      supersededByQuoteId: null,
+      supersededByQuoteVersion: null,
+    });
+
+    renderWorkbench([
+      "/underwriting/quote-referrals?quoteId=quote-direct&evidenceRequestId=evidence-direct",
+    ]);
+
+    expect(
+      await screen.findByText("Review the direct evidence request"),
+    ).toBeInTheDocument();
+    expect(getQuoteEvidenceRequest).toHaveBeenCalledWith(
+      "underwriter-token",
+      "quote-direct",
+      "evidence-direct",
+    );
+    expect(
+      screen.getByText("No referred quotes are waiting for review."),
     ).toBeInTheDocument();
   });
 

@@ -5,10 +5,13 @@ import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  checkRespondentEmailDomain,
   downloadOwnerEvidenceDocument,
   getEvidenceRequest,
+  requestRespondentEmailVerification,
   respondToEvidenceRequest,
   uploadReplacementEvidenceDocuments,
+  verifyRespondentEmail,
 } from "../api/evidenceRequestsApi";
 import { useEvidenceRequest } from "../hooks/useEvidenceRequests";
 import type { QuoteEvidenceRequest } from "../types";
@@ -23,10 +26,13 @@ vi.mock("@auth0/auth0-react", () => ({
 }));
 
 vi.mock("../api/evidenceRequestsApi", () => ({
+  checkRespondentEmailDomain: vi.fn(),
   downloadOwnerEvidenceDocument: vi.fn(),
   getEvidenceRequest: vi.fn(),
+  requestRespondentEmailVerification: vi.fn(),
   respondToEvidenceRequest: vi.fn(),
   uploadReplacementEvidenceDocuments: vi.fn(),
+  verifyRespondentEmail: vi.fn(),
 }));
 
 const notReviewedEvidence = {
@@ -71,6 +77,16 @@ describe("EvidenceRequestsPage", () => {
     vi.mocked(getEvidenceRequest).mockReset();
     vi.mocked(respondToEvidenceRequest).mockReset();
     vi.mocked(uploadReplacementEvidenceDocuments).mockReset();
+    vi.mocked(checkRespondentEmailDomain).mockReset();
+    vi.mocked(checkRespondentEmailDomain).mockResolvedValue({
+      status: "MailCapable",
+      domain: "example.com",
+      suggestion: null,
+      userMessage: null,
+      isAuthoritative: true,
+    });
+    vi.mocked(requestRespondentEmailVerification).mockReset();
+    vi.mocked(verifyRespondentEmail).mockReset();
   });
 
   it("submits a text response with evidence documents from request detail", async () => {
@@ -246,6 +262,66 @@ describe("EvidenceRequestsPage", () => {
     expect(
       screen.getByRole("button", { name: "Download edr-rollout.txt" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows an authoritative email-domain error inline and keeps submission blocked", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getEvidenceRequest).mockResolvedValue({
+      evidenceRequestId: "evidence-email",
+      quoteId: "quote-email",
+      submissionId: "submission-email",
+      documentRequirement: "NarrativeOnly",
+      category: "MultiFactorAuthentication",
+      title: "Confirm MFA rollout",
+      description: "Provide current MFA evidence.",
+      dueAtUtc: "2026-07-30T09:00:00Z",
+      status: "Open",
+      isOverdue: false,
+      daysUntilDue: 14,
+      requestedByUserId: "underwriter-1",
+      requestedAtUtc: "2026-07-16T09:00:00Z",
+      respondedByUserId: null,
+      respondentName: null,
+      respondentTitle: null,
+      respondentEmail: null,
+      responseText: null,
+      attachmentFileName: null,
+      attachmentContentType: null,
+      attachmentSizeBytes: null,
+      respondedAtUtc: null,
+      acceptedByUserId: null,
+      acceptedAtUtc: null,
+      cancelledByUserId: null,
+      cancelledAtUtc: null,
+      reviewDecision: "NotReviewed",
+      reviewReason: null,
+      remediationGuidance: null,
+      reviewedByUserId: null,
+      reviewedAtUtc: null,
+      reviewNotes: null,
+      updatedAtUtc: "2026-07-16T09:00:00Z",
+      documents: [],
+      responses: [],
+    });
+    vi.mocked(checkRespondentEmailDomain).mockResolvedValue({
+      status: "Undeliverable",
+      domain: "yahee.com",
+      suggestion: "yahoo.com",
+      userMessage: "This email domain declares that it cannot receive email.",
+      isAuthoritative: true,
+    });
+
+    renderEvidenceRequestsPage();
+    await user.type(await screen.findByLabelText(/Respondent name/), "Jane Applicant");
+    await user.type(screen.getByLabelText(/Respondent title/), "CISO");
+    await user.type(screen.getByLabelText(/Respondent email/), "jane@yahee.com");
+    await user.tab();
+    await user.type(screen.getByLabelText(/Evidence response/), "MFA is enabled.");
+
+    expect(await screen.findByText(/declares that it cannot receive email/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use yahoo.com instead" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit evidence response" })).toBeDisabled();
+    expect(respondToEvidenceRequest).not.toHaveBeenCalled();
   });
 
   it("asks before discarding an unsent evidence response", async () => {
@@ -643,6 +719,8 @@ describe("EvidenceRequestsPage", () => {
           otherConcerns: null,
           kind: "Initial" as const,
           respondedAtUtc: "2026-07-14T10:00:00Z",
+          emailDomainStatus: "MailCapable" as const,
+          emailVerificationStatus: "Unverified" as const,
         },
       ],
     };
@@ -669,11 +747,25 @@ describe("EvidenceRequestsPage", () => {
         },
       ],
     });
+    vi.mocked(requestRespondentEmailVerification).mockResolvedValue({
+      responseId: "response-1",
+      status: "VerificationPending",
+      sentAtUtc: "2026-07-14T10:05:00Z",
+      expiresAtUtc: "2026-07-14T10:25:00Z",
+      verifiedAtUtc: null,
+    });
 
     renderEvidenceRequestsPage();
 
     expect(await screen.findByRole("button", { name: "Send follow-up" })).toBeDisabled();
     expect(screen.getByText(/original response remains unchanged/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Send verification email" }));
+    expect(requestRespondentEmailVerification).toHaveBeenCalledWith(
+      "owner-token",
+      "evidence-follow-up",
+      "response-1",
+    );
+    expect(await screen.findByLabelText("One-time verification code")).toBeInTheDocument();
     await user.type(
       screen.getByLabelText(/^Respondent mobile number/),
       "+63 917 555 0101",

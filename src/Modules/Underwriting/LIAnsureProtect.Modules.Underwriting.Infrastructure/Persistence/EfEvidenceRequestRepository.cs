@@ -49,6 +49,19 @@ public sealed class EfEvidenceRequestRepository(UnderwritingDbContext dbContext)
             cancellationToken);
     }
 
+    public Task<QuoteEvidenceResponse?> GetResponseForOwnerAsync(
+        Guid evidenceRequestId,
+        Guid responseId,
+        string ownerUserId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.Set<QuoteEvidenceResponse>().SingleOrDefaultAsync(
+            response => response.Id == responseId
+                && response.EvidenceRequestId == evidenceRequestId
+                && response.OwnerUserId == ownerUserId,
+            cancellationToken);
+    }
+
     public Task<QuoteEvidenceRequest?> GetForUnderwritingAsync(
         Guid quoteId,
         Guid evidenceRequestId,

@@ -6,6 +6,7 @@ using LIAnsureProtect.Domain.Submissions;
 using LIAnsureProtect.Infrastructure.Persistence;
 using LIAnsureProtect.Infrastructure.Persistence.Outbox;
 using LIAnsureProtect.IntegrationTests.Security;
+using LIAnsureProtect.Modules.Underwriting.Application.Evidence.Email;
 using LIAnsureProtect.Modules.Notifications.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Claims.Infrastructure.Persistence;
 using LIAnsureProtect.Modules.Underwriting.Infrastructure.Persistence;
@@ -64,6 +65,12 @@ public sealed class UnderwritingReferralEndpointTests
 
             builder.ConfigureTestServices(services =>
             {
+                services.RemoveAll<IRespondentEmailDomainChecker>();
+                services.AddSingleton<IRespondentEmailDomainChecker, TestRespondentEmailDomainChecker>();
+                services.RemoveAll<IRespondentEmailVerificationSender>();
+                services.AddSingleton<TestRespondentEmailVerificationSender>();
+                services.AddSingleton<IRespondentEmailVerificationSender>(provider =>
+                    provider.GetRequiredService<TestRespondentEmailVerificationSender>());
                 services.RemoveAll<IDbContextOptionsConfiguration<SubmissionDbContext>>();
                 services.RemoveAll<DbContextOptions>();
                 services.RemoveAll<DbContextOptions<SubmissionDbContext>>();
@@ -147,6 +154,41 @@ public sealed class UnderwritingReferralEndpointTests
         Assert.Equal(2, referrals.Length);
         Assert.Equal(olderQuote.Id, referrals[0].GetProperty("quoteId").GetGuid());
         Assert.Equal(newerQuote.Id, referrals[1].GetProperty("quoteId").GetGuid());
+    }
+
+    [Fact]
+    public async Task Evidence_Review_Queue_Lists_Current_Request_Without_Requiring_A_Referred_Quote()
+    {
+        var requestedAtUtc = DateTime.UtcNow.AddDays(-2);
+        var evidenceRequest = ModuleQuoteEvidenceRequest.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "customer-1",
+            "system-assurance-policy",
+            ModuleEvidenceRequestCategory.IncidentResponsePlan,
+            "Verify incident response readiness",
+            "Upload current supporting evidence.",
+            requestedAtUtc.AddDays(1),
+            requestedAtUtc,
+            submissionReference: "SUB-2026-QUEUE00000001",
+            companyName: "Example Company");
+        await SaveEvidenceRequestsAsync(evidenceRequest);
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            "/api/v1/underwriting/evidence-requests",
+            "Underwriter",
+            "underwriter-1");
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var payload = JsonDocument.Parse(content);
+        var items = payload.RootElement.GetProperty("evidenceRequests").EnumerateArray().ToArray();
+        Assert.Single(items);
+        Assert.Equal(evidenceRequest.Id, items[0].GetProperty("evidenceRequestId").GetGuid());
+        Assert.Equal("Verify incident response readiness", items[0].GetProperty("title").GetString());
+        Assert.True(items[0].GetProperty("isOverdue").GetBoolean());
     }
 
     [Fact]
@@ -801,6 +843,123 @@ public sealed class UnderwritingReferralEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("Philippine mobile format", content, StringComparison.Ordinal);
         Assert.Contains("Philippine landline format", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Evidence_Request_Response_Rejects_Authoritatively_Undeliverable_Email_Domain()
+    {
+        var quote = CreateQuotedQuote("customer-1");
+        var requestedAtUtc = DateTime.UtcNow.AddHours(-1);
+        var evidenceRequest = ModuleQuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            "customer-1",
+            "underwriter-1",
+            ModuleEvidenceRequestCategory.MultiFactorAuthentication,
+            "Confirm MFA rollout",
+            "Provide current MFA evidence.",
+            requestedAtUtc.AddDays(7),
+            requestedAtUtc,
+            documentRequirement: LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceDocumentRequirement.NarrativeOnly);
+        await SaveQuotesAsync(quote);
+        await SaveEvidenceRequestsAsync(evidenceRequest);
+
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"/api/v1/evidence-requests/{evidenceRequest.Id}/respond",
+            "Customer",
+            "customer-1",
+            new
+            {
+                respondentName = "Jane Applicant",
+                respondentTitle = "CISO",
+                respondentEmail = "jane@undeliverable.test",
+                responseText = "MFA is enabled."
+            });
+        using var response = await httpClient.SendAsync(request, TestContext.Current.CancellationToken);
+        var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("cannot receive email", content, StringComparison.OrdinalIgnoreCase);
+        await using var scope = webApplicationFactory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<UnderwritingDbContext>();
+        Assert.Empty(await dbContext.Set<LIAnsureProtect.Modules.Underwriting.Domain.Evidence.QuoteEvidenceResponse>()
+            .Where(item => item.EvidenceRequestId == evidenceRequest.Id)
+            .ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Evidence_Response_Email_Verification_Is_Owner_Scoped_And_Uses_A_One_Time_Code()
+    {
+        var quote = CreateQuotedQuote("customer-1");
+        var requestedAtUtc = DateTime.UtcNow.AddHours(-1);
+        var evidenceRequest = ModuleQuoteEvidenceRequest.Create(
+            quote.Id,
+            quote.Quote.SubmissionId,
+            "customer-1",
+            "underwriter-1",
+            ModuleEvidenceRequestCategory.MultiFactorAuthentication,
+            "Confirm MFA rollout",
+            "Provide current MFA evidence.",
+            requestedAtUtc.AddDays(7),
+            requestedAtUtc,
+            documentRequirement: LIAnsureProtect.Modules.Underwriting.Domain.Evidence.EvidenceDocumentRequirement.NarrativeOnly);
+        await SaveQuotesAsync(quote);
+        await SaveEvidenceRequestsAsync(evidenceRequest);
+
+        using var respondRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"/api/v1/evidence-requests/{evidenceRequest.Id}/respond",
+            "Customer",
+            "customer-1",
+            new
+            {
+                respondentName = "Jane Applicant",
+                respondentTitle = "CISO",
+                respondentEmail = "jane@example.com",
+                responseText = "MFA is enabled."
+            });
+        using var respondResponse = await httpClient.SendAsync(respondRequest, TestContext.Current.CancellationToken);
+        var respondContent = await respondResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, respondResponse.StatusCode);
+        using var respondPayload = JsonDocument.Parse(respondContent);
+        var responseId = respondPayload.RootElement.GetProperty("responses")[0].GetProperty("responseId").GetGuid();
+
+        using var requestVerification = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"/api/v1/evidence-requests/{evidenceRequest.Id}/responses/{responseId}/email-verification",
+            "Customer",
+            "customer-1");
+        using var requestVerificationResponse = await httpClient.SendAsync(
+            requestVerification,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, requestVerificationResponse.StatusCode);
+
+        var sender = webApplicationFactory.Services.GetRequiredService<TestRespondentEmailVerificationSender>();
+        Assert.NotNull(sender.LastMessage);
+        Assert.Equal("jane@example.com", sender.LastMessage.RecipientEmail);
+
+        using var verifyRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"/api/v1/evidence-requests/{evidenceRequest.Id}/responses/{responseId}/email-verification/verify",
+            "Customer",
+            "customer-1",
+            new { verificationCode = sender.LastMessage.VerificationCode });
+        using var verifyResponse = await httpClient.SendAsync(verifyRequest, TestContext.Current.CancellationToken);
+        var verifyContent = await verifyResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, verifyResponse.StatusCode);
+        using var verifyPayload = JsonDocument.Parse(verifyContent);
+        Assert.Equal("Verified", verifyPayload.RootElement.GetProperty("status").GetString());
+
+        using var replayRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"/api/v1/evidence-requests/{evidenceRequest.Id}/responses/{responseId}/email-verification/verify",
+            "Customer",
+            "customer-1",
+            new { verificationCode = sender.LastMessage.VerificationCode });
+        using var replayResponse = await httpClient.SendAsync(replayRequest, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Conflict, replayResponse.StatusCode);
     }
 
     [Fact]

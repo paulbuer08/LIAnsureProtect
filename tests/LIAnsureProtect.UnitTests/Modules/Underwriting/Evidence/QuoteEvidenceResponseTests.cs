@@ -77,6 +77,64 @@ public sealed class QuoteEvidenceResponseTests
             null, null, EvidenceResponseKind.Initial, DateTime.UtcNow));
     }
 
+    [Fact]
+    public void Email_verification_uses_an_expiring_one_time_hash_and_is_idempotent_after_success()
+    {
+        var response = CreateResponse();
+        var sentAtUtc = new DateTime(2026, 7, 16, 8, 0, 0, DateTimeKind.Utc);
+
+        response.BeginEmailVerification("AABB", sentAtUtc, sentAtUtc.AddMinutes(20));
+
+        Assert.Equal("VerificationPending", response.EmailVerificationStatus);
+        Assert.Throws<InvalidOperationException>(() =>
+            response.VerifyEmail("CCDD", sentAtUtc.AddMinutes(1)));
+
+        response.VerifyEmail("AABB", sentAtUtc.AddMinutes(2));
+
+        Assert.Equal("Verified", response.EmailVerificationStatus);
+        Assert.Equal(sentAtUtc.AddMinutes(2), response.EmailVerifiedAtUtc);
+        Assert.Null(response.EmailVerificationTokenHash);
+        Assert.Throws<InvalidOperationException>(() =>
+            response.VerifyEmail("AABB", sentAtUtc.AddMinutes(3)));
+    }
+
+    [Fact]
+    public void Email_verification_limits_resends_and_resets_the_allowance_after_twenty_four_hours()
+    {
+        var response = CreateResponse();
+        var sentAtUtc = new DateTime(2026, 7, 16, 8, 0, 0, DateTimeKind.Utc);
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var attemptAtUtc = sentAtUtc.AddMinutes(attempt * 2);
+            response.BeginEmailVerification($"HASH-{attempt}", attemptAtUtc, attemptAtUtc.AddMinutes(20));
+        }
+
+        Assert.Throws<InvalidOperationException>(() =>
+            response.BeginEmailVerification("HASH-6", sentAtUtc.AddMinutes(12), sentAtUtc.AddMinutes(32)));
+
+        var nextDayUtc = sentAtUtc.AddHours(24).AddMinutes(10);
+        response.BeginEmailVerification("HASH-NEXT-DAY", nextDayUtc, nextDayUtc.AddMinutes(20));
+
+        Assert.Equal(1, response.EmailVerificationSendCount);
+    }
+
+    private static QuoteEvidenceResponse CreateResponse()
+    {
+        return QuoteEvidenceResponse.Create(
+            CreateRequest(),
+            "customer-1",
+            "Jane",
+            "CISO",
+            "jane@example.com",
+            null,
+            "MFA is enabled.",
+            null,
+            EvidenceResponseKind.Initial,
+            DateTime.UtcNow,
+            "MailCapable");
+    }
+
     private static QuoteEvidenceRequest CreateRequest()
     {
         var requestedAtUtc = new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc);

@@ -6,6 +6,9 @@ import {
   getEvidenceRequest,
   respondToEvidenceRequest,
   uploadReplacementEvidenceDocuments,
+  checkRespondentEmailDomain,
+  requestRespondentEmailVerification,
+  verifyRespondentEmail,
 } from "../api/evidenceRequestsApi";
 import type { EvidenceRequestFilters, RespondToEvidenceRequest } from "../types";
 
@@ -80,5 +83,39 @@ export function useUploadReplacementEvidenceDocuments() {
     },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: evidenceRequestsQueryKey }),
+  });
+}
+
+export function useCheckRespondentEmailDomain() {
+  const { getAccessTokenSilently } = useAuth0();
+  return useMutation({
+    mutationFn: async (emailAddress: string) => {
+      const accessToken = await getAccessTokenSilently();
+      return checkRespondentEmailDomain(accessToken, emailAddress);
+    },
+  });
+}
+
+export function useRequestRespondentEmailVerification() {
+  const { getAccessTokenSilently } = useAuth0();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ evidenceRequestId, responseId }: { evidenceRequestId: string; responseId: string }) => {
+      const accessToken = await getAccessTokenSilently();
+      return requestRespondentEmailVerification(accessToken, evidenceRequestId, responseId);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: evidenceRequestsQueryKey }),
+  });
+}
+
+export function useVerifyRespondentEmail() {
+  const { getAccessTokenSilently } = useAuth0();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ evidenceRequestId, responseId, verificationCode }: { evidenceRequestId: string; responseId: string; verificationCode: string }) => {
+      const accessToken = await getAccessTokenSilently();
+      return verifyRespondentEmail(accessToken, evidenceRequestId, responseId, verificationCode);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: evidenceRequestsQueryKey }),
   });
 }

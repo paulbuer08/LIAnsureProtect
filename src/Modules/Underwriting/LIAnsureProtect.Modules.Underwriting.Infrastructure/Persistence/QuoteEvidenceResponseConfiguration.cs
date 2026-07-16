@@ -28,6 +28,13 @@ public sealed class QuoteEvidenceResponseConfiguration : IEntityTypeConfiguratio
         builder.Property(response => response.RespondedAtUtc).HasColumnName("responded_at_utc").IsRequired();
         builder.Property(response => response.ViewedByUserId).HasColumnName("viewed_by_user_id").HasMaxLength(256);
         builder.Property(response => response.ViewedAtUtc).HasColumnName("viewed_at_utc");
+        builder.Property(response => response.EmailDomainStatus).HasColumnName("email_domain_status").HasMaxLength(50).IsRequired();
+        builder.Property(response => response.EmailVerificationStatus).HasColumnName("email_verification_status").HasMaxLength(50).IsRequired();
+        builder.Property(response => response.EmailVerificationTokenHash).HasColumnName("email_verification_token_hash").HasMaxLength(128);
+        builder.Property(response => response.EmailVerificationExpiresAtUtc).HasColumnName("email_verification_expires_at_utc");
+        builder.Property(response => response.EmailVerificationSentAtUtc).HasColumnName("email_verification_sent_at_utc");
+        builder.Property(response => response.EmailVerifiedAtUtc).HasColumnName("email_verified_at_utc");
+        builder.Property(response => response.EmailVerificationSendCount).HasColumnName("email_verification_send_count").IsRequired();
 
         builder.HasIndex(response => new { response.EvidenceRequestId, response.RespondedAtUtc, response.Id })
             .HasDatabaseName("ix_quote_evidence_responses_request_responded_at");
