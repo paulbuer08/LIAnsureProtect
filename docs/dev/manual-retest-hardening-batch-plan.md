@@ -1,6 +1,6 @@
 # Manual-retest hardening batch — implementation plan
 
-**Status:** implemented and fully verified on `fix/reassessment-self-service-cooldown`; protected-main closeout is in progress.
+**Status:** implemented, fully verified, and merged to protected `main` in PR #68 on 2026-07-17.
 
 **Implementation record:** `docs/dev/manual-retest-hardening-batch-learnings.md`
 
