@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -131,7 +131,7 @@ describe("NotificationsPage", () => {
     expect(markNotificationRead).not.toHaveBeenCalled();
   });
 
-  it("links quote notifications to the exact immutable quote", async () => {
+  it("links quote notifications to the exact immutable quote without pre-acknowledging", async () => {
     const user = userEvent.setup();
     vi.mocked(listMyNotifications).mockResolvedValue({
       notifications: [
@@ -161,9 +161,7 @@ describe("NotificationsPage", () => {
     const quoteLink = await screen.findByRole("link", { name: "View quote" });
     expect(quoteLink).toHaveAttribute("href", "/submissions/submission-456/quotes/q-1");
     await user.click(quoteLink);
-    await waitFor(() => {
-      expect(markNotificationRead).toHaveBeenCalledWith("api-access-token", "n-1");
-    });
+    expect(markNotificationRead).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Mark as read" })).not.toBeInTheDocument();
   });
 
@@ -249,7 +247,12 @@ describe("NotificationsPage", () => {
 
   it("deep-links personal and team claim notifications to the correct claim workspace", async () => {
     vi.mocked(useCurrentUser).mockReturnValue({
-      data: { userId: "adjuster-1", email: null, roles: ["ClaimsAdjuster"] },
+      data: {
+        userId: "admin-1",
+        email: null,
+        roles: ["Admin"],
+        capabilities: ["Claims.Read", "Claims.Adjudicate", "Notifications.Read"],
+      },
       isPending: false,
       isError: false,
       isSuccess: true,
@@ -289,10 +292,11 @@ describe("NotificationsPage", () => {
     renderNotificationsPage();
 
     const links = await screen.findAllByRole("link", { name: "Open claim" });
-    expect(links[0]).toHaveAttribute("href", "/claims/claim-123");
-    expect(links[1]).toHaveAttribute(
-      "href",
-      "/claims/adjudication?claimId=claim-456",
+    expect(links.map((link) => link.getAttribute("href"))).toEqual(
+      expect.arrayContaining([
+        "/claims/claim-123",
+        "/claims/adjudication?claimId=claim-456",
+      ]),
     );
   });
 

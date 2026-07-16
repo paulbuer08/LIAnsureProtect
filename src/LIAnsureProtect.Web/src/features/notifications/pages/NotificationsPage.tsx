@@ -1,16 +1,14 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
 import { hasTeamNotificationAccess } from "../../../lib/roleAccess";
 import { formatCurrency } from "../../../lib/currency";
 import { getUserErrorMessage } from "../../../lib/apiClient";
-import {
-  useMarkNotificationRead,
-  useNotifications,
-} from "../hooks/useNotifications";
+import { useNotifications } from "../hooks/useNotifications";
 import type { NotificationInboxItem, NotificationScope } from "../types";
+import { resolveNotificationAction } from "../notificationActionResolver";
 
 type NotificationFilter = "all" | NotificationScope;
 
@@ -22,77 +20,6 @@ const filterTabs: { value: NotificationFilter; label: string }[] = [
 
 function getErrorMessage(error: unknown) {
   return getUserErrorMessage(error, "Unable to load notifications.");
-}
-
-function getNotificationAction(
-  subjectReferenceType: string,
-  subjectReferenceId: string,
-  attributes: Record<string, string>,
-  scope: NotificationScope,
-) {
-  if (subjectReferenceType === "policy") {
-    const policyId = attributes.policyId ?? subjectReferenceId;
-    return policyId
-      ? { label: "View policy", to: `/policies/${policyId}` }
-      : null;
-  }
-
-  if (subjectReferenceType === "evidence-request") {
-    const evidenceRequestId = attributes.evidenceRequestId ?? subjectReferenceId;
-    return evidenceRequestId
-      ? {
-          label: "Open evidence request",
-          to: `/evidence-requests/${evidenceRequestId}`,
-        }
-      : null;
-  }
-
-  if (subjectReferenceType === "quote") {
-    const submissionId = attributes.submissionId;
-    const quoteId = attributes.quoteId ?? subjectReferenceId;
-    return submissionId && quoteId
-      ? {
-          label: "View quote",
-          to: `/submissions/${submissionId}/quotes/${quoteId}`,
-        }
-      : null;
-  }
-
-  if (subjectReferenceType === "reassessment_request") {
-    if (scope === "team") {
-      return { label: "Review reassessment", to: "/underwriting/quote-referrals" };
-    }
-    const submissionId = attributes.submissionId;
-    const quoteId = attributes.quoteId;
-    return attributes.status === "Approved" && submissionId && quoteId
-      ? { label: "View new quote", to: `/submissions/${submissionId}/quotes/${quoteId}` }
-      : submissionId
-        ? { label: "Open submission", to: `/submissions/${submissionId}` }
-        : null;
-  }
-
-  if (subjectReferenceType === "submission") {
-    const submissionId =
-      attributes.submissionId ??
-      subjectReferenceId;
-    return submissionId
-      ? { label: "Open submission", to: `/submissions/${submissionId}` }
-      : null;
-  }
-
-  if (subjectReferenceType === "claim") {
-    const claimId = attributes.claimId ?? subjectReferenceId;
-    if (!claimId) return null;
-
-    return scope === "team"
-      ? {
-          label: "Open claim",
-          to: `/claims/adjudication?claimId=${encodeURIComponent(claimId)}`,
-        }
-      : { label: "Open claim", to: `/claims/${claimId}` };
-  }
-
-  return null;
 }
 
 function NotificationDetails({ attributes }: { attributes: Record<string, string> }) {
@@ -142,22 +69,14 @@ function groupNotifications(notifications: NotificationInboxItem[]) {
 }
 
 export function NotificationsPage() {
-  const navigate = useNavigate();
   const currentUserQuery = useCurrentUser();
   const [filter, setFilter] = useState<NotificationFilter>("all");
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [readState, setReadState] = useState("");
-  const canFilterByTeam = hasTeamNotificationAccess(
-    currentUserQuery.data?.roles,
-  );
-  const [previousCanFilterByTeam, setPreviousCanFilterByTeam] = useState(
-    canFilterByTeam,
-  );
-  if (previousCanFilterByTeam !== canFilterByTeam) {
-    setPreviousCanFilterByTeam(canFilterByTeam);
-    setFilter(canFilterByTeam ? "all" : "personal");
-  }
+  const canFilterByTeam = currentUserQuery.data?.capabilities
+    ? currentUserQuery.data.capabilities.includes("Notifications.ReadTeam")
+    : hasTeamNotificationAccess(currentUserQuery.data?.roles);
 
   const notificationsQuery = useNotifications({
     filters: {
@@ -168,7 +87,6 @@ export function NotificationsPage() {
         filter === "all" ? undefined : filter,
     },
   });
-  const markReadMutation = useMarkNotificationRead();
 
   const notifications = notificationsQuery.data?.notifications ?? [];
   const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
@@ -191,16 +109,6 @@ export function NotificationsPage() {
       : filter === "team"
         ? "Updates for your operational teams will appear here."
         : "Updates about your submissions, quotes, policies, and evidence requests will appear here.";
-
-  async function openNotification(
-    notification: NotificationInboxItem,
-    destination: string,
-  ) {
-    if (!notification.isRead && notification.lifecycleState !== "Historical") {
-      await markReadMutation.mutateAsync(notification.notificationId);
-    }
-    void navigate(destination);
-  }
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
@@ -308,11 +216,9 @@ export function NotificationsPage() {
                     <ul className="divide-y divide-slate-800">
                       {group.notifications.map((notification) => {
                         const isHistorical = notification.lifecycleState === "Historical";
-                        const action = getNotificationAction(
-                          notification.subjectReferenceType,
-                          notification.subjectReferenceId,
-                          notification.attributes,
-                          notification.scope,
+                        const action = resolveNotificationAction(
+                          notification,
+                          currentUserQuery.data,
                         );
 
                         return (
@@ -359,12 +265,6 @@ export function NotificationsPage() {
                                 {action && (
                                   <Link
                                     to={action.to}
-                                    onClick={(event) => {
-                                      if (notification.isRead || isHistorical) return;
-                                      event.preventDefault();
-                                      void openNotification(notification, action.to);
-                                    }}
-                                    aria-disabled={markReadMutation.isPending}
                                     className="inline-flex h-fit rounded-lg border border-emerald-400/60 px-4 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-400 hover:text-slate-950 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
                                   >
                                     {isHistorical

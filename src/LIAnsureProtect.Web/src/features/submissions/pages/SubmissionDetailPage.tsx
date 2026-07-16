@@ -29,6 +29,7 @@ import type {
   SensitiveDataExposure,
 } from "../types";
 import { isCreatedQuote } from "../types";
+import { useAcknowledgeNotificationSubject } from "../../notifications/hooks/useNotifications";
 
 type BooleanControlDetailKey = {
   [K in keyof CyberControlDetails]: CyberControlDetails[K] extends boolean
@@ -352,6 +353,9 @@ export function SubmissionDetailPage() {
     useState(false);
   const [effectiveDate, setEffectiveDate] = useState(defaultEffectiveDate);
   const submissionQuery = useSubmissionDetail(submissionId);
+  useAcknowledgeNotificationSubject("submission", submissionId, {
+    enabled: submissionQuery.isSuccess,
+  });
   const updateSubmissionMutation = useUpdateSubmission();
   const submitSubmissionMutation = useSubmitSubmission();
   const createQuoteMutation = useCreateQuote();

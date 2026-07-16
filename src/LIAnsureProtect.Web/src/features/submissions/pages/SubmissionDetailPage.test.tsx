@@ -184,7 +184,7 @@ describe("SubmissionDetailPage", () => {
     expect(screen.getByText("jane@example.com")).toBeInTheDocument();
     expect(screen.getByText("Example Company")).toBeInTheDocument();
     expect(screen.getByText("Draft")).toBeInTheDocument();
-    expect(getAccessTokenSilently).toHaveBeenCalledTimes(1);
+    expect(getAccessTokenSilently).toHaveBeenCalledTimes(2);
     expect(getSubmissionDetail).toHaveBeenCalledWith(
       "api-access-token",
       "submission-456",

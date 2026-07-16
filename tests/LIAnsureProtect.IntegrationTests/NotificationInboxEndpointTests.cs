@@ -119,6 +119,54 @@ public sealed class NotificationInboxEndpointTests
     }
 
     [Fact]
+    public async Task Subject_View_Acknowledges_Only_The_Exact_Personal_Subject()
+    {
+        var viewedSubjectId = Guid.NewGuid().ToString();
+        var otherSubjectId = Guid.NewGuid().ToString();
+        await SeedEntriesAsync(
+            CreateEntryForSubject("customer-1", viewedSubjectId),
+            CreateEntryForSubject("customer-1", otherSubjectId));
+
+        using var viewRequest = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{EndpointPath}/subjects/evidence-request/{viewedSubjectId}/view?scope=personal",
+            "Customer",
+            "customer-1");
+        using var viewResponse = await httpClient.SendAsync(
+            viewRequest,
+            TestContext.Current.CancellationToken);
+
+        using var listRequest = CreateAuthenticatedRequest(HttpMethod.Get, EndpointPath, "Customer", "customer-1");
+        using var listResponse = await httpClient.SendAsync(listRequest, TestContext.Current.CancellationToken);
+        using var payload = JsonDocument.Parse(
+            await listResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var notifications = payload.RootElement.GetProperty("notifications").EnumerateArray().ToArray();
+
+        Assert.Equal(HttpStatusCode.NoContent, viewResponse.StatusCode);
+        Assert.Equal(1, payload.RootElement.GetProperty("unreadCount").GetInt32());
+        Assert.True(notifications.Single(item =>
+            item.GetProperty("subjectReferenceId").GetString() == viewedSubjectId).GetProperty("isRead").GetBoolean());
+        Assert.False(notifications.Single(item =>
+            item.GetProperty("subjectReferenceId").GetString() == otherSubjectId).GetProperty("isRead").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Subject_View_Rejects_Team_Scope_When_User_Has_No_Team_Audience()
+    {
+        using var request = CreateAuthenticatedRequest(
+            HttpMethod.Post,
+            $"{EndpointPath}/subjects/evidence-request/{Guid.NewGuid()}/view?scope=team",
+            "Customer",
+            "customer-1");
+
+        using var response = await httpClient.SendAsync(
+            request,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task List_Filters_Within_The_Authorized_Personal_Inbox()
     {
         await SeedEntriesAsync(
@@ -298,6 +346,20 @@ public sealed class NotificationInboxEndpointTests
             Guid.NewGuid(),
             new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 6, 22, 9, 0, 5, DateTimeKind.Utc));
+    }
+
+    private static NotificationInboxEntry CreateEntryForSubject(string recipientUserId, string subjectId)
+    {
+        return NotificationInboxEntry.Create(
+            recipientUserId,
+            NotificationAudiences.CustomerOrBroker,
+            NotificationMessageTypes.EvidenceRequestCreated,
+            "evidence-request",
+            subjectId,
+            "{}",
+            Guid.NewGuid(),
+            new DateTime(2026, 7, 16, 9, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 7, 16, 9, 0, 5, DateTimeKind.Utc));
     }
 
     private static HttpRequestMessage CreateAuthenticatedRequest(

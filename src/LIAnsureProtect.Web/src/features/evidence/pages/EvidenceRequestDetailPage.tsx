@@ -4,10 +4,14 @@ import { Breadcrumbs } from "../../../components/Breadcrumbs";
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { useEvidenceRequest } from "../hooks/useEvidenceRequests";
 import { EvidenceRequestCard } from "./EvidenceRequestsPage";
+import { useAcknowledgeNotificationSubject } from "../../notifications/hooks/useNotifications";
 
 export function EvidenceRequestDetailPage() {
   const { evidenceRequestId } = useParams();
   const query = useEvidenceRequest(evidenceRequestId);
+  useAcknowledgeNotificationSubject("evidence-request", evidenceRequestId, {
+    enabled: query.isSuccess,
+  });
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">

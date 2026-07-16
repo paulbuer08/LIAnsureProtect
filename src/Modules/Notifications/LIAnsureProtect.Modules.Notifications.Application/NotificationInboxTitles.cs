@@ -19,6 +19,9 @@ public static class NotificationInboxTitles
         NotificationMessageTypes.EvidenceRequestCreated => attributes?.TryGetValue("requestTitle", out var requestTitle) == true
             ? $"Evidence requested: {requestTitle}"
             : "Evidence requested",
+        NotificationMessageTypes.EvidenceRequestResponded => attributes?.TryGetValue("requestTitle", out var responseRequestTitle) == true
+            ? $"Evidence response received: {responseRequestTitle}"
+            : "Evidence response received",
         NotificationMessageTypes.EvidenceRequestAccepted => "Evidence accepted",
         NotificationMessageTypes.EvidenceRequestCancelled => "Evidence request cancelled",
         NotificationMessageTypes.EvidenceRequestFollowUpSent => "Evidence reminder",

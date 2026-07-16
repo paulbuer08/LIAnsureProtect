@@ -3,11 +3,13 @@ import { Link, useParams } from "react-router";
 import { getUserErrorMessage } from "../../../lib/apiClient";
 import { formatCurrency } from "../../../lib/currency";
 import { useQuoteDetail } from "../hooks/useQuoteDetail";
+import { useAcknowledgeNotificationSubject } from "../../notifications/hooks/useNotifications";
 
 export function QuoteDetailPage() {
   const { submissionId, quoteId } = useParams();
   const query = useQuoteDetail(submissionId, quoteId);
   const quote = query.data;
+  useAcknowledgeNotificationSubject("quote", quoteId, { enabled: query.isSuccess });
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">

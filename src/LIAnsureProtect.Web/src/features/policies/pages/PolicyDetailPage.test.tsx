@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it, vi } from "vitest";
@@ -22,7 +23,11 @@ describe("PolicyDetailPage", () => {
     vi.mocked(usePolicy).mockReturnValue({ data: policy, isPending: false, isError: false } as ReturnType<typeof usePolicy>);
     vi.mocked(useClaimablePolicies).mockReturnValue({ data: { policies: [{ policyId: "policy-1", policyNumber: "LAP-2026-001", effectiveAtUtc: policy.effectiveDateUtc, expirationAtUtc: policy.expirationDateUtc, limit: policy.requestedLimit, retention: policy.retention }] } } as ReturnType<typeof useClaimablePolicies>);
 
-    render(<MemoryRouter initialEntries={["/policies/policy-1"]}><Routes><Route path="/policies/:policyId" element={<PolicyDetailPage />} /></Routes></MemoryRouter>);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(<QueryClientProvider client={queryClient}><MemoryRouter initialEntries={["/policies/policy-1"]}><Routes><Route path="/policies/:policyId" element={<PolicyDetailPage />} /></Routes></MemoryRouter></QueryClientProvider>);
 
     expect(screen.getByRole("heading", { name: "LAP-2026-001" })).toBeInTheDocument();
     expect(screen.getByText("Contractual status: Bound")).toBeInTheDocument();

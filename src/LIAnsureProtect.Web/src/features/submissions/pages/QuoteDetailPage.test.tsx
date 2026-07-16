@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,15 +9,21 @@ import { QuoteDetailPage } from "./QuoteDetailPage";
 vi.mock("../hooks/useQuoteDetail", () => ({ useQuoteDetail: vi.fn() }));
 
 function renderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+
   return render(
-    <MemoryRouter initialEntries={["/submissions/submission-1/quotes/quote-2"]}>
-      <Routes>
-        <Route
-          path="/submissions/:submissionId/quotes/:quoteId"
-          element={<QuoteDetailPage />}
-        />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={["/submissions/submission-1/quotes/quote-2"]}>
+        <Routes>
+          <Route
+            path="/submissions/:submissionId/quotes/:quoteId"
+            element={<QuoteDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

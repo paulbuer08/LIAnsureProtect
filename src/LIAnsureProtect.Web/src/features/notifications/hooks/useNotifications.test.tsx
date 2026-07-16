@@ -1,14 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { markNotificationRead } from "../api/notificationsApi";
+import { acknowledgeNotificationSubject, markNotificationRead } from "../api/notificationsApi";
 import type { ListMyNotificationsResponse } from "../types";
 import {
   notificationUnreadCountQueryKey,
   notificationsQueryKey,
   useMarkNotificationRead,
+  useAcknowledgeNotificationSubject,
 } from "./useNotifications";
 
 const getAccessTokenSilently = vi.fn();
@@ -18,6 +19,7 @@ vi.mock("@auth0/auth0-react", () => ({
 }));
 
 vi.mock("../api/notificationsApi", () => ({
+  acknowledgeNotificationSubject: vi.fn(),
   markNotificationRead: vi.fn(),
 }));
 
@@ -76,6 +78,43 @@ describe("useMarkNotificationRead", () => {
     ).toEqual([]);
     expect(queryClient.getQueryData(notificationUnreadCountQueryKey)).toEqual({
       unreadCount: 0,
+    });
+  });
+});
+
+describe("useAcknowledgeNotificationSubject", () => {
+  beforeEach(() => {
+    getAccessTokenSilently.mockReset();
+    getAccessTokenSilently.mockResolvedValue("api-access-token");
+    vi.mocked(acknowledgeNotificationSubject).mockReset();
+    vi.mocked(acknowledgeNotificationSubject).mockResolvedValue(undefined);
+  });
+
+  it("acknowledges the exact subject only after its detail query succeeds", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    }
+
+    const { rerender } = renderHook(
+      ({ enabled }) => useAcknowledgeNotificationSubject(
+        "evidence-request",
+        "evidence-123",
+        { enabled },
+      ),
+      { wrapper: Wrapper, initialProps: { enabled: false } },
+    );
+
+    expect(acknowledgeNotificationSubject).not.toHaveBeenCalled();
+    rerender({ enabled: true });
+
+    await waitFor(() => {
+      expect(acknowledgeNotificationSubject).toHaveBeenCalledWith(
+        "api-access-token",
+        "evidence-request",
+        "evidence-123",
+        "personal",
+      );
     });
   });
 });
